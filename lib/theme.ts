@@ -1,4 +1,20 @@
-export type Row = Record<string, unknown>;
+/* eslint-disable @typescript-eslint/no-explicit-any */
+export type Row = Record<string, any>;
+
+export function getFirstInstitute(): Row | undefined {
+  const { getDb } = require("./db");
+  const { getInstitute } = require("./store");
+  const db = getDb();
+  const row = db
+    .prepare("SELECT id FROM institute ORDER BY created_at LIMIT 1")
+    .get() as { id: string } | undefined;
+  return row ? getInstitute(row.id) : undefined;
+}
+
+export function getInstitute(instituteId: string): Row | undefined {
+  const { getInstitute: gi } = require("./store");
+  return gi(instituteId);
+}
 
 export type Branding = {
   name: string;

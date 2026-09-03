@@ -110,3 +110,12 @@ export function seedDemo() {
 
   console.log("Seeded demo daycare:", iid);
 }
+
+// Run on `tsx lib/seed.ts` (npm run db:init). `require.main === module` guards
+// against running when this module is imported by the app/server.
+if (
+  typeof require !== "undefined" &&
+  require.main === module
+) {
+  seedDemo();
+}

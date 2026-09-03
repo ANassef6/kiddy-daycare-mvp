@@ -8,17 +8,41 @@ import fs from "fs";
 const DATA_DIR = path.join(process.cwd(), "data");
 if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
 
-const DB_PATH = process.env.DATABASE_URL?.replace("file:", "") ?? path.join(DATA_DIR, "kiddy.db");
+// NOTE: we deliberately avoid the generic DATABASE_URL env var (this environment
+// injects a control-plane Postgres URL into it). Kiddy uses its own var, defaulting
+// to a local SQLite file when unset.
+const DB_PATH =
+  process.env.KIDDY_DATABASE_URL?.replace("file:", "") ??
+  path.join(DATA_DIR, "kiddy.db");
 
 let _db: Database.Database | null = null;
 
 export function getDb(): Database.Database {
   if (_db) return _db;
   _db = new Database(DB_PATH);
-  _db.pragma("journal_mode = WAL");
+  // DELETE (rollback) journal: commits are written straight to the main .db file
+  // and immediately visible to other processes (seed script, external tooling).
+  // WAL mode is preferable for concurrency but leaves data invisible to other
+  // processes until a checkpoint — which breaks the seed-then-serve flow here.
+  _db.pragma("journal_mode = DELETE");
+  _db.pragma("synchronous = NORMAL");
   _db.pragma("foreign_keys = ON");
   migrate(_db);
   return _db;
+}
+
+// On a clean process exit, ensure the connection is flushed/closed.
+if (typeof process !== "undefined") {
+  process.on("exit", () => {
+    try {
+      if (_db) {
+        _db.pragma("wal_checkpoint(TRUNCATE)");
+        _db.close();
+      }
+    } catch {
+      /* best-effort flush on exit */
+    }
+  });
 }
 
 export function migrate(db: Database.Database = getDb()): void {

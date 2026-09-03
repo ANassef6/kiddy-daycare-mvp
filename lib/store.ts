@@ -1,7 +1,10 @@
 import { getDb, uid } from "./db";
 import type Database from "better-sqlite3";
 
-type Row = Record<string, unknown>;
+// Rows expose their columns directly at call sites (pages/props render them).
+// We keep it permissive (`any`) for MVP ergonomics; tighten to interfaces later.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type Row = Record<string, any>;
 
 function all(db: Database.Database, sql: string, ...args: unknown[]): Row[] {
   return db.prepare(sql).all(...args) as Row[];
