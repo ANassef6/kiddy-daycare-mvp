@@ -1,5 +1,5 @@
 import { requireSession } from "@/lib/require";
-import { getDb } from "@/lib/db";
+import { queryAll, queryGet } from "@/lib/db";
 import {
   listChildren,
   listRooms,
@@ -11,23 +11,29 @@ import {
 
 export const dynamic = "force-dynamic";
 
-export default function PortalDashboard() {
+export default async function PortalDashboard() {
   requireSession();
-  const db = getDb();
-  const institutes = listInstitutes();
+  const institutes = await listInstitutes();
   const instituteId = institutes[0]?.id as string | undefined;
   if (!instituteId) {
     return <p className="muted">No institute configured. Run <code>pnpm db:init</code> to seed.</p>;
   }
-  const children = listChildren(instituteId);
-  const rooms = listRooms(instituteId);
-  const staff = listStaff(instituteId);
+  const [children, rooms, staff] = await Promise.all([
+    listChildren(instituteId),
+    listRooms(instituteId),
+    listStaff(instituteId),
+  ]);
   const today = new Date().toISOString().slice(0, 10);
-  const attendance = attendanceOn(instituteId, today);
+  const attendance = await attendanceOn(instituteId, today);
   const checkedInNow = attendance.filter((a) => a.last_event === "in").length;
-  const openConsents = (db.prepare("SELECT COUNT(*) c FROM consent_request WHERE status='pending'").get() as any).c;
-  const openIncidents = (db.prepare("SELECT COUNT(*) c FROM incident_report WHERE acknowledged=0").get() as any).c;
-  const latestReport = recentReports(instituteId, 1)[0];
+  const [consentCount, incidentCount] = await Promise.all([
+    queryGet("SELECT COUNT(*) c FROM consent_request WHERE status='pending'"),
+    queryGet("SELECT COUNT(*) c FROM incident_report WHERE acknowledged=0"),
+  ]);
+  const openConsents = ((consentCount as any)?.c as number) ?? 0;
+  const openIncidents = ((incidentCount as any)?.c as number) ?? 0;
+  const reports = await recentReports(instituteId, 1);
+  const latestReport = reports[0];
 
   return (
     <div>

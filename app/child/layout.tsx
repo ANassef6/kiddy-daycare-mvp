@@ -4,11 +4,11 @@ import { familiesForAccount } from "@/lib/store";
 
 export const dynamic = "force-dynamic";
 
-export default function ParentLayout({ children }: { children: React.ReactNode }) {
+export default async function ParentLayout({ children }: { children: React.ReactNode }) {
   const session = requireSession();
   let families: Record<string, unknown>[] = [];
   try {
-    families = familiesForAccount(session.accountId);
+    families = await familiesForAccount(session.accountId);
   } catch {
     // fall through
   }

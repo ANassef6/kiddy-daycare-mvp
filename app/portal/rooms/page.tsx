@@ -4,12 +4,14 @@ import { addRoomAction } from "@/lib/actions";
 
 export const dynamic = "force-dynamic";
 
-export default function PortalRoomsPage() {
+export default async function PortalRoomsPage() {
   requireSession();
-  const institutes = listInstitutes();
+  const institutes = await listInstitutes();
   const iid = institutes[0]?.id as string | undefined;
-  const rooms = iid ? listRooms(iid) : [];
-  const children = iid ? listChildren(iid) : [];
+  const [rooms, children] = await Promise.all([
+    iid ? listRooms(iid) : Promise.resolve([]),
+    iid ? listChildren(iid) : Promise.resolve([]),
+  ]);
 
   return (
     <div>

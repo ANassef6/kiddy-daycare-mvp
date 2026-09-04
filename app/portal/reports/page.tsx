@@ -3,11 +3,11 @@ import { listInstitutes, recentReports } from "@/lib/store";
 
 export const dynamic = "force-dynamic";
 
-export default function PortalReportsPage() {
+export default async function PortalReportsPage() {
   requireSession();
-  const institutes = listInstitutes();
+  const institutes = await listInstitutes();
   const iid = institutes[0]?.id as string | undefined;
-  const reports = iid ? recentReports(iid) : [];
+  const reports = iid ? await recentReports(iid) : [];
 
   return (
     <div>

@@ -5,12 +5,14 @@ import { addChildAction, inviteParentAction } from "@/lib/actions";
 
 export const dynamic = "force-dynamic";
 
-export default function PortalChildrenPage() {
+export default async function PortalChildrenPage() {
   requireSession();
-  const institutes = listInstitutes();
+  const institutes = await listInstitutes();
   const instituteId = institutes[0]?.id as string | undefined;
-  const children = instituteId ? listChildren(instituteId) : [];
-  const rooms = instituteId ? listRooms(instituteId) : [];
+  const [children, rooms] = await Promise.all([
+    instituteId ? listChildren(instituteId) : Promise.resolve([]),
+    instituteId ? listRooms(instituteId) : Promise.resolve([]),
+  ]);
 
   return (
     <div>

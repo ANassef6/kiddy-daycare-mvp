@@ -15,16 +15,18 @@ export const dynamic = "force-dynamic";
 
 export default async function ChildDetailPage({ params }: { params: { id: string } }) {
   const session = requireSession();
-  const child = getChild(params.id);
+  const child = await getChild(params.id);
   if (!child) notFound();
 
   const today = new Date().toISOString().slice(0, 10);
-  const status = todayStatus(child.id);
+  const status = await todayStatus(child.id);
   const checkedIn = !!status.checkedIn && !status.checkedOut;
-  const report = reportFor(child.id, today);
-  const contacts = listContacts(child.id);
-  const feed = newsfeedForChild(child.id);
-  const incidents = incidentsForChild(child.id);
+  const [report, contacts, feed, incidents] = await Promise.all([
+    reportFor(child.id, today),
+    listContacts(child.id),
+    newsfeedForChild(child.id),
+    incidentsForChild(child.id),
+  ]);
 
   const meal = safeJson(report?.meal);
   const sleep = report?.sleep ? String(report.sleep) : "";

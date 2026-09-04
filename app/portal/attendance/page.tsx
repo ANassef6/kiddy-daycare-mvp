@@ -3,16 +3,16 @@ import { listInstitutes, attendanceOn } from "@/lib/store";
 
 export const dynamic = "force-dynamic";
 
-export default function PortalAttendancePage({
+export default async function PortalAttendancePage({
   searchParams,
 }: {
   searchParams: { day?: string };
 }) {
   requireSession();
-  const institutes = listInstitutes();
+  const institutes = await listInstitutes();
   const iid = institutes[0]?.id as string | undefined;
   const day = searchParams.day ?? new Date().toISOString().slice(0, 10);
-  const rows = iid ? attendanceOn(iid, day) : [];
+  const rows = iid ? await attendanceOn(iid, day) : [];
 
   return (
     <div>

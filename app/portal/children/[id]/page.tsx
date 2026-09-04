@@ -12,16 +12,18 @@ import { saveDailyReportAction, addContactAction, createIncidentAction } from "@
 
 export const dynamic = "force-dynamic";
 
-export default function PortalChildPage({ params }: { params: { id: string } }) {
+export default async function PortalChildPage({ params }: { params: { id: string } }) {
   requireSession();
-  const child = getChild(params.id);
+  const child = await getChild(params.id);
   if (!child) notFound();
 
   const today = new Date().toISOString().slice(0, 10);
-  const report = reportFor(child.id, today);
-  const contacts = listContacts(child.id);
-  const incidents = incidentsForChild(child.id);
-  const status = todayStatus(child.id);
+  const [report, contacts, incidents, status] = await Promise.all([
+    reportFor(child.id, today),
+    listContacts(child.id),
+    incidentsForChild(child.id),
+    todayStatus(child.id),
+  ]);
   const meal = safeJson(report?.meal);
 
   return (

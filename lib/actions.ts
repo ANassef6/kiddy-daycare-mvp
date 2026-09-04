@@ -8,14 +8,39 @@ import {
   verifyPassword,
   createSessionToken,
   setPin,
+  verifyToken,
 } from "@/lib/auth";
-import { getDb } from "@/lib/db";
-import { getInviteByCode, linkFamily } from "@/lib/store";
+import { queryGet, queryRun, ensureSchema } from "@/lib/db";
+import {
+  getInviteByCode,
+  linkFamily,
+  checkChildInOut,
+  upsertDailyReport,
+  createNewsfeedPost,
+  addComment,
+  createConsent,
+  respondConsent,
+  createIncident,
+  acknowledgeIncident,
+  createChild,
+  createStaff,
+  createRoom,
+  addContact,
+  createInvite,
+  updateInstitute,
+} from "@/lib/store";
+import { supabaseConfigured, getSupabase } from "@/lib/supabase";
 
 const SESSION_COOKIE = "kiddy_sess";
 
-function setSession(email: string) {
-  const account = findAccountByEmail(email);
+type SessionCookie = {
+  accountId: string;
+  role: string;
+  email: string;
+};
+
+async function setSession(email: string) {
+  const account = await findAccountByEmail(email);
   if (!account) throw new Error("account not found");
   const token = createSessionToken({
     accountId: account.id,
@@ -34,11 +59,26 @@ function setSession(email: string) {
 export async function loginAction(formData: FormData) {
   const email = String(formData.get("email") ?? "").trim();
   const password = String(formData.get("password") ?? "");
-  const account = findAccountByEmail(email);
+
+  // Primary path: Supabase Auth (GoTrue) when the project is wired.
+  if (supabaseConfigured()) {
+    const { data, error } = await getSupabase().auth.signInWithPassword({ email, password });
+    if (!error && data.user) {
+      const account = await findAccountByEmail(email);
+      if (account) {
+        await setSession(account.email);
+        redirect(account.role === "parent" ? "/child" : "/portal/dashboard");
+      }
+    }
+  }
+
+  // Fallback: app-side verify (seeded demo accounts, or Supabase users whose
+  // password was stored locally too).
+  const account = await findAccountByEmail(email);
   if (!account || !verifyPassword(password, account.password_hash)) {
     return { error: "Invalid email or password." };
   }
-  setSession(account.email);
+  await setSession(account.email);
   redirect(account.role === "parent" ? "/child" : "/portal/dashboard");
 }
 
@@ -48,24 +88,33 @@ export async function registerAction(formData: FormData) {
   const fullName = String(formData.get("fullName") ?? "").trim();
   const inviteCode = String(formData.get("inviteCode") ?? "").trim();
 
-  if (findAccountByEmail(email)) {
+  if (await findAccountByEmail(email)) {
     return { error: "An account with that email already exists." };
   }
-  const account = createAccount({ email, password, fullName, role: "parent" });
+
+  // Real Supabase Auth user for every self-service registration.
+  let authUserId: string | null = null;
+  if (supabaseConfigured()) {
+    const { data, error } = await getSupabase().auth.signUp({ email, password });
+    if (error) return { error: error.message };
+    authUserId = data.user?.id ?? null;
+  }
+
+  const account = await createAccount({ email, password, fullName, role: "parent", authUserId });
 
   // Optional PIN
   const pin = String(formData.get("pin") ?? "").trim();
-  if (pin) setPin(account.id, pin);
+  if (pin) await setPin(account.id, pin);
 
   // Link via invite code if provided
   if (inviteCode) {
-    const invite = getInviteByCode(inviteCode);
+    const invite = await getInviteByCode(inviteCode);
     if (invite && invite.child_id) {
-      linkFamily(account.id, String(invite.child_id));
+      await linkFamily(account.id, String(invite.child_id));
     }
   }
 
-  setSession(account.email);
+  await setSession(account.email);
   redirect("/child");
 }
 
@@ -77,15 +126,13 @@ export async function logoutAction() {
 export async function linkInviteAction(formData: FormData) {
   const code = String(formData.get("inviteCode") ?? "").trim();
   const email = String(formData.get("email") ?? "").trim();
-  const account = findAccountByEmail(email);
+  const account = await findAccountByEmail(email);
   if (!account) return { error: "Account not found. Sign in first." };
-  const invite = getInviteByCode(code);
+  const invite = await getInviteByCode(code);
   if (!invite) return { error: "Invite code not found." };
   if (invite.child_id) {
-    linkFamily(account.id, String(invite.child_id));
-    getDb()
-      .prepare("UPDATE invite SET status = 'accepted' WHERE id = ?")
-      .run(invite.id);
+    await linkFamily(account.id, String(invite.child_id));
+    await queryRun("UPDATE invite SET status = 'accepted' WHERE id = ?", invite.id);
     return { ok: true };
   }
   return { error: "Invite has no linked child." };
@@ -93,32 +140,30 @@ export async function linkInviteAction(formData: FormData) {
 
 // ---- Daily-loop actions (check-in/out, reports, newsfeed, messaging, consents, incidents) ----
 
-function authAccount() {
+function authAccount(): SessionCookie {
   const cookie = cookies().get(SESSION_COOKIE)?.value;
   if (!cookie) throw new Error("not signed in");
-  const { verifyToken } = require("@/lib/auth");
-  return verifyToken(decodeURIComponent(cookie)) as {
-    accountId: string;
-    role: string;
-    email: string;
-  };
+  return verifyToken(decodeURIComponent(cookie)) as SessionCookie;
+}
+
+async function firstInstituteId(): Promise<string> {
+  const row = await queryGet("SELECT id FROM institute LIMIT 1");
+  return String(row?.id ?? "");
 }
 
 export async function checkInOutAction(formData: FormData) {
-  const { checkChildInOut } = require("@/lib/store");
   const childId = String(formData.get("childId") ?? "");
   const type = String(formData.get("type") ?? "") as "in" | "out";
   const me = authAccount();
-  checkChildInOut({ childId, accountId: me.accountId, type });
+  await checkChildInOut({ childId, accountId: me.accountId, type });
   redirect(`/child/${childId}`);
 }
 
 export async function saveDailyReportAction(formData: FormData) {
-  const { upsertDailyReport } = require("@/lib/store");
   const childId = String(formData.get("childId") ?? "");
   const reportDate = String(formData.get("reportDate") ?? "") || new Date().toISOString().slice(0, 10);
   const me = authAccount();
-  upsertDailyReport({
+  await upsertDailyReport({
     childId,
     reportDate,
     summary: String(formData.get("summary") ?? ""),
@@ -139,18 +184,11 @@ export async function saveDailyReportAction(formData: FormData) {
 }
 
 export async function createNewsfeedAction(formData: FormData) {
-  const { createNewsfeedPost } = require("@/lib/store");
   const me = authAccount();
-  const roles = { account: me } as never;
-  const institute = getDb()
-    .prepare("SELECT institute_id FROM staff WHERE id = ?")
-    .get() as { institute_id: string } | undefined;
-  const instituteId =
-    institute?.institute_id ??
-    (getDb().prepare("SELECT id FROM institute LIMIT 1").get() as { id: string } | undefined)?.id ??
-    "";
-  createNewsfeedPost({
-    instituteId: String(instituteId),
+  await ensureSchema();
+  const instituteId = await firstInstituteId();
+  await createNewsfeedPost({
+    instituteId,
     accountId: me.accountId,
     body: String(formData.get("body") ?? ""),
     tagChildIds: formData.getAll("childIds").map(String),
@@ -159,21 +197,16 @@ export async function createNewsfeedAction(formData: FormData) {
 }
 
 export async function commentAction(formData: FormData) {
-  const { addComment } = require("@/lib/store");
   const me = authAccount();
-  addComment(
-    String(formData.get("postId") ?? ""),
-    me.accountId,
-    String(formData.get("body") ?? "")
-  );
+  await addComment(String(formData.get("postId") ?? ""), me.accountId, String(formData.get("body") ?? ""));
   redirect("/portal/newsfeed");
 }
 
 export async function createConsentAction(formData: FormData) {
-  const { createConsent } = require("@/lib/store");
-  const institute = getDb().prepare("SELECT id FROM institute LIMIT 1").get() as { id: string } | undefined;
-  createConsent({
-    instituteId: String(institute?.id ?? ""),
+  await ensureSchema();
+  const instituteId = await firstInstituteId();
+  await createConsent({
+    instituteId,
     title: String(formData.get("title") ?? ""),
     body: String(formData.get("body") ?? ""),
     childId: String(formData.get("childId") ?? "") || undefined,
@@ -182,17 +215,16 @@ export async function createConsentAction(formData: FormData) {
 }
 
 export async function respondConsentAction(formData: FormData) {
-  const { respondConsent } = require("@/lib/store");
-  respondConsent(String(formData.get("id") ?? ""), String(formData.get("status") ?? "approved") as "approved" | "denied");
+  await respondConsent(String(formData.get("id") ?? ""), String(formData.get("status") ?? "approved") as "approved" | "denied");
   redirect("/child/consents");
 }
 
 export async function createIncidentAction(formData: FormData) {
-  const { createIncident } = require("@/lib/store");
   const me = authAccount();
-  const institute = getDb().prepare("SELECT id FROM institute LIMIT 1").get() as { id: string } | undefined;
-  createIncident({
-    instituteId: String(institute?.id ?? ""),
+  await ensureSchema();
+  const instituteId = await firstInstituteId();
+  await createIncident({
+    instituteId,
     childId: String(formData.get("childId") ?? ""),
     accountId: me.accountId,
     type: String(formData.get("type") ?? "incident"),
@@ -202,17 +234,15 @@ export async function createIncidentAction(formData: FormData) {
 }
 
 export async function acknowledgeIncidentAction(formData: FormData) {
-  const { acknowledgeIncident } = require("@/lib/store");
-  acknowledgeIncident(String(formData.get("id") ?? ""));
+  await acknowledgeIncident(String(formData.get("id") ?? ""));
   redirect("/child/incidents");
 }
 
 export async function addChildAction(formData: FormData) {
-  const { createChild } = require("@/lib/store");
-  const me = authAccount();
-  const institute = getDb().prepare("SELECT id FROM institute LIMIT 1").get() as { id: string } | undefined;
-  const child = createChild({
-    instituteId: String(institute?.id ?? ""),
+  await ensureSchema();
+  const instituteId = await firstInstituteId();
+  const child = await createChild({
+    instituteId,
     firstName: String(formData.get("firstName") ?? ""),
     lastName: String(formData.get("lastName") ?? ""),
     dob: String(formData.get("dob") ?? "") || undefined,
@@ -223,10 +253,10 @@ export async function addChildAction(formData: FormData) {
 }
 
 export async function addStaffAction(formData: FormData) {
-  const { createStaff } = require("@/lib/store");
-  const institute = getDb().prepare("SELECT id FROM institute LIMIT 1").get() as { id: string } | undefined;
-  createStaff({
-    instituteId: String(institute?.id ?? ""),
+  await ensureSchema();
+  const instituteId = await firstInstituteId();
+  await createStaff({
+    instituteId,
     fullName: String(formData.get("fullName") ?? ""),
     role: String(formData.get("role") ?? "carer"),
     roomIds: formData.getAll("roomIds").map(String),
@@ -235,15 +265,14 @@ export async function addStaffAction(formData: FormData) {
 }
 
 export async function addRoomAction(formData: FormData) {
-  const { createRoom } = require("@/lib/store");
-  const institute = getDb().prepare("SELECT id FROM institute LIMIT 1").get() as { id: string } | undefined;
-  createRoom(String(institute?.id ?? ""), String(formData.get("name") ?? ""), Number(formData.get("capacity")) || undefined);
+  await ensureSchema();
+  const instituteId = await firstInstituteId();
+  await createRoom(String(instituteId), String(formData.get("name") ?? ""), Number(formData.get("capacity")) || undefined);
   redirect("/portal/rooms");
 }
 
 export async function addContactAction(formData: FormData) {
-  const { addContact } = require("@/lib/store");
-  addContact({
+  await addContact({
     childId: String(formData.get("childId") ?? ""),
     fullName: String(formData.get("fullName") ?? ""),
     relationship: String(formData.get("relationship") ?? ""),
@@ -256,10 +285,10 @@ export async function addContactAction(formData: FormData) {
 }
 
 export async function inviteParentAction(formData: FormData) {
-  const { createInvite } = require("@/lib/store");
-  const institute = getDb().prepare("SELECT id FROM institute LIMIT 1").get() as { id: string } | undefined;
-  createInvite(
-    String(institute?.id ?? ""),
+  await ensureSchema();
+  const instituteId = await firstInstituteId();
+  await createInvite(
+    String(instituteId),
     String(formData.get("childId") ?? "") || null,
     String(formData.get("email") ?? ""),
     String(formData.get("code") ?? "")
@@ -268,10 +297,10 @@ export async function inviteParentAction(formData: FormData) {
 }
 
 export async function saveBrandingAction(formData: FormData) {
-  const { updateInstitute } = require("@/lib/store");
-  const institute = getDb().prepare("SELECT id FROM institute LIMIT 1").get() as { id: string } | undefined;
-  if (institute) {
-    updateInstitute(String(institute.id), {
+  await ensureSchema();
+  const instituteId = await firstInstituteId();
+  if (instituteId) {
+    await updateInstitute(String(instituteId), {
       name: String(formData.get("name") ?? ""),
       primary_color: String(formData.get("primaryColor") ?? "#3B82F6"),
       accent_color: String(formData.get("accentColor") ?? "#10B981"),

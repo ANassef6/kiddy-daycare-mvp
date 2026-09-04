@@ -3,11 +3,11 @@ import { listInstitutes, listIncidents } from "@/lib/store";
 
 export const dynamic = "force-dynamic";
 
-export default function PortalIncidentsPage() {
+export default async function PortalIncidentsPage() {
   requireSession();
-  const institutes = listInstitutes();
+  const institutes = await listInstitutes();
   const iid = institutes[0]?.id as string | undefined;
-  const incidents = iid ? listIncidents(iid) : [];
+  const incidents = iid ? await listIncidents(iid) : [];
 
   return (
     <div>

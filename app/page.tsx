@@ -3,8 +3,8 @@ import { getFirstInstitute, getInstitute } from "@/lib/theme";
 
 export const dynamic = "force-dynamic";
 
-export default function LandingPage() {
-  const institute = getFirstInstitute();
+export default async function LandingPage() {
+  const institute = await getFirstInstitute();
   const brand = institute?.name ?? "Kiddy";
 
   return (

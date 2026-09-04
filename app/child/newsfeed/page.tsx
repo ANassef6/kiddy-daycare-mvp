@@ -3,14 +3,14 @@ import { familiesForAccount, newsfeedForChild } from "@/lib/store";
 
 export const dynamic = "force-dynamic";
 
-export default function ParentNewsfeedPage() {
+export default async function ParentNewsfeedPage() {
   const session = requireSession();
-  const families = familiesForAccount(session.accountId);
+  const families = await familiesForAccount(session.accountId);
   const childIds = families.map((f) => f.id as string);
 
   const posts: any[] = [];
   for (const cid of childIds) {
-    for (const p of newsfeedForChild(cid)) {
+    for (const p of await newsfeedForChild(cid)) {
       posts.push({ ...p, child: `${(families.find((f) => f.id === cid) as any)?.first_name}` });
     }
   }

@@ -4,9 +4,9 @@ import { familiesForAccount, todayStatus } from "@/lib/store";
 
 export const dynamic = "force-dynamic";
 
-export default function MyChildrenPage() {
+export default async function MyChildrenPage() {
   const session = requireSession();
-  const families = familiesForAccount(session.accountId);
+  const families = await familiesForAccount(session.accountId);
 
   if (families.length === 0) {
     return (
@@ -20,12 +20,18 @@ export default function MyChildrenPage() {
     );
   }
 
+  const withStatus = await Promise.all(
+    families.map(async (child: any) => {
+      const status = await todayStatus(child.id);
+      return { child, status };
+    })
+  );
+
   return (
     <div>
       <h1 className="title">My children</h1>
       <div className="grid">
-        {families.map((child: any) => {
-          const status = todayStatus(child.id);
+        {withStatus.map(({ child, status }: any) => {
           const seen = status.lastEvent?.type === "in";
           return (
             <Link key={child.id} href={`/child/${child.id}`} className="card" style={{ color: "var(--color-text)" }}>

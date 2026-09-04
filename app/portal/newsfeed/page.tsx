@@ -4,12 +4,14 @@ import { createNewsfeedAction, commentAction } from "@/lib/actions";
 
 export const dynamic = "force-dynamic";
 
-export default function PortalNewsfeedPage() {
+export default async function PortalNewsfeedPage() {
   const session = requireSession();
-  const institutes = listInstitutes();
+  const institutes = await listInstitutes();
   const iid = institutes[0]?.id as string | undefined;
-  const posts = iid ? listNewsfeed(iid, session.accountId) : [];
-  const children = iid ? listChildren(iid) : [];
+  const [posts, children] = await Promise.all([
+    iid ? listNewsfeed(iid, session.accountId) : Promise.resolve([]),
+    iid ? listChildren(iid) : Promise.resolve([]),
+  ]);
 
   return (
     <div>

@@ -1,279 +1,143 @@
-// Kiddy data layer — local SQLite mirror of the Supabase schema.
-// When SUPABASE_URL/KEY are present the app should switch to supabase-js against
-// supabase/migrations; this module provides the runnable local path with zero infra.
-import Database from "better-sqlite3";
-import path from "path";
-import fs from "fs";
+// Kiddy data layer.
+//
+// Runs against real Postgres (Supabase) when KIDDY_DATABASE_URL is a Postgres
+// URL (see supabase/migrations/0001_init.sql for the schema), and falls back to
+// a local SQLite mirror for zero-infra development when the var is a `file:`
+// path or unset. All query helpers are async so pages/actions don't care which
+// engine is behind them.
 
-const DATA_DIR = path.join(process.cwd(), "data");
-if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export type Row = Record<string, any>;
 
-// NOTE: we deliberately avoid the generic DATABASE_URL env var (this environment
-// injects a control-plane Postgres URL into it). Kiddy uses its own var, defaulting
-// to a local SQLite file when unset.
-const DB_PATH =
-  process.env.KIDDY_DATABASE_URL?.replace("file:", "") ??
-  path.join(DATA_DIR, "kiddy.db");
+const DATABASE_URL = process.env.KIDDY_DATABASE_URL;
 
-let _db: Database.Database | null = null;
-
-export function getDb(): Database.Database {
-  if (_db) return _db;
-  _db = new Database(DB_PATH);
-  // DELETE (rollback) journal: commits are written straight to the main .db file
-  // and immediately visible to other processes (seed script, external tooling).
-  // WAL mode is preferable for concurrency but leaves data invisible to other
-  // processes until a checkpoint — which breaks the seed-then-serve flow here.
-  _db.pragma("journal_mode = DELETE");
-  _db.pragma("synchronous = NORMAL");
-  _db.pragma("foreign_keys = ON");
-  migrate(_db);
-  return _db;
+export function isPostgresMode(): boolean {
+  return !!DATABASE_URL && !DATABASE_URL.startsWith("file:");
 }
 
-// On a clean process exit, ensure the connection is flushed/closed.
-if (typeof process !== "undefined") {
-  process.on("exit", () => {
-    try {
-      if (_db) {
-        _db.pragma("wal_checkpoint(TRUNCATE)");
-        _db.close();
-      }
-    } catch {
-      /* best-effort flush on exit */
-    }
+// ---------------------------------------------------------------------------
+// Postgres (Supabase)
+// ---------------------------------------------------------------------------
+let _pool: import("pg").Pool | null = null;
+
+function getPool(): import("pg").Pool {
+  if (_pool) return _pool;
+  const { Pool } = require("pg") as typeof import("pg");
+  // Strip the query string (sslmode=require is treated as verify-full by newer
+  // pg) and set Transport-Layer Security explicitly for the Supabase pooler.
+  const base = DATABASE_URL!.split("?")[0];
+  _pool = new Pool({
+    connectionString: base,
+    ssl: { rejectUnauthorized: false },
+    max: 5,
+    connectionTimeoutMillis: 10000,
+    idleTimeoutMillis: 30000,
   });
+  return _pool;
 }
 
-export function migrate(db: Database.Database = getDb()): void {
-  db.exec(`
-  CREATE TABLE IF NOT EXISTS institute (
-    id TEXT PRIMARY KEY,
-    name TEXT NOT NULL,
-    logo_url TEXT,
-    brand_image_url TEXT,
-    primary_color TEXT NOT NULL DEFAULT '#3B82F6',
-    accent_color TEXT NOT NULL DEFAULT '#10B981',
-    font TEXT NOT NULL DEFAULT 'Inter',
-    opening_hours TEXT,          -- JSON: { "mon": "07:00-18:00", ... }
-    closing_days TEXT,           -- JSON array of ISO dates
-    created_at TEXT NOT NULL DEFAULT (datetime('now'))
-  );
+// Converts `?` positional placeholders (SQLite style) to `$1..$n` for pg.
+function render(sql: string, args: unknown[]): { text: string; values: unknown[] } {
+  let out = "";
+  let n = 0;
+  for (const ch of sql) {
+    if (ch === "?") {
+      n += 1;
+      out += `$${n}`;
+    } else {
+      out += ch;
+    }
+  }
+  return { text: out, values: args };
+}
 
-  CREATE TABLE IF NOT EXISTS branch (
-    id TEXT PRIMARY KEY,
-    institute_id TEXT NOT NULL REFERENCES institute(id) ON DELETE CASCADE,
-    name TEXT NOT NULL DEFAULT 'Main',
-    address TEXT,
-    created_at TEXT NOT NULL DEFAULT (datetime('now'))
-  );
+async function pgAll(sql: string, args: unknown[]): Promise<Row[]> {
+  const r = await getPool().query(render(sql, args));
+  return r.rows as Row[];
+}
 
-  CREATE TABLE IF NOT EXISTS room (
-    id TEXT PRIMARY KEY,
-    institute_id TEXT NOT NULL REFERENCES institute(id) ON DELETE CASCADE,
-    branch_id TEXT REFERENCES branch(id) ON DELETE CASCADE,
-    name TEXT NOT NULL,
-    capacity INTEGER,
-    created_at TEXT NOT NULL DEFAULT (datetime('now'))
-  );
+async function pgRun(sql: string, args: unknown[]): Promise<{ rowCount: number }> {
+  const r = await getPool().query(render(sql, args));
+  return { rowCount: r.rowCount ?? 0 };
+}
 
-  CREATE TABLE IF NOT EXISTS account (
-    id TEXT PRIMARY KEY,
-    email TEXT UNIQUE NOT NULL,
-    password_hash TEXT NOT NULL,
-    full_name TEXT NOT NULL,
-    role TEXT NOT NULL DEFAULT 'parent',   -- parent | staff | admin | owner
-    staff_id TEXT,
-    pin TEXT,
-    language TEXT NOT NULL DEFAULT 'en',
-    created_at TEXT NOT NULL DEFAULT (datetime('now'))
-  );
+// Applies a multi-statement SQL script (used for the migration file).
+async function pgExec(sql: string): Promise<void> {
+  const statements = sql
+    .split(";")
+    .map((s) => s.trim())
+    .filter((s) => s.length > 0);
+  const pool = getPool();
+  for (const statement of statements) {
+    await pool.query(statement);
+  }
+}
 
-  CREATE TABLE IF NOT EXISTS staff (
-    id TEXT PRIMARY KEY,
-    institute_id TEXT NOT NULL REFERENCES institute(id) ON DELETE CASCADE,
-    full_name TEXT NOT NULL,
-    role TEXT NOT NULL DEFAULT 'carer',    -- admin | carer | parent
-    active INTEGER NOT NULL DEFAULT 1,
-    created_at TEXT NOT NULL DEFAULT (datetime('now'))
-  );
+// ---------------------------------------------------------------------------
+// SQLite (local fallback)
+// ---------------------------------------------------------------------------
+let _sqlite: import("better-sqlite3").Database | null = null;
 
-  CREATE TABLE IF NOT EXISTS staff_room (
-    staff_id TEXT NOT NULL REFERENCES staff(id) ON DELETE CASCADE,
-    room_id TEXT NOT NULL REFERENCES room(id) ON DELETE CASCADE,
-    PRIMARY KEY (staff_id, room_id)
-  );
+function getSqlite(): import("better-sqlite3").Database {
+  if (_sqlite) return _sqlite;
+  const path = require("path") as typeof import("path");
+  const fs = require("fs") as typeof import("fs");
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const Database = require("better-sqlite3") as typeof import("better-sqlite3");
 
-  CREATE TABLE IF NOT EXISTS child (
-    id TEXT PRIMARY KEY,
-    institute_id TEXT NOT NULL REFERENCES institute(id) ON DELETE CASCADE,
-    branch_id TEXT REFERENCES branch(id) ON DELETE CASCADE,
-    room_id TEXT REFERENCES room(id) ON DELETE SET NULL,
-    first_name TEXT NOT NULL,
-    last_name TEXT NOT NULL,
-    dob TEXT,
-    photo_url TEXT,
-    active INTEGER NOT NULL DEFAULT 1,
-    created_at TEXT NOT NULL DEFAULT (datetime('now'))
-  );
+  const DATA_DIR = path.join(process.cwd(), "data");
+  if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
+  const dbPath = DATABASE_URL?.replace("file:", "") ?? path.join(DATA_DIR, "kiddy.db");
 
-  CREATE TABLE IF NOT EXISTS enrollment (
-    id TEXT PRIMARY KEY,
-    child_id TEXT NOT NULL REFERENCES child(id) ON DELETE CASCADE,
-    start_date TEXT,
-    status TEXT NOT NULL DEFAULT 'enrolled',
-    created_at TEXT NOT NULL DEFAULT (datetime('now'))
-  );
+  _sqlite = new Database(dbPath);
+  _sqlite.pragma("journal_mode = DELETE");
+  _sqlite.pragma("synchronous = NORMAL");
+  _sqlite.pragma("foreign_keys = ON");
+  return _sqlite;
+}
 
-  CREATE TABLE IF NOT EXISTS child_health (
-    id TEXT PRIMARY KEY,
-    child_id TEXT NOT NULL REFERENCES child(id) ON DELETE CASCADE,
-    allergies TEXT,
-    conditions TEXT,
-    notes TEXT,
-    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
-  );
+async function sqliteAll(sql: string, args: unknown[]): Promise<Row[]> {
+  return getSqlite().prepare(sql).all(...args) as Row[];
+}
 
-  CREATE TABLE IF NOT EXISTS contact (
-    id TEXT PRIMARY KEY,
-    child_id TEXT NOT NULL REFERENCES child(id) ON DELETE CASCADE,
-    full_name TEXT NOT NULL,
-    relationship TEXT NOT NULL,
-    phone TEXT,
-    email TEXT,
-    is_pickup INTEGER NOT NULL DEFAULT 0,
-    is_emergency INTEGER NOT NULL DEFAULT 0,
-    created_at TEXT NOT NULL DEFAULT (datetime('now'))
-  );
+async function sqliteRun(sql: string, args: unknown[]): Promise<{ rowCount: number }> {
+  const info = getSqlite().prepare(sql).run(...args);
+  return { rowCount: info.changes };
+}
 
-  CREATE TABLE IF NOT EXISTS family_member (
-    id TEXT PRIMARY KEY,
-    account_id TEXT NOT NULL REFERENCES account(id) ON DELETE CASCADE,
-    child_id TEXT NOT NULL REFERENCES child(id) ON DELETE CASCADE,
-    role TEXT NOT NULL DEFAULT 'parent',
-    created_at TEXT NOT NULL DEFAULT (datetime('now'))
-  );
+// ---------------------------------------------------------------------------
+// Shared async query API
+// ---------------------------------------------------------------------------
+export async function queryAll(sql: string, ...args: unknown[]): Promise<Row[]> {
+  return isPostgresMode() ? pgAll(sql, args) : sqliteAll(sql, args);
+}
 
-  CREATE TABLE IF NOT EXISTS invite (
-    id TEXT PRIMARY KEY,
-    institute_id TEXT NOT NULL REFERENCES institute(id) ON DELETE CASCADE,
-    child_id TEXT REFERENCES child(id) ON DELETE CASCADE,
-    email TEXT NOT NULL,
-    code TEXT NOT NULL,
-    status TEXT NOT NULL DEFAULT 'pending',   -- pending | accepted
-    created_at TEXT NOT NULL DEFAULT (datetime('now'))
-  );
+export async function queryGet(sql: string, ...args: unknown[]): Promise<Row | undefined> {
+  const rows = await queryAll(sql, ...args);
+  return rows[0];
+}
 
-  CREATE TABLE IF NOT EXISTS check_in (
-    id TEXT PRIMARY KEY,
-    child_id TEXT NOT NULL REFERENCES child(id) ON DELETE CASCADE,
-    account_id TEXT NOT NULL REFERENCES account(id) ON DELETE CASCADE,
-    type TEXT NOT NULL,                         -- in | out
-    recorded_at TEXT NOT NULL DEFAULT (datetime('now')),
-    is_edit INTEGER NOT NULL DEFAULT 0
-  );
+export async function queryRun(sql: string, ...args: unknown[]): Promise<{ rowCount: number }> {
+  return isPostgresMode() ? pgRun(sql, args) : sqliteRun(sql, args);
+}
 
-  CREATE TABLE IF NOT EXISTS attendance_schedule (
-    id TEXT PRIMARY KEY,
-    child_id TEXT NOT NULL REFERENCES child(id) ON DELETE CASCADE,
-    day_of_week INTEGER,
-    planned_in TEXT,
-    planned_out TEXT,
-    created_at TEXT NOT NULL DEFAULT (datetime('now'))
-  );
-
-  CREATE TABLE IF NOT EXISTS daily_report (
-    id TEXT PRIMARY KEY,
-    child_id TEXT NOT NULL REFERENCES child(id) ON DELETE CASCADE,
-    report_date TEXT NOT NULL,
-    summary TEXT,
-    observation TEXT,
-    mood TEXT,
-    meal TEXT,                 -- JSON { breakfast, lunch, snack }
-    sleep TEXT,                -- JSON { naps: [...], total }
-    diaper TEXT,
-    sick INTEGER NOT NULL DEFAULT 0,
-    note TEXT,
-    created_by_account_id TEXT REFERENCES account(id),
-    created_at TEXT NOT NULL DEFAULT (datetime('now')),
-    UNIQUE (child_id, report_date)
-  );
-
-  CREATE TABLE IF NOT EXISTS newsfeed_post (
-    id TEXT PRIMARY KEY,
-    institute_id TEXT NOT NULL REFERENCES institute(id) ON DELETE CASCADE,
-    account_id TEXT NOT NULL REFERENCES account(id) ON DELETE CASCADE,
-    body TEXT NOT NULL,
-    media_url TEXT,
-    created_at TEXT NOT NULL DEFAULT (datetime('now'))
-  );
-
-  CREATE TABLE IF NOT EXISTS newsfeed_tag (
-    post_id TEXT NOT NULL REFERENCES newsfeed_post(id) ON DELETE CASCADE,
-    child_id TEXT NOT NULL REFERENCES child(id) ON DELETE CASCADE,
-    PRIMARY KEY (post_id, child_id)
-  );
-
-  CREATE TABLE IF NOT EXISTS newsfeed_like (
-    post_id TEXT NOT NULL REFERENCES newsfeed_post(id) ON DELETE CASCADE,
-    account_id TEXT NOT NULL REFERENCES account(id) ON DELETE CASCADE,
-    PRIMARY KEY (post_id, account_id)
-  );
-
-  CREATE TABLE IF NOT EXISTS newsfeed_comment (
-    id TEXT PRIMARY KEY,
-    post_id TEXT NOT NULL REFERENCES newsfeed_post(id) ON DELETE CASCADE,
-    account_id TEXT NOT NULL REFERENCES account(id) ON DELETE CASCADE,
-    body TEXT NOT NULL,
-    created_at TEXT NOT NULL DEFAULT (datetime('now'))
-  );
-
-  CREATE TABLE IF NOT EXISTS message (
-    id TEXT PRIMARY KEY,
-    institute_id TEXT NOT NULL REFERENCES institute(id) ON DELETE CASCADE,
-    sender_account_id TEXT NOT NULL REFERENCES account(id) ON DELETE CASCADE,
-    recipient_account_id TEXT NOT NULL REFERENCES account(id) ON DELETE CASCADE,
-    body TEXT NOT NULL,
-    read INTEGER NOT NULL DEFAULT 0,
-    created_at TEXT NOT NULL DEFAULT (datetime('now'))
-  );
-
-  CREATE TABLE IF NOT EXISTS media (
-    id TEXT PRIMARY KEY,
-    institute_id TEXT NOT NULL REFERENCES institute(id) ON DELETE CASCADE,
-    child_id TEXT REFERENCES child(id) ON DELETE CASCADE,
-    account_id TEXT REFERENCES account(id) ON DELETE CASCADE,
-    url TEXT NOT NULL,
-    kind TEXT NOT NULL DEFAULT 'image',
-    caption TEXT,
-    created_at TEXT NOT NULL DEFAULT (datetime('now'))
-  );
-
-  CREATE TABLE IF NOT EXISTS consent_request (
-    id TEXT PRIMARY KEY,
-    institute_id TEXT NOT NULL REFERENCES institute(id) ON DELETE CASCADE,
-    title TEXT NOT NULL,
-    body TEXT,
-    child_id TEXT REFERENCES child(id) ON DELETE CASCADE,
-    status TEXT NOT NULL DEFAULT 'pending',   -- pending | approved | denied
-    created_at TEXT NOT NULL DEFAULT (datetime('now'))
-  );
-
-  CREATE TABLE IF NOT EXISTS incident_report (
-    id TEXT PRIMARY KEY,
-    institute_id TEXT NOT NULL REFERENCES institute(id) ON DELETE CASCADE,
-    child_id TEXT NOT NULL REFERENCES child(id) ON DELETE CASCADE,
-    account_id TEXT NOT NULL REFERENCES account(id) ON DELETE CASCADE,
-    type TEXT NOT NULL DEFAULT 'incident',
-    description TEXT NOT NULL,
-    acknowledged INTEGER NOT NULL DEFAULT 0,
-    created_at TEXT NOT NULL DEFAULT (datetime('now'))
-  );
-  `);
+// Applies the Kiddy schema. Postgres mode reads supabase/migrations; SQLite
+// mode keeps its inline migration so local dev stays self-contained.
+export async function ensureSchema(): Promise<void> {
+  if (isPostgresMode()) {
+    const fs = require("fs") as typeof import("fs");
+    const path = require("path") as typeof import("path");
+    const migrationPath = path.join(process.cwd(), "supabase", "migrations", "0001_init.sql");
+    if (fs.existsSync(migrationPath)) {
+      await pgExec(fs.readFileSync(migrationPath, "utf8"));
+    }
+    return;
+  }
+  // SQLite fallback: identical table definitions, SQLite dialect.
+  const { sqliteSchema } = await import("./sqlite-schema");
+  sqliteSchema(getSqlite());
 }
 
 export function uid(): string {
-  return (
-    Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 10)
-  );
+  return Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 10);
 }

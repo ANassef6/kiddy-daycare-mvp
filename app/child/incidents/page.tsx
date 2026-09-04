@@ -4,12 +4,12 @@ import { acknowledgeIncidentAction } from "@/lib/actions";
 
 export const dynamic = "force-dynamic";
 
-export default function ParentIncidentsPage() {
+export default async function ParentIncidentsPage() {
   const session = requireSession();
-  const families = familiesForAccount(session.accountId);
+  const families = await familiesForAccount(session.accountId);
   const incidents: any[] = [];
   for (const f of families) {
-    for (const i of incidentsForChild(f.id as string)) {
+    for (const i of await incidentsForChild(f.id as string)) {
       incidents.push({ ...i, child: `${(f as any).first_name} ${(f as any).last_name}` });
     }
   }

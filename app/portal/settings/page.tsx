@@ -5,11 +5,11 @@ import { brandingFromInstitute } from "@/lib/theme";
 
 export const dynamic = "force-dynamic";
 
-export default function PortalSettingsPage() {
+export default async function PortalSettingsPage() {
   requireSession();
-  const institutes = listInstitutes();
+  const institutes = await listInstitutes();
   const iid = institutes[0]?.id as string | undefined;
-  const institute = iid ? getInstitute(iid) : undefined;
+  const institute = iid ? await getInstitute(iid) : undefined;
   const b = brandingFromInstitute(institute as any);
 
   return (

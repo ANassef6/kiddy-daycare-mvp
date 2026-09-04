@@ -1,13 +1,18 @@
 import crypto from "crypto";
-import { getDb } from "./db";
-import type { NextApiRequest } from "next";
-import type { NextRequest, NextResponse } from "next/server";
+import { queryGet, queryRun, type Row } from "./db";
 
 const COOKIE = "kiddy_sess";
-const TOKEN_SECRET =
-  process.env.SESSION_SECRET ?? "dev-only-secret-change-me";
+const TOKEN_SECRET = process.env.SESSION_SECRET ?? "dev-only-secret-change-me";
 
-type DbRow = { id: string; email: string; password_hash: string; full_name: string; role: string; pin: string | null; language: string };
+type DbRow = Row & {
+  id: string;
+  email: string;
+  password_hash: string;
+  full_name: string;
+  role: string;
+  pin: string | null;
+  language: string;
+};
 
 export function hashPassword(pw: string): string {
   const salt = crypto.randomBytes(16).toString("hex");
@@ -54,7 +59,7 @@ export function readSessionFromCookie(cookieHeader: string | null | undefined): 
   const m = cookieHeader.match(new RegExp(`(?:^|\\s)${COOKIE}=([^;]+)`));
   if (!m) return null;
   const data = verifyToken(decodeURIComponent(m[1]));
-  if (!data || typeof data.exp === "number" && data.exp < Date.now()) return null;
+  if (!data || (typeof data.exp === "number" && data.exp < Date.now())) return null;
   return {
     accountId: String(data.accountId),
     role: String(data.role),
@@ -74,51 +79,50 @@ export function clearSessionCookieHeader(): Record<string, string> {
 }
 
 // ---- account helpers ----
-export function createAccount(data: {
+const ACCOUNT_SELECT = `id, email, password_hash, full_name, role, pin, language, auth_user_id, created_at`;
+
+export async function createAccount(data: {
   email: string;
   password: string;
   fullName: string;
   role?: string;
   pin?: string;
   language?: string;
-}): DbRow {
-  const db = getDb();
+  authUserId?: string | null;
+}): Promise<DbRow> {
   const id = crypto.randomUUID();
-  db.prepare(
-    `INSERT INTO account (id, email, password_hash, full_name, role, pin, language)
-     VALUES (?, ?, ?, ?, ?, ?, ?)`
-  ).run(
+  await queryRun(
+    `INSERT INTO account (id, email, password_hash, full_name, role, pin, language, auth_user_id)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
     id,
     data.email.toLowerCase(),
     hashPassword(data.password),
     data.fullName,
     data.role ?? "parent",
     data.pin ? crypto.createHash("sha256").update(data.pin).digest("hex") : null,
-    data.language ?? "en"
+    data.language ?? "en",
+    data.authUserId ?? null
   );
-  return db.prepare("SELECT * FROM account WHERE id = ?").get(id) as DbRow;
+  return (await queryGet(`SELECT ${ACCOUNT_SELECT} FROM account WHERE id = ?`, id)) as DbRow;
 }
 
-export function loginWithPin(pin: string, accountId: string): boolean {
-  const db = getDb();
-  const row = db.prepare("SELECT pin FROM account WHERE id = ?").get(accountId) as { pin: string | null } | undefined;
+export async function loginWithPin(pin: string, accountId: string): Promise<boolean> {
+  const row = await queryGet("SELECT pin FROM account WHERE id = ?", accountId);
   if (!row?.pin) return false;
   const inputHash = crypto.createHash("sha256").update(pin).digest("hex");
   return crypto.timingSafeEqual(Buffer.from(row.pin), Buffer.from(inputHash));
 }
 
-export function setPin(accountId: string, pin: string): void {
-  getDb()
-    .prepare("UPDATE account SET pin = ? WHERE id = ?")
-    .run(crypto.createHash("sha256").update(pin).digest("hex"), accountId);
+export async function setPin(accountId: string, pin: string): Promise<void> {
+  await queryRun("UPDATE account SET pin = ? WHERE id = ?", crypto.createHash("sha256").update(pin).digest("hex"), accountId);
 }
 
-export function findAccountByEmail(email: string): DbRow | undefined {
-  return getDb().prepare("SELECT * FROM account WHERE email = ?").get(email.toLowerCase()) as DbRow | undefined;
+export async function findAccountByEmail(email: string): Promise<DbRow | undefined> {
+  return (await queryGet(`SELECT ${ACCOUNT_SELECT} FROM account WHERE email = ?`, email.toLowerCase())) as DbRow | undefined;
 }
 
-export function getAccount(accountId: string): DbRow | undefined {
-  return getDb().prepare("SELECT * FROM account WHERE id = ?").get(accountId) as DbRow | undefined;
+export async function getAccount(accountId: string): Promise<DbRow | undefined> {
+  return (await queryGet(`SELECT ${ACCOUNT_SELECT} FROM account WHERE id = ?`, accountId)) as DbRow | undefined;
 }
 
 // ---- helpers for app router (read header) ----

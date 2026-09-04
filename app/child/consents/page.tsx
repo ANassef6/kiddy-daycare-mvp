@@ -1,24 +1,22 @@
 import { requireSession } from "@/lib/require";
 import { familiesForAccount } from "@/lib/store";
-import { getDb } from "@/lib/db";
+import { queryAll } from "@/lib/db";
 import { respondConsentAction } from "@/lib/actions";
 
 export const dynamic = "force-dynamic";
 
 export default async function ParentConsentsPage() {
   const session = requireSession();
-  const families = familiesForAccount(session.accountId);
+  const families = await familiesForAccount(session.accountId);
   const childIds = families.map((f) => f.id as string);
-  const db = getDb();
   const consents = childIds.length
-    ? (db
-        .prepare(
-          `SELECT cr.*, c.first_name FROM consent_request cr
-           LEFT JOIN child c ON c.id = cr.child_id
-           WHERE cr.child_id IN (${childIds.map(() => "?").join(",")})
-           ORDER BY cr.created_at DESC`
-        )
-        .all(...childIds) as any[])
+    ? await queryAll(
+        `SELECT cr.*, c.first_name FROM consent_request cr
+         LEFT JOIN child c ON c.id = cr.child_id
+         WHERE cr.child_id IN (${childIds.map(() => "?").join(",")})
+         ORDER BY cr.created_at DESC`,
+        ...childIds
+      )
     : [];
 
   return (

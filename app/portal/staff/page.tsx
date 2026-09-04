@@ -4,12 +4,16 @@ import { addStaffAction } from "@/lib/actions";
 
 export const dynamic = "force-dynamic";
 
-export default function PortalStaffPage() {
+export default async function PortalStaffPage() {
   requireSession();
-  const institutes = listInstitutes();
+  const institutes = await listInstitutes();
   const iid = institutes[0]?.id as string | undefined;
-  const staff = iid ? listStaff(iid) : [];
-  const rooms = iid ? listRooms(iid) : [];
+  const [staff, rooms] = await Promise.all([
+    iid ? listStaff(iid) : Promise.resolve([]),
+    iid ? listRooms(iid) : Promise.resolve([]),
+  ]);
+  const roomAccess = await Promise.all(staff.map((s) => staffRooms(s.id)));
+  const roomByName = Object.fromEntries(roomAccess.map((rooms, i) => [staff[i].id, rooms]));
 
   return (
     <div>
@@ -41,7 +45,7 @@ export default function PortalStaffPage() {
             <tr key={s.id}>
               <td><strong>{s.full_name}</strong></td>
               <td>{capital(s.role)}</td>
-              <td className="small">{staffRooms(s.id).map((r) => String(r.name)).join(", ") || "—"}</td>
+              <td className="small">{(roomByName[s.id] ?? []).map((r: any) => String(r.name)).join(", ") || "—"}</td>
               <td><span className={s.active ? "badge badge-green" : "badge badge-red"}>{s.active ? "Active" : "Inactive"}</span></td>
             </tr>
           ))}

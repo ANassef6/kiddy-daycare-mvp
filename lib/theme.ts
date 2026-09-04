@@ -1,19 +1,15 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-export type Row = Record<string, any>;
+import { queryGet } from "./db";
+import { getInstitute as storeGetInstitute } from "./store";
+import type { Row } from "./db";
 
-export function getFirstInstitute(): Row | undefined {
-  const { getDb } = require("./db");
-  const { getInstitute } = require("./store");
-  const db = getDb();
-  const row = db
-    .prepare("SELECT id FROM institute ORDER BY created_at LIMIT 1")
-    .get() as { id: string } | undefined;
-  return row ? getInstitute(row.id) : undefined;
+export async function getFirstInstitute(): Promise<Row | undefined> {
+  const row = await queryGet("SELECT id FROM institute ORDER BY created_at LIMIT 1");
+  return row ? storeGetInstitute(String(row.id)) : undefined;
 }
 
-export function getInstitute(instituteId: string): Row | undefined {
-  const { getInstitute: gi } = require("./store");
-  return gi(instituteId);
+export async function getInstitute(instituteId: string): Promise<Row | undefined> {
+  return storeGetInstitute(instituteId);
 }
 
 export type Branding = {
