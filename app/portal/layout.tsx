@@ -15,6 +15,7 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
     { href: "/portal/newsfeed", label: "Newsfeed" },
     { href: "/portal/consents", label: "Consents" },
     { href: "/portal/incidents", label: "Incidents" },
+    { href: "/portal/billing", label: "Billing" },
     { href: "/portal/settings", label: "Branding" },
   ];
   return (

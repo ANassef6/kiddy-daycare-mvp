@@ -30,6 +30,10 @@ import {
   addContact,
   createInvite,
   updateInstitute,
+  upsertChildPlan,
+  createInvoice,
+  recordPayment,
+  savePaymentMethod,
 } from "@/lib/store";
 import { supabaseConfigured, getSupabase } from "@/lib/supabase";
 
@@ -361,4 +365,86 @@ export async function saveBrandingAction(formData: FormData) {
     });
   }
   redirect("/portal/settings");
+}
+
+// ---- Billing actions (M3 simplified billing) ----
+
+export async function setChildPlanAction(formData: FormData) {
+  const me = authAccount();
+  await ensureSchema();
+  const instituteId = await firstInstituteId();
+  if (!instituteId) throw new Error("No daycare configured yet.");
+  const { parseDollarsToCents } = await import("@/lib/money");
+  const amount = parseDollarsToCents(String(formData.get("amount") ?? ""));
+  await upsertChildPlan({
+    instituteId,
+    childId: String(formData.get("childId") ?? ""),
+    planName: String(formData.get("planName") ?? "Standard"),
+    amountCents: amount,
+    billingPeriod: String(formData.get("billingPeriod") ?? "monthly"),
+    updatedByAccountId: me.accountId,
+  });
+  redirect("/portal/billing");
+}
+
+export async function createInvoiceAction(formData: FormData) {
+  const me = authAccount();
+  await ensureSchema();
+  const instituteId = await firstInstituteId();
+  if (!instituteId) throw new Error("No daycare configured yet.");
+  const { parseDollarsToCents } = await import("@/lib/money");
+  const amount = parseDollarsToCents(String(formData.get("amount") ?? ""));
+  await createInvoice({
+    instituteId,
+    childId: String(formData.get("childId") ?? ""),
+    description: String(formData.get("description") ?? ""),
+    amountCents: amount,
+    dueDate: String(formData.get("dueDate") ?? "") || undefined,
+    createdByAccountId: me.accountId,
+  });
+  redirect("/portal/billing/invoices");
+}
+
+export async function recordPaymentAction(formData: FormData) {
+  const me = authAccount();
+  await ensureSchema();
+  const instituteId = await firstInstituteId();
+  if (!instituteId) throw new Error("No daycare configured yet.");
+  const { parseDollarsToCents } = await import("@/lib/money");
+  const amount = parseDollarsToCents(String(formData.get("amount") ?? ""));
+  const invoiceId = String(formData.get("invoiceId") ?? "");
+  const { getInvoice } = await import("@/lib/store");
+  const invoice = await getInvoice(invoiceId);
+  if (!invoice) throw new Error("Invoice not found.");
+  await recordPayment({
+    instituteId,
+    invoiceId,
+    accountId: me.accountId,
+    method: String(formData.get("method") ?? "other"),
+    reference: String(formData.get("reference") ?? "") || undefined,
+    amountCents: amount,
+    paidAt: String(formData.get("paidAt") ?? "") || undefined,
+  });
+  const origin = String(formData.get("origin") ?? "portal");
+  redirect(origin === "child" ? "/child/billing" : "/portal/billing/invoices");
+}
+
+export async function savePaymentMethodAction(formData: FormData) {
+  const me = authAccount();
+  await ensureSchema();
+  await savePaymentMethod({
+    accountId: me.accountId,
+    label: String(formData.get("label") ?? "Card"),
+    provider: String(formData.get("provider") ?? "") || undefined,
+    last4: String(formData.get("last4") ?? "") || undefined,
+    isDefault: formData.get("isDefault") === "on",
+  });
+  redirect("/child/billing");
+}
+
+export async function voidInvoiceAction(formData: FormData) {
+  await ensureSchema();
+  const { setInvoiceVoid } = await import("@/lib/store");
+  await setInvoiceVoid(String(formData.get("invoiceId") ?? ""));
+  redirect("/portal/billing/invoices");
 }

@@ -39,6 +39,7 @@ export default async function ParentLayout({ children }: { children: React.React
           <Link href="/child/newsfeed">Newsfeed</Link>
           <Link href="/child/consents">Consents</Link>
           <Link href="/child/incidents">Incidents</Link>
+          <Link href="/child/billing">Billing</Link>
           <form style={{ margin: 0 }}>
             <button className="btn btn-ghost" formAction="/api/logout">Sign out</button>
           </form>

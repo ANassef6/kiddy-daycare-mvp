@@ -108,6 +108,40 @@ export async function seedDemo() {
 
   await store.createConsent({ instituteId: iid, title: "Outdoor play permission", body: "May your child play in the outdoor yard?", childId: childA.id as string });
 
+  // M3 billing demo data: a monthly plan per child and one open invoice so the
+  // parent billing page has real transactions to show.
+  await store.upsertChildPlan({
+    instituteId: iid,
+    childId: childA.id as string,
+    planName: "Full-time toddler",
+    amountCents: 120000,
+    billingPeriod: "monthly",
+    updatedByAccountId: adminAcc.id,
+  });
+  await store.upsertChildPlan({
+    instituteId: iid,
+    childId: childB.id as string,
+    planName: "Preschool half-day",
+    amountCents: 95000,
+    billingPeriod: "monthly",
+    updatedByAccountId: adminAcc.id,
+  });
+  await store.createInvoice({
+    instituteId: iid,
+    childId: childA.id as string,
+    description: "September tuition",
+    amountCents: 120000,
+    dueDate: today.slice(0, 8) + "01",
+    createdByAccountId: adminAcc.id,
+  });
+  await store.savePaymentMethod({
+    accountId: parent.id as string,
+    label: "Main credit card",
+    provider: "Credit card",
+    last4: "4242",
+    isDefault: true,
+  });
+
   console.log("Seeded demo daycare:", iid);
 }
 

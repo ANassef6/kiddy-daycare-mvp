@@ -227,5 +227,59 @@ export function sqliteSchema(db: any): void {
     acknowledged INTEGER NOT NULL DEFAULT 0,
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
   );
+
+  CREATE TABLE IF NOT EXISTS billing_plan (
+    id TEXT PRIMARY KEY,
+    institute_id TEXT NOT NULL REFERENCES institute(id) ON DELETE CASCADE,
+    child_id TEXT NOT NULL UNIQUE REFERENCES child(id) ON DELETE CASCADE,
+    plan_name TEXT NOT NULL DEFAULT 'Standard',
+    amount_cents INTEGER NOT NULL DEFAULT 0,
+    billing_period TEXT NOT NULL DEFAULT 'monthly',
+    currency TEXT NOT NULL DEFAULT 'USD',
+    updated_by_account_id TEXT REFERENCES account(id),
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+
+  CREATE TABLE IF NOT EXISTS invoice (
+    id TEXT PRIMARY KEY,
+    institute_id TEXT NOT NULL REFERENCES institute(id) ON DELETE CASCADE,
+    child_id TEXT NOT NULL REFERENCES child(id) ON DELETE CASCADE,
+    number TEXT NOT NULL,
+    description TEXT NOT NULL DEFAULT '',
+    amount_cents INTEGER NOT NULL DEFAULT 0,
+    currency TEXT NOT NULL DEFAULT 'USD',
+    due_date TEXT,
+    status TEXT NOT NULL DEFAULT 'issued',
+    created_by_account_id TEXT REFERENCES account(id),
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    UNIQUE (institute_id, number)
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_invoice_child ON invoice (child_id, created_at DESC);
+
+  CREATE TABLE IF NOT EXISTS payment_method (
+    id TEXT PRIMARY KEY,
+    account_id TEXT NOT NULL REFERENCES account(id) ON DELETE CASCADE,
+    label TEXT NOT NULL,
+    provider TEXT,
+    last4 TEXT,
+    is_default INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+
+  CREATE TABLE IF NOT EXISTS payment (
+    id TEXT PRIMARY KEY,
+    institute_id TEXT NOT NULL REFERENCES institute(id) ON DELETE CASCADE,
+    invoice_id TEXT NOT NULL REFERENCES invoice(id) ON DELETE CASCADE,
+    account_id TEXT REFERENCES account(id),
+    method TEXT NOT NULL DEFAULT 'other',
+    reference TEXT,
+    amount_cents INTEGER NOT NULL DEFAULT 0,
+    paid_at TEXT NOT NULL DEFAULT (datetime('now')),
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_payment_invoice ON payment (invoice_id, paid_at DESC);
   `);
 }

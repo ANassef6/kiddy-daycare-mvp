@@ -518,3 +518,204 @@ export async function incidentsForChild(childId: string): Promise<Row[]> {
     childId
   );
 }
+
+// ---------- Billing (M3 simplified) ----------
+
+export async function getChildPlan(childId: string): Promise<Row | undefined> {
+  return queryGet("SELECT * FROM billing_plan WHERE child_id = ?", childId);
+}
+
+export async function listPlans(instituteId: string): Promise<Row[]> {
+  return queryAll(
+    `SELECT p.*, c.first_name, c.last_name, r.name AS room_name
+     FROM billing_plan p
+     JOIN child c ON c.id = p.child_id
+     LEFT JOIN room r ON r.id = c.room_id
+     WHERE p.institute_id = ?
+     ORDER BY c.first_name, c.last_name`,
+    instituteId
+  );
+}
+
+export async function upsertChildPlan(data: {
+  instituteId: string;
+  childId: string;
+  planName: string;
+  amountCents: number;
+  billingPeriod: string;
+  currency?: string;
+  updatedByAccountId?: string;
+}): Promise<Row> {
+  const existing = await queryGet("SELECT * FROM billing_plan WHERE child_id = ?", data.childId);
+  if (existing) {
+    await queryRun(
+      `UPDATE billing_plan SET plan_name = ?, amount_cents = ?, billing_period = ?, currency = ?, updated_by_account_id = ?, updated_at = ?
+       WHERE id = ?`,
+      data.planName,
+      data.amountCents,
+      data.billingPeriod,
+      data.currency ?? "USD",
+      data.updatedByAccountId ?? null,
+      new Date().toISOString(),
+      existing.id
+    );
+    return (await queryGet("SELECT * FROM billing_plan WHERE id = ?", existing.id))!;
+  }
+  const id = uid();
+  await queryRun(
+    `INSERT INTO billing_plan (id, institute_id, child_id, plan_name, amount_cents, billing_period, currency, updated_by_account_id)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    id,
+    data.instituteId,
+    data.childId,
+    data.planName,
+    data.amountCents,
+    data.billingPeriod,
+    data.currency ?? "USD",
+    data.updatedByAccountId ?? null
+  );
+  return (await queryGet("SELECT * FROM billing_plan WHERE id = ?", id))!;
+}
+
+export async function nextInvoiceNumber(instituteId: string): Promise<string> {
+  const row = await queryGet("SELECT COUNT(*) AS c FROM invoice WHERE institute_id = ?", instituteId);
+  const n = ((row?.c as number) ?? 0) + 1;
+  return `INV-${String(n).padStart(4, "0")}`;
+}
+
+export async function createInvoice(data: {
+  instituteId: string;
+  childId: string;
+  description: string;
+  amountCents: number;
+  currency?: string;
+  dueDate?: string;
+  createdByAccountId?: string;
+}): Promise<Row> {
+  const id = uid();
+  const number = await nextInvoiceNumber(data.instituteId);
+  await queryRun(
+    `INSERT INTO invoice (id, institute_id, child_id, number, description, amount_cents, currency, due_date, created_by_account_id)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    id,
+    data.instituteId,
+    data.childId,
+    number,
+    data.description,
+    data.amountCents,
+    data.currency ?? "USD",
+    data.dueDate ?? null,
+    data.createdByAccountId ?? null
+  );
+  return (await getInvoice(id))!;
+}
+
+export async function getInvoice(invoiceId: string): Promise<Row | undefined> {
+  return queryGet("SELECT * FROM invoice WHERE id = ?", invoiceId);
+}
+
+export async function listInvoices(instituteId: string): Promise<Row[]> {
+  return queryAll(
+    `SELECT i.*, c.first_name, c.last_name,
+            (SELECT COALESCE(SUM(amount_cents), 0) FROM payment WHERE invoice_id = i.id) AS paid_cents
+     FROM invoice i
+     JOIN child c ON c.id = i.child_id
+     WHERE i.institute_id = ?
+     ORDER BY i.created_at DESC`,
+    instituteId
+  );
+}
+
+export async function invoicesForChild(childId: string): Promise<Row[]> {
+  return queryAll(
+    `SELECT i.*,
+            (SELECT COALESCE(SUM(amount_cents), 0) FROM payment WHERE invoice_id = i.id) AS paid_cents
+     FROM invoice i
+     WHERE i.child_id = ? AND i.status != 'void'
+     ORDER BY i.due_date IS NULL, i.due_date ASC, i.created_at DESC`,
+    childId
+  );
+}
+
+export async function setInvoiceVoid(invoiceId: string): Promise<void> {
+  await queryRun("UPDATE invoice SET status = 'void' WHERE id = ?", invoiceId);
+}
+
+export async function listPaymentsForInvoice(invoiceId: string): Promise<Row[]> {
+  return queryAll("SELECT * FROM payment WHERE invoice_id = ? ORDER BY paid_at DESC", invoiceId);
+}
+
+export async function recordPayment(data: {
+  instituteId: string;
+  invoiceId: string;
+  accountId: string;
+  method: string;
+  reference?: string;
+  amountCents: number;
+  paidAt?: string;
+}): Promise<Row> {
+  const id = uid();
+  await queryRun(
+    `INSERT INTO payment (id, institute_id, invoice_id, account_id, method, reference, amount_cents, paid_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    id,
+    data.instituteId,
+    data.invoiceId,
+    data.accountId,
+    data.method,
+    data.reference ?? null,
+    data.amountCents,
+    data.paidAt ? new Date(data.paidAt).toISOString() : new Date().toISOString()
+  );
+  await refreshInvoiceStatus(data.invoiceId);
+  return (await queryGet("SELECT * FROM payment WHERE id = ?", id))!;
+}
+
+// Derives the stored invoice status from recorded payments: 'paid' when fully
+// covered, otherwise 'issued'. Void is only ever set explicitly.
+export async function refreshInvoiceStatus(invoiceId: string): Promise<void> {
+  const invoice = await getInvoice(invoiceId);
+  if (!invoice || invoice.status === "void") return;
+  const sum = await queryGet("SELECT COALESCE(SUM(amount_cents), 0) AS s FROM payment WHERE invoice_id = ?", invoiceId);
+  const paid = (sum?.s as number) ?? 0;
+  if (paid >= (invoice.amount_cents as number)) {
+    await queryRun("UPDATE invoice SET status = 'paid' WHERE id = ?", invoiceId);
+  }
+}
+
+export async function paymentsForChild(childId: string): Promise<Row[]> {
+  return queryAll(
+    `SELECT p.*, i.number, i.description FROM payment p
+     JOIN invoice i ON i.id = p.invoice_id
+     WHERE i.child_id = ? AND i.status != 'void'
+     ORDER BY p.paid_at DESC`,
+    childId
+  );
+}
+
+export async function accountPaymentMethods(accountId: string): Promise<Row[]> {
+  return queryAll("SELECT * FROM payment_method WHERE account_id = ? ORDER BY is_default DESC, created_at DESC", accountId);
+}
+
+export async function savePaymentMethod(data: {
+  accountId: string;
+  label: string;
+  provider?: string;
+  last4?: string;
+  isDefault?: boolean;
+}): Promise<Row> {
+  const id = uid();
+  if (data.isDefault) {
+    await queryRun("UPDATE payment_method SET is_default = 0 WHERE account_id = ?", data.accountId);
+  }
+  await queryRun(
+    "INSERT INTO payment_method (id, account_id, label, provider, last4, is_default) VALUES (?, ?, ?, ?, ?, ?)",
+    id,
+    data.accountId,
+    data.label,
+    data.provider ?? null,
+    data.last4 ?? null,
+    data.isDefault ? 1 : 0
+  );
+  return (await queryGet("SELECT * FROM payment_method WHERE id = ?", id))!;
+}
