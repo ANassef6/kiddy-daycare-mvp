@@ -12,6 +12,7 @@ type DbRow = Row & {
   role: string;
   pin: string | null;
   language: string;
+  email_confirmed: number | null;
 };
 
 export function hashPassword(pw: string): string {
@@ -48,6 +49,7 @@ export type Session = {
   accountId: string;
   role: string;
   email: string;
+  emailConfirmed: boolean;
 };
 
 export function createSessionToken(session: Session): string {
@@ -64,6 +66,7 @@ export function readSessionFromCookie(cookieHeader: string | null | undefined): 
     accountId: String(data.accountId),
     role: String(data.role),
     email: String(data.email),
+    emailConfirmed: data.emailConfirmed === false ? false : true,
   };
 }
 
@@ -79,7 +82,7 @@ export function clearSessionCookieHeader(): Record<string, string> {
 }
 
 // ---- account helpers ----
-const ACCOUNT_SELECT = `id, email, password_hash, full_name, role, pin, language, auth_user_id, created_at`;
+const ACCOUNT_SELECT = `id, email, password_hash, full_name, role, pin, language, auth_user_id, email_confirmed, created_at`;
 
 export async function createAccount(data: {
   email: string;
@@ -89,11 +92,12 @@ export async function createAccount(data: {
   pin?: string;
   language?: string;
   authUserId?: string | null;
+  emailConfirmed?: boolean;
 }): Promise<DbRow> {
   const id = crypto.randomUUID();
   await queryRun(
-    `INSERT INTO account (id, email, password_hash, full_name, role, pin, language, auth_user_id)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO account (id, email, password_hash, full_name, role, pin, language, auth_user_id, email_confirmed)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     id,
     data.email.toLowerCase(),
     hashPassword(data.password),
@@ -101,9 +105,19 @@ export async function createAccount(data: {
     data.role ?? "parent",
     data.pin ? crypto.createHash("sha256").update(data.pin).digest("hex") : null,
     data.language ?? "en",
-    data.authUserId ?? null
+    data.authUserId ?? null,
+    data.emailConfirmed === false ? 0 : 1
   );
   return (await queryGet(`SELECT ${ACCOUNT_SELECT} FROM account WHERE id = ?`, id)) as DbRow;
+}
+
+export async function setEmailConfirmed(accountId: string, confirmed: boolean): Promise<void> {
+  await queryRun("UPDATE account SET email_confirmed = ? WHERE id = ?", confirmed ? 1 : 0, accountId);
+}
+
+export function emailConfirmedFor(account: DbRow | undefined): boolean {
+  if (!account) return true;
+  return account.email_confirmed !== 0;
 }
 
 export async function loginWithPin(pin: string, accountId: string): Promise<boolean> {

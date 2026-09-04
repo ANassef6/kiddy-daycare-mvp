@@ -9,6 +9,8 @@ import {
   createSessionToken,
   setPin,
   verifyToken,
+  setEmailConfirmed,
+  emailConfirmedFor,
 } from "@/lib/auth";
 import { queryGet, queryRun, ensureSchema } from "@/lib/db";
 import {
@@ -37,15 +39,18 @@ type SessionCookie = {
   accountId: string;
   role: string;
   email: string;
+  emailConfirmed: boolean;
 };
 
 async function setSession(email: string) {
   const account = await findAccountByEmail(email);
   if (!account) throw new Error("account not found");
+  const confirmed = emailConfirmedFor(account);
   const token = createSessionToken({
     accountId: account.id,
     role: account.role,
     email: account.email,
+    emailConfirmed: confirmed,
   });
   cookies().set(SESSION_COOKIE, token, {
     httpOnly: true,
@@ -56,18 +61,28 @@ async function setSession(email: string) {
   return account;
 }
 
+function homeForRole(role: string): string {
+  return role === "parent" ? "/child" : "/portal/dashboard";
+}
+
 export async function loginAction(formData: FormData) {
   const email = String(formData.get("email") ?? "").trim();
   const password = String(formData.get("password") ?? "");
 
-  // Primary path: Supabase Auth (GoTrue) when the project is wired.
+  // Primary path: Supabase Auth (GoTrue) when the project is wired. An
+  // unconfirmed email makes GoTrue reject the password (email_not_confirmed),
+  // so we fall through to the app-side verify below — that keeps the session
+  // usable while we show the "confirm your email" state.
   if (supabaseConfigured()) {
     const { data, error } = await getSupabase().auth.signInWithPassword({ email, password });
     if (!error && data.user) {
       const account = await findAccountByEmail(email);
       if (account) {
+        if (data.user.email_confirmed_at && !emailConfirmedFor(account)) {
+          await setEmailConfirmed(account.id, true);
+        }
         await setSession(account.email);
-        redirect(account.role === "parent" ? "/child" : "/portal/dashboard");
+        redirect(homeForRole(account.role));
       }
     }
   }
@@ -79,7 +94,7 @@ export async function loginAction(formData: FormData) {
     return { error: "Invalid email or password." };
   }
   await setSession(account.email);
-  redirect(account.role === "parent" ? "/child" : "/portal/dashboard");
+  redirect(emailConfirmedFor(account) ? homeForRole(account.role) : "/welcome");
 }
 
 export async function registerAction(formData: FormData) {
@@ -92,15 +107,42 @@ export async function registerAction(formData: FormData) {
     return { error: "An account with that email already exists." };
   }
 
-  // Real Supabase Auth user for every self-service registration.
+  // Create a real GoTrue user for every self-service registration, then record
+  // whether the email still needs confirmation. GoTrue on this demo project has
+  // email confirmation enabled and rate-limits confirmation sends, so signup
+  // often returns over_email_send_rate_limit. That is NOT fatal: the app-side
+  // account + session keep the MVP usable, and the /welcome page shows the
+  // confirmation state. blindSignup notes whether we still need to confirm.
   let authUserId: string | null = null;
+  let emailConfirmed = true;
   if (supabaseConfigured()) {
     const { data, error } = await getSupabase().auth.signUp({ email, password });
-    if (error) return { error: error.message };
-    authUserId = data.user?.id ?? null;
+    const isRateLimited = !!(
+      error &&
+      (error.code === "over_email_send_rate_limit" ||
+        String(error.message).toLowerCase().includes("rate limit"))
+    );
+    if (error) {
+      if (!isRateLimited) return { error: error.message };
+      // Rate-limited confirmation send: keep the app session usable anyway.
+      emailConfirmed = false;
+    } else {
+      authUserId = data.user?.id ?? null;
+      // On a confirmation-gated project GoTrue only issues a session (and only
+      // sets confirmed_at) once the email is verified. right after signup
+      // identities is already non-empty, so it is NOT a confirmation signal.
+      emailConfirmed = !!(data.session || data.user?.email_confirmed_at || data.user?.confirmed_at);
+    }
   }
 
-  const account = await createAccount({ email, password, fullName, role: "parent", authUserId });
+  const account = await createAccount({
+    email,
+    password,
+    fullName,
+    role: "parent",
+    authUserId,
+    emailConfirmed,
+  });
 
   // Optional PIN
   const pin = String(formData.get("pin") ?? "").trim();
@@ -115,7 +157,18 @@ export async function registerAction(formData: FormData) {
   }
 
   await setSession(account.email);
-  redirect("/child");
+  redirect(emailConfirmed ? "/child" : "/welcome");
+}
+
+export async function resendConfirmationAction() {
+  if (!supabaseConfigured()) return { error: "Email confirmation is not enabled in this environment." };
+  const cookie = cookies().get(SESSION_COOKIE)?.value;
+  const session = cookie ? (verifyToken(decodeURIComponent(cookie)) as SessionCookie) : null;
+  const email = session?.email ?? "";
+  if (!email) return { error: "No signed-in account to confirm." };
+  const { error } = await getSupabase().auth.resend({ type: "signup", email });
+  if (error) return { error: error.message };
+  return { ok: true };
 }
 
 export async function logoutAction() {

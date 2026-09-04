@@ -127,9 +127,12 @@ export async function ensureSchema(): Promise<void> {
   if (isPostgresMode()) {
     const fs = require("fs") as typeof import("fs");
     const path = require("path") as typeof import("path");
-    const migrationPath = path.join(process.cwd(), "supabase", "migrations", "0001_init.sql");
-    if (fs.existsSync(migrationPath)) {
-      await pgExec(fs.readFileSync(migrationPath, "utf8"));
+    const migrationDir = path.join(process.cwd(), "supabase", "migrations");
+    if (fs.existsSync(migrationDir)) {
+      const files = fs.readdirSync(migrationDir).filter((f: string) => f.endsWith(".sql")).sort();
+      for (const file of files) {
+        await pgExec(fs.readFileSync(path.join(migrationDir, file), "utf8"));
+      }
     }
     return;
   }

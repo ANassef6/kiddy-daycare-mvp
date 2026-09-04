@@ -15,6 +15,23 @@ export default async function ParentLayout({ children }: { children: React.React
 
   return (
     <div className="container" style={{ maxWidth: 720 }}>
+      {!session.emailConfirmed && (
+        <div
+          className="small"
+          style={{
+            background: "#fef3c7",
+            border: "1px solid #f59e0b",
+            borderRadius: 8,
+            padding: "8px 12px",
+            marginTop: 12,
+          }}
+        >
+          ⚠️ Your email isn&apos;t confirmed yet — password sign-in is locked until you click the link we sent.
+          <Link href="/welcome" className="small" style={{ marginLeft: 8, fontWeight: 600 }}>
+            Confirm your email
+          </Link>
+        </div>
+      )}
       <header className="row" style={{ justifyContent: "space-between", padding: "16px 0" }}>
         <span className="brand">Kiddy</span>
         <nav className="nav">

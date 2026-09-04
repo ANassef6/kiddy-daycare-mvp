@@ -4,7 +4,7 @@ import { requireSession } from "@/lib/require";
 export const dynamic = "force-dynamic";
 
 export default function PortalLayout({ children }: { children: React.ReactNode }) {
-  requireSession();
+  const session = requireSession();
   const links = [
     { href: "/portal/dashboard", label: "Dashboard" },
     { href: "/portal/children", label: "Children" },
@@ -28,7 +28,26 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
           <a href="/api/logout" className="small muted mt-3">Sign out</a>
         </div>
       </aside>
-      <main className="shell-main">{children}</main>
+      <main className="shell-main">
+        {!session.emailConfirmed && (
+          <div
+            className="small"
+            style={{
+              background: "#fef3c7",
+              border: "1px solid #f59e0b",
+              borderRadius: 8,
+              padding: "8px 12px",
+              marginBottom: 12,
+            }}
+          >
+            ⚠️ Your email isn&apos;t confirmed yet — password sign-in is locked until you click the link we sent.
+            <Link href="/welcome" className="small" style={{ marginLeft: 8, fontWeight: 600 }}>
+              Confirm your email
+            </Link>
+          </div>
+        )}
+        {children}
+      </main>
     </div>
   );
 }

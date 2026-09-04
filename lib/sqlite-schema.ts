@@ -43,6 +43,7 @@ export function sqliteSchema(db: any): void {
     pin TEXT,
     language TEXT NOT NULL DEFAULT 'en',
     auth_user_id TEXT,
+    email_confirmed INTEGER NOT NULL DEFAULT 1,
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
   );
 
