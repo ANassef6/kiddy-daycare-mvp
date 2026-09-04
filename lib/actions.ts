@@ -30,6 +30,7 @@ import {
   addContact,
   createInvite,
   updateInstitute,
+  createContactRequest,
 } from "@/lib/store";
 import { supabaseConfigured, getSupabase } from "@/lib/supabase";
 
@@ -361,4 +362,29 @@ export async function saveBrandingAction(formData: FormData) {
     });
   }
   redirect("/portal/settings");
+}
+
+export async function submitContactAction(
+  prev: { ok: boolean; error: string | null } | null,
+  formData: FormData
+): Promise<{ ok: boolean; error: string | null }> {
+  const name = String(formData.get("name") ?? "").trim();
+  const email = String(formData.get("email") ?? "").trim();
+  const phone = String(formData.get("phone") ?? "").trim();
+  const role = String(formData.get("role") ?? "parent");
+  const interest = String(formData.get("interest") ?? "demo");
+  const message = String(formData.get("message") ?? "").trim();
+
+  const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  if (!name || name.length > 120) return { ok: false, error: "Please add your name." };
+  if (!emailOk || email.length > 200) return { ok: false, error: "Please add a valid email address." };
+  if (message.length > 2000) return { ok: false, error: "Your message is too long (max 2,000 characters)." };
+
+  try {
+    await ensureSchema();
+    await createContactRequest({ name, email, phone, role, interest, message });
+    return { ok: true, error: null };
+  } catch {
+    return { ok: false, error: "Something went wrong saving your request. Please try again." };
+  }
 }

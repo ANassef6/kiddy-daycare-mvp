@@ -227,5 +227,17 @@ export function sqliteSchema(db: any): void {
     acknowledged INTEGER NOT NULL DEFAULT 0,
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
   );
+
+  CREATE TABLE IF NOT EXISTS contact_request (
+    id TEXT PRIMARY KEY,
+    institute_id TEXT REFERENCES institute(id) ON DELETE SET NULL,
+    name TEXT NOT NULL,
+    email TEXT NOT NULL,
+    phone TEXT,
+    role TEXT NOT NULL DEFAULT 'parent',
+    interest TEXT NOT NULL DEFAULT 'demo',
+    message TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
   `);
 }

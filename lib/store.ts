@@ -518,3 +518,27 @@ export async function incidentsForChild(childId: string): Promise<Row[]> {
     childId
   );
 }
+
+// ---------- Marketing / contact (M6) ----------
+export async function createContactRequest(data: {
+  name: string;
+  email: string;
+  phone?: string;
+  role?: string;
+  interest?: string;
+  message?: string;
+}): Promise<Row> {
+  const id = uid();
+  await queryRun(
+    `INSERT INTO contact_request (id, name, email, phone, role, interest, message)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    id,
+    data.name,
+    data.email.toLowerCase(),
+    data.phone ?? null,
+    data.role ?? "parent",
+    data.interest ?? "demo",
+    data.message ?? null
+  );
+  return (await queryGet("SELECT * FROM contact_request WHERE id = ?", id))!;
+}

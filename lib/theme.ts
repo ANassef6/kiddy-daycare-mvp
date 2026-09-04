@@ -32,6 +32,23 @@ export function brandingFromInstitute(institute: Row | undefined): Branding {
   };
 }
 
+// Cache the resolved branding for a few seconds so warm serverless requests
+// skip the DB round trip. Branding config updates (the white-label swap test)
+// still reflect within this window — no redeploy required.
+const BRANDING_TTL_MS = 30_000;
+let _brandingCache: { at: number; value: Branding } | null = null;
+
+export async function getBranding(): Promise<Branding> {
+  const now = Date.now();
+  if (_brandingCache && now - _brandingCache.at < BRANDING_TTL_MS) {
+    return _brandingCache.value;
+  }
+  const first = await getFirstInstitute();
+  const b = brandingFromInstitute(first);
+  _brandingCache = { at: now, value: b };
+  return b;
+}
+
 // Builds the CSS custom-property theme block from branding so every surface
 // consumes tokens only — swapping daycare branding is config, not code.
 export function themeCss(b: Branding): string {

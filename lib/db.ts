@@ -123,22 +123,46 @@ export async function queryRun(sql: string, ...args: unknown[]): Promise<{ rowCo
 
 // Applies the Kiddy schema. Postgres mode reads supabase/migrations; SQLite
 // mode keeps its inline migration so local dev stays self-contained.
+//
+// Postgres mode keeps a schema_migrations ledger so migrations run exactly once
+// per file and warm requests skip the full pass (one cheap ledger read), which
+// keeps the public marketing pages fast under the serverless free tier.
 export async function ensureSchema(): Promise<void> {
   if (isPostgresMode()) {
-    const fs = require("fs") as typeof import("fs");
-    const path = require("path") as typeof import("path");
-    const migrationDir = path.join(process.cwd(), "supabase", "migrations");
-    if (fs.existsSync(migrationDir)) {
-      const files = fs.readdirSync(migrationDir).filter((f: string) => f.endsWith(".sql")).sort();
-      for (const file of files) {
-        await pgExec(fs.readFileSync(path.join(migrationDir, file), "utf8"));
-      }
-    }
+    await ensurePgSchema();
     return;
   }
   // SQLite fallback: identical table definitions, SQLite dialect.
   const { sqliteSchema } = await import("./sqlite-schema");
   sqliteSchema(getSqlite());
+}
+
+let _pgMigrated: Set<string> | null = null;
+
+async function ensurePgSchema(): Promise<void> {
+  if (_pgMigrated) return; // already applied in this process — warm fast-path
+  const fs = require("fs") as typeof import("fs");
+  const path = require("path") as typeof import("path");
+  const migrationDir = path.join(process.cwd(), "supabase", "migrations");
+  if (!fs.existsSync(migrationDir)) return;
+
+  const pool = getPool();
+  await pool.query(
+    `CREATE TABLE IF NOT EXISTS schema_migrations (
+      file TEXT PRIMARY KEY,
+      applied_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    )`
+  );
+  const res = await pool.query("SELECT file FROM schema_migrations");
+  const appliedSet = new Set(res.rows.map((r) => String(r.file)));
+
+  const files = fs.readdirSync(migrationDir).filter((f: string) => f.endsWith(".sql")).sort();
+  for (const file of files) {
+    if (appliedSet.has(file)) continue;
+    await pgExec(fs.readFileSync(path.join(migrationDir, file), "utf8"));
+    await pool.query("INSERT INTO schema_migrations (file) VALUES ($1)", [file]);
+  }
+  _pgMigrated = new Set(files);
 }
 
 export function uid(): string {
