@@ -376,14 +376,7 @@ export async function saveBrandingAction(formData: FormData) {
   redirect("/portal/settings");
 }
 
-export async function submitContactAction(
-  prev: { ok: boolean; error: string | null } | null,
-  formData: FormData
-): Promise<{ ok: boolean; error: string | null }> {
-  console.log(
-    "[contact] invoked name=" + String(formData?.get?.("name") ?? "") +
-      " pg=" + (process.env.KIDDY_DATABASE_URL ? "yes" : "no")
-  );
+export async function submitContactAction(formData: FormData) {
   const name = String(formData.get("name") ?? "").trim();
   const email = String(formData.get("email") ?? "").trim();
   const phone = String(formData.get("phone") ?? "").trim();
@@ -392,18 +385,18 @@ export async function submitContactAction(
   const message = String(formData.get("message") ?? "").trim();
 
   const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-  if (!name || name.length > 120) return { ok: false, error: "Please add your name." };
-  if (!emailOk || email.length > 200) return { ok: false, error: "Please add a valid email address." };
-  if (message.length > 2000) return { ok: false, error: "Your message is too long (max 2,000 characters)." };
+  if (!name || name.length > 120) redirect("/contact?error=name");
+  if (!emailOk || email.length > 200) redirect("/contact?error=email");
+  if (message.length > 2000) redirect("/contact?error=long");
 
   try {
     await ensureSchema();
     await createContactRequest({ name, email, phone, role, interest, message });
-    return { ok: true, error: null };
   } catch (err) {
     console.error("submitContactAction failed:", err);
-    return { ok: false, error: "Something went wrong saving your request. Please try again." };
+    redirect("/contact?error=server");
   }
+  redirect("/contact?sent=1");
 }
 
 // ---- T5 / M5 extra kept areas: server actions ----

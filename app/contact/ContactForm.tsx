@@ -1,31 +1,6 @@
-"use client";
-
-import { useFormState } from "react-dom";
 import { submitContactAction } from "@/lib/actions";
 
-const initialState = { ok: false, error: null as string | null };
-
 export default function ContactForm() {
-  const [state, formAction] = useFormState(submitContactAction, initialState);
-
-  if (state.ok) {
-    return (
-      <div className="card contact-card" role="status" aria-live="polite">
-        <h2 className="title">Thanks — we&apos;re on it!</h2>
-        <p className="muted">
-          Your request was received. Someone from the team will be in touch to
-          book your demo or answer your question.
-        </p>
-        <p className="small mt-3 muted">
-          In the meantime, you can explore the seeded demo environment.
-        </p>
-        <a className="btn btn-primary mt-3" href="/login">
-          Try the demo
-        </a>
-      </div>
-    );
-  }
-
   return (
     <div className="card contact-card">
       <h2 className="title">Book a demo</h2>
@@ -33,12 +8,7 @@ export default function ContactForm() {
         Walk through the platform with real daycare data — or just tell us what
         you need.
       </p>
-      {state.error ? (
-        <p className="form-error" role="alert" aria-live="polite">
-          {state.error}
-        </p>
-      ) : null}
-      <form className="mt-3" action={formAction}>
+      <form className="mt-3" action={submitContactAction}>
         <div className="field">
           <label className="label" htmlFor="contact-name">
             Your name <span aria-hidden="true">*</span>

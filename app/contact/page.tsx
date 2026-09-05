@@ -10,8 +10,23 @@ export const metadata = {
     "Book a personalized demo of the white-label childcare management platform, or send us your questions.",
 };
 
-export default async function ContactPage() {
+export default async function ContactPage({
+  searchParams,
+}: {
+  searchParams?: { sent?: string; error?: string };
+}) {
   const branding = await getBranding();
+
+  const errorMessage =
+    searchParams?.error === "name"
+      ? "Please add your name."
+      : searchParams?.error === "email"
+        ? "Please add a valid email address."
+        : searchParams?.error === "long"
+          ? "Your message is too long (max 2,000 characters)."
+          : searchParams?.error === "server"
+            ? "Something went wrong saving your request. Please try again."
+            : null;
 
   return (
     <>
@@ -30,7 +45,30 @@ export default async function ContactPage() {
 
         <section className="section">
           <div className="container contact-grid">
-            <ContactForm />
+            {searchParams?.sent ? (
+              <div className="card contact-card" role="status" aria-live="polite">
+                <h2 className="title">Thanks — we&apos;re on it!</h2>
+                <p className="muted">
+                  Your request was received. Someone from the team will be in
+                  touch to book your demo or answer your question.
+                </p>
+                <p className="small mt-3 muted">
+                  In the meantime, you can explore the seeded demo environment.
+                </p>
+                <a className="btn btn-primary mt-3" href="/login">
+                  Try the demo
+                </a>
+              </div>
+            ) : (
+              <>
+                {errorMessage ? (
+                  <p className="form-error" role="alert" aria-live="polite">
+                    {errorMessage}
+                  </p>
+                ) : null}
+                <ContactForm />
+              </>
+            )}
             <aside className="card contact-side" aria-label="Contact details">
               <h2 className="title" style={{ marginBottom: "var(--space-3)" }}>
                 Other ways to connect
