@@ -37,8 +37,13 @@ export default async function ParentLayout({ children }: { children: React.React
         <nav className="nav">
           <Link href="/child">My children</Link>
           <Link href="/child/newsfeed">Newsfeed</Link>
+          <Link href="/child/events">Events</Link>
+          <Link href="/child/learning">Learning</Link>
+          <Link href="/child/drive">Drive</Link>
+          <Link href="/child/forms">Surveys</Link>
           <Link href="/child/consents">Consents</Link>
-          <Link href="/child/incidents">Incidents</Link>
+          <Link href="/child/messages">Chat</Link>
+          <Link href="/child/support">Support</Link>
           <form style={{ margin: 0 }}>
             <button className="btn btn-ghost" formAction="/api/logout">Sign out</button>
           </form>

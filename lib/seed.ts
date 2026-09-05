@@ -108,6 +108,100 @@ export async function seedDemo() {
 
   await store.createConsent({ instituteId: iid, title: "Outdoor play permission", body: "May your child play in the outdoor yard?", childId: childA.id as string });
 
+  // ---- T5 / M5 extra kept areas: demo data ----
+  await store.createEvent({
+    instituteId: iid,
+    title: "In-house field trip: fire station visit",
+    eventDate: new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10),
+    startTime: "09:30",
+    endTime: "11:00",
+    location: "Main branch",
+    description: "Firefighters show their truck and gear. Please dress your child in comfortable clothes.",
+    accountId: adminAcc.id,
+  });
+  await store.createEvent({
+    instituteId: iid,
+    title: "Spring photo day",
+    eventDate: new Date(Date.now() + 14 * 86400000).toISOString().slice(0, 10),
+    location: "Multipurpose room",
+    description: "Individual and group photos. Prints stay in the parent drive.",
+    accountId: adminAcc.id,
+  });
+  await store.addMedia({
+    instituteId: iid,
+    url: "https://storage.googleapis.com/coverr-main/mp4/Mt_Baker.mp4",
+    kind: "video",
+    caption: "Morning outdoor play in the sunshine",
+    childId: childA.id as string,
+    accountId: adminAcc.id,
+  });
+  await store.createForm({
+    instituteId: iid,
+    kind: "survey",
+    title: "Would you like a parent-teacher conference?",
+    description: "Pick a preference and we will follow up.",
+    fieldsJson: JSON.stringify([
+      { id: "f0", label: "Your availability", type: "select", options: ["Weekday morning", "Weekday afternoon", "Weekend"], required: true },
+      { id: "f1", label: "Questions or topics to discuss", type: "textarea", required: false },
+    ]),
+    accountId: adminAcc.id,
+  });
+  await store.createForm({
+    instituteId: iid,
+    kind: "list",
+    title: "Photo day permission list",
+    description: "Tick the box to approve photos of your child.",
+    fieldsJson: JSON.stringify([{ id: "f0", label: "I allow photos of my child", type: "checkbox", required: true }]),
+    accountId: adminAcc.id,
+  });
+  await store.createTag(iid, "Allergies", "#F43F5E");
+  await store.createTag(iid, "New family", "#8B5CF6");
+  await store.createTag(iid, "Full-time", "#10B981");
+  const tags = await store.listTags(iid);
+  await store.setChildTags(childA.id as string, [tags[0].id as string, tags[2].id as string]);
+  await store.addDriveFile({
+    instituteId: iid,
+    filename: "Sunshine Daycare Parent Handbook 2026.pdf",
+    url: "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf",
+    kind: "pdf",
+    sizeBytes: 128000,
+    description: "Opening hours, policies, and what to bring.",
+    accountId: adminAcc.id,
+  });
+  await store.addDriveFile({
+    instituteId: iid,
+    filename: "Ella — immunizations.pdf",
+    url: "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf",
+    kind: "pdf",
+    childId: childA.id as string,
+    description: "Ella's immunization record for your records.",
+    accountId: adminAcc.id,
+  });
+  await store.createObservation({
+    instituteId: iid,
+    childId: childA.id as string,
+    accountId: adminAcc.id,
+    kind: "milestone",
+    title: "First steps!",
+    body: "Ella took her first independent steps across the mat today — she was very proud.",
+    recordedAt: today,
+  });
+  await store.createObservation({
+    instituteId: iid,
+    childId: childB.id as string,
+    accountId: adminAcc.id,
+    kind: "goal",
+    title: "Building independence",
+    body: "Leo is working on putting on his own shoes. A few more weeks of practice.",
+    recordedAt: today,
+  });
+  await store.createSupportTicket({
+    instituteId: iid,
+    accountId: parent.id as string,
+    subject: "Pickup change for Friday",
+    body: "My mother-in-law will pick Ella up on Friday. Should be on the pickup list.",
+  });
+
   console.log("Seeded demo daycare:", iid);
 }
 

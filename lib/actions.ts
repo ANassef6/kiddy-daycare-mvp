@@ -31,6 +31,18 @@ import {
   createInvite,
   updateInstitute,
   createContactRequest,
+  createEvent,
+  addEventMedia,
+  createForm,
+  saveFormResponse,
+  createTag,
+  setChildTags,
+  addDriveFile,
+  createObservation,
+  createSupportTicket,
+  setTicketStatus,
+  sendMessage,
+  markRead,
 } from "@/lib/store";
 import { supabaseConfigured, getSupabase } from "@/lib/supabase";
 
@@ -388,4 +400,199 @@ export async function submitContactAction(
     console.error("submitContactAction failed:", err);
     return { ok: false, error: "Something went wrong saving your request. Please try again." };
   }
+}
+
+// ---- T5 / M5 extra kept areas: server actions ----
+
+function requireInstitute(): Promise<string> {
+  return (async () => {
+    await ensureSchema();
+    return firstInstituteId();
+  })();
+}
+
+export async function createEventAction(formData: FormData) {
+  const me = authAccount();
+  const instituteId = await requireInstitute();
+  if (instituteId) {
+    await createEvent({
+      instituteId,
+      title: String(formData.get("title") ?? ""),
+      eventDate: String(formData.get("eventDate") ?? ""),
+      startTime: String(formData.get("startTime") ?? "") || undefined,
+      endTime: String(formData.get("endTime") ?? "") || undefined,
+      location: String(formData.get("location") ?? "") || undefined,
+      description: String(formData.get("description") ?? "") || undefined,
+      accountId: me.accountId,
+    });
+  }
+  redirect("/portal/events");
+}
+
+export async function addEventMediaAction(formData: FormData) {
+  const me = authAccount();
+  const instituteId = await requireInstitute();
+  const eventId = String(formData.get("eventId") ?? "");
+  if (instituteId && eventId) {
+    await addEventMedia({
+      eventId,
+      instituteId,
+      url: String(formData.get("url") ?? ""),
+      kind: String(formData.get("kind") ?? "image"),
+      caption: String(formData.get("caption") ?? "") || undefined,
+      accountId: me.accountId,
+    });
+  }
+  redirect(`/portal/events?open=${eventId}`);
+}
+
+export async function createFormAction(formData: FormData) {
+  const me = authAccount();
+  const instituteId = await requireInstitute();
+  const title = String(formData.get("title") ?? "");
+  const kind = String(formData.get("kind") ?? "form");
+  let fieldsJson = [];
+  for (let i = 0; i < 20; i++) {
+    const label = String(formData.get(`field_${i}_label`) ?? "").trim();
+    if (!label) continue;
+    const ftype = String(formData.get(`field_${i}_type`) ?? "text").trim();
+    const options = String(formData.get(`field_${i}_options`) ?? "")
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean);
+    fieldsJson.push({ id: `f${i}`, label, type: ftype, required: formData.get(`field_${i}_required`) === "on", options });
+  }
+  if (instituteId && title) {
+    await createForm({
+      instituteId,
+      kind,
+      title,
+      description: String(formData.get("description") ?? ""),
+      fieldsJson: JSON.stringify(fieldsJson),
+      accountId: me.accountId,
+    });
+  }
+  redirect("/portal/forms");
+}
+
+export async function submitFormAction(formData: FormData) {
+  const me = authAccount();
+  const formId = String(formData.get("formId") ?? "");
+  await ensureSchema();
+  const answers: Record<string, string> = {};
+  for (let i = 0; i < 20; i++) {
+    if (formData.get(`field_${i}_label`) === null) continue;
+    const key = String(formData.get(`field_${i}_key`) ?? `field_${i}`);
+    answers[key] = String(formData.get(`field_${i}`) ?? "").trim();
+  }
+  await saveFormResponse({
+    formId,
+    accountId: me.accountId,
+    childId: String(formData.get("childId") ?? "") || undefined,
+    answersJson: JSON.stringify(answers),
+  });
+  redirect(`/child/forms?sent=${formId}`);
+}
+
+export async function createTagAction(formData: FormData) {
+  const instituteId = await requireInstitute();
+  if (instituteId) {
+    await createTag(
+      String(instituteId),
+      String(formData.get("name") ?? ""),
+      String(formData.get("color") ?? "#3B82F6")
+    );
+  }
+  redirect("/portal/tags");
+}
+
+export async function setChildTagsAction(formData: FormData) {
+  const childId = String(formData.get("childId") ?? "");
+  if (childId) {
+    await setChildTags(childId, formData.getAll("tagIds").map(String));
+  }
+  redirect(`/portal/children/${childId}`);
+}
+
+export async function addDriveFileAction(formData: FormData) {
+  const me = authAccount();
+  const instituteId = await requireInstitute();
+  if (instituteId) {
+    await addDriveFile({
+      instituteId,
+      filename: String(formData.get("filename") ?? ""),
+      url: String(formData.get("url") ?? ""),
+      kind: String(formData.get("kind") ?? "file"),
+      sizeBytes: Number(formData.get("sizeBytes")) || undefined,
+      description: String(formData.get("description") ?? ""),
+      childId: String(formData.get("childId") ?? "") || undefined,
+      accountId: me.accountId,
+    });
+  }
+  redirect("/portal/drive");
+}
+
+export async function createObservationAction(formData: FormData) {
+  const me = authAccount();
+  const instituteId = await requireInstitute();
+  const childId = String(formData.get("childId") ?? "");
+  if (instituteId && childId) {
+    await createObservation({
+      instituteId,
+      childId,
+      accountId: me.accountId,
+      kind: String(formData.get("kind") ?? "observation"),
+      title: String(formData.get("title") ?? "") || undefined,
+      body: String(formData.get("body") ?? ""),
+      recordedAt: String(formData.get("recordedAt") ?? "") || undefined,
+    });
+  }
+  redirect("/portal/learning");
+}
+
+export async function createSupportTicketAction(formData: FormData) {
+  const me = authAccount();
+  const instituteId = await requireInstitute();
+  if (instituteId) {
+    await createSupportTicket({
+      instituteId,
+      accountId: me.accountId,
+      subject: String(formData.get("subject") ?? ""),
+      body: String(formData.get("body") ?? ""),
+    });
+  }
+  redirect("/child/support?sent=1");
+}
+
+export async function setTicketStatusAction(formData: FormData) {
+  const ticketId = String(formData.get("ticketId") ?? "");
+  const status = String(formData.get("status") ?? "open");
+  if (ticketId) {
+    await setTicketStatus(ticketId, status);
+  }
+  redirect("/portal/support");
+}
+
+export async function sendMessageAction(formData: FormData) {
+  const me = authAccount();
+  const recipient = String(formData.get("recipientId") ?? "");
+  const body = String(formData.get("body") ?? "").trim();
+  await ensureSchema();
+  const instituteId = await firstInstituteId();
+  if (recipient && body && instituteId) {
+    await sendMessage({ instituteId, senderAccountId: me.accountId, recipientAccountId: recipient, body });
+  }
+  redirect(`/portal/messages?with=${recipient}`);
+}
+
+export async function sendParentMessageAction(formData: FormData) {
+  const me = authAccount();
+  const recipient = String(formData.get("recipientId") ?? "");
+  const body = String(formData.get("body") ?? "").trim();
+  await ensureSchema();
+  const instituteId = await firstInstituteId();
+  if (recipient && body && instituteId) {
+    await sendMessage({ instituteId, senderAccountId: me.accountId, recipientAccountId: recipient, body });
+  }
+  redirect("/child/messages");
 }

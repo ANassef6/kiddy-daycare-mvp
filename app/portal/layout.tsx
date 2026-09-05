@@ -13,8 +13,16 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
     { href: "/portal/attendance", label: "Attendance" },
     { href: "/portal/reports", label: "Daily reports" },
     { href: "/portal/newsfeed", label: "Newsfeed" },
+    { href: "/portal/events", label: "Events & video" },
+    { href: "/portal/learning", label: "Learning" },
+    { href: "/portal/drive", label: "Parent drive" },
+    { href: "/portal/forms", label: "Forms & surveys" },
+    { href: "/portal/tags", label: "Tags & lists" },
+    { href: "/portal/report-center", label: "Report center" },
     { href: "/portal/consents", label: "Consents" },
     { href: "/portal/incidents", label: "Incidents" },
+    { href: "/portal/messages", label: "Live chat" },
+    { href: "/portal/support", label: "Support inbox" },
     { href: "/portal/settings", label: "Branding" },
   ];
   return (
