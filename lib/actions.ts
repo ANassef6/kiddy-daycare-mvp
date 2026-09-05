@@ -384,7 +384,8 @@ export async function submitContactAction(
     await ensureSchema();
     await createContactRequest({ name, email, phone, role, interest, message });
     return { ok: true, error: null };
-  } catch {
+  } catch (err) {
+    console.error("submitContactAction failed:", err);
     return { ok: false, error: "Something went wrong saving your request. Please try again." };
   }
 }
