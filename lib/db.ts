@@ -62,15 +62,80 @@ async function pgRun(sql: string, args: unknown[]): Promise<{ rowCount: number }
 }
 
 // Applies a multi-statement SQL script (used for the migration file).
+// Splits on `;` but respects string literals ('...'', E'...', dollar-quoted
+// $tag$...$tag$) so migrations with function bodies apply cleanly.
 async function pgExec(sql: string): Promise<void> {
-  const statements = sql
-    .split(";")
-    .map((s) => s.trim())
-    .filter((s) => s.length > 0);
+  const statements = splitStatements(sql);
   const pool = getPool();
   for (const statement of statements) {
     await pool.query(statement);
   }
+}
+
+function splitStatements(sql: string): string[] {
+  const statements: string[] = [];
+  let current = "";
+  let i = 0;
+  while (i < sql.length) {
+    const ch = sql[i];
+    if (ch === "'") {
+      current += ch;
+      i += 1;
+      if (sql[i] === "'") {
+        current += sql[i];
+        i += 1;
+      }
+      // '' is an escaped quote inside a literal; walk until the closing quote.
+      while (i < sql.length) {
+        if (sql[i] === "'") {
+          if (sql[i + 1] === "'") {
+            current += "''";
+            i += 2;
+          } else {
+            current += "'";
+            i += 1;
+            break;
+          }
+        } else {
+          current += sql[i];
+          i += 1;
+        }
+      }
+    } else if (ch === "$") {
+      // Dollar-quoted body: $tag$ ... $tag$
+      const endTag = sql.indexOf("$", i + 1);
+      if (endTag !== -1) {
+        const tag = sql.slice(i, endTag + 1);
+        const close = sql.indexOf(tag, endTag + 1);
+        if (close !== -1) {
+          current += sql.slice(i, close + tag.length);
+          i = close + tag.length;
+          continue;
+        }
+      }
+      current += ch;
+      i += 1;
+    } else if (ch === "-" && sql[i + 1] === "-") {
+      // Line comment: skip to end of line; keep it out of the statement text.
+      const nl = sql.indexOf("\n", i + 2);
+      i = nl === -1 ? sql.length : nl + 1;
+    } else if (ch === "/" && sql[i + 1] === "*") {
+      // Block comment.
+      const close = sql.indexOf("*/", i + 2);
+      i = close === -1 ? sql.length : close + 2;
+    } else if (ch === ";") {
+      i += 1;
+      const trimmed = current.trim();
+      if (trimmed.length > 0) statements.push(trimmed);
+      current = "";
+    } else {
+      current += ch;
+      i += 1;
+    }
+  }
+  const tail = current.trim();
+  if (tail.length > 0) statements.push(tail);
+  return statements;
 }
 
 // ---------------------------------------------------------------------------
