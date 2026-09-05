@@ -2,7 +2,7 @@
 // EXPO_PUBLIC_API_URL. Defaults to the current production web deployment where
 // /api/mobile/* reuses the same TypeScript/Supabase core as the deployed web app.
 export const API_ORIGIN =
-  process.env.EXPO_PUBLIC_API_URL ?? "https://kiddy-ab8xqu5rw-kiddy2.vercel.app";
+  process.env.EXPO_PUBLIC_API_URL ?? "https://kiddy-mobile-api.vercel.app";
 
 export const BRANDING_DEFAULTS = {
   name: "Kiddy",
