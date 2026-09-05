@@ -380,6 +380,10 @@ export async function submitContactAction(
   prev: { ok: boolean; error: string | null } | null,
   formData: FormData
 ): Promise<{ ok: boolean; error: string | null }> {
+  console.log(
+    "[contact] invoked name=" + String(formData?.get?.("name") ?? "") +
+      " pg=" + (process.env.KIDDY_DATABASE_URL ? "yes" : "no")
+  );
   const name = String(formData.get("name") ?? "").trim();
   const email = String(formData.get("email") ?? "").trim();
   const phone = String(formData.get("phone") ?? "").trim();
