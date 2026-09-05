@@ -13,6 +13,14 @@ export async function ensureSeeded(): Promise<void> {
     const { seedDemo } = await import("./seed");
     await seedDemo();
   }
+  // Keep the live demo explorable: add M3 billing demo rows only while the
+  // daycare has no invoices yet. Never overwrites real billing activity.
+  try {
+    const { seedBillingDemo } = await import("./seed");
+    await seedBillingDemo();
+  } catch {
+    // non-fatal — billing tables may not exist on very old DBs until schema applies
+  }
   initialized = true;
 }
 

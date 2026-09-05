@@ -2,6 +2,47 @@ import { queryGet } from "./db";
 import * as store from "./store";
 import { createAccount } from "./auth";
 
+// Seeds M3 billing demo data (plan + open invoice per demo child) into an
+// already-seeded daycare. Guarded: only runs when no invoices exist yet, so it
+// never pollutes a daycare that has started real billing. Called on app boot
+// via bootstrap.ts (does not overwrite existing billing activity).
+export async function seedBillingDemo() {
+  const inst = await queryGet("SELECT id FROM institute ORDER BY created_at LIMIT 1");
+  if (!inst) return { skipped: true as const, reason: "no institute" };
+  const invoiceCount = await queryGet("SELECT COUNT(*) AS c FROM invoice");
+  if ((invoiceCount?.c as number) > 0) return { skipped: true as const, reason: "invoices already exist" };
+
+  const iid = inst.id as string;
+  const owner = await queryGet("SELECT id FROM account WHERE role = 'owner' LIMIT 1");
+  const children = await store.listChildren(iid);
+  const demos: Array<{ childName: string; planName: string; amountCents: number }> = [
+    { childName: "Ella", planName: "Full-time toddler", amountCents: 120000 },
+    { childName: "Leo", planName: "Preschool half-day", amountCents: 95000 },
+  ];
+  for (const d of demos) {
+    const child = children.find((c: any) => c.first_name === d.childName);
+    if (!child) continue;
+    await store.upsertChildPlan({
+      instituteId: iid,
+      childId: child.id as string,
+      planName: d.planName,
+      amountCents: d.amountCents,
+      billingPeriod: "monthly",
+      updatedByAccountId: owner?.id as string | undefined,
+    });
+    await store.createInvoice({
+      instituteId: iid,
+      childId: child.id as string,
+      description: "September tuition",
+      amountCents: d.amountCents,
+      dueDate: new Date().toISOString().slice(0, 8) + "01",
+      createdByAccountId: owner?.id as string | undefined,
+    });
+  }
+  console.log("Seeded M3 billing demo data.");
+  return { skipped: false as const };
+}
+
 // Seeds a demo daycare, its rooms/staff, two children with a parent, an invite,
 // and a small set of daily-loop records so the MVP is immediately explorable.
 // Runs against whichever engine is active (Supabase Postgres or local SQLite).
@@ -131,6 +172,14 @@ export async function seedDemo() {
     childId: childA.id as string,
     description: "September tuition",
     amountCents: 120000,
+    dueDate: today.slice(0, 8) + "01",
+    createdByAccountId: adminAcc.id,
+  });
+  await store.createInvoice({
+    instituteId: iid,
+    childId: childB.id as string,
+    description: "September tuition",
+    amountCents: 95000,
     dueDate: today.slice(0, 8) + "01",
     createdByAccountId: adminAcc.id,
   });
