@@ -21,9 +21,18 @@ const CURRENCY_SYMBOLS: Record<string, string> = {
   AUD: "A$",
 };
 
-// Parses a dollars input ("120.50" or "$120") into integer cents.
+// Parses a dollars input ("120.50" or "$120") into integer cents. Blank,
+// whitespace-only, or non-numeric input is rejected so a mistyped amount never
+// silently becomes $0.00 on a billing form.
 export function parseDollarsToCents(input: string): number {
-  const cleaned = String(input ?? "").replace(/[^0-9.\-]/g, "");
+  const raw = String(input ?? "").trim();
+  if (!raw) {
+    throw new Error("Enter a valid amount (e.g. 120.50).");
+  }
+  const cleaned = raw.replace(/[^0-9.\-]/g, "");
+  if (!cleaned) {
+    throw new Error("Enter a valid amount (e.g. 120.50).");
+  }
   const value = Number(cleaned);
   if (!Number.isFinite(value) || value < 0) {
     throw new Error("Enter a valid amount (e.g. 120.50).");

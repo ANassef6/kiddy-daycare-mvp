@@ -201,7 +201,7 @@ export async function todayStatus(childId: string): Promise<{ checkedIn?: Row; c
   const today = new Date().toISOString().slice(0, 10);
   const latest = await queryAll(
     `SELECT * FROM check_in WHERE child_id = ? AND date(recorded_at) = ?
-     ORDER BY recorded_at DESC LIMIT 6`,
+     ORDER BY recorded_at DESC, id DESC LIMIT 6`,
     childId,
     today
   );
@@ -216,9 +216,9 @@ export async function todayStatus(childId: string): Promise<{ checkedIn?: Row; c
 export async function attendanceOn(instituteId: string, day: string): Promise<Row[]> {
   return queryAll(
     `SELECT c.id, c.first_name, c.last_name, r.name AS room_name,
-            (SELECT type FROM check_in WHERE child_id = c.id AND date(recorded_at) = ? ORDER BY recorded_at DESC LIMIT 1) AS last_event,
-            (SELECT recorded_at FROM check_in WHERE child_id = c.id AND date(recorded_at) = ? AND type='in' ORDER BY recorded_at DESC LIMIT 1) AS checked_in_at,
-            (SELECT recorded_at FROM check_in WHERE child_id = c.id AND date(recorded_at) = ? AND type='out' ORDER BY recorded_at DESC LIMIT 1) AS checked_out_at
+            (SELECT type FROM check_in WHERE child_id = c.id AND date(recorded_at) = ? ORDER BY recorded_at DESC, id DESC LIMIT 1) AS last_event,
+            (SELECT recorded_at FROM check_in WHERE child_id = c.id AND date(recorded_at) = ? AND type='in' ORDER BY recorded_at DESC, id DESC LIMIT 1) AS checked_in_at,
+            (SELECT recorded_at FROM check_in WHERE child_id = c.id AND date(recorded_at) = ? AND type='out' ORDER BY recorded_at DESC, id DESC LIMIT 1) AS checked_out_at
      FROM child c
      LEFT JOIN room r ON r.id = c.room_id
      WHERE c.institute_id = ? AND c.active = 1
@@ -336,7 +336,7 @@ export async function listNewsfeed(instituteId: string, forAccountId?: string): 
      FROM newsfeed_post p
      JOIN account a ON a.id = p.account_id
      WHERE p.institute_id = ?
-     ORDER BY p.created_at DESC`,
+     ORDER BY p.created_at DESC, p.id DESC`,
     forAccountId ?? "",
     instituteId
   );
@@ -356,7 +356,7 @@ export async function newsfeedForChild(childId: string): Promise<Row[]> {
      JOIN newsfeed_tag t ON t.post_id = p.id
      JOIN account a ON a.id = p.account_id
      WHERE t.child_id = ?
-     ORDER BY p.created_at DESC`,
+     ORDER BY p.created_at DESC, p.id DESC`,
     childId
   );
 }
@@ -470,7 +470,7 @@ export async function respondConsent(id: string, status: "approved" | "denied"):
 }
 
 export async function listConsents(instituteId: string): Promise<Row[]> {
-  return queryAll("SELECT * FROM consent_request WHERE institute_id = ? ORDER BY created_at DESC", instituteId);
+  return queryAll("SELECT * FROM consent_request WHERE institute_id = ? ORDER BY created_at DESC, id DESC", instituteId);
 }
 
 // ---------- Incidents ----------

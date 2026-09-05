@@ -37,6 +37,9 @@ export function verifyToken(token: string): Record<string, unknown> | null {
   const [body, sig] = token.split(".");
   if (!body || !sig) return null;
   const expected = crypto.createHmac("sha256", TOKEN_SECRET).update(body).digest("base64url");
+  // A malformed/mismatched-length signature would otherwise throw a RangeError
+  // from timingSafeEqual and crash session parsing; treat it as unverified.
+  if (sig.length !== expected.length) return null;
   if (!crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(expected))) return null;
   try {
     return JSON.parse(Buffer.from(body, "base64url").toString());
