@@ -330,4 +330,30 @@ describe("parent linking / invites", () => {
     expect(found.id).toBe(invite.id);
     expect(found.email).toBe("new.parent@example.test"); // lowercased
   });
+
+  it("invited-parent accounts register confirmed and are child-linked (KID-30)", async () => {
+    // Mirrors registerAction for an invited parent: the daycare invite code
+    // authenticates the family link, so the app-side account must be created
+    // email-confirmed regardless of the GoTrue confirmation email state.
+    const inst = (await store.listInstitutes())[0];
+    const child = (await store.listChildren(inst.id))[0];
+    const invite = await store.createInvite(inst.id, child.id, "invited@example.test", "SUNSHINE-1234");
+    const found = await store.getInviteByCode("SUNSHINE-1234");
+
+    const { createAccount, emailConfirmedFor, findAccountByEmail } = await import("@/lib/auth");
+    const invitedParent = !!(found && found.child_id);
+    const account = await createAccount({
+      email: "invited@example.test",
+      password: "pw123456",
+      fullName: "Invited Parent",
+      role: "parent",
+      emailConfirmed: invitedParent,
+    });
+    await store.linkFamily(account.id, String(found?.child_id));
+
+    expect(invitedParent).toBe(true);
+    expect(emailConfirmedFor(await findAccountByEmail("invited@example.test"))).toBe(true);
+    const fam = (await store.familiesForAccount(account.id)).map((c) => String(c.id));
+    expect(fam).toContain(String(invite.child_id));
+  });
 });

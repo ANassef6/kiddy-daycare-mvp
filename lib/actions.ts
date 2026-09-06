@@ -111,12 +111,19 @@ export async function registerAction(formData: FormData) {
     return { error: "An account with that email already exists." };
   }
 
+  // Resolve the invite before creating anything: a valid invite that links to a
+  // child makes this an invited parent. The daycare's invite code is the
+  // authentication for that family link, so the account is auto-confirmed
+  // app-side and must never wait on a (rate-limited) GoTrue confirmation email.
+  const invite = inviteCode ? await getInviteByCode(inviteCode) : undefined;
+  const invitedParent = !!(invite && invite.child_id);
+
   // Create a real GoTrue user for every self-service registration, then record
   // whether the email still needs confirmation. GoTrue on this demo project has
   // email confirmation enabled and rate-limits confirmation sends, so signup
   // often returns over_email_send_rate_limit. That is NOT fatal: the app-side
   // account + session keep the MVP usable, and the /welcome page shows the
-  // confirmation state. blindSignup notes whether we still need to confirm.
+  // confirmation state. Invited parents skip that state entirely.
   let authUserId: string | null = null;
   let emailConfirmed = true;
   if (supabaseConfigured()) {
@@ -145,23 +152,20 @@ export async function registerAction(formData: FormData) {
     fullName,
     role: "parent",
     authUserId,
-    emailConfirmed,
+    emailConfirmed: invitedParent || emailConfirmed,
   });
 
   // Optional PIN
   const pin = String(formData.get("pin") ?? "").trim();
   if (pin) await setPin(account.id, pin);
 
-  // Link via invite code if provided
-  if (inviteCode) {
-    const invite = await getInviteByCode(inviteCode);
-    if (invite && invite.child_id) {
-      await linkFamily(account.id, String(invite.child_id));
-    }
+  // Link the invited parent to the child via the invite code
+  if (invitedParent) {
+    await linkFamily(account.id, String(invite?.child_id));
   }
 
   await setSession(account.email);
-  redirect(emailConfirmed ? "/child" : "/welcome");
+  redirect(invitedParent || emailConfirmed ? "/child" : "/welcome");
 }
 
 export async function resendConfirmationAction() {
