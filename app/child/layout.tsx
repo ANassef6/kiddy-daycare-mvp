@@ -1,4 +1,5 @@
 import Link from "next/link";
+import ActiveLink from "@/components/ActiveLink";
 import { requireSession } from "@/lib/require";
 import { familiesForAccount } from "@/lib/store";
 
@@ -35,15 +36,15 @@ export default async function ParentLayout({ children }: { children: React.React
       <header className="row" style={{ justifyContent: "space-between", padding: "16px 0" }}>
         <span className="brand">Kiddy</span>
         <nav className="nav">
-          <Link href="/child">My children</Link>
-          <Link href="/child/newsfeed">Newsfeed</Link>
-          <Link href="/child/events">Events</Link>
-          <Link href="/child/learning">Learning</Link>
-          <Link href="/child/drive">Drive</Link>
-          <Link href="/child/forms">Surveys</Link>
-          <Link href="/child/consents">Consents</Link>
-          <Link href="/child/messages">Chat</Link>
-          <Link href="/child/support">Support</Link>
+          <ActiveLink href="/child">My children</ActiveLink>
+          <ActiveLink href="/child/newsfeed">Newsfeed</ActiveLink>
+          <ActiveLink href="/child/events">Events</ActiveLink>
+          <ActiveLink href="/child/learning">Learning</ActiveLink>
+          <ActiveLink href="/child/drive">Drive</ActiveLink>
+          <ActiveLink href="/child/forms">Surveys</ActiveLink>
+          <ActiveLink href="/child/consents">Consents</ActiveLink>
+          <ActiveLink href="/child/messages">Chat</ActiveLink>
+          <ActiveLink href="/child/support">Support</ActiveLink>
           <form style={{ margin: 0 }}>
             <button className="btn btn-ghost" formAction="/api/logout">Sign out</button>
           </form>

@@ -7,10 +7,25 @@ import {
   reportFor,
   incidentsForChild,
   todayStatus,
+  statusesForChild,
 } from "@/lib/store";
-import { saveDailyReportAction, addContactAction, createIncidentAction } from "@/lib/actions";
+import { saveDailyReportAction, addContactAction, createIncidentAction, saveChildStatusAction } from "@/lib/actions";
 
 export const dynamic = "force-dynamic";
+
+const MOODS = [
+  ["happy", "Happy"],
+  ["okay", "Okay"],
+  ["fussy", "Fussy"],
+  ["tired", "Tired"],
+] as const;
+const DIAPERS = [
+  ["wet", "Wet"],
+  ["soiled", "Soiled"],
+  ["dry", "Dry check"],
+] as const;
+const SLEEP_VALUES = ["Fell asleep", "Woke up"];
+const SICK_VALUES = ["yes", "no"];
 
 export default async function PortalChildPage({ params }: { params: { id: string } }) {
   requireSession();
@@ -18,11 +33,12 @@ export default async function PortalChildPage({ params }: { params: { id: string
   if (!child) notFound();
 
   const today = new Date().toISOString().slice(0, 10);
-  const [report, contacts, incidents, status] = await Promise.all([
+  const [report, contacts, incidents, status, todayStatuses] = await Promise.all([
     reportFor(child.id, today),
     listContacts(child.id),
     incidentsForChild(child.id),
     todayStatus(child.id),
+    statusesForChild(child.id, today),
   ]);
   const meal = safeJson(report?.meal);
 
@@ -67,6 +83,100 @@ export default async function PortalChildPage({ params }: { params: { id: string
           </label>
           <div className="mt-3"><button className="btn btn-primary" type="submit">Save report</button></div>
         </form>
+      </div>
+
+      <div className="card mb-4">
+        <h3 className="subtitle">Status log</h3>
+        <p className="small muted">Logged instantly with the current time — multiple entries per day.</p>
+        <div className="row mt-2">
+          <div className="col">
+            <div className="label">Mood</div>
+            <div className="row" style={{ gap: 6 }}>
+              {MOODS.map(([value, label]) => (
+                <form key={value} action={saveChildStatusAction}>
+                  <input type="hidden" name="childId" value={child.id as string} />
+                  <input type="hidden" name="kind" value="mood" />
+                  <input type="hidden" name="value" value={value} />
+                  <button className="status-chip status-chip-mood" type="submit">{label}</button>
+                </form>
+              ))}
+            </div>
+          </div>
+          <div className="col">
+            <div className="label">Diaper</div>
+            <div className="row" style={{ gap: 6 }}>
+              {DIAPERS.map(([value, label]) => (
+                <form key={value} action={saveChildStatusAction}>
+                  <input type="hidden" name="childId" value={child.id as string} />
+                  <input type="hidden" name="kind" value="diaper" />
+                  <input type="hidden" name="value" value={value} />
+                  <button className="status-chip status-chip-diaper" type="submit">{label}</button>
+                </form>
+              ))}
+            </div>
+          </div>
+          <div className="col">
+            <div className="label">Sleep</div>
+            <div className="row" style={{ gap: 6 }}>
+              {SLEEP_VALUES.map((label) => (
+                <form key={label} action={saveChildStatusAction}>
+                  <input type="hidden" name="childId" value={child.id as string} />
+                  <input type="hidden" name="kind" value="sleep" />
+                  <input type="hidden" name="value" value={label} />
+                  <button className="status-chip status-chip-sleep" type="submit">{label}</button>
+                </form>
+              ))}
+            </div>
+          </div>
+          <div className="col">
+            <div className="label">Sick</div>
+            <div className="row" style={{ gap: 6 }}>
+              {SICK_VALUES.map((label) => (
+                <form key={label} action={saveChildStatusAction}>
+                  <input type="hidden" name="childId" value={child.id as string} />
+                  <input type="hidden" name="kind" value="sick" />
+                  <input type="hidden" name="value" value={label} />
+                  <button className="status-chip status-chip-sick" type="submit">{label === "yes" ? "Feeling sick" : "All good"}</button>
+                </form>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <form action={saveChildStatusAction} className="row mt-3" style={{ alignItems: "flex-end" }}>
+          <input type="hidden" name="childId" value={child.id as string} />
+          <div className="col field">
+            <label className="label">Custom entry</label>
+            <div className="row">
+              <select className="select" name="kind" defaultValue="mood" style={{ maxWidth: 130 }}>
+                <option value="mood">Mood</option>
+                <option value="diaper">Diaper</option>
+                <option value="sleep">Sleep</option>
+                <option value="sick">Sick</option>
+              </select>
+              <input className="input" name="value" required placeholder="e.g. 'Rash on arm' or '12:45-13:30'" />
+            </div>
+          </div>
+          <div className="col field"><label className="label">Note</label><input className="input" name="note" placeholder="optional" /></div>
+          <div><button className="btn btn-ghost" type="submit">Log status</button></div>
+        </form>
+
+        {todayStatuses.length === 0 ? (
+          <p className="muted small mt-3">No status entries yet today.</p>
+        ) : (
+          <div className="mt-3" style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {todayStatuses.map((s: any) => (
+              <div className="list-item small" key={s.id}>
+                <span className={`status-chip status-chip-${String(s.kind)}`}>{capital(s.kind)}</span>
+                <div>
+                  <strong>{displayValue(String(s.kind), String(s.value))}</strong>
+                  {s.note ? <span className="muted"> — {s.note}</span> : null}
+                </div>
+                <span className="muted">{time(s.recorded_at)}{s.recorded_by_name ? ` · ${s.recorded_by_name}` : ""}</span>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       <div className="grid">
@@ -127,3 +237,12 @@ function safeJson(v: unknown): Record<string, string> {
   try { return JSON.parse(String(v)); } catch { return {}; }
 }
 function capital(s: unknown) { const v = String(s ?? ""); return v.charAt(0).toUpperCase() + v.slice(1); }
+function time(v?: unknown): string {
+  if (!v) return "—";
+  return new Date(String(v)).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+}
+function displayValue(kind: string, value: string): string {
+  if (kind === "sick" && value === "yes") return "Feeling sick";
+  if (kind === "sick" && value === "no") return "All good";
+  return value.charAt(0).toUpperCase() + value.slice(1);
+}

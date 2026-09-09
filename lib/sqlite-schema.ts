@@ -30,6 +30,7 @@ export function sqliteSchema(db: any): void {
     branch_id TEXT REFERENCES branch(id) ON DELETE CASCADE,
     name TEXT NOT NULL,
     capacity INTEGER,
+    colour TEXT NOT NULL DEFAULT '#3B82F6',
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
   );
 
@@ -139,6 +140,19 @@ export function sqliteSchema(db: any): void {
     planned_out TEXT,
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
   );
+
+  CREATE TABLE IF NOT EXISTS child_status (
+    id TEXT PRIMARY KEY,
+    child_id TEXT NOT NULL REFERENCES child(id) ON DELETE CASCADE,
+    kind TEXT NOT NULL,
+    value TEXT NOT NULL,
+    note TEXT,
+    recorded_by_account_id TEXT REFERENCES account(id),
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    recorded_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_child_status ON child_status (child_id, recorded_at DESC);
 
   CREATE TABLE IF NOT EXISTS daily_report (
     id TEXT PRIMARY KEY,
@@ -332,4 +346,11 @@ export function sqliteSchema(db: any): void {
   CREATE INDEX IF NOT EXISTS idx_obs_child ON learning_observation (child_id);
   CREATE INDEX IF NOT EXISTS idx_form_resp_form ON form_response (form_id);
   `);
+
+  // Idempotent column backfills for databases created before these columns
+  // existed (CREATE TABLE IF NOT EXISTS does not alter existing tables).
+  const roomCols = db.prepare("PRAGMA table_info(room)").all() as { name: string }[];
+  if (!roomCols.some((c) => c.name === "colour")) {
+    db.exec("ALTER TABLE room ADD COLUMN colour TEXT NOT NULL DEFAULT '#3B82F6'");
+  }
 }

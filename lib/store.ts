@@ -46,10 +46,54 @@ export async function listRooms(instituteId: string): Promise<Row[]> {
   return queryAll("SELECT * FROM room WHERE institute_id = ? ORDER BY name", instituteId);
 }
 
-export async function createRoom(instituteId: string, name: string, capacity?: number): Promise<Row> {
+export async function getRoom(roomId: string): Promise<Row | undefined> {
+  return queryGet("SELECT * FROM room WHERE id = ?", roomId);
+}
+
+export async function createRoom(
+  instituteId: string,
+  name: string,
+  capacity?: number,
+  colour?: string
+): Promise<Row> {
   const id = uid();
-  await queryRun("INSERT INTO room (id, institute_id, name, capacity) VALUES (?, ?, ?, ?)", id, instituteId, name, capacity ?? null);
-  return (await queryGet("SELECT * FROM room WHERE id = ?", id))!;
+  await queryRun(
+    "INSERT INTO room (id, institute_id, name, capacity, colour) VALUES (?, ?, ?, ?, ?)",
+    id,
+    instituteId,
+    name,
+    capacity ?? null,
+    colour && /^#[0-9a-fA-F]{6}$/.test(colour) ? colour : "#3B82F6"
+  );
+  return (await getRoom(id))!;
+}
+
+export async function updateRoom(roomId: string, patch: { name?: string; capacity?: number | null; colour?: string }): Promise<void> {
+  const fields: string[] = [];
+  const values: unknown[] = [];
+  if (patch.name !== undefined) {
+    fields.push("name = ?");
+    values.push(patch.name);
+  }
+  if (patch.capacity !== undefined) {
+    fields.push("capacity = ?");
+    values.push(patch.capacity);
+  }
+  if (patch.colour !== undefined) {
+    fields.push("colour = ?");
+    values.push(/^#[0-9a-fA-F]{6}$/.test(patch.colour) ? patch.colour : "#3B82F6");
+  }
+  if (fields.length === 0) return;
+  values.push(roomId);
+  await queryRun(`UPDATE room SET ${fields.join(", ")} WHERE id = ?`, ...values);
+}
+
+export async function roomChildren(roomId: string): Promise<Row[]> {
+  return queryAll(
+    `SELECT c.id, c.first_name, c.last_name, c.dob FROM child c
+     WHERE c.room_id = ? AND c.active = 1 ORDER BY c.first_name, c.last_name`,
+    roomId
+  );
 }
 
 // ---------- Staff ----------
@@ -227,6 +271,72 @@ export async function attendanceOn(instituteId: string, day: string): Promise<Ro
     day,
     day,
     instituteId
+  );
+}
+
+// Live "who is checked in right now": children whose latest event today is a
+// check-in (checked out afterwards flips them back out of the list).
+export async function checkedInNow(instituteId: string): Promise<Row[]> {
+  const today = new Date().toISOString().slice(0, 10);
+  return queryAll(
+    `SELECT c.id, c.first_name, c.last_name, r.name AS room_name,
+            (SELECT recorded_at FROM check_in WHERE child_id = c.id AND date(recorded_at) = ? AND type='in' ORDER BY recorded_at DESC, id DESC LIMIT 1) AS checked_in_at
+     FROM child c
+     LEFT JOIN room r ON r.id = c.room_id
+     WHERE c.institute_id = ? AND c.active = 1
+       AND (SELECT type FROM check_in WHERE child_id = c.id AND date(recorded_at) = ? ORDER BY recorded_at DESC, id DESC LIMIT 1) = 'in'
+     ORDER BY r.name, c.first_name`,
+    today,
+    instituteId,
+    today
+  );
+}
+
+// ---------- Child status log (mood/diaper/sleep/sick; timestamped, multi-entry) ----------
+export async function logChildStatus(data: {
+  childId: string;
+  kind: string;
+  value: string;
+  note?: string;
+  accountId?: string;
+  recordedAt?: string;
+}): Promise<Row> {
+  const id = uid();
+  await queryRun(
+    `INSERT INTO child_status (id, child_id, kind, value, note, recorded_by_account_id, recorded_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    id,
+    data.childId,
+    data.kind,
+    data.value,
+    data.note ?? null,
+    data.accountId ?? null,
+    data.recordedAt ? new Date(data.recordedAt).toISOString() : new Date().toISOString()
+  );
+  return (await queryGet("SELECT * FROM child_status WHERE id = ?", id))!;
+}
+
+export async function statusesForChild(childId: string, day?: string, limit = 30): Promise<Row[]> {
+  if (day) {
+    return queryAll(
+      `SELECT cs.*, a.full_name AS recorded_by_name
+       FROM child_status cs
+       LEFT JOIN account a ON a.id = cs.recorded_by_account_id
+       WHERE cs.child_id = ? AND date(cs.recorded_at) = ?
+       ORDER BY cs.recorded_at DESC, cs.id DESC LIMIT ?`,
+      childId,
+      day,
+      limit
+    );
+  }
+  return queryAll(
+    `SELECT cs.*, a.full_name AS recorded_by_name
+     FROM child_status cs
+     LEFT JOIN account a ON a.id = cs.recorded_by_account_id
+     WHERE cs.child_id = ?
+     ORDER BY cs.recorded_at DESC, cs.id DESC LIMIT ?`,
+    childId,
+    limit
   );
 }
 

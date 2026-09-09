@@ -8,6 +8,7 @@ import {
   listContacts,
   newsfeedForChild,
   incidentsForChild,
+  statusesForChild,
 } from "@/lib/store";
 import { CheckInButton } from "@/components/CheckInButton";
 
@@ -21,11 +22,12 @@ export default async function ChildDetailPage({ params }: { params: { id: string
   const today = new Date().toISOString().slice(0, 10);
   const status = await todayStatus(child.id);
   const checkedIn = !!status.checkedIn && !status.checkedOut;
-  const [report, contacts, feed, incidents] = await Promise.all([
+  const [report, contacts, feed, incidents, statuses] = await Promise.all([
     reportFor(child.id, today),
     listContacts(child.id),
     newsfeedForChild(child.id),
     incidentsForChild(child.id),
+    statusesForChild(child.id, today),
   ]);
 
   const meal = safeJson(report?.meal);
@@ -62,6 +64,24 @@ export default async function ChildDetailPage({ params }: { params: { id: string
           </p>
         )}
       </div>
+
+      <h2 className="title mt-5">Today&apos;s updates</h2>
+      {statuses.length === 0 ? (
+        <p className="muted small">No status updates posted yet today.</p>
+      ) : (
+        <div className="card" style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          {statuses.map((s: any) => (
+            <div className="list-item small" key={s.id}>
+              <span className={`status-chip status-chip-${String(s.kind)}`}>{capital(s.kind)}</span>
+              <div>
+                <strong>{statusValue(String(s.kind), String(s.value))}</strong>
+                {s.note ? <span className="muted"> — {s.note}</span> : null}
+              </div>
+              <span className="muted">{time(s.recorded_at)}</span>
+            </div>
+          ))}
+        </div>
+      )}
 
       <h2 className="title mt-5">Today&apos;s report</h2>
       {report ? (
@@ -155,4 +175,9 @@ function capitalize(s: string) {
 }
 function capital(s: unknown) {
   return capitalize(String(s ?? ""));
+}
+function statusValue(kind: string, value: string): string {
+  if (kind === "sick" && value === "yes") return "Feeling sick";
+  if (kind === "sick" && value === "no") return "All good";
+  return capitalize(value);
 }

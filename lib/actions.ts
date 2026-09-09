@@ -27,7 +27,9 @@ import {
   createChild,
   createStaff,
   createRoom,
+  updateRoom,
   addContact,
+  logChildStatus,
   createInvite,
   updateInstitute,
   createContactRequest,
@@ -307,6 +309,18 @@ export async function acknowledgeIncidentAction(formData: FormData) {
 export async function addChildAction(formData: FormData) {
   await ensureSchema();
   const instituteId = await firstInstituteId();
+
+  // #4a: a child cannot exist without at least one parent/guardian who will
+  // access the app. Require guardian name + relationship and at least one
+  // contact channel (phone or email) up front.
+  const guardianName = String(formData.get("guardianName") ?? "").trim();
+  const guardianRelationship = String(formData.get("guardianRelationship") ?? "").trim();
+  const guardianPhone = String(formData.get("guardianPhone") ?? "").trim();
+  const guardianEmail = String(formData.get("guardianEmail") ?? "").trim();
+  if (!guardianName || !guardianRelationship || (!guardianPhone && !guardianEmail)) {
+    redirect("/portal/children?error=guardian");
+  }
+
   const child = await createChild({
     instituteId,
     firstName: String(formData.get("firstName") ?? ""),
@@ -314,6 +328,15 @@ export async function addChildAction(formData: FormData) {
     dob: String(formData.get("dob") ?? "") || undefined,
     roomId: String(formData.get("roomId") ?? "") || undefined,
     allergies: String(formData.get("allergies") ?? ""),
+  });
+  await addContact({
+    childId: child.id,
+    fullName: guardianName,
+    relationship: guardianRelationship,
+    phone: guardianPhone || undefined,
+    email: guardianEmail || undefined,
+    isPickup: formData.get("guardianIsPickup") === "on",
+    isEmergency: formData.get("guardianIsEmergency") === "on",
   });
   redirect(`/portal/children/${child.id}`);
 }
@@ -333,8 +356,47 @@ export async function addStaffAction(formData: FormData) {
 export async function addRoomAction(formData: FormData) {
   await ensureSchema();
   const instituteId = await firstInstituteId();
-  await createRoom(String(instituteId), String(formData.get("name") ?? ""), Number(formData.get("capacity")) || undefined);
+  await createRoom(
+    String(instituteId),
+    String(formData.get("name") ?? ""),
+    Number(formData.get("capacity")) || undefined,
+    String(formData.get("colour") ?? "") || undefined
+  );
   redirect("/portal/rooms");
+}
+
+// #6 room settings: name / colour / capacity.
+export async function updateRoomAction(formData: FormData) {
+  await ensureSchema();
+  const roomId = String(formData.get("roomId") ?? "");
+  const capacityRaw = String(formData.get("capacity") ?? "").trim();
+  await updateRoom(roomId, {
+    name: String(formData.get("name") ?? ""),
+    colour: String(formData.get("colour") ?? ""),
+    capacity: capacityRaw ? Number(capacityRaw) : null,
+  });
+  redirect(`/portal/rooms/${roomId}`);
+}
+
+// #5b child status log: one timestamped entry per interaction, multiple per day.
+export async function saveChildStatusAction(formData: FormData) {
+  const me = authAccount();
+  await ensureSchema();
+  const childId = String(formData.get("childId") ?? "");
+  const kind = String(formData.get("kind") ?? "").trim();
+  const value = String(formData.get("value") ?? "").trim();
+  const recordedAt = String(formData.get("recordedAt") ?? "").trim();
+  if (childId && kind && value) {
+    await logChildStatus({
+      childId,
+      kind,
+      value,
+      note: String(formData.get("note") ?? "").trim() || undefined,
+      accountId: me.accountId,
+      recordedAt: recordedAt || undefined,
+    });
+  }
+  redirect(`/portal/children/${childId}`);
 }
 
 export async function addContactAction(formData: FormData) {

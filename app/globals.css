@@ -179,6 +179,47 @@ a {
 }
 
 .badge-gray {
+  background: #e5e7eb;
+  color: #374151;
+}
+
+.status-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  background: #eef2ff;
+  color: var(--brand-primary);
+}
+
+.status-chip-mood { background: #fef3c7; color: #92400e; }
+.status-chip-diaper { background: #e0f2fe; color: #075985; }
+.status-chip-sleep { background: #ede9fe; color: #5b21b6; }
+.status-chip-sick { background: #fee2e2; color: #b91c1c; }
+
+.room-dot {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border-radius: 4px;
+  margin-right: 8px;
+  vertical-align: middle;
+}
+
+.room-card {
+  cursor: pointer;
+  transition: transform 120ms ease, box-shadow 120ms ease;
+}
+
+.room-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.08);
+}
+
+.badge-gray {
   background: #f1f5f9;
   color: #475569;
 }
@@ -269,6 +310,25 @@ table.data th {
   background: var(--color-surface);
   border-right: 1px solid var(--color-border);
   padding: var(--space-4);
+}
+
+.shell-side a {
+  display: block;
+  padding: 8px 12px;
+  border-radius: 8px;
+  color: var(--color-text);
+  font-size: 14px;
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.shell-side a:hover {
+  background: color-mix(in srgb, var(--brand-primary) 12%, transparent);
+}
+
+.shell-side a.active {
+  background: var(--brand-primary);
+  color: #fff;
 }
 
 .shell-main {
