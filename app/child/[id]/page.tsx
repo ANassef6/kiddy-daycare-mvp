@@ -11,6 +11,9 @@ import {
   statusesForChild,
 } from "@/lib/store";
 import { CheckInButton } from "@/components/CheckInButton";
+import Avatar from "@/components/Avatar";
+import { getBranding } from "@/lib/theme";
+import { toggleLikeAction } from "@/lib/actions";
 
 export const dynamic = "force-dynamic";
 
@@ -25,13 +28,14 @@ export default async function ChildDetailPage({ params }: { params: { id: string
   const [report, contacts, feed, incidents, statuses] = await Promise.all([
     reportFor(child.id, today),
     listContacts(child.id),
-    newsfeedForChild(child.id),
+    newsfeedForChild(child.id, session.accountId),
     incidentsForChild(child.id),
     statusesForChild(child.id, today),
   ]);
 
   const meal = safeJson(report?.meal);
   const sleep = report?.sleep ? String(report.sleep) : "";
+  const branding = await getBranding();
 
   return (
     <div>
@@ -39,11 +43,15 @@ export default async function ChildDetailPage({ params }: { params: { id: string
 
       <div className="card mt-3">
         <div className="status-card">
-          <div>
-            <div style={{ fontWeight: 800, fontSize: 22 }}>
-              {child.first_name} {child.last_name}
+          <div className="row" style={{ alignItems: "center", gap: 12 }}>
+            {/* #5a child avatar placeholder (photo upload later) */}
+            <Avatar src={child.photo_url} name={`${child.first_name} ${child.last_name}`} size={56} color={branding.primaryColor} />
+            <div>
+              <div style={{ fontWeight: 800, fontSize: 22 }}>
+                {child.first_name} {child.last_name}
+              </div>
+              <div className="muted small">{child.dob ?? "No DOB"} · {child.room_name ?? "No room"}</div>
             </div>
-            <div className="muted small">{child.dob ?? "No DOB"} · {child.room_name ?? "No room"}</div>
           </div>
           {checkedIn ? (
             <span className="badge badge-green">Checked in</span>
@@ -115,9 +123,22 @@ export default async function ChildDetailPage({ params }: { params: { id: string
       ) : (
         feed.map((post: any) => (
           <div className="card mb-4" key={post.id}>
-            <div className="small muted">{post.author_name} · {new Date(post.created_at).toLocaleString()}</div>
+            <div className="row" style={{ justifyContent: "space-between", alignItems: "center" }}>
+              <div className="small muted">{post.author_name} · {new Date(post.created_at).toLocaleString()}</div>
+              <form action={toggleLikeAction}>
+                <input type="hidden" name="postId" value={post.id} />
+                <button
+                  type="submit"
+                  className={post.liked ? "badge badge-green" : "badge badge-gray"}
+                  style={{ cursor: "pointer", border: "none", fontSize: 12 }}
+                  title={post.liked ? "Unlike" : "Like"}
+                >
+                  {post.liked ? "♥" : "♡"} {post.like_count}
+                </button>
+              </form>
+            </div>
             <p className="mt-2">{post.body}</p>
-            {post.media_url && <img src={post.media_url} alt="" style={{ width: "100%", borderRadius: 8, marginTop: 10 }} />}
+            {post.media_url && <img src={post.media_url} alt="" style={{ width: "100%", maxHeight: 360, objectFit: "cover", borderRadius: 8, marginTop: 10 }} />}
           </div>
         ))
       )}

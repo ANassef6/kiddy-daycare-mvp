@@ -2,14 +2,20 @@ import Link from "next/link";
 import ActiveLink from "@/components/ActiveLink";
 import { requireSession } from "@/lib/require";
 import { familiesForAccount } from "@/lib/store";
+import { getBranding } from "@/lib/theme";
 
 export const dynamic = "force-dynamic";
 
 export default async function ParentLayout({ children }: { children: React.ReactNode }) {
   const session = requireSession();
   let families: Record<string, unknown>[] = [];
+  let logoUrl: string | null = null;
+  let brandName = "Kiddy";
   try {
-    families = await familiesForAccount(session.accountId);
+    [families] = await Promise.all([
+      familiesForAccount(session.accountId),
+      getBranding().then((b) => { logoUrl = b.logoUrl; brandName = b.name; }),
+    ]);
   } catch {
     // fall through
   }
@@ -27,14 +33,20 @@ export default async function ParentLayout({ children }: { children: React.React
             marginTop: 12,
           }}
         >
-          ⚠️ Your email isn&apos;t confirmed yet — password sign-in is locked until you click the link we sent.
+          Your email isn&apos;t confirmed yet — password sign-in is locked until you click the link we sent.
           <Link href="/welcome" className="small" style={{ marginLeft: 8, fontWeight: 600 }}>
             Confirm your email
           </Link>
         </div>
       )}
       <header className="row" style={{ justifyContent: "space-between", padding: "16px 0" }}>
-        <span className="brand">Kiddy</span>
+        <Link href="/child" className="site-brand" style={{ textDecoration: "none" }}>
+          {logoUrl && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={logoUrl} alt="" width={28} height={28} className="site-logo" />
+          )}
+          <span className="brand">{brandName}</span>
+        </Link>
         <nav className="nav">
           <ActiveLink href="/child">My children</ActiveLink>
           <ActiveLink href="/child/newsfeed">Newsfeed</ActiveLink>

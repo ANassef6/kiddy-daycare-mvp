@@ -2,13 +2,29 @@
 
 import { useState } from "react";
 import { loginAction } from "@/lib/actions";
+import { getBranding } from "@/lib/theme";
 
 export default function LoginPage() {
   const [error, setError] = useState<string | null>(null);
+  const [brand, setBrand] = useState<{ name: string; logoUrl: string | null; primaryColor: string } | null>(null);
+
+  // Fetch branding on mount
+  if (typeof window !== "undefined" && !brand) {
+    fetch("/api/branding")
+      .then((r) => r.json())
+      .then(setBrand)
+      .catch(() => {});
+  }
 
   return (
     <div className="container" style={{ maxWidth: 420, paddingTop: 80 }}>
-      <span className="brand">Kiddy</span>
+      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
+        {brand?.logoUrl && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={brand.logoUrl} alt="" width={40} height={40} style={{ borderRadius: 10, objectFit: "cover" }} />
+        )}
+        <span className="brand">{brand?.name || "Kiddy"}</span>
+      </div>
       <h1 className="title mt-4">Sign in</h1>
       <p className="subtitle">Welcome back. Sign in to see your child&apos;s day.</p>
       <form

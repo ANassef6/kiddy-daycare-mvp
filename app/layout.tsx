@@ -15,6 +15,7 @@ export const dynamic = "force-dynamic";
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   let theme = "";
   let brand = "Kiddy";
+  let logoUrl: string | null = null;
   try {
     const b = await getBranding();
     theme = [
@@ -23,6 +24,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       `--brand-font: '${b.font}', system-ui, sans-serif;`,
     ].join("\n");
     brand = b.name;
+    logoUrl = b.logoUrl;
   } catch {
     // never block render on DB availability
   }
@@ -36,6 +38,8 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <a className="skip-link" href="#main">
           Skip to content
         </a>
+        {/* #1: logo URL available as data attribute for client components */}
+        <div data-brand={brand} data-logo={logoUrl ?? ""} style={{ display: "none" }} />
         {children}
       </body>
     </html>

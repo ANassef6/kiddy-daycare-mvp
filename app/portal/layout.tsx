@@ -1,11 +1,19 @@
 import Link from "next/link";
 import ActiveLink from "@/components/ActiveLink";
 import { requireSession } from "@/lib/require";
+import { getBranding } from "@/lib/theme";
 
 export const dynamic = "force-dynamic";
 
-export default function PortalLayout({ children }: { children: React.ReactNode }) {
+export default async function PortalLayout({ children }: { children: React.ReactNode }) {
   const session = requireSession();
+  let logoUrl: string | null = null;
+  let brandName = "Kiddy";
+  try {
+    const b = await getBranding();
+    logoUrl = b.logoUrl;
+    brandName = b.name;
+  } catch {}
   const links = [
     { href: "/portal/dashboard", label: "Dashboard" },
     { href: "/portal/children", label: "Children" },
@@ -29,7 +37,13 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
   return (
     <div className="shell">
       <aside className="shell-side">
-        <span className="brand">Kiddy</span>
+        <Link href="/portal/dashboard" className="site-brand" style={{ textDecoration: "none" }}>
+          {logoUrl && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={logoUrl} alt="" width={28} height={28} className="site-logo" />
+          )}
+          <span className="brand">{brandName}</span>
+        </Link>
         <div className="mt-4" style={{ display: "flex", flexDirection: "column", gap: 4 }}>
           {links.map((l) => (
             <ActiveLink key={l.href} href={l.href}>{l.label}</ActiveLink>
@@ -49,7 +63,7 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
               marginBottom: 12,
             }}
           >
-            ⚠️ Your email isn&apos;t confirmed yet — password sign-in is locked until you click the link we sent.
+            Your email isn&apos;t confirmed yet — password sign-in is locked until you click the link we sent.
             <Link href="/welcome" className="small" style={{ marginLeft: 8, fontWeight: 600 }}>
               Confirm your email
             </Link>
