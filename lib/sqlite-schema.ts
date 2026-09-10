@@ -53,6 +53,7 @@ export function sqliteSchema(db: any): void {
     institute_id TEXT NOT NULL REFERENCES institute(id) ON DELETE CASCADE,
     full_name TEXT NOT NULL,
     role TEXT NOT NULL DEFAULT 'carer',
+    photo_url TEXT,
     active INTEGER NOT NULL DEFAULT 1,
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
   );
@@ -341,6 +342,20 @@ export function sqliteSchema(db: any): void {
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
   );
 
+  CREATE TABLE IF NOT EXISTS child_billing (
+    id TEXT PRIMARY KEY,
+    child_id TEXT NOT NULL REFERENCES child(id) ON DELETE CASCADE,
+    institute_id TEXT NOT NULL REFERENCES institute(id) ON DELETE CASCADE,
+    description TEXT NOT NULL,
+    amount_cents INTEGER NOT NULL DEFAULT 0,
+    currency TEXT NOT NULL DEFAULT 'CAD',
+    period TEXT,
+    due_date TEXT,
+    status TEXT NOT NULL DEFAULT 'pending',
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_billing_child ON child_billing (child_id);
   CREATE INDEX IF NOT EXISTS idx_event_date ON event (institute_id, event_date);
   CREATE INDEX IF NOT EXISTS idx_drive_child ON drive_file (child_id);
   CREATE INDEX IF NOT EXISTS idx_obs_child ON learning_observation (child_id);
@@ -352,5 +367,9 @@ export function sqliteSchema(db: any): void {
   const roomCols = db.prepare("PRAGMA table_info(room)").all() as { name: string }[];
   if (!roomCols.some((c) => c.name === "colour")) {
     db.exec("ALTER TABLE room ADD COLUMN colour TEXT NOT NULL DEFAULT '#3B82F6'");
+  }
+  const staffCols = db.prepare("PRAGMA table_info(staff)").all() as { name: string }[];
+  if (!staffCols.some((c) => c.name === "photo_url")) {
+    db.exec("ALTER TABLE staff ADD COLUMN photo_url TEXT");
   }
 }

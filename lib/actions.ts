@@ -1,6 +1,6 @@
 "use server";
 
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import {
   createAccount,
@@ -45,6 +45,11 @@ import {
   setTicketStatus,
   sendMessage,
   markRead,
+  createChildBilling,
+  updateChildBilling,
+  updateChildPhoto,
+  updateStaffPhoto,
+  toggleLike,
 } from "@/lib/store";
 import { supabaseConfigured, getSupabase } from "@/lib/supabase";
 
@@ -267,7 +272,7 @@ export async function createNewsfeedAction(formData: FormData) {
 export async function commentAction(formData: FormData) {
   const me = authAccount();
   await addComment(String(formData.get("postId") ?? ""), me.accountId, String(formData.get("body") ?? ""));
-  redirect("/portal/newsfeed");
+  redirect(formData.get("fromParent") === "1" ? "/child/newsfeed" : "/portal/newsfeed");
 }
 
 export async function createConsentAction(formData: FormData) {
@@ -654,4 +659,122 @@ export async function sendParentMessageAction(formData: FormData) {
     await sendMessage({ instituteId, senderAccountId: me.accountId, recipientAccountId: recipient, body });
   }
   redirect("/child/messages");
+}
+
+// ---- #1 Logo / branding image upload ----
+export async function uploadBrandingImageAction(formData: FormData) {
+  await ensureSchema();
+  const instituteId = await firstInstituteId();
+  if (!instituteId) redirect("/portal/settings");
+  const file = formData.get("file") as File | null;
+  const kind = String(formData.get("kind") ?? "logo"); // "logo" | "brandImage"
+  if (!file || file.size === 0) redirect("/portal/settings");
+
+  const ext = file.name.split(".").pop() || "png";
+  const filename = `branding/${instituteId}/${kind}-${Date.now()}.${ext}`;
+
+  const { supabaseConfigured, getSupabase } = await import("@/lib/supabase");
+  if (supabaseConfigured()) {
+    const supabase = getSupabase();
+    const { error } = await supabase.storage
+      .from("kiddy-public")
+      .upload(filename, file, { contentType: file.type, upsert: true });
+    if (!error) {
+      const { data: urlData } = supabase.storage.from("kiddy-public").getPublicUrl(filename);
+      const column = kind === "logo" ? "logo_url" : "brand_image_url";
+      await updateInstitute(instituteId, { [column]: urlData.publicUrl });
+    }
+  }
+  redirect("/portal/settings");
+}
+
+// ---- #5a / #7b Photo upload ----
+export async function uploadPhotoAction(formData: FormData) {
+  await ensureSchema();
+  const entityType = String(formData.get("entityType") ?? ""); // "child" | "staff"
+  const entityId = String(formData.get("entityId") ?? "");
+  const file = formData.get("file") as File | null;
+  if (!file || file.size === 0 || !entityType || !entityId) {
+    redirect(entityType === "child" ? "/portal/children" : "/portal/staff");
+  }
+
+  const ext = file.name.split(".").pop() || "jpg";
+  const filename = `${entityType}/${entityId}/photo-${Date.now()}.${ext}`;
+
+  const { supabaseConfigured, getSupabase } = await import("@/lib/supabase");
+  if (supabaseConfigured()) {
+    const supabase = getSupabase();
+    const { error } = await supabase.storage
+      .from("kiddy-public")
+      .upload(filename, file, { contentType: file.type, upsert: true });
+    if (!error) {
+      const { data: urlData } = supabase.storage.from("kiddy-public").getPublicUrl(filename);
+      if (entityType === "child") {
+        await updateChildPhoto(entityId, urlData.publicUrl);
+      } else {
+        await updateStaffPhoto(entityId, urlData.publicUrl);
+      }
+    }
+  }
+  redirect(entityType === "child" ? `/portal/children/${entityId}` : "/portal/staff");
+}
+
+// ---- #4b Admin child billing ----
+export async function addChildBillingAction(formData: FormData) {
+  await ensureSchema();
+  const instituteId = await firstInstituteId();
+  const childId = String(formData.get("childId") ?? "");
+  if (!instituteId || !childId) redirect("/portal/children");
+  await createChildBilling({
+    childId,
+    instituteId,
+    description: String(formData.get("description") ?? ""),
+    amountCents: Math.round(Number(formData.get("amountCents") ?? 0)),
+    currency: String(formData.get("currency") ?? "CAD"),
+    period: String(formData.get("period") ?? "") || undefined,
+    dueDate: String(formData.get("dueDate") ?? "") || undefined,
+    status: String(formData.get("status") ?? "pending"),
+  });
+  redirect(`/portal/children/${childId}/billing`);
+}
+
+export async function updateBillingStatusAction(formData: FormData) {
+  const billingId = String(formData.get("billingId") ?? "");
+  const status = String(formData.get("status") ?? "pending");
+  const childId = String(formData.get("childId") ?? "");
+  if (billingId) {
+    await updateChildBilling(billingId, { status });
+  }
+  redirect(`/portal/children/${childId}/billing`);
+}
+
+// ---- #8 Newsfeed likes (client calls this) ----
+export async function toggleLikeAction(formData: FormData) {
+  const me = authAccount();
+  const postId = String(formData.get("postId") ?? "");
+  if (postId) {
+    await toggleLike(postId, me.accountId);
+  }
+  const referer = headers().get("referer") || "/portal/newsfeed";
+  redirect(referer);
+}
+
+// ---- #8 Newsfeed post with attachment URL ----
+export async function createNewsfeedWithAttachmentAction(formData: FormData) {
+  const me = authAccount();
+  await ensureSchema();
+  const instituteId = await firstInstituteId();
+  const body = String(formData.get("body") ?? "");
+  const mediaUrl = String(formData.get("mediaUrl") ?? "").trim() || undefined;
+  const tagChildIds = formData.getAll("childIds").map(String).filter(Boolean);
+  if (body) {
+    await createNewsfeedPost({
+      instituteId,
+      accountId: me.accountId,
+      body,
+      mediaUrl,
+      tagChildIds,
+    });
+  }
+  redirect("/portal/newsfeed");
 }

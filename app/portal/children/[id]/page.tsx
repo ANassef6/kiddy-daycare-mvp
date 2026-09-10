@@ -9,7 +9,9 @@ import {
   todayStatus,
   statusesForChild,
 } from "@/lib/store";
-import { saveDailyReportAction, addContactAction, createIncidentAction, saveChildStatusAction } from "@/lib/actions";
+import { saveDailyReportAction, addContactAction, createIncidentAction, saveChildStatusAction, uploadPhotoAction } from "@/lib/actions";
+import Avatar from "@/components/Avatar";
+import { getBranding } from "@/lib/theme";
 
 export const dynamic = "force-dynamic";
 
@@ -41,15 +43,30 @@ export default async function PortalChildPage({ params }: { params: { id: string
     statusesForChild(child.id, today),
   ]);
   const meal = safeJson(report?.meal);
+  const branding = await getBranding();
 
   return (
     <div>
       <Link className="small muted" href="/portal/children">← Children</Link>
-      <h1 className="title mt-1">{child.first_name} {child.last_name}</h1>
-      <p className="subtitle">
-        Room: {child.room_name ?? "—"} · Today:{" "}
-        {status.lastEvent ? capital(status.lastEvent.type) : "not checked in yet"}
-      </p>
+      <div className="row" style={{ alignItems: "center", gap: 14, marginTop: 8 }}>
+        {/* #5a child avatar placeholder + photo upload */}
+        <Avatar src={child.photo_url} name={`${child.first_name} ${child.last_name}`} size={56} color={branding.primaryColor} />
+        <div style={{ flex: 1 }}>
+          <h1 className="title mt-1" style={{ marginBottom: 0 }}>{child.first_name} {child.last_name}</h1>
+          <p className="subtitle" style={{ marginBottom: 0 }}>
+            Room: {child.room_name ?? "—"} · Today:{" "}
+            {status.lastEvent ? capital(status.lastEvent.type) : "not checked in yet"}
+          </p>
+        </div>
+        <form action={uploadPhotoAction} style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <input type="hidden" name="entityType" value="child" />
+          <input type="hidden" name="entityId" value={child.id as string} />
+          <input type="file" name="file" accept="image/*" required id={`photo-${child.id}`} style={{ display: "none" }} />
+          <label htmlFor={`photo-${child.id}`} className="btn btn-ghost" style={{ cursor: "pointer", fontSize: 13 }}>{child.photo_url ? "Change photo" : "Add photo"}</label>
+          <button className="btn btn-primary" type="submit" style={{ fontSize: 13 }}>Save</button>
+        </form>
+        <Link href={`/portal/children/${child.id}/billing`} className="btn btn-accent" style={{ fontSize: 13 }}>Billing</Link>
+      </div>
 
       <div className="card mb-4">
         <h3 className="subtitle">Today&apos;s daily report</h3>

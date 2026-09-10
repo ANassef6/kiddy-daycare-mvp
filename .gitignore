@@ -8,3 +8,6 @@ data/
 .DS_Store
 .vercel
 .env*
+
+# scripted probes (may contain env)
+.probe-*.mjs

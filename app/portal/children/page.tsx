@@ -2,6 +2,7 @@ import Link from "next/link";
 import { requireSession } from "@/lib/require";
 import { listChildren, listRooms, listInstitutes } from "@/lib/store";
 import { addChildAction, inviteParentAction } from "@/lib/actions";
+import Avatar from "@/components/Avatar";
 
 export const dynamic = "force-dynamic";
 
@@ -71,7 +72,12 @@ export default async function PortalChildrenPage({
         <tbody>
           {children.map((c: any) => (
             <tr key={c.id}>
-              <td><Link href={`/portal/children/${c.id}`} style={{ color: "inherit" }}><strong>{c.first_name} {c.last_name}</strong></Link></td>
+              <td>
+                <Link href={`/portal/children/${c.id}`} className="row" style={{ color: "inherit", alignItems: "center", gap: 10, textDecoration: "none" }}>
+                  <Avatar src={c.photo_url} name={`${c.first_name} ${c.last_name}`} size={32} />
+                  <strong>{c.first_name} {c.last_name}</strong>
+                </Link>
+              </td>
               <td>{c.room_name ?? "—"}</td>
               <td>{c.dob ?? "—"}</td>
               <td className="small">{c.allergies ? `Allergies: ${c.allergies}` : "—"}</td>

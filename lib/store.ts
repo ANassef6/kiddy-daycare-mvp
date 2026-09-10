@@ -459,14 +459,17 @@ export async function listNewsfeed(instituteId: string, forAccountId?: string): 
   return results;
 }
 
-export async function newsfeedForChild(childId: string): Promise<Row[]> {
+export async function newsfeedForChild(childId: string, forAccountId?: string): Promise<Row[]> {
   return queryAll(
-    `SELECT p.*, a.full_name AS author_name
+    `SELECT p.*, a.full_name AS author_name,
+            (SELECT COUNT(*) FROM newsfeed_like l WHERE l.post_id = p.id) AS like_count,
+            EXISTS(SELECT 1 FROM newsfeed_like l WHERE l.post_id = p.id AND l.account_id = ?) AS liked
      FROM newsfeed_post p
      JOIN newsfeed_tag t ON t.post_id = p.id
      JOIN account a ON a.id = p.account_id
      WHERE t.child_id = ?
-     ORDER BY p.created_at DESC`,
+     ORDER BY p.created_at DESC, p.id DESC`,
+    forAccountId ?? "",
     childId
   );
 }
@@ -1084,6 +1087,56 @@ export async function staffPerformance(instituteId: string): Promise<Row[]> {
        (SELECT COUNT(*) FROM learning_observation o WHERE o.account_id = a.id) AS observations
      FROM account a
      WHERE a.role IN ('owner','staff','carer','admin')
-     ORDER BY reports_authored DESC, a.full_name`
+      ORDER BY reports_authored DESC, a.full_name`
   );
+}
+
+// ---- #4b Child billing (admin) ----
+export async function listChildBilling(childId: string): Promise<Row[]> {
+  return queryAll(
+    `SELECT * FROM child_billing WHERE child_id = ? ORDER BY due_date DESC, created_at DESC`,
+    childId
+  );
+}
+
+export async function createChildBilling(data: {
+  childId: string;
+  instituteId: string;
+  description: string;
+  amountCents: number;
+  currency?: string;
+  period?: string;
+  dueDate?: string;
+  status?: string;
+}): Promise<Row> {
+  const id = uid();
+  await queryRun(
+    `INSERT INTO child_billing (id, child_id, institute_id, description, amount_cents, currency, period, due_date, status)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    id,
+    data.childId,
+    data.instituteId,
+    data.description,
+    data.amountCents,
+    data.currency ?? "CAD",
+    data.period ?? null,
+    data.dueDate ?? null,
+    data.status ?? "pending"
+  );
+  return (await queryGet("SELECT * FROM child_billing WHERE id = ?", id))!;
+}
+
+export async function updateChildBilling(billingId: string, patch: { status?: string }): Promise<void> {
+  if (patch.status !== undefined) {
+    await queryRun("UPDATE child_billing SET status = ? WHERE id = ?", patch.status, billingId);
+  }
+}
+
+// ---- #5a/#7b photo_url update helpers ----
+export async function updateChildPhoto(childId: string, photoUrl: string | null): Promise<void> {
+  await queryRun("UPDATE child SET photo_url = ? WHERE id = ?", photoUrl, childId);
+}
+
+export async function updateStaffPhoto(staffId: string, photoUrl: string | null): Promise<void> {
+  await queryRun("UPDATE staff SET photo_url = ? WHERE id = ?", photoUrl, staffId);
 }
