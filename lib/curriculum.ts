@@ -9,17 +9,21 @@
 //   const json = fs.readFileSync("curriculum.json", "utf8");
 //   await ingestCurriculum(instituteId, JSON.parse(json));
 //
-// JSON shape (see DEFAULT_CURRICULUM for a concrete example):
+// The current content is the Egyptian kindergarten framework (Nursery/KG1/KG2)
+// stored in data/curriculum-eg-kg.json — swap that file to replace the
+// curriculum with no code change.
+//
+// JSON shape (see data/curriculum-eg-kg.json for a concrete example):
 // {
 //   "areas": [
 //     {
-//       "name": "Communication & Language",
+//       "name": "Language & Communication",
 //       "learningPoints": [
 //         {
-//           "name": "Listening & attention",
-//           "ageGroup": "3-4y",
+//           "name": "Listening & comprehension",
+//           "ageGroup": "2-3y",
 //           "milestones": [
-//             { "name": "Listen to others in a group", "ageGroup": "3-4y", "description": "..." }
+//             { "name": "Listens to a short story", "ageGroup": "2-3y", "description": "..." }
 //           ]
 //         }
 //       ]
@@ -28,8 +32,17 @@
 // }
 import { queryAll, queryGet, queryRun, ensureSchema, uid, type Row } from "./db";
 
-export const AGE_GROUPS = ["0-1y", "1-2y", "2-3y", "3-4y", "4-5y"] as const;
+// Egyptian early-years age bands: 2-3y Nursery, 3-4y, 4-5y KG1, 5-6y KG2.
+export const AGE_GROUPS = ["2-3y", "3-4y", "4-5y", "5-6y"] as const;
 export type AgeGroup = (typeof AGE_GROUPS)[number];
+
+// Human labels for the age-band select (raw band value is what gets stored).
+export const AGE_GROUP_LABELS: Record<string, string> = {
+  "2-3y": "2-3y (Nursery)",
+  "3-4y": "3-4y",
+  "4-5y": "4-5y (KG1)",
+  "5-6y": "5-6y (KG2)",
+};
 
 export type CurriculumAreaInput = {
   name: string;
@@ -49,18 +62,18 @@ export type CurriculumInput = {
   areas?: CurriculumAreaInput[];
 };
 
-// Derive the child's current age band ("0-1y"..."4-5y") from date of birth.
+// Derive the child's current age band ("2-3y".."5-6y") from date of birth.
+// Children below nursery age clamp to the first band, older children to KG2.
 export function ageGroupForDob(dob: string | null | undefined): string {
   if (!dob) return "";
   const born = new Date(dob);
   const now = new Date();
   if (Number.isNaN(born.getTime()) || born > now) return "";
   const years = Math.floor((now.getTime() - born.getTime()) / (365.25 * 24 * 3600 * 1000));
+  if (years >= 5) return "5-6y";
   if (years >= 4) return "4-5y";
   if (years >= 3) return "3-4y";
-  if (years >= 2) return "2-3y";
-  if (years >= 1) return "1-2y";
-  return "0-1y";
+  return "2-3y";
 }
 
 // ---------- Areas ----------
@@ -250,185 +263,23 @@ export async function ensureCurriculumSeeded(): Promise<void> {
   }
 }
 
-// EYFS-style starter curriculum. Placeholder content that proves the
-// point → age group → milestone cascade end to end; the founder's curriculum
-// from /home/nassef/Documents/replica/curri replaces this via ingestCurriculum.
-export const DEFAULT_CURRICULUM: CurriculumInput = {
-  areas: [
-    {
-      name: "Communication & Language",
-      learningPoints: [
-        {
-          name: "Listening & attention",
-          ageGroup: "0-1y",
-          milestones: [
-            { name: "Turns head toward familiar sounds", ageGroup: "0-1y", description: "Reacts to voices and rattles nearby." },
-            { name: "Listens to a simple story for a moment", ageGroup: "1-2y", description: "Settles for a short picture book." },
-            { name: "Listens to others in a small group", ageGroup: "3-4y", description: "Attends during carpet-time discussions." },
-            { name: "Follows a two-part instruction", ageGroup: "4-5y", description: "For example: 'put your cup down and wash your hands'." },
-          ],
-        },
-        {
-          name: "Speaking",
-          ageGroup: "1-2y",
-          milestones: [
-            { name: "Babbles and copies sounds", ageGroup: "0-1y", description: "Experiments with voice." },
-            { name: "Uses single words with meaning", ageGroup: "1-2y", description: "'Mama', 'ball', 'more'." },
-            { name: "Joins two words together", ageGroup: "2-3y", description: "'Mummy go', 'more milk'." },
-            { name: "Describes events in simple sentences", ageGroup: "3-4y", description: "Tells the group about the weekend." },
-          ],
-        },
-      ],
-    },
-    {
-      name: "Physical Development",
-      learningPoints: [
-        {
-          name: "Gross motor",
-          ageGroup: "1-2y",
-          milestones: [
-            { name: "Rolls over and sits with support", ageGroup: "0-1y", description: "Gains head control and sitting balance." },
-            { name: "Takes first independent steps", ageGroup: "1-2y", description: "Walks unaided across the room." },
-            { name: "Runs, jumps and climbs", ageGroup: "2-3y", description: "Confident on climbing equipment." },
-            { name: "Balances and moves with control", ageGroup: "4-5y", description: "Hopping, skipping and negotiating obstacles." },
-          ],
-        },
-        {
-          name: "Fine motor",
-          ageGroup: "1-2y",
-          milestones: [
-            { name: "Reaches for and grasps objects", ageGroup: "0-1y", description: "Brings toys to the mouth." },
-            { name: "Picks up small objects with thumb & fingers", ageGroup: "1-2y", description: "Pincer grip emerging." },
-            { name: "Holds a crayon and makes marks", ageGroup: "2-3y", description: "Scribbles with intent." },
-            { name: "Uses scissors and draws recognizable shapes", ageGroup: "4-5y", description: "Snips paper and copies simple drawings." },
-          ],
-        },
-      ],
-    },
-    {
-      name: "Personal, Social & Emotional Development",
-      learningPoints: [
-        {
-          name: "Building relationships",
-          ageGroup: "1-2y",
-          milestones: [
-            { name: "Enjoys cuddles and familiar faces", ageGroup: "0-1y", description: "Soothes in the arms of a key person." },
-            { name: "Plays alongside others", ageGroup: "1-2y", description: "Parallel play in the home corner." },
-            { name: "Takes turns with adult support", ageGroup: "2-3y", description: "Shares a popular toy with prompting." },
-            { name: "Forms friendships and plays co-operatively", ageGroup: "4-5y", description: "Negotiates roles in group play." },
-          ],
-        },
-        {
-          name: "Managing feelings & behaviour",
-          ageGroup: "2-3y",
-          milestones: [
-            { name: "Shows simple emotions", ageGroup: "0-1y", description: "Smiles, frowns, cries to communicate." },
-            { name: "Begins to use words for feelings", ageGroup: "1-2y", description: "'Happy', 'sad', 'angry'." },
-            { name: "Calms with adult comfort", ageGroup: "2-3y", description: "Accepts a hug after a upset." },
-            { name: "Talks about feelings and follows routines", ageGroup: "4-5y", description: "Names emotions and follows rules." },
-          ],
-        },
-      ],
-    },
-    {
-      name: "Literacy",
-      learningPoints: [
-        {
-          name: "Reading",
-          ageGroup: "2-3y",
-          milestones: [
-            { name: "Turns pages of a board book", ageGroup: "0-1y", description: "Shows interest in pictures." },
-            { name: "Joins in with familiar stories", ageGroup: "1-2y", description: "Fills in words and phrases." },
-            { name: "Recognizes own name in print", ageGroup: "2-3y", description: "Finds the name card on the register." },
-            { name: "Reads simple words and sentences", ageGroup: "4-5y", description: "Early phonics decoding." },
-          ],
-        },
-        {
-          name: "Writing",
-          ageGroup: "2-3y",
-          milestones: [
-            { name: "Makes random marks", ageGroup: "1-2y", description: "Enjoys sensory writing with fingers and paint." },
-            { name: "Writes some letter-like shapes", ageGroup: "2-3y", description: "Early emergent writing." },
-            { name: "Holds a pencil correctly", ageGroup: "3-4y", description: "Tripod grip for drawing." },
-            { name: "Writes own name and simple captions", ageGroup: "4-5y", description: "Spells some common words." },
-          ],
-        },
-      ],
-    },
-    {
-      name: "Mathematics",
-      learningPoints: [
-        {
-          name: "Number",
-          ageGroup: "2-3y",
-          milestones: [
-            { name: "Notices number rhymes", ageGroup: "0-1y", description: "Engages with counting songs." },
-            { name: "Says some number names in order", ageGroup: "1-2y", description: "'One, two, three!' while playing." },
-            { name: "Counts objects to five", ageGroup: "2-3y", description: "Matches number words to objects." },
-            { name: "Counts to 20 and recognizes numerals", ageGroup: "4-5y", description: "Counting and simple composition of numbers." },
-          ],
-        },
-        {
-          name: "Shape, space & measures",
-          ageGroup: "2-3y",
-          milestones: [
-            { name: "Recognizes big and small", ageGroup: "0-1y", description: "Responds to size words during play." },
-            { name: "Sorts objects by shape or color", ageGroup: "1-2y", description: "Matches like blocks." },
-            { name: "Builds towers and simple puzzles", ageGroup: "2-3y", description: "Three-to-five piece puzzles." },
-            { name: "Uses positional language", ageGroup: "4-5y", description: "'Under', 'behind', 'next to'." },
-          ],
-        },
-      ],
-    },
-    {
-      name: "Understanding the World",
-      learningPoints: [
-        {
-          name: "People, culture & communities",
-          ageGroup: "2-3y",
-          milestones: [
-            { name: "Shows interest in family photos", ageGroup: "0-1y", description: "Responds to familiar faces." },
-            { name: "Points at self in the mirror", ageGroup: "1-2y", description: "Early sense of self." },
-            { name: "Talks about family and home", ageGroup: "2-3y", description: "Shares everyday experiences." },
-            { name: "Describes community roles", ageGroup: "4-5y", description: "Doctors, fire-fighters, shopkeepers." },
-          ],
-        },
-        {
-          name: "The natural world",
-          ageGroup: "1-2y",
-          milestones: [
-            { name: "Reacts to outdoor sounds", ageGroup: "0-1y", description: "Birds, wind, rain outside." },
-            { name: "Explores natural materials", ageGroup: "1-2y", description: "Leaves, sand, water play." },
-            { name: "Notices weather and seasons", ageGroup: "2-3y", description: "'It's raining', 'The leaves fell down'." },
-            { name: "Cares for plants and animals", ageGroup: "4-5y", description: "Watering plants, observing bugs." },
-          ],
-        },
-      ],
-    },
-    {
-      name: "Expressive Arts & Design",
-      learningPoints: [
-        {
-          name: "Creating with materials",
-          ageGroup: "1-2y",
-          milestones: [
-            { name: "Explores paint and textures", ageGroup: "0-1y", description: "Finger painting and sensory trays." },
-            { name: "Glues and sticks collage pieces", ageGroup: "1-2y", description: "Making simple pictures." },
-            { name: "Makes models with play dough", ageGroup: "2-3y", description: "Rolling, squashing and joining." },
-            { name: "Creates art with intent", ageGroup: "4-5y", description: "Plans and reviews their own creations." },
-          ],
-        },
-        {
-          name: "Being imaginative",
-          ageGroup: "1-2y",
-          milestones: [
-            { name: "Responds to music and song", ageGroup: "0-1y", description: "Waves arms, bounces, smiles." },
-            { name: "Pretends with objects", ageGroup: "1-2y", description: "Feeds a teddy or rocks a doll." },
-            { name: "Takes on simple roles in play", ageGroup: "2-3y", description: "Cooking in the home corner." },
-            { name: "Creates and performs stories", ageGroup: "4-5y", description: "Imagines settings and characters." },
-          ],
-        },
-      ],
-    },
-  ],
-};
+// Egyptian kindergarten starter curriculum, stored as structured JSON in
+// data/curriculum-eg-kg.json. Loading from the repo file (instead of an inline
+// object) means the founder's real curriculum replaces this content by swapping
+// the file — no code change. Falls back to an empty curriculum if the file is
+// missing so nothing crashes in odd packaging.
+function loadDefaultCurriculum(): CurriculumInput {
+  try {
+    const { readFileSync } = require("node:fs") as typeof import("node:fs");
+    const raw = readFileSync(
+      [process.cwd(), "data", "curriculum-eg-kg.json"].join("/"),
+      "utf8"
+    );
+    const parsed = JSON.parse(raw) as CurriculumInput;
+    return { areas: Array.isArray(parsed.areas) ? parsed.areas : [] };
+  } catch {
+    return { areas: [] };
+  }
+}
+
+export const DEFAULT_CURRICULUM: CurriculumInput = loadDefaultCurriculum();

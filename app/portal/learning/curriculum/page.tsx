@@ -12,8 +12,9 @@ export default async function PortalCurriculumPage() {
     <div>
       <h1 className="title">Curriculum</h1>
       <div className="subtitle">
-        Learning areas, points, and milestones that drive observations. Starter EYFS-style
-        content — the founder&apos;s real curriculum imports in the same format without code changes.
+        Learning areas, points, and milestones that drive observations. Egyptian kindergarten
+        framework (Nursery/KG1/KG2) — replace <code>data/curriculum-eg-kg.json</code> with the
+        founder&apos;s real curriculum to swap the content without code changes.
       </div>
 
       {areas.length === 0 && <p className="muted">No curriculum areas seeded yet.</p>}

@@ -15,6 +15,9 @@ type LearningPoint = {
 };
 type Child = { id: string; first_name: string; last_name: string; dob?: string };
 
+// Egyptian KG age bands (Nursery → KG2). Raw band value is what gets stored;
+// the label is what teachers see in the cascade form.
+
 export default function ObservationForm({
   children,
   learningPoints,
@@ -24,7 +27,12 @@ export default function ObservationForm({
   learningPoints: LearningPoint[];
   ageByChild?: Record<string, string>;
 }) {
-  const AGE_GROUPS = ["0-1y", "1-2y", "2-3y", "3-4y", "4-5y"];
+  const AGE_GROUPS: Array<[string, string]> = [
+    ["2-3y", "2-3y (Nursery)"],
+    ["3-4y", "3-4y"],
+    ["4-5y", "4-5y (KG1)"],
+    ["5-6y", "5-6y (KG2)"],
+  ];
 
   const [selectedChildId, setSelectedChildId] = useState(children[0]?.id ?? "");
   const [selectedAgeGroup, setSelectedAgeGroup] = useState("");
@@ -90,9 +98,9 @@ export default function ObservationForm({
             }}
           >
             <option value="">Select age group...</option>
-            {AGE_GROUPS.map((ag) => (
-              <option key={ag} value={ag}>
-                {ag}
+            {AGE_GROUPS.map(([value, label]) => (
+              <option key={value} value={value}>
+                {label}
               </option>
             ))}
           </select>

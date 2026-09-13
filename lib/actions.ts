@@ -443,6 +443,22 @@ export async function saveBrandingAction(formData: FormData) {
   redirect("/portal/settings");
 }
 
+export async function saveCenterDetailsAction(formData: FormData) {
+  await ensureSchema();
+  const instituteId = await firstInstituteId();
+  if (instituteId) {
+    const patch: Record<string, unknown> = {};
+    const name = String(formData.get("name") ?? "").trim();
+    const contact = String(formData.get("contact") ?? "").trim();
+    const address = String(formData.get("address") ?? "").trim();
+    if (name) patch.name = name;
+    patch.contact = contact || null;
+    patch.address = address || null;
+    await updateInstitute(String(instituteId), patch);
+  }
+  redirect("/portal/settings");
+}
+
 export async function submitContactAction(formData: FormData) {
   const name = String(formData.get("name") ?? "").trim();
   const email = String(formData.get("email") ?? "").trim();

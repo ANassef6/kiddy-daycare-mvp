@@ -429,6 +429,48 @@ table.data th {
   color: #fff;
 }
 
+.portal-nav-settings {
+  border-top: 1px solid var(--color-border);
+  padding-top: 8px;
+  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.portal-nav-settings-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 36px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--color-muted);
+  cursor: pointer;
+}
+
+.portal-nav-settings-toggle:hover {
+  background: color-mix(in srgb, var(--brand-primary) 12%, transparent);
+  color: var(--color-text);
+}
+
+.portal-nav-settings-toggle.active {
+  background: color-mix(in srgb, var(--brand-primary) 12%, transparent);
+  color: var(--brand-primary);
+}
+
+.d-flex-col {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+}
+
+.shell-side .portal-nav {
+  flex: 1;
+}
+
 .shell-main {
   padding: var(--space-5);
 }

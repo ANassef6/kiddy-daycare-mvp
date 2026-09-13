@@ -3,7 +3,8 @@ node_modules
 out
 *.tsbuildinfo
 next-env.d.ts
-data/
+data/*
+!data/curriculum-eg-kg.json
 .env*.local
 .DS_Store
 .vercel

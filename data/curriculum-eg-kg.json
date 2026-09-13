@@ -1,0 +1,262 @@
+{
+  "name": "Egyptian Kindergarten Curriculum (KG1/KG2)",
+  "description": "Starter curriculum based on the framework commonly used in Egyptian early-years kindergartens (Nursery 2-3y, KG1 4-5y, KG2 5-6y). Placeholder content to drive the observation cascade; the founder's real curriculum (/home/nassef/Documents/replica/curri) can replace this file with no code changes.",
+  "ageBands": ["2-3y", "3-4y", "4-5y", "5-6y"],
+  "areas": [
+    {
+      "name": "Language & Communication",
+      "learningPoints": [
+        {
+          "name": "Listening & comprehension",
+          "ageGroup": "2-3y",
+          "milestones": [
+            { "name": "Listens to a short story", "ageGroup": "2-3y", "description": "Stays engaged and points to a character when asked." },
+            { "name": "Follows two-part spoken instructions", "ageGroup": "3-4y", "description": "For example: 'put your cup down and wash your hands'." },
+            { "name": "Retells the main events of a story", "ageGroup": "4-5y", "description": "Recounts a story heard in Arabic or English." },
+            { "name": "Answers comprehension questions", "ageGroup": "5-6y", "description": "Responds to who/what/where questions about a read-aloud text." }
+          ]
+        },
+        {
+          "name": "Speaking & expression",
+          "ageGroup": "2-3y",
+          "milestones": [
+            { "name": "Uses words and short phrases to ask for things", "ageGroup": "2-3y", "description": "'More milk', 'my turn'." },
+            { "name": "Speaks in full simple sentences", "ageGroup": "3-4y", "description": "Expresses needs and ideas aloud." },
+            { "name": "Describes a picture or event with new words", "ageGroup": "4-5y", "description": "Uses vocabulary from stories, in Arabic and English." },
+            { "name": "Holds a short conversation clearly", "ageGroup": "5-6y", "description": "Asks and answers questions and explains a simple idea." }
+          ]
+        },
+        {
+          "name": "Pre-reading",
+          "ageGroup": "2-3y",
+          "milestones": [
+            { "name": "Shows interest in books and print", "ageGroup": "2-3y", "description": "Turns pages and looks at pictures." },
+            { "name": "Recognises own name in print", "ageGroup": "3-4y", "description": "Finds the name card on the register." },
+            { "name": "Identifies letter sounds", "ageGroup": "4-5y", "description": "Recognises Arabic letter sounds and/or English letters." },
+            { "name": "Blends sounds to read short words", "ageGroup": "5-6y", "description": "Decodes simple CVC words in English and/or Arabic." }
+          ]
+        },
+        {
+          "name": "Pre-writing",
+          "ageGroup": "2-3y",
+          "milestones": [
+            { "name": "Makes controlled marks with crayons", "ageGroup": "2-3y", "description": "Scribbles with intent." },
+            { "name": "Traces simple lines and shapes", "ageGroup": "3-4y", "description": "Follows dotted lines and circles." },
+            { "name": "Copies letters and numbers from a model", "ageGroup": "4-5y", "description": "Copies own name and numerals." },
+            { "name": "Writes own name and simple words", "ageGroup": "5-6y", "description": "Legible letters, correct grip." }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Mathematical Concepts & Logical Thinking",
+      "learningPoints": [
+        {
+          "name": "Counting & numbers",
+          "ageGroup": "2-3y",
+          "milestones": [
+            { "name": "Counts objects to three", "ageGroup": "2-3y", "description": "Touches and counts small groups." },
+            { "name": "Counts to ten and recognises 1-5", "ageGroup": "3-4y", "description": "Matches number words to objects." },
+            { "name": "Counts to twenty and counts groups", "ageGroup": "4-5y", "description": "Counts objects and compares groups." },
+            { "name": "Adds and subtracts with objects up to ten", "ageGroup": "5-6y", "description": "Joins and separates small groups." }
+          ]
+        },
+        {
+          "name": "Shapes",
+          "ageGroup": "2-3y",
+          "milestones": [
+            { "name": "Matches identical shapes", "ageGroup": "2-3y", "description": "Pairs blocks and puzzle pieces." },
+            { "name": "Names circle, square and triangle", "ageGroup": "3-4y", "description": "Labels shapes in play." },
+            { "name": "Sorts shapes by sides and corners", "ageGroup": "4-5y", "description": "Groups flat shapes by attributes." },
+            { "name": "Combines shapes to build pictures", "ageGroup": "5-6y", "description": "Creates models and pictures from shapes." }
+          ]
+        },
+        {
+          "name": "Patterns & sorting",
+          "ageGroup": "2-3y",
+          "milestones": [
+            { "name": "Sorts objects by one attribute", "ageGroup": "2-3y", "description": "Separates blocks by colour." },
+            { "name": "Continues a simple AB pattern", "ageGroup": "3-4y", "description": "red-blue-red-blue..." },
+            { "name": "Creates own repeating patterns", "ageGroup": "4-5y", "description": "Makes patterns with beads or shapes." },
+            { "name": "Predicts the next item in a pattern", "ageGroup": "5-6y", "description": "Explains the rule that repeats." }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Science & Environmental Awareness",
+      "learningPoints": [
+        {
+          "name": "Senses",
+          "ageGroup": "2-3y",
+          "milestones": [
+            { "name": "Names and uses senses in play", "ageGroup": "2-3y", "description": "Looks, touches, listens during discovery play." },
+            { "name": "Describes what things look, feel, sound like", "ageGroup": "3-4y", "description": "Uses sensory words about objects." },
+            { "name": "Compares objects using senses", "ageGroup": "4-5y", "description": "Notes similarities and differences." },
+            { "name": "Runs a simple sense-based experiment", "ageGroup": "5-6y", "description": "Predicts, tests and reports a result." }
+          ]
+        },
+        {
+          "name": "Animals & plants",
+          "ageGroup": "2-3y",
+          "milestones": [
+            { "name": "Points to common animals and plants", "ageGroup": "2-3y", "description": "Recognises animals, trees and flowers." },
+            { "name": "Names familiar animals and plant parts", "ageGroup": "3-4y", "description": "Leaves, stem, root; common pets." },
+            { "name": "Describes what animals need", "ageGroup": "4-5y", "description": "Food, water, shelter." },
+            { "name": "Cares for a plant and explains its needs", "ageGroup": "5-6y", "description": "Waters and observes growth." }
+          ]
+        },
+        {
+          "name": "Seasons & weather",
+          "ageGroup": "2-3y",
+          "milestones": [
+            { "name": "Notices weather words", "ageGroup": "2-3y", "description": "Sun, rain, wind at circle time." },
+            { "name": "Names the seasons and typical weather", "ageGroup": "3-4y", "description": "Summer is hot, winter is cold." },
+            { "name": "Links seasons to clothes and play", "ageGroup": "4-5y", "description": "Explains what to wear." },
+            { "name": "Records daily weather on a chart", "ageGroup": "5-6y", "description": "Observes and marks the weather." }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Social & Emotional Development",
+      "learningPoints": [
+        {
+          "name": "Self-awareness",
+          "ageGroup": "2-3y",
+          "milestones": [
+            { "name": "Says own name and names body parts", "ageGroup": "2-3y", "description": "Points to eyes, nose, hands." },
+            { "name": "Talks about likes and dislikes", "ageGroup": "3-4y", "description": "Expresses preferences in play." },
+            { "name": "Describes own feelings with words", "ageGroup": "4-5y", "description": "Happy, sad, angry, excited." },
+            { "name": "Reflects on what helps them learn", "ageGroup": "5-6y", "description": "Names strategies and strengths." }
+          ]
+        },
+        {
+          "name": "Relationships & sharing",
+          "ageGroup": "2-3y",
+          "milestones": [
+            { "name": "Plays alongside other children", "ageGroup": "2-3y", "description": "Parallel play in the home corner." },
+            { "name": "Shares toys with encouragement", "ageGroup": "3-4y", "description": "Takes turns with adult support." },
+            { "name": "Takes turns and plays co-operatively", "ageGroup": "4-5y", "description": "Negotiates roles in group play." },
+            { "name": "Resolves simple conflicts with words", "ageGroup": "5-6y", "description": "Uses words instead of pushing." }
+          ]
+        },
+        {
+          "name": "Cooperation",
+          "ageGroup": "2-3y",
+          "milestones": [
+            { "name": "Joins group activities with support", "ageGroup": "2-3y", "description": "Sits with the group at circle time." },
+            { "name": "Follows simple classroom routines", "ageGroup": "3-4y", "description": "Line-up, tidy-up, wash hands." },
+            { "name": "Works with a partner on a task", "ageGroup": "4-5y", "description": "Builds or completes a puzzle together." },
+            { "name": "Contributes to group projects", "ageGroup": "5-6y", "description": "Takes a role and helps the class." }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Physical Development & Health",
+      "learningPoints": [
+        {
+          "name": "Gross motor",
+          "ageGroup": "2-3y",
+          "milestones": [
+            { "name": "Walks steadily and climbs onto low furniture", "ageGroup": "2-3y", "description": "Confident feet on and off equipment." },
+            { "name": "Runs, jumps and balances on one foot briefly", "ageGroup": "3-4y", "description": "Moves with control around the room." },
+            { "name": "Catches, throws and bounces a ball", "ageGroup": "4-5y", "description": "Co-ordinates hands and eyes." },
+            { "name": "Runs, jumps, skips and climbs with control", "ageGroup": "5-6y", "description": "Negotiates obstacles confidently." }
+          ]
+        },
+        {
+          "name": "Fine motor",
+          "ageGroup": "2-3y",
+          "milestones": [
+            { "name": "Picks up small objects with pincer grip", "ageGroup": "2-3y", "description": "Threads large beads and pegs." },
+            { "name": "Holds a crayon and makes marks", "ageGroup": "3-4y", "description": "Scribbles with intent." },
+            { "name": "Uses scissors and threading with control", "ageGroup": "4-5y", "description": "Cuts paper and threads beads." },
+            { "name": "Holds a pencil correctly and forms letters", "ageGroup": "5-6y", "description": "Tripod grip and legible writing." }
+          ]
+        },
+        {
+          "name": "Self-care & hygiene",
+          "ageGroup": "2-3y",
+          "milestones": [
+            { "name": "Washes hands with help", "ageGroup": "2-3y", "description": "Joins the routine at mealtimes." },
+            { "name": "Eats with utensils and drinks without spilling", "ageGroup": "3-4y", "description": "Independent at the table." },
+            { "name": "Uses the toilet independently", "ageGroup": "4-5y", "description": "Goes, washes and returns to play." },
+            { "name": "Dresses and undresses independently", "ageGroup": "5-6y", "description": "Handles buttons and fasteners." }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Creative Arts",
+      "learningPoints": [
+        {
+          "name": "Drawing & painting",
+          "ageGroup": "2-3y",
+          "milestones": [
+            { "name": "Makes marks and paints with fingers", "ageGroup": "2-3y", "description": "Explores texture and colour." },
+            { "name": "Draws a simple face and paints a picture", "ageGroup": "3-4y", "description": "Adds eyes, mouth, arms." },
+            { "name": "Draws people and scenes with detail", "ageGroup": "4-5y", "description": "Includes features and settings." },
+            { "name": "Plans and creates art, then talks about it", "ageGroup": "5-6y", "description": "Describes choices and materials." }
+          ]
+        },
+        {
+          "name": "Music & rhythm",
+          "ageGroup": "2-3y",
+          "milestones": [
+            { "name": "Moves to music and claps along", "ageGroup": "2-3y", "description": "Bounces and sways to a beat." },
+            { "name": "Sings simple songs with the group", "ageGroup": "3-4y", "description": "Joins chorus lines." },
+            { "name": "Keeps a steady beat with instruments", "ageGroup": "4-5y", "description": "Tambourine, drums, shakers." },
+            { "name": "Creates own rhythms and performs", "ageGroup": "5-6y", "description": "Leads a pattern for the group." }
+          ]
+        },
+        {
+          "name": "Pretend play",
+          "ageGroup": "2-3y",
+          "milestones": [
+            { "name": "Pretends with objects", "ageGroup": "2-3y", "description": "Feeds a doll or rocks a teddy." },
+            { "name": "Takes on a role in the home corner", "ageGroup": "3-4y", "description": "Cooks, shops, cares for babies." },
+            { "name": "Builds pretend scenarios with friends", "ageGroup": "4-5y", "description": "Co-ordinates shops, hospitals, planes." },
+            { "name": "Leads extended imaginative play", "ageGroup": "5-6y", "description": "Sustains a story with dialogue." }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Values & Moral Education",
+      "learningPoints": [
+        {
+          "name": "Honesty",
+          "ageGroup": "2-3y",
+          "milestones": [
+            { "name": "Knows honest and dishonest in stories", "ageGroup": "2-3y", "description": "Answers yes/no about characters." },
+            { "name": "Tells the truth about what happened", "ageGroup": "3-4y", "description": "Describes real events accurately." },
+            { "name": "Admits mistakes", "ageGroup": "4-5y", "description": "Owns up without being asked." },
+            { "name": "Understands why honesty matters", "ageGroup": "5-6y", "description": "Explains consequences and chooses truth." }
+          ]
+        },
+        {
+          "name": "Respect",
+          "ageGroup": "2-3y",
+          "milestones": [
+            { "name": "Waits for a turn with adult support", "ageGroup": "2-3y", "description": "Shares attention in groups." },
+            { "name": "Uses polite words", "ageGroup": "3-4y", "description": "Please and thank you." },
+            { "name": "Shows respect for belongings and feelings", "ageGroup": "4-5y", "description": "Handles items carefully, comforts peers." },
+            { "name": "Respects rules and differences", "ageGroup": "5-6y", "description": "Follows class agreements and welcomes others." }
+          ]
+        },
+        {
+          "name": "Responsibility",
+          "ageGroup": "2-3y",
+          "milestones": [
+            { "name": "Puts a toy back with prompting", "ageGroup": "2-3y", "description": "Tidy-up time." },
+            { "name": "Carries out a one-step classroom job", "ageGroup": "3-4y", "description": "Hands out cups or turns pages." },
+            { "name": "Looks after own belongings", "ageGroup": "4-5y", "description": "Puts away bag, coat and water bottle." },
+            { "name": "Completes responsibilities and helps others", "ageGroup": "5-6y", "description": "Takes a job and supports younger peers." }
+          ]
+        }
+      ]
+    }
+  ]
+}

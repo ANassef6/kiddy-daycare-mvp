@@ -13,6 +13,8 @@ export function sqliteSchema(db: any): void {
     font TEXT NOT NULL DEFAULT 'Inter',
     opening_hours TEXT,
     closing_days TEXT,
+    contact TEXT,
+    address TEXT,
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
   );
 
@@ -400,6 +402,13 @@ export function sqliteSchema(db: any): void {
   const roomCols = db.prepare("PRAGMA table_info(room)").all() as { name: string }[];
   if (!roomCols.some((c) => c.name === "colour")) {
     db.exec("ALTER TABLE room ADD COLUMN colour TEXT NOT NULL DEFAULT '#3B82F6'");
+  }
+  const instCols = db.prepare("PRAGMA table_info(institute)").all() as { name: string }[];
+  if (!instCols.some((c) => c.name === "contact")) {
+    db.exec("ALTER TABLE institute ADD COLUMN contact TEXT");
+  }
+  if (!instCols.some((c) => c.name === "address")) {
+    db.exec("ALTER TABLE institute ADD COLUMN address TEXT");
   }
   const staffCols = db.prepare("PRAGMA table_info(staff)").all() as { name: string }[];
   if (!staffCols.some((c) => c.name === "photo_url")) {

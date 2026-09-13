@@ -1,7 +1,7 @@
-// Curriculum data-layer tests (KID-43): starter-curriculum seeding, the
-// structured JSON import format for the founder's real curriculum, and the
-// point → age group → milestone observation cascade, all against the isolated
-// SQLite mirror.
+// Curriculum data-layer tests (KID-43/44): Egyptian KG starter-curriculum
+// seeding, the structured JSON import format for the founder's real curriculum,
+// and the point → age group → milestone observation cascade, all against the
+// isolated SQLite mirror.
 
 import { beforeEach, describe, expect, it } from "vitest";
 import * as store from "@/lib/store";
@@ -31,16 +31,16 @@ function dobYearsAgo(years: number): string {
 }
 
 describe("age-group derivation", () => {
-  it("AGE_GROUPS covers the 0-5 age bands", () => {
-    expect(AGE_GROUPS).toEqual(["0-1y", "1-2y", "2-3y", "3-4y", "4-5y"]);
+  it("AGE_GROUPS covers the Egyptian KG bands", () => {
+    expect(AGE_GROUPS).toEqual(["2-3y", "3-4y", "4-5y", "5-6y"]);
   });
 
   it("maps a date of birth to the right age band", () => {
-    expect(ageGroupForDob(dobYearsAgo(0))).toBe("0-1y");
-    expect(ageGroupForDob(dobYearsAgo(1))).toBe("1-2y");
-    expect(ageGroupForDob(dobYearsAgo(2))).toBe("2-3y");
-    expect(ageGroupForDob(dobYearsAgo(3))).toBe("3-4y");
+    expect(ageGroupForDob(dobYearsAgo(5))).toBe("5-6y");
     expect(ageGroupForDob(dobYearsAgo(4))).toBe("4-5y");
+    expect(ageGroupForDob(dobYearsAgo(3))).toBe("3-4y");
+    expect(ageGroupForDob(dobYearsAgo(2))).toBe("2-3y");
+    expect(ageGroupForDob(dobYearsAgo(1))).toBe("2-3y");
   });
 
   it("returns empty for missing, invalid, or future dates", () => {
@@ -51,37 +51,39 @@ describe("age-group derivation", () => {
   });
 });
 
-describe("starter curriculum seeding (KID-43)", () => {
-  it("seeds the seven EYFS-style areas on fixture setup", async () => {
+describe("starter curriculum seeding (KID-43/44)", () => {
+  it("seeds the seven Egyptian KG areas on fixture setup", async () => {
     const areas = await listCurriculumAreas();
     expect(areas.map((a) => a.name)).toEqual(
       expect.arrayContaining([
-        "Communication & Language",
-        "Physical Development",
-        "Personal, Social & Emotional Development",
-        "Literacy",
-        "Mathematics",
-        "Understanding the World",
-        "Expressive Arts & Design",
+        "Language & Communication",
+        "Mathematical Concepts & Logical Thinking",
+        "Science & Environmental Awareness",
+        "Social & Emotional Development",
+        "Physical Development & Health",
+        "Creative Arts",
+        "Values & Moral Education",
       ])
     );
   });
 
   it("seeds learning points and milestones within each area", async () => {
     const tree = await curriculumTree();
-    const pd = tree.find((a) => a.name === "Physical Development")!;
+    const pd = tree.find((a) => a.name === "Physical Development & Health")!;
     expect(pd).toBeDefined();
     expect(pd.learning_points.length).toBeGreaterThanOrEqual(2);
     const grossMotor = pd.learning_points.find((lp: any) => lp.name === "Gross motor");
     expect(grossMotor).toBeDefined();
     expect(grossMotor.milestones.length).toBeGreaterThanOrEqual(2);
-    expect(grossMotor.milestones.map((m: any) => m.name)).toContain("Takes first independent steps");
+    expect(grossMotor.milestones.map((m: any) => m.name)).toContain(
+      "Runs, jumps, skips and climbs with control"
+    );
   });
 
-  it("every milestone pins an age band", async () => {
+  it("every milestone pins an Egyptian KG age band", async () => {
     const milestones = await mustGet("SELECT COUNT(*) AS c FROM curriculum_milestone");
     const unpinned = await mustGet(
-      "SELECT COUNT(*) AS c FROM curriculum_milestone WHERE age_group NOT IN ('0-1y', '1-2y', '2-3y', '3-4y', '4-5y')"
+      "SELECT COUNT(*) AS c FROM curriculum_milestone WHERE age_group NOT IN ('2-3y', '3-4y', '4-5y', '5-6y')"
     );
     expect(milestones.c).toBeGreaterThan(0);
     expect(unpinned.c).toBe(0);
@@ -157,14 +159,14 @@ describe("structured curriculum import (founder's real curriculum)", () => {
 
   it("a milestone can derive its age band from its learning point", async () => {
     const area = await createCurriculumArea("Custom");
-    const lp = await createLearningPoint({ areaId: String(area.id), name: "Noisy play", ageGroup: "1-2y" });
+    const lp = await createLearningPoint({ areaId: String(area.id), name: "Noisy play", ageGroup: "3-4y" });
     await createMilestone({ learningPointId: String(lp.id), name: "Bangs a drum" });
     const ms = await mustGet("SELECT * FROM curriculum_milestone WHERE name = 'Bangs a drum'");
-    expect(ms.age_group).toBe("1-2y");
+    expect(ms.age_group).toBe("3-4y");
   });
 });
 
-describe("observation cascade persistence (KID-43)", () => {
+describe("observation cascade persistence (KID-43/44)", () => {
   let accountId: string;
 
   beforeEach(async () => {
@@ -176,10 +178,10 @@ describe("observation cascade persistence (KID-43)", () => {
     const inst = (await store.listInstitutes())[0];
     const child = (await store.listChildren(inst.id))[0];
     const grossMotor = await mustGet(
-      "SELECT lp.* FROM curriculum_learning_point lp JOIN curriculum_area a ON a.id = lp.area_id WHERE a.name = 'Physical Development' AND lp.name = 'Gross motor'"
+      "SELECT lp.* FROM curriculum_learning_point lp JOIN curriculum_area a ON a.id = lp.area_id WHERE a.name = 'Physical Development & Health' AND lp.name = 'Gross motor'"
     );
     const milestone = await mustGet(
-      "SELECT * FROM curriculum_milestone WHERE learning_point_id = ? AND name = 'Takes first independent steps'",
+      "SELECT * FROM curriculum_milestone WHERE learning_point_id = ? AND name = 'Runs, jumps, skips and climbs with control'",
       grossMotor.id
     );
 
@@ -188,15 +190,15 @@ describe("observation cascade persistence (KID-43)", () => {
       childId: child.id,
       accountId,
       kind: "milestone",
-      title: "Solo steps",
-      body: "Walked across the mat unaided.",
-      ageGroup: "1-2y",
+      title: "Confident on the climbing frame",
+      body: "Ran, jumped and climbed the frame.",
+      ageGroup: "5-6y",
       learningPointId: String(grossMotor.id),
       milestoneId: String(milestone.id),
       recordedAt: "2026-09-10",
     });
 
-    expect(obs.age_group).toBe("1-2y");
+    expect(obs.age_group).toBe("5-6y");
     expect(obs.learning_point_id).toBe(String(grossMotor.id));
     expect(obs.milestone_id).toBe(String(milestone.id));
   });
@@ -206,8 +208,8 @@ describe("observation cascade persistence (KID-43)", () => {
     const rows = await store.listObservations(inst.id);
     const withCurriculum = rows.find((r) => r.learning_point_name)!;
     expect(withCurriculum).toBeDefined();
-    expect(withCurriculum.area_name).toBe("Physical Development");
-    expect(withCurriculum.milestone_name).toBe("Takes first independent steps");
+    expect(withCurriculum.area_name).toBe("Physical Development & Health");
+    expect(withCurriculum.milestone_name).toBe("Runs, jumps, skips and climbs with control");
   });
 
   it("observationsForChild returns the parent-facing curriculum fields", async () => {

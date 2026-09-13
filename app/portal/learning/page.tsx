@@ -32,8 +32,11 @@ export default async function PortalLearningPage() {
 
   return (
     <div>
-      <h1 className="title">Learning &amp; observations</h1>
+      <h1 className="title">Learning &amp; development</h1>
       <div className="subtitle">Log a learning observation, milestone, or goal for a child — pick the learning point, age group, and milestone from the curriculum. Parents see these on their side.</div>
+      <div className="mb-4">
+        <a className="small" href="/portal/learning/curriculum">View curriculum →</a>
+      </div>
 
       <div className="card mb-4">
         <h3 className="subtitle">Record an observation</h3>

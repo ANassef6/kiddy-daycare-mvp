@@ -1,6 +1,6 @@
 import { requireSession } from "@/lib/require";
 import { listInstitutes, getInstitute } from "@/lib/store";
-import { saveBrandingAction, uploadBrandingImageAction } from "@/lib/actions";
+import { saveBrandingAction, saveCenterDetailsAction, uploadBrandingImageAction } from "@/lib/actions";
 import { brandingFromInstitute } from "@/lib/theme";
 import Avatar from "@/components/Avatar";
 
@@ -15,11 +15,21 @@ export default async function PortalSettingsPage() {
 
   return (
     <div>
-      <h1 className="title">Branding (white-label)</h1>
+      <h1 className="title">Settings — center configuration</h1>
       <p className="subtitle">
-        Swap the daycare name, logo, colors, and font here — every surface re-themes from this
-        config. No code changes or redeploys required.
+        Center details (name, contact, address) and the white-label branding. Rooms are managed on the
+        <a href="/portal/rooms" className="small" style={{ fontWeight: 600, marginLeft: 4 }}>Rooms</a> page.
       </p>
+
+      <form className="card mb-4" action={saveCenterDetailsAction}>
+        <h3 className="subtitle">Center details</h3>
+        <div className="row">
+          <div className="col field"><label className="label">Center name</label><input className="input" name="name" defaultValue={institute?.name ?? ""} placeholder="e.g. Sunshine Daycare" /></div>
+          <div className="col field"><label className="label">Contact</label><input className="input" name="contact" defaultValue={String(institute?.contact ?? "")} placeholder="Phone / email, e.g. +20 100 000 0000" /></div>
+        </div>
+        <div className="field"><label className="label">Address</label><input className="input" name="address" defaultValue={String(institute?.address ?? "")} placeholder="Street, district, city" /></div>
+        <button className="btn btn-primary" type="submit">Save center details</button>
+      </form>
 
       <div className="card mb-4" style={{ background: `linear-gradient(135deg, ${b.primaryColor}, ${b.accentColor})`, color: "#fff" }}>
         <div className="row" style={{ alignItems: "center", gap: 12 }}>

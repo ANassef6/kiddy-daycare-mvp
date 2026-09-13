@@ -66,6 +66,7 @@ export default async function PortalChildPage({ params }: { params: { id: string
           <button className="btn btn-primary" type="submit" style={{ fontSize: 13 }}>Save</button>
         </form>
         <Link href={`/portal/children/${child.id}/billing`} className="btn btn-accent" style={{ fontSize: 13 }}>Billing</Link>
+        <Link href={`/portal/children/${child.id}/development`} className="btn btn-ghost" style={{ fontSize: 13 }}>Development</Link>
       </div>
 
       <div className="card mb-4">
