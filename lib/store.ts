@@ -913,12 +913,15 @@ export async function createObservation(data: {
   kind?: string;
   title?: string;
   body: string;
+  ageGroup?: string;
+  learningPointId?: string;
+  milestoneId?: string;
   recordedAt?: string;
 }): Promise<Row> {
   const id = uid();
   await queryRun(
-    `INSERT INTO learning_observation (id, institute_id, child_id, account_id, kind, title, body, recorded_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO learning_observation (id, institute_id, child_id, account_id, kind, title, body, age_group, learning_point_id, milestone_id, recorded_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     id,
     data.instituteId,
     data.childId,
@@ -926,16 +929,29 @@ export async function createObservation(data: {
     data.kind ?? "observation",
     data.title ?? null,
     data.body,
+    data.ageGroup ?? null,
+    data.learningPointId ?? null,
+    data.milestoneId ?? null,
     data.recordedAt ?? null
   );
   return (await queryGet("SELECT * FROM learning_observation WHERE id = ?", id))!;
 }
 
+const OBSERVATION_SELECT = `
+  SELECT o.*, c.first_name, c.last_name, a.full_name AS recorded_by,
+         lp.name AS learning_point_name, lp.area_id, ar.name AS area_name,
+         m.name AS milestone_name, m.description AS milestone_description
+  FROM learning_observation o
+  JOIN child c ON c.id = o.child_id
+  LEFT JOIN account a ON a.id = o.account_id
+  LEFT JOIN curriculum_learning_point lp ON lp.id = o.learning_point_id
+  LEFT JOIN curriculum_area ar ON ar.id = lp.area_id
+  LEFT JOIN curriculum_milestone m ON m.id = o.milestone_id
+`;
+
 export async function observationsForChild(childId: string): Promise<Row[]> {
   return queryAll(
-    `SELECT o.*, a.full_name AS recorded_by
-     FROM learning_observation o
-     LEFT JOIN account a ON a.id = o.account_id
+    `${OBSERVATION_SELECT}
      WHERE o.child_id = ? ORDER BY o.recorded_at DESC, o.created_at DESC`,
     childId
   );
@@ -943,10 +959,7 @@ export async function observationsForChild(childId: string): Promise<Row[]> {
 
 export async function listObservations(instituteId: string): Promise<Row[]> {
   return queryAll(
-    `SELECT o.*, c.first_name, c.last_name, a.full_name AS recorded_by
-     FROM learning_observation o
-     JOIN child c ON c.id = o.child_id
-     LEFT JOIN account a ON a.id = o.account_id
+    `${OBSERVATION_SELECT}
      WHERE o.institute_id = ? ORDER BY o.recorded_at DESC, o.created_at DESC`,
     instituteId
   );

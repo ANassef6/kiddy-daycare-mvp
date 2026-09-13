@@ -601,6 +601,9 @@ export async function createObservationAction(formData: FormData) {
   const instituteId = await requireInstitute();
   const childId = String(formData.get("childId") ?? "");
   if (instituteId && childId) {
+    const { ensureCurriculumSeeded } = await import("@/lib/curriculum");
+    await ensureCurriculumSeeded();
+    const ageGroup = String(formData.get("ageGroup") ?? "").trim();
     await createObservation({
       instituteId,
       childId,
@@ -608,6 +611,9 @@ export async function createObservationAction(formData: FormData) {
       kind: String(formData.get("kind") ?? "observation"),
       title: String(formData.get("title") ?? "") || undefined,
       body: String(formData.get("body") ?? ""),
+      ageGroup: ageGroup || undefined,
+      learningPointId: String(formData.get("learningPointId") ?? "") || undefined,
+      milestoneId: String(formData.get("milestoneId") ?? "") || undefined,
       recordedAt: String(formData.get("recordedAt") ?? "") || undefined,
     });
   }

@@ -1,6 +1,7 @@
 import { queryGet } from "./db";
 import * as store from "./store";
 import { createAccount } from "./auth";
+import { ingestCurriculum, DEFAULT_CURRICULUM, ensureCurriculumSeeded } from "./curriculum";
 
 // Seeds a demo daycare, its rooms/staff, two children with a parent, an invite,
 // and a small set of daily-loop records so the MVP is immediately explorable.
@@ -26,6 +27,12 @@ export async function seedDemo() {
     },
   });
   const iid = institute.id as string;
+
+  // Seed the starter curriculum (EYFS-style placeholder) so the learning
+  // cascade works end to end. The founder's real curriculum from
+  // /home/nassef/Documents/replica/curri replaces it via ingestCurriculum
+  // without any code changes.
+  await ensureCurriculumSeeded();
 
   const roomA = await store.createRoom(iid, "Toddlers", 12);
   const roomB = await store.createRoom(iid, "Preschool", 16);
@@ -177,6 +184,18 @@ export async function seedDemo() {
     description: "Ella's immunization record for your records.",
     accountId: adminAcc.id,
   });
+
+  // Link the sample observations to starter-curriculum learning points and
+  // milestones so the parent view shows the full cascade fields.
+  const grossMotorPoint = await queryGet("SELECT lp.id FROM curriculum_learning_point lp JOIN curriculum_area a ON a.id = lp.area_id WHERE a.name = 'Physical Development' AND lp.name = 'Gross motor'");
+  const walkingMilestone = grossMotorPoint
+    ? await queryGet("SELECT m.id FROM curriculum_milestone m WHERE m.learning_point_id = ? AND m.name = 'Takes first independent steps'", grossMotorPoint.id)
+    : undefined;
+  const fineMotorPoint = await queryGet("SELECT lp.id FROM curriculum_learning_point lp JOIN curriculum_area a ON a.id = lp.area_id WHERE a.name = 'Physical Development' AND lp.name = 'Fine motor'");
+  const shoesMilestone = fineMotorPoint
+    ? await queryGet("SELECT m.id FROM curriculum_milestone m WHERE m.learning_point_id = ? AND m.name IN ('Holds a crayon and makes marks', 'Picks up small objects with thumb & fingers')", fineMotorPoint.id)
+    : undefined;
+
   await store.createObservation({
     instituteId: iid,
     childId: childA.id as string,
@@ -184,6 +203,9 @@ export async function seedDemo() {
     kind: "milestone",
     title: "First steps!",
     body: "Ella took her first independent steps across the mat today — she was very proud.",
+    ageGroup: walkingMilestone ? "1-2y" : undefined,
+    learningPointId: grossMotorPoint ? (grossMotorPoint.id as string) : undefined,
+    milestoneId: walkingMilestone ? (walkingMilestone.id as string) : undefined,
     recordedAt: today,
   });
   await store.createObservation({
@@ -193,6 +215,9 @@ export async function seedDemo() {
     kind: "goal",
     title: "Building independence",
     body: "Leo is working on putting on his own shoes. A few more weeks of practice.",
+    ageGroup: shoesMilestone ? "2-3y" : undefined,
+    learningPointId: fineMotorPoint ? (fineMotorPoint.id as string) : undefined,
+    milestoneId: shoesMilestone ? (shoesMilestone.id as string) : undefined,
     recordedAt: today,
   });
   await store.createSupportTicket({

@@ -27,6 +27,13 @@ export default async function ParentLearningPage() {
                   <span className="badge">{cap(o.kind)}</span>{" "}
                   {o.title && <strong>{o.title}</strong>} <span className="muted">{fmtDate(o.recorded_at ?? o.created_at)}</span>
                 </div>
+                {(o.learning_point_name || o.age_group || o.milestone_name) && (
+                  <div className="mt-1" style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                    {o.learning_point_name && <span className="badge badge-gray">{o.area_name} · {o.learning_point_name}</span>}
+                    {o.age_group && <span className="badge badge-gray">{o.age_group}</span>}
+                    {o.milestone_name && <span className="badge badge-green">{o.milestone_name}</span>}
+                  </div>
+                )}
                 {o.body && <p className="small mt-1">{o.body}</p>}
               </div>
             </div>
