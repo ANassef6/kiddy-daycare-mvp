@@ -1,9 +1,10 @@
 import Link from "next/link";
 import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
+import { SITE_BRAND } from "@/lib/site";
 
 export const metadata = {
-  title: "Features — Parent childcare management software",
+  title: `Features — ${SITE_BRAND} childcare management software`,
   description:
     "Check-in/out, daily reports, newsfeed, messaging, photos, consents, and incident reports — one simple platform for daycares and parents.",
 };
@@ -91,14 +92,14 @@ export default function FeaturesPage() {
             <div className="card cta-card">
               <h2 className="title">See it with your own daycare&apos;s data</h2>
               <p className="subtitle" style={{ marginBottom: 0 }}>
-                Book a demo, or spin up the seeded demo environment today.
+                Book a demo and we&apos;ll walk your center through the daily loop.
               </p>
               <div className="row mt-3">
                 <Link className="btn btn-primary btn-lg" href="/contact">
                   Book a demo
                 </Link>
-                <Link className="btn btn-ghost btn-lg" href="/login">
-                  Try the demo
+                <Link className="btn btn-ghost btn-lg" href="/for-centers">
+                  For centers
                 </Link>
               </div>
             </div>

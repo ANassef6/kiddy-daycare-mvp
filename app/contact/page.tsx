@@ -1,11 +1,11 @@
 import Link from "next/link";
 import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
-import { getBranding } from "@/lib/theme";
+import { SITE_BRAND } from "@/lib/site";
 import ContactForm from "./ContactForm";
 
 export const metadata = {
-  title: "Book a demo — Parent childcare management software",
+  title: `Book a demo — ${SITE_BRAND} childcare management software`,
   description:
     "Book a personalized demo of the white-label childcare management platform, or send us your questions.",
 };
@@ -15,8 +15,6 @@ export default async function ContactPage({
 }: {
   searchParams?: { sent?: string; error?: string };
 }) {
-  const branding = await getBranding();
-
   const errorMessage =
     searchParams?.error === "name"
       ? "Please add your name."
@@ -35,10 +33,10 @@ export default async function ContactPage({
         <section className="section section-head">
           <div className="container">
             <p className="hero-eyebrow">Contact &amp; demos</p>
-            <h1 className="page-title">See {branding.name} up close</h1>
+            <h1 className="page-title">See {SITE_BRAND} up close</h1>
             <p className="subtitle">
               Book a walkthrough with your daycare&apos;s real setup, or ask us
-              anything about the platform.
+              anything about the platform. We work with daycares directly.
             </p>
           </div>
         </section>
@@ -53,11 +51,12 @@ export default async function ContactPage({
                   touch to book your demo or answer your question.
                 </p>
                 <p className="small mt-3 muted">
-                  In the meantime, you can explore the seeded demo environment.
+                  We work with daycares directly. If you&apos;re a parent, ask your
+                  daycare&apos;s front desk to get in touch with us.
                 </p>
-                <a className="btn btn-primary mt-3" href="/login">
-                  Try the demo
-                </a>
+                <Link className="btn btn-primary mt-3" href="/for-parents">
+                  Information for parents
+                </Link>
               </div>
             ) : (
               <>
@@ -74,13 +73,13 @@ export default async function ContactPage({
                 Other ways to connect
               </h2>
               <ul className="audience-list">
-                <li><strong>Parents:</strong> your daycare decides if {branding.name} is a fit — ask the front desk about the parent app.</li>
-                <li><strong>Centers:</strong> we work with one pilot daycare at a time and onboard every family.</li>
+                <li><strong>Centers:</strong> book a demo below — we onboard each daycare directly.</li>
+                <li><strong>Parents:</strong> your daycare invites you to {SITE_BRAND}; ask the front desk to get in touch with us.</li>
                 <li><strong>Prefer email?</strong> Leave the form above and we&apos;ll reply within one business day.</li>
               </ul>
               <div className="row mt-3">
-                <Link className="btn btn-ghost" href="/login">
-                  Or try the demo now
+                <Link className="btn btn-ghost" href="/for-centers">
+                  More for centers
                 </Link>
               </div>
             </aside>

@@ -34,7 +34,7 @@ export default function ContactForm() {
             type="email"
             required
             autoComplete="email"
-            placeholder="jordan@daycare.ca"
+            placeholder="you@daycare.eg"
           />
         </div>
         <div className="field">
@@ -47,20 +47,10 @@ export default function ContactForm() {
             name="phone"
             type="tel"
             autoComplete="tel"
-            placeholder="555-123-4567"
+            placeholder="+20 1XX XXX XXXX"
           />
         </div>
-        <div className="field">
-          <span className="label">I&apos;m a…</span>
-          <div className="row">
-            <label className="choice">
-              <input type="radio" name="role" value="parent" defaultChecked /> Parent
-            </label>
-            <label className="choice">
-              <input type="radio" name="role" value="center" /> Daycare / center
-            </label>
-          </div>
-        </div>
+        <input type="hidden" name="role" value="center" />
         <div className="field">
           <span className="label">I&apos;m interested in…</span>
           <div className="row">

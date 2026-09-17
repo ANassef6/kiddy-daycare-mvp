@@ -1,12 +1,11 @@
 import Link from "next/link";
 import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
-import { getBranding } from "@/lib/theme";
+import { SITE_BRAND, SITE_MARKET } from "@/lib/site";
 
 export const metadata = {
   title: "For centers — run the day from one place",
-  description:
-    "Attendance, daily care, newsfeed, messaging, and white-label branding — childcare management software for Canadian daycares.",
+  description: `Attendance, daily care, newsfeed, messaging, and white-label branding — childcare management software for ${SITE_MARKET}.`,
 };
 
 const BENEFITS: { title: string; body: string }[] = [
@@ -45,7 +44,6 @@ const BENEFITS: { title: string; body: string }[] = [
 ];
 
 export default async function ForCentersPage() {
-  const branding = await getBranding();
   return (
     <>
       <SiteHeader active="/for-centers" />
@@ -85,7 +83,7 @@ export default async function ForCentersPage() {
             <h2 className="title center">Less admin, more time with children</h2>
             <p className="subtitle center" style={{ maxWidth: 640, marginInline: "auto" }}>
               A childcare management platform should take work off your plate, not
-              add to it. See how {branding.name}{" "}
+              add to it. See how {SITE_BRAND}{" "}
               keeps the operation calm and parents informed.
             </p>
             <p className="center mt-3">

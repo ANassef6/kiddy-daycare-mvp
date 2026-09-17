@@ -1,8 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { loginAction } from "@/lib/actions";
-import { getBranding } from "@/lib/theme";
 
 export default function LoginPage() {
   const [error, setError] = useState<string | null>(null);
@@ -26,7 +26,7 @@ export default function LoginPage() {
         <span className="brand">{brand?.name || "Kiddy"}</span>
       </div>
       <h1 className="title mt-4">Sign in</h1>
-      <p className="subtitle">Welcome back. Sign in to see your child&apos;s day.</p>
+      <p className="subtitle">Welcome back. Sign in to see your daycare&apos;s day.</p>
       <form
         className="card"
         action={async (fd) => {
@@ -45,11 +45,14 @@ export default function LoginPage() {
         </div>
         <button className="btn btn-primary btn-block" type="submit">Sign in</button>
       </form>
+      <p className="small mt-3">
+        <Link href="/forgot-password">Forgot your password?</Link>
+      </p>
+      <p className="small mt-2">
+        <Link href="/register">Have an invite code? Activate your account</Link>
+      </p>
       <p className="muted small mt-3">
         Demo: admin@sunshinedaycare.test / kiddy-admin (portal) · parent@example.test / kiddy-parent (parent)
-      </p>
-      <p className="small mt-3">
-        <a href="/register">New parent? Register with your invite</a>
       </p>
     </div>
   );

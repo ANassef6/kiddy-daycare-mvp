@@ -1,20 +1,21 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { getBranding } from "@/lib/theme";
+import { SITE_BRAND } from "@/lib/site";
 
 export const metadata: Metadata = {
   title: {
     default: "Kiddy — childcare, in your pocket",
     template: "%s | Kiddy",
   },
-  description: "Check-in, check-out, daily reports, and the newsfeed for Canadian daycares.",
+  description: "Check-in, check-out, daily reports, and the newsfeed for Egyptian daycares.",
 };
 
 export const dynamic = "force-dynamic";
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   let theme = "";
-  let brand = "Kiddy";
+  let brand = SITE_BRAND;
   let logoUrl: string | null = null;
   try {
     const b = await getBranding();
@@ -23,8 +24,6 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       `--brand-accent: ${b.accentColor};`,
       `--brand-font: '${b.font}', system-ui, sans-serif;`,
     ].join("\n");
-    brand = b.name;
-    logoUrl = b.logoUrl;
   } catch {
     // never block render on DB availability
   }

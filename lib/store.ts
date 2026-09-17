@@ -656,6 +656,11 @@ export async function createContactRequest(data: {
   return (await queryGet("SELECT * FROM contact_request WHERE id = ?", id))!;
 }
 
+// Owner-facing inbox for marketing-site submissions (demo bookings / questions).
+export async function listContactRequests(limit = 100): Promise<Row[]> {
+  return queryAll("SELECT * FROM contact_request ORDER BY created_at DESC LIMIT ?", limit);
+}
+
 // ---------- T5 / M5 extra kept areas ----------
 // All tables are guaranteed by ensureSchema (0003 migration on Postgres, the
 // sqlite-schema.ts mirror locally), so the fn() pattern stays simple.

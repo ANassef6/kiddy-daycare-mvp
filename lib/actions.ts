@@ -123,6 +123,19 @@ export async function registerAction(formData: FormData) {
   const fullName = String(formData.get("fullName") ?? "").trim();
   const inviteCode = String(formData.get("inviteCode") ?? "").trim();
 
+  // Parents cannot create accounts on their own — the daycare invites them.
+  // A valid, still-pending invite code is required to activate an account.
+  if (!inviteCode) {
+    return { error: "Your daycare must invite you first. Ask them for an invite code." };
+  }
+  const invite = await getInviteByCode(inviteCode);
+  if (!invite) {
+    return { error: "That invite code wasn't found. Check the code your daycare sent you." };
+  }
+  if (String(invite.status ?? "pending") !== "pending") {
+    return { error: "That invite code has already been used. Ask your daycare for a new one." };
+  }
+
   if (await findAccountByEmail(email)) {
     return { error: "An account with that email already exists." };
   }
@@ -168,13 +181,11 @@ export async function registerAction(formData: FormData) {
   const pin = String(formData.get("pin") ?? "").trim();
   if (pin) await setPin(account.id, pin);
 
-  // Link via invite code if provided
-  if (inviteCode) {
-    const invite = await getInviteByCode(inviteCode);
-    if (invite && invite.child_id) {
-      await linkFamily(account.id, String(invite.child_id));
-    }
+  // Link via the invite the daycare issued and consume it.
+  if (invite.child_id) {
+    await linkFamily(account.id, String(invite.child_id));
   }
+  await queryRun("UPDATE invite SET status = 'accepted' WHERE id = ?", invite.id);
 
   await setSession(account.email);
   redirect(emailConfirmed ? "/child" : "/welcome");
@@ -188,6 +199,40 @@ export async function resendConfirmationAction() {
   if (!email) return { error: "No signed-in account to confirm." };
   const { error } = await getSupabase().auth.resend({ type: "signup", email });
   if (error) return { error: error.message };
+  return { ok: true };
+}
+
+function requestOrigin(): string {
+  const h = headers();
+  const host = h.get("host");
+  const proto = h.get("x-forwarded-proto") ?? "https";
+  if (!host) return "";
+  return `${proto}://${host}`;
+}
+
+// Forgot password: Supabase Auth sends the recovery email, and the /reset-password
+// page completes the flow. Best-effort — the project may have no SMTP wired yet,
+// in which case the UI tells the user to ask their daycare for a new invite.
+export async function requestPasswordResetAction(formData: FormData) {
+  const email = String(formData.get("email") ?? "").trim().toLowerCase();
+  if (!email) return { error: "Enter your email address." };
+  if (!supabaseConfigured()) {
+    return {
+      error:
+        "Password reset email isn't configured yet. Ask your daycare admin to give you a new invite code.",
+    };
+  }
+  const { error } = await getSupabase().auth.resetPasswordForEmail(email, {
+    redirectTo: `${requestOrigin()}/reset-password`,
+  });
+  if (error) {
+    // Supabase rejects non-routable addresses (e.g. the seeded *.test demo
+    // accounts) with a generic error. Point the user at the interim path.
+    return {
+      error:
+        "We couldn't send a reset link to that address. If you're a parent or staff member, ask your daycare admin to re-invite you or set a new password.",
+    };
+  }
   return { ok: true };
 }
 
@@ -349,13 +394,44 @@ export async function addChildAction(formData: FormData) {
 export async function addStaffAction(formData: FormData) {
   await ensureSchema();
   const instituteId = await firstInstituteId();
-  await createStaff({
+  const fullName = String(formData.get("fullName") ?? "").trim();
+  const role = String(formData.get("role") ?? "carer");
+  const email = String(formData.get("email") ?? "").trim().toLowerCase();
+  const passwordInput = String(formData.get("password") ?? "").trim();
+  const password = passwordInput || genTempPassword();
+
+  const staff = await createStaff({
     instituteId,
-    fullName: String(formData.get("fullName") ?? ""),
-    role: String(formData.get("role") ?? "carer"),
+    fullName,
+    role,
     roomIds: formData.getAll("roomIds").map(String),
   });
-  redirect("/portal/staff");
+
+  // #14: staff must be able to log in. When an email is supplied we create a
+  // linked portal account (email + password) and record staff_id on the
+  // account. The admin shares the credentials; staff can change the password
+  // later via "Forgot password".
+  if (email && !(await findAccountByEmail(email))) {
+    await createAccount({ email, password, fullName, role: "staff" });
+    await queryRun("UPDATE account SET staff_id = ? WHERE email = ?", staff.id, email);
+    // Best-effort GoTrue identity so the reset-password email flow works later.
+    if (supabaseConfigured()) {
+      try {
+        await getSupabase().auth.signUp({ email, password });
+      } catch {
+        /* non-fatal: the app-side account still works */
+      }
+    }
+  }
+
+  redirect(`/portal/staff?added=1&email=${encodeURIComponent(email)}`);
+}
+
+function genTempPassword(): string {
+  const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789";
+  let out = "";
+  for (let i = 0; i < 12; i++) out += alphabet[Math.floor(Math.random() * alphabet.length)];
+  return out;
 }
 
 export async function addRoomAction(formData: FormData) {

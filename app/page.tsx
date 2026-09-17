@@ -1,17 +1,15 @@
 import Link from "next/link";
 import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
-import { getBranding } from "@/lib/theme";
+import { SITE_BRAND } from "@/lib/site";
 
 export const metadata = {
-  title: "Parent — childcare management software, built for Canadian daycares",
+  title: `${SITE_BRAND} — childcare management software for Egyptian daycares`,
   description:
-    "Check-in, check-out, daily reports, and the newsfeed — in one simple app. Your child's day, in your pocket.",
+    "Check-in, check-out, daily reports, and the newsfeed — in one simple app. Your daycare's day, in one place.",
 };
 
-export default async function HomePage() {
-  const branding = await getBranding();
-
+export default function HomePage() {
   return (
     <>
       <SiteHeader active="/" />
@@ -19,17 +17,17 @@ export default async function HomePage() {
         <section className="hero">
           <div className="container">
             <p className="hero-eyebrow">Childcare management software</p>
-            <h1>Parent — childcare management software, built for Canadian daycares.</h1>
+            <h1>{SITE_BRAND} — childcare management software for Egyptian daycares.</h1>
             <p className="hero-sub">
               Check-in, check-out, daily reports, and the newsfeed — in one simple
-              app. {branding.name}&apos;s day, in your pocket.
+              app for your daycare and the families it serves.
             </p>
             <div className="row mt-4">
-              <a className="btn btn-accent btn-lg" href="#demo">
-                See your child&apos;s day
-              </a>
-              <Link className="btn btn-ghost btn-lg hero-ghost" href="/register">
-                I&apos;m a parent — get my invite
+              <Link className="btn btn-accent btn-lg" href="/contact">
+                Book a daycare demo
+              </Link>
+              <Link className="btn btn-ghost btn-lg hero-ghost" href="/for-parents">
+                I&apos;m a parent
               </Link>
             </div>
           </div>
@@ -37,7 +35,7 @@ export default async function HomePage() {
 
         <section className="proof-strip" aria-label="Trusted by daycare programs">
           <div className="container row" style={{ justifyContent: "space-around" }}>
-            <span className="muted small">Loved by before-&amp;-after-school programs</span>
+            <span className="muted small">Built for daycare operations</span>
             <span className="muted small">Real check-in/out records</span>
             <span className="muted small">Daily reports parents actually read</span>
           </div>
@@ -90,20 +88,21 @@ export default async function HomePage() {
               <div className="card step-card">
                 <div className="badge badge-green">1 · Setup</div>
                 <p className="muted small mt-2">
-                  Staff set up rooms, profiles, and your child&apos;s daily rhythm.
+                  Your daycare sets up rooms, staff, profiles, and each child&apos;s
+                  daily rhythm. Parents are invited by the daycare.
                 </p>
               </div>
               <div className="card step-card">
                 <div className="badge badge-green">2 · The day</div>
                 <p className="muted small mt-2">
-                  Staff check your child in and out, and post a daily report.
+                  Staff check children in and out, and post a daily report.
                 </p>
               </div>
               <div className="card step-card">
                 <div className="badge badge-green">3 · Stay informed</div>
                 <p className="muted small mt-2">
-                  You see live status, read the report, and follow the newsfeed from
-                  anywhere.
+                  Parents see live status, read the report, and follow the newsfeed
+                  from anywhere.
                 </p>
               </div>
             </div>
@@ -118,6 +117,7 @@ export default async function HomePage() {
                 <p className="muted">
                   Your child&apos;s day, without the guesswork. See exactly when they
                   checked in, what they ate, how they slept, and what they learned.
+                  Your daycare invites you to the app.
                 </p>
                 <ul className="audience-list">
                   <li>Live check-in &amp; check-out status</li>
@@ -152,17 +152,17 @@ export default async function HomePage() {
         <section id="demo" className="section section-cta">
           <div className="container">
             <div className="card cta-card">
-              <h2 className="title">See {branding.name} in action</h2>
+              <h2 className="title">See {SITE_BRAND} in action</h2>
               <p className="subtitle" style={{ marginBottom: 0 }}>
-                Book a demo for a walkthrough — or explore the demo environment
-                today with seeded data.
+                We work with daycares directly. Book a walkthrough for your center
+                and we&apos;ll set it up with your real data.
               </p>
               <div className="row mt-3">
                 <Link className="btn btn-primary btn-lg" href="/contact">
                   Book a demo
                 </Link>
-                <Link className="btn btn-ghost btn-lg" href="/login">
-                  Try the demo
+                <Link className="btn btn-ghost btn-lg" href="/features">
+                  Explore features
                 </Link>
               </div>
             </div>

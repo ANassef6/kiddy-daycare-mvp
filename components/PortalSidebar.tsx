@@ -53,6 +53,7 @@ export const PORTAL_NAV: NavGroup[] = [
     href: "/portal/reports",
     items: [
       { label: "Reports", href: "/portal/reports" },
+      { label: "Inquiries", href: "/portal/inquiries" },
       { label: "Smart list", href: "/portal/tags" },
       { label: "Smart form", href: "/portal/forms" },
       { label: "Surveys", href: "/portal/surveys" },

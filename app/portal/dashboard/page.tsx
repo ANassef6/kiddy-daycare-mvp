@@ -8,6 +8,7 @@ import {
   listInstitutes,
   checkedInNow,
   recentReports,
+  listContactRequests,
 } from "@/lib/store";
 
 export const dynamic = "force-dynamic";
@@ -29,6 +30,7 @@ export default async function PortalDashboard() {
     queryGet("SELECT COUNT(*) c FROM consent_request WHERE status='pending'"),
     queryGet("SELECT COUNT(*) c FROM incident_report WHERE acknowledged=0"),
   ]);
+  const inquiries = await listContactRequests(5);
   const openConsents = ((consentCount as any)?.c as number) ?? 0;
   const openIncidents = ((incidentCount as any)?.c as number) ?? 0;
   const reports = await recentReports(instituteId, 1);
@@ -84,6 +86,17 @@ export default async function PortalDashboard() {
           ) : (
             <p className="muted small mt-1">None yet today.</p>
           )}
+        </div>
+      </div>
+
+      <div className="grid mb-4">
+        <div className="card">
+          <h3 className="subtitle">Demo &amp; inquiry requests</h3>
+          <div style={{ fontSize: 24, fontWeight: 700 }}>{inquiries.length}</div>
+          <p className="muted small mt-1">
+            Newest submissions from the public site&apos;s book-a-demo form.
+          </p>
+          <Link className="small mt-2" href="/portal/inquiries">Open inquiries →</Link>
         </div>
       </div>
     </div>

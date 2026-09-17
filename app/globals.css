@@ -550,6 +550,20 @@ body {
   object-fit: cover;
 }
 
+.site-brand-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  background: var(--brand-primary);
+  color: #fff;
+  font-weight: 800;
+  font-size: 15px;
+  line-height: 1;
+}
+
 .site-nav {
   display: flex;
   gap: var(--space-1);

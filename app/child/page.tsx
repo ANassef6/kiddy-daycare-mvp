@@ -14,7 +14,7 @@ export default async function MyChildrenPage() {
         <h1 className="title">No children linked yet</h1>
         <p className="subtitle">
           Use your invite code from the daycare to link to your child&apos;s account.
-          <a className="mt-3 btn btn-primary" href="/register">Register with an invite</a>
+          <a className="mt-3 btn btn-primary" href="/register">Activate your invite</a>
         </p>
       </div>
     );

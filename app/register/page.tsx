@@ -9,8 +9,11 @@ export default function RegisterPage() {
   return (
     <div className="container" style={{ maxWidth: 420, paddingTop: 80 }}>
       <span className="brand">Kiddy</span>
-      <h1 className="title mt-4">Register as a parent</h1>
-      <p className="subtitle">Enter your invite code to link to your child&apos;s daycare.</p>
+      <h1 className="title mt-4">Activate your parent account</h1>
+      <p className="subtitle">
+        Parents are invited by their daycare — you can&apos;t sign up on your own.
+        Enter the invite code your daycare gave you to set up your password.
+      </p>
       <form
         className="card"
         action={async (fd) => {
@@ -21,7 +24,7 @@ export default function RegisterPage() {
         {error && <p style={{ color: "#dc2626", marginBottom: 12 }}>{error}</p>}
         <div className="field">
           <label className="label">Invite code (from your daycare)</label>
-          <input className="input" name="inviteCode" placeholder="e.g. SUNSHINE-1234" />
+          <input className="input" name="inviteCode" placeholder="e.g. SUNSHINE-1234" required />
         </div>
         <div className="field">
           <label className="label">Full name</label>
@@ -39,7 +42,7 @@ export default function RegisterPage() {
           <label className="label">PIN (optional — quick sign-in)</label>
           <input className="input" name="pin" type="password" inputMode="numeric" maxLength={6} />
         </div>
-        <button className="btn btn-primary btn-block" type="submit">Create account</button>
+        <button className="btn btn-primary btn-block" type="submit">Activate account</button>
       </form>
       <p className="small mt-3"><a href="/login">Already have an account? Sign in</a></p>
     </div>

@@ -1,6 +1,6 @@
-import Link from "next/link";
 import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
+import { SITE_BRAND } from "@/lib/site";
 
 export const metadata = {
   title: "For parents — see your child's day",
@@ -48,14 +48,12 @@ export default function ForParentsPage() {
               From the morning check-in to the evening report — everything you want
               to know, without having to ask.
             </p>
-            <div className="row mt-3">
-              <Link className="btn btn-primary btn-lg" href="/login">
-                Sign in as a parent
-              </Link>
-              <Link className="btn btn-ghost btn-lg" href="/register">
-                Get my invite
-              </Link>
-            </div>
+            <p className="muted mt-3" style={{ maxWidth: 620 }}>
+              {SITE_BRAND} is set up by your daycare, and your daycare invites you.
+              You don&apos;t create an account yourself — once your daycare adds your
+              child, they&apos;ll send you an invite and you&apos;ll sign in with the
+              credentials they give you.
+            </p>
           </div>
         </section>
 
@@ -78,10 +76,9 @@ export default function ForParentsPage() {
               private feed of your child&apos;s real day from the people who spend it
               with them.
             </p>
-            <p className="center mt-3">
-              <Link className="btn btn-accent btn-lg" href="/contact">
-                Book a demo
-              </Link>
+            <p className="center muted mt-3" style={{ maxWidth: 640, marginInline: "auto" }}>
+              Want your daycare to use {SITE_BRAND}? Ask the front desk to get in
+              touch with us — we work with daycares directly.
             </p>
           </div>
         </section>
