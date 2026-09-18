@@ -5,8 +5,16 @@ export const dynamic = "force-dynamic";
 
 export default async function PortalCurriculumPage() {
   requireSession();
-  await ensureCurriculumSeeded();
-  const areas = await curriculumTree();
+  // KID-47 fix: seeding must never 500 the page on the live DB.
+  try {
+    await ensureCurriculumSeeded();
+  } catch {}
+  let areas: any[] = [];
+  try {
+    areas = await curriculumTree();
+  } catch {
+    areas = [];
+  }
 
   return (
     <div>

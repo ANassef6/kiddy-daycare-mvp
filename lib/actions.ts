@@ -731,7 +731,10 @@ export async function createObservationAction(formData: FormData) {
     redirect("/portal/learning?error=observation");
   }
   const { ensureCurriculumSeeded } = await import("@/lib/curriculum");
-  await ensureCurriculumSeeded();
+  // KID-47 fix: seeding must never break observation logging on the live DB.
+  try {
+    await ensureCurriculumSeeded();
+  } catch {}
   const ageGroup = String(formData.get("ageGroup") ?? "").trim();
   let learningPointId: string | undefined =
     String(formData.get("learningPointId") ?? "") || undefined;
@@ -930,18 +933,37 @@ export async function createNewsfeedWithAttachmentAction(formData: FormData) {
 export async function assignHomeworkAction(formData: FormData) {
   const me = authAccount();
   await ensureSchema();
-  const { createHomework } = await import("@/lib/store");
+  const { createHomework, createNewsfeedPost, listChildren } = await import("@/lib/store");
   const instituteId = await requireInstitute();
   const title = String(formData.get("title") ?? "").trim();
   if (instituteId && title) {
+    const childId = String(formData.get("childId") ?? "") || undefined;
+    const dueDate = String(formData.get("dueDate") ?? "") || undefined;
+    const description = String(formData.get("description") ?? "");
     await createHomework({
       instituteId,
-      childId: String(formData.get("childId") ?? "") || undefined,
+      childId,
       title,
-      description: String(formData.get("description") ?? ""),
-      dueDate: String(formData.get("dueDate") ?? "") || undefined,
+      description,
+      dueDate,
       accountId: me.accountId,
     });
+    // KID-47 fix: parents only see tag-filtered posts in the parent newsfeed,
+    // so every homework assignment posts there — tagged to its child, or to
+    // all children when assigned center-wide ("All children").
+    try {
+      const tagChildIds = childId
+        ? [childId]
+        : (await listChildren(instituteId)).map((c) => String(c.id));
+      if (tagChildIds.length > 0) {
+        await createNewsfeedPost({
+          instituteId,
+          accountId: me.accountId,
+          body: `Homework: ${title}${dueDate ? ` (due ${dueDate.slice(0, 10)})` : ""}${description ? ` — ${description}` : ""}`,
+          tagChildIds,
+        });
+      }
+    } catch {}
   }
   redirect("/portal/learning/homework");
 }
@@ -950,37 +972,66 @@ export async function assignHomeworkAction(formData: FormData) {
 export async function createSupplyAction(formData: FormData) {
   const me = authAccount();
   await ensureSchema();
-  const { createSupply, createNewsfeedPost } = await import("@/lib/store");
+  const { createSupply, createNewsfeedPost, listChildren } = await import("@/lib/store");
   const instituteId = await requireInstitute();
   const title = String(formData.get("title") ?? "").trim();
   if (instituteId && title) {
+    const quantity = Number(formData.get("quantity") ?? 1) || 1;
+    const unit = String(formData.get("unit") ?? "pcs");
+    const notes = String(formData.get("notes") ?? "");
     await createSupply({
       instituteId,
       title,
-      quantity: Number(formData.get("quantity") ?? 1) || 1,
-      unit: String(formData.get("unit") ?? "pcs"),
-      notes: String(formData.get("notes") ?? ""),
+      quantity,
+      unit,
+      notes,
       accountId: me.accountId,
     });
-    // Notify parents of updates via newsfeed
+    // Notify parents of updates via newsfeed. KID-47 fix: the parent app
+    // filters the newsfeed strictly by child tags, so tag every enrolled
+    // child — otherwise center-wide supply requests stay invisible to parents.
     try {
-      await createNewsfeedPost({
-        instituteId,
-        accountId: me.accountId,
-        body: `Supplies needed: ${title} × ${Number(formData.get("quantity") ?? 1) || 1} ${String(formData.get("unit") ?? "pcs")}`,
-      });
+      const tagChildIds = (await listChildren(instituteId)).map((c) => String(c.id));
+      if (tagChildIds.length > 0) {
+        await createNewsfeedPost({
+          instituteId,
+          accountId: me.accountId,
+          body: `Supplies needed: ${title} × ${quantity} ${unit}${notes ? ` — ${notes}` : ""}`,
+          tagChildIds,
+        });
+      }
     } catch {}
   }
   redirect("/portal/supplies");
 }
 
 export async function updateSupplyStatusAction(formData: FormData) {
-  authAccount();
+  const me = authAccount();
   await ensureSchema();
-  const { updateSupplyStatus } = await import("@/lib/store");
+  const { updateSupplyStatus, createNewsfeedPost, listChildren } = await import("@/lib/store");
+  const { queryGet } = await import("@/lib/db");
+  const instituteId = await requireInstitute();
   const id = String(formData.get("id") ?? "");
   const status = String(formData.get("status") ?? "needed");
-  if (id) await updateSupplyStatus(id, status);
+  if (id) {
+    await updateSupplyStatus(id, status);
+    // KID-47 fix (#9 "parents get notified of updates"): post status changes
+    // to the parent-visible (tagged) newsfeed thread.
+    try {
+      const supply = instituteId ? await queryGet("SELECT * FROM supply_request WHERE id = ?", id) : undefined;
+      if (supply && instituteId) {
+        const tagChildIds = (await listChildren(instituteId)).map((c) => String(c.id));
+        if (tagChildIds.length > 0) {
+          await createNewsfeedPost({
+            instituteId,
+            accountId: me.accountId,
+            body: `Supplies update: ${String(supply.title)} is now ${status}`,
+            tagChildIds,
+          });
+        }
+      }
+    } catch {}
+  }
   redirect("/portal/supplies");
 }
 

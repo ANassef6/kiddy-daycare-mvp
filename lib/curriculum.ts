@@ -78,18 +78,25 @@ export function ageGroupForDob(dob: string | null | undefined): string {
 
 // ---------- Areas ----------
 export async function listCurriculumAreas(instituteId?: string): Promise<Row[]> {
-  return queryAll(
-    `SELECT * FROM curriculum_area
-     WHERE (? IS NULL OR institute_id = ? OR institute_id IS NULL)
-     ORDER BY sort_order, name`,
-    instituteId ?? null,
-    instituteId ?? null
-  );
+  // NOTE: pg gets explicit params (no NULL placeholders) — node-pg cannot
+  // always infer the type of a NULL bind used in `? IS NULL`, which 500s the
+  // learning pages on the live Postgres DB while SQLite tolerates it.
+  if (instituteId) {
+    return queryAll(
+      `SELECT * FROM curriculum_area
+       WHERE (institute_id = ? OR institute_id IS NULL)
+       ORDER BY sort_order, name`,
+      instituteId
+    );
+  }
+  return queryAll(`SELECT * FROM curriculum_area ORDER BY sort_order, name`);
 }
 
 export async function createCurriculumArea(name: string, instituteId?: string): Promise<Row> {
   const id = uid();
-  const sort = (await queryGet("SELECT COUNT(*) AS c FROM curriculum_area"))?.c ?? 0;
+  // NOTE: pg returns COUNT(*) as a string — Number() it, or a fresh database
+  // ("0") would never seed and every insert would reuse sort_order 0.
+  const sort = Number((await queryGet("SELECT COUNT(*) AS c FROM curriculum_area"))?.c ?? 0);
   await queryRun(
     "INSERT INTO curriculum_area (id, institute_id, name, sort_order) VALUES (?, ?, ?, ?)",
     id,
@@ -128,7 +135,7 @@ export async function createLearningPoint(data: {
   ageGroup?: string;
 }): Promise<Row> {
   const id = uid();
-  const sort = (await queryGet("SELECT COUNT(*) AS c FROM curriculum_learning_point WHERE area_id = ?", data.areaId))?.c ?? 0;
+  const sort = Number((await queryGet("SELECT COUNT(*) AS c FROM curriculum_learning_point WHERE area_id = ?", data.areaId))?.c ?? 0);
   await queryRun(
     "INSERT INTO curriculum_learning_point (id, area_id, name, age_group, sort_order) VALUES (?, ?, ?, ?, ?)",
     id,
@@ -174,7 +181,7 @@ export async function createMilestone(data: {
   const derived = data.ageGroup
     ? data.ageGroup
     : String((await queryGet("SELECT age_group FROM curriculum_learning_point WHERE id = ?", data.learningPointId))?.age_group ?? "0-1y");
-  const sort = (await queryGet("SELECT COUNT(*) AS c FROM curriculum_milestone WHERE learning_point_id = ?", data.learningPointId))?.c ?? 0;
+  const sort = Number((await queryGet("SELECT COUNT(*) AS c FROM curriculum_milestone WHERE learning_point_id = ?", data.learningPointId))?.c ?? 0);
   await queryRun(
     "INSERT INTO curriculum_milestone (id, learning_point_id, name, age_group, description, sort_order) VALUES (?, ?, ?, ?, ?, ?)",
     id,
@@ -258,7 +265,9 @@ export async function ingestCurriculum(data: CurriculumInput): Promise<void> {
 export async function ensureCurriculumSeeded(): Promise<void> {
   await ensureSchema();
   const count = await queryGet("SELECT COUNT(*) AS c FROM curriculum_area");
-  if ((count?.c as number) === 0) {
+  // NOTE: pg returns COUNT(*) as a string ("0"), so a strict `=== 0` never
+  // matches and a fresh database would stay unseeded. Number() both engines.
+  if (Number(count?.c ?? 0) === 0) {
     await ingestCurriculum(DEFAULT_CURRICULUM);
   }
 }

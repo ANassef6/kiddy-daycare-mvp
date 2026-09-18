@@ -8,14 +8,24 @@ export const dynamic = "force-dynamic";
 
 export default async function PortalLearningPage() {
   requireSession();
-  await ensureCurriculumSeeded();
+  // KID-47 fix: seeding must never 500 the page on the live DB — a seeding
+  // hiccup falls back to whatever curriculum already exists (dev pages already
+  // use this pattern).
+  try {
+    await ensureCurriculumSeeded();
+  } catch {}
   const instituteId = await firstInstituteId();
   if (!instituteId) return <p className="muted">No institute configured.</p>;
-  const [observations, children, areas] = await Promise.all([
+  const [observations, children] = await Promise.all([
     listObservations(instituteId),
     listChildren(instituteId),
-    curriculumTree(),
   ]);
+  let areas: any[] = [];
+  try {
+    areas = await curriculumTree();
+  } catch {
+    areas = [];
+  }
 
   const learningPoints: any[] = [];
   for (const area of areas) {
