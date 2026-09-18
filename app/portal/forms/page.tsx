@@ -1,7 +1,7 @@
 import { requireSession } from "@/lib/require";
 import { listForms, formResponses } from "@/lib/store";
 import { firstInstituteId, safeJson, cap } from "@/lib/helpers";
-import { createFormAction } from "@/lib/actions";
+import { createFormAction, generateFormShareLinkAction } from "@/lib/actions";
 
 export const dynamic = "force-dynamic";
 type Field = { id: string; label: string; type: string; required?: boolean; options?: string[] };
@@ -64,8 +64,15 @@ export default async function PortalFormsPage({ searchParams }: { searchParams: 
           <div className="card" key={f.id}>
             <div style={{ fontWeight: 700 }}>{f.title}</div>
             <div className="muted small">{cap(f.kind)} · {f.response_count} responses{f.description ? ` — ${f.description}` : ""}</div>
-            <div className="mt-3">
+            {f.share_token && (
+              <div className="small mt-2">Shareable parent link: <a href={`/forms/f/${f.share_token}`}>{`/forms/f/${f.share_token}`}</a></div>
+            )}
+            <div className="mt-3 row" style={{ gap: 6 }}>
               <a className="btn btn-ghost small" href={`/portal/forms?view=${f.id}`}>View responses</a>
+              <form action={generateFormShareLinkAction}>
+                <input type="hidden" name="formId" value={f.id} />
+                <button className="btn btn-ghost small" type="submit">{f.share_token ? "Regenerate link" : "Generate parent link"}</button>
+              </form>
             </div>
           </div>
         ))}

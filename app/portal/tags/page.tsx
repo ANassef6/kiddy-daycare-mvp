@@ -5,7 +5,11 @@ import { createTagAction, setChildTagsAction } from "@/lib/actions";
 
 export const dynamic = "force-dynamic";
 
-export default async function PortalTagsPage() {
+export default async function PortalTagsPage({
+  searchParams,
+}: {
+  searchParams: { gender?: string; maxAge?: string; child?: string };
+}) {
   requireSession();
   const instituteId = await firstInstituteId();
   if (!instituteId) return <p className="muted">No institute configured.</p>;
@@ -13,10 +17,27 @@ export default async function PortalTagsPage() {
   const childrenWithTags = await Promise.all(
     children.map(async (c: any) => ({ ...c, tags: await tagsForChild(c.id) }))
   );
+  const qs = new URLSearchParams({
+    gender: searchParams.gender ?? "",
+    maxAge: searchParams.maxAge ?? "",
+    child: searchParams.child ?? "",
+  }).toString();
 
   return (
     <div>
       <h1 className="title">Tags &amp; lists</h1>
+      <p className="subtitle">Smart list — apply filters, then download a report honoring those filters (e.g. female AND age &lt; 2 years).</p>
+
+      <div className="card mb-4">
+        <h3 className="subtitle">Smart list filters</h3>
+        <form method="get" className="row">
+          <div className="col field"><label className="label">Name contains</label><input className="input" name="child" defaultValue={searchParams.child ?? ""} /></div>
+          <div className="col field"><label className="label">Gender</label><select className="select" name="gender" defaultValue={searchParams.gender ?? ""}><option value="">Any</option><option value="female">Female</option><option value="male">Male</option></select></div>
+          <div className="col field"><label className="label">Max age (years)</label><input className="input" type="number" step="0.5" name="maxAge" defaultValue={searchParams.maxAge ?? ""} placeholder="e.g. 2" /></div>
+          <div className="field" style={{ alignSelf: "flex-end" }}><button className="btn btn-primary" type="submit">Apply</button></div>
+        </form>
+        <a className="btn btn-ghost small mt-2" href={`/api/export?type=children&${qs}`}>Download smart-list report (Excel CSV)</a>
+      </div>
 
       <div className="grid mb-4">
         <div className="card">

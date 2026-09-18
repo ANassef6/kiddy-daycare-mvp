@@ -40,10 +40,10 @@ export default async function PortalDashboard() {
     <div>
       <h1 className="title">Dashboard</h1>
       <div className="grid mb-4">
-        <div className="card"><div style={{ fontSize: 28, fontWeight: 800 }}>{children.length}</div><div className="muted">Children</div></div>
-        <div className="card"><div style={{ fontSize: 28, fontWeight: 800 }}>{checkedIn.length}</div><div className="muted">Checked in now</div></div>
-        <div className="card"><div style={{ fontSize: 28, fontWeight: 800 }}>{staff.length}</div><div className="muted">Staff</div></div>
-        <div className="card"><div style={{ fontSize: 28, fontWeight: 800 }}>{rooms.length}</div><div className="muted">Rooms</div></div>
+        <Link href="/portal/children" className="card" style={{ textDecoration: "none", color: "inherit" }}><div style={{ fontSize: 28, fontWeight: 800 }}>{children.length}</div><div className="muted">Children</div></Link>
+        <Link href="/portal/attendance" className="card" style={{ textDecoration: "none", color: "inherit" }}><div style={{ fontSize: 28, fontWeight: 800 }}>{checkedIn.length}</div><div className="muted">Checked in now</div></Link>
+        <Link href="/portal/staff" className="card" style={{ textDecoration: "none", color: "inherit" }}><div style={{ fontSize: 28, fontWeight: 800 }}>{staff.length}</div><div className="muted">Staff</div></Link>
+        <Link href="/portal/rooms" className="card" style={{ textDecoration: "none", color: "inherit" }}><div style={{ fontSize: 28, fontWeight: 800 }}>{rooms.length}</div><div className="muted">Rooms</div></Link>
       </div>
 
       <div className="grid mb-4">
@@ -68,15 +68,17 @@ export default async function PortalDashboard() {
       </div>
 
       <div className="grid mb-4">
-        <div className="card">
+        <Link href="/portal/consents" className="card" style={{ textDecoration: "none", color: "inherit" }}>
           <h3 className="subtitle">Pending consents</h3>
           <div style={{ fontSize: 24, fontWeight: 700 }}>{openConsents}</div>
-        </div>
-        <div className="card">
+          <span className="small mt-2" style={{ fontWeight: 600 }}>Open consents →</span>
+        </Link>
+        <Link href="/portal/incidents" className="card" style={{ textDecoration: "none", color: "inherit" }}>
           <h3 className="subtitle">Incidents to acknowledge</h3>
           <div style={{ fontSize: 24, fontWeight: 700 }}>{openIncidents}</div>
-        </div>
-        <div className="card">
+          <span className="small mt-2" style={{ fontWeight: 600 }}>Open incidents →</span>
+        </Link>
+        <Link href="/portal/reports" className="card" style={{ textDecoration: "none", color: "inherit" }}>
           <h3 className="subtitle">Latest daily report</h3>
           {latestReport ? (
             <p className="small mt-1">
@@ -86,7 +88,8 @@ export default async function PortalDashboard() {
           ) : (
             <p className="muted small mt-1">None yet today.</p>
           )}
-        </div>
+          <span className="small mt-2" style={{ fontWeight: 600 }}>Open reports →</span>
+        </Link>
       </div>
 
       <div className="grid mb-4">

@@ -12,6 +12,10 @@ export default async function ChildDevelopmentPage({ params }: { params: { id: s
   requireSession();
   const child = await getChild(params.id);
   if (!child) notFound();
+  try {
+    const { ensureCurriculumSeeded } = await import("@/lib/curriculum");
+    await ensureCurriculumSeeded();
+  } catch {}
   const observations = await observationsForChild(child.id);
   const cohort = ageGroupForDob(child.dob as string);
 

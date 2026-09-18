@@ -23,7 +23,10 @@ export default async function PortalMessagesPage({ searchParams }: { searchParam
 
   return (
     <div>
-      <h1 className="title">Live chat</h1>
+      <div className="row" style={{ alignItems: "center", justifyContent: "space-between" }}>
+        <h1 className="title">Messaging center</h1>
+        <a className="btn btn-ghost small" href="/portal/notifications">Notification preferences →</a>
+      </div>
       <div className="subtitle">Talk with families in real time. Parents reply in their app.</div>
 
       <div className="grid" style={{ gridTemplateColumns: "260px 1fr" }}>

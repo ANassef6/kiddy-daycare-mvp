@@ -395,6 +395,47 @@ export function sqliteSchema(db: any): void {
   CREATE INDEX IF NOT EXISTS idx_drive_child ON drive_file (child_id);
   CREATE INDEX IF NOT EXISTS idx_obs_child ON learning_observation (child_id);
   CREATE INDEX IF NOT EXISTS idx_form_resp_form ON form_response (form_id);
+
+  CREATE TABLE IF NOT EXISTS homework (
+    id TEXT PRIMARY KEY,
+    institute_id TEXT NOT NULL REFERENCES institute(id) ON DELETE CASCADE,
+    child_id TEXT REFERENCES child(id) ON DELETE CASCADE,
+    title TEXT NOT NULL,
+    description TEXT NOT NULL DEFAULT '',
+    due_date TEXT,
+    created_by TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+
+  CREATE TABLE IF NOT EXISTS supply_request (
+    id TEXT PRIMARY KEY,
+    institute_id TEXT NOT NULL REFERENCES institute(id) ON DELETE CASCADE,
+    title TEXT NOT NULL,
+    quantity INTEGER NOT NULL DEFAULT 1,
+    unit TEXT NOT NULL DEFAULT 'pcs',
+    notes TEXT NOT NULL DEFAULT '',
+    status TEXT NOT NULL DEFAULT 'needed',
+    created_by TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+
+  CREATE TABLE IF NOT EXISTS staff_schedule (
+    id TEXT PRIMARY KEY,
+    staff_id TEXT NOT NULL REFERENCES staff(id) ON DELETE CASCADE,
+    day_of_week INTEGER NOT NULL DEFAULT 1,
+    start_time TEXT NOT NULL DEFAULT '08:00',
+    end_time TEXT NOT NULL DEFAULT '16:00',
+    notes TEXT NOT NULL DEFAULT '',
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+
+  CREATE TABLE IF NOT EXISTS notification_pref (
+    account_id TEXT NOT NULL,
+    activity TEXT NOT NULL,
+    channel TEXT NOT NULL DEFAULT 'inapp',
+    enabled INTEGER NOT NULL DEFAULT 1,
+    PRIMARY KEY (account_id, activity, channel)
+  );
   `);
 
   // Idempotent column backfills for databases created before these columns
@@ -424,4 +465,10 @@ export function sqliteSchema(db: any): void {
   if (!obsCols.some((c) => c.name === "milestone_id")) {
     db.exec("ALTER TABLE learning_observation ADD COLUMN milestone_id TEXT REFERENCES curriculum_milestone(id) ON DELETE SET NULL");
   }
+  try {
+    const formCols = db.prepare("PRAGMA table_info(form_template)").all() as { name: string }[];
+    if (!formCols.some((c) => c.name === "share_token")) {
+      db.exec("ALTER TABLE form_template ADD COLUMN share_token TEXT");
+    }
+  } catch {}
 }

@@ -25,6 +25,16 @@ export default async function PortalReportCenterPage() {
       <h1 className="title">Report center</h1>
       <div className="subtitle">Center-wide analytics and staff performance dashboards.</div>
 
+      <div className="card mb-4">
+        <h3 className="subtitle">Quick access — downloadable reports (billing, attendance, smart lists)</h3>
+        <div className="row" style={{ gap: 8, flexWrap: "wrap" }}>
+          <a className="btn btn-ghost small" href="/api/export?type=billing">Billing Excel (CSV)</a>
+          <a className="btn btn-ghost small" href="/api/export?type=attendance">Attendance Excel (CSV)</a>
+          <a className="btn btn-ghost small" href="/api/export?type=children">Children smart-list (CSV)</a>
+          <a className="btn btn-ghost small" href="/portal/reports">Filtered reports →</a>
+        </div>
+      </div>
+
       <h3 className="subtitle">Center overview</h3>
       <div className="grid mb-4">
         <div className="card"><div style={{ fontSize: 28, fontWeight: 800 }}>{stats.childrenCount}</div><div className="muted">Children</div></div>

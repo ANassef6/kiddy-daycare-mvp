@@ -955,19 +955,45 @@ const OBSERVATION_SELECT = `
 `;
 
 export async function observationsForChild(childId: string): Promise<Row[]> {
-  return queryAll(
-    `${OBSERVATION_SELECT}
+  try {
+    return await queryAll(
+      `${OBSERVATION_SELECT}
      WHERE o.child_id = ? ORDER BY o.recorded_at DESC, o.created_at DESC`,
-    childId
-  );
+      childId
+    );
+  } catch {
+    // Fallback when curriculum tables/columns are missing (pre-KID-43 DB):
+    // return plain observations without curriculum names. (#6 hardening)
+    return queryAll(
+      `SELECT o.*, c.first_name, c.last_name, NULL AS recorded_by,
+              NULL AS learning_point_name, NULL AS area_id, NULL AS area_name,
+              NULL AS milestone_name, NULL AS milestone_description
+       FROM learning_observation o
+       JOIN child c ON c.id = o.child_id
+       WHERE o.child_id = ? ORDER BY o.created_at DESC`,
+      childId
+    );
+  }
 }
 
 export async function listObservations(instituteId: string): Promise<Row[]> {
-  return queryAll(
-    `${OBSERVATION_SELECT}
+  try {
+    return await queryAll(
+      `${OBSERVATION_SELECT}
      WHERE o.institute_id = ? ORDER BY o.recorded_at DESC, o.created_at DESC`,
-    instituteId
-  );
+      instituteId
+    );
+  } catch {
+    return queryAll(
+      `SELECT o.*, c.first_name, c.last_name, NULL AS recorded_by,
+              NULL AS learning_point_name, NULL AS area_id, NULL AS area_name,
+              NULL AS milestone_name, NULL AS milestone_description
+       FROM learning_observation o
+       JOIN child c ON c.id = o.child_id
+       WHERE o.institute_id = ? ORDER BY o.created_at DESC`,
+      instituteId
+    );
+  }
 }
 
 // ---- Support ----
@@ -1157,4 +1183,182 @@ export async function updateChildPhoto(childId: string, photoUrl: string | null)
 
 export async function updateStaffPhoto(staffId: string, photoUrl: string | null): Promise<void> {
   await queryRun("UPDATE staff SET photo_url = ? WHERE id = ?", photoUrl, staffId);
+}
+
+// ---- KID-47 Round 6: homework ----
+export async function listHomework(instituteId: string): Promise<Row[]> {
+  try {
+    return await queryAll(
+      `SELECT h.*, c.first_name, c.last_name FROM homework h
+       LEFT JOIN child c ON c.id = h.child_id
+       WHERE h.institute_id = ? ORDER BY h.created_at DESC`,
+      instituteId
+    );
+  } catch {
+    return [];
+  }
+}
+
+export async function createHomework(data: {
+  instituteId: string;
+  childId?: string;
+  title: string;
+  description?: string;
+  dueDate?: string;
+  accountId?: string;
+}): Promise<Row> {
+  const nid = uid();
+  await queryRun(
+    `INSERT INTO homework (id, institute_id, child_id, title, description, due_date, created_by)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    nid,
+    data.instituteId,
+    data.childId || null,
+    data.title,
+    data.description ?? "",
+    data.dueDate || null,
+    data.accountId ?? null
+  );
+  return (await queryGet("SELECT * FROM homework WHERE id = ?", nid))!;
+}
+
+// ---- KID-47 Round 6: supplies ----
+export async function listSupplies(instituteId: string): Promise<Row[]> {
+  try {
+    return await queryAll(
+      `SELECT * FROM supply_request WHERE institute_id = ? ORDER BY created_at DESC`,
+      instituteId
+    );
+  } catch {
+    return [];
+  }
+}
+
+export async function createSupply(data: {
+  instituteId: string;
+  title: string;
+  quantity?: number;
+  unit?: string;
+  notes?: string;
+  accountId?: string;
+}): Promise<Row> {
+  const id = uid();
+  await queryRun(
+    `INSERT INTO supply_request (id, institute_id, title, quantity, unit, notes, status, created_by)
+     VALUES (?, ?, ?, ?, ?, ?, 'needed', ?)`,
+    id,
+    data.instituteId,
+    data.title,
+    data.quantity ?? 1,
+    data.unit ?? "pcs",
+    data.notes ?? "",
+    data.accountId ?? null
+  );
+  return (await queryGet("SELECT * FROM supply_request WHERE id = ?", id))!;
+}
+
+export async function updateSupplyStatus(id: string, status: string): Promise<void> {
+  await queryRun("UPDATE supply_request SET status = ? WHERE id = ?", status, id);
+}
+
+// ---- KID-47 Round 6: staff schedules ----
+export async function listStaffSchedules(staffId: string): Promise<Row[]> {
+  try {
+    return await queryAll(
+      `SELECT * FROM staff_schedule WHERE staff_id = ? ORDER BY day_of_week, start_time`,
+      staffId
+    );
+  } catch {
+    return [];
+  }
+}
+
+export async function createStaffSchedule(data: {
+  staffId: string;
+  dayOfWeek: number;
+  startTime: string;
+  endTime: string;
+  notes?: string;
+}): Promise<Row> {
+  const id = uid();
+  await queryRun(
+    `INSERT INTO staff_schedule (id, staff_id, day_of_week, start_time, end_time, notes)
+     VALUES (?, ?, ?, ?, ?, ?)`,
+    id,
+    data.staffId,
+    data.dayOfWeek,
+    data.startTime,
+    data.endTime,
+    data.notes ?? ""
+  );
+  return (await queryGet("SELECT * FROM staff_schedule WHERE id = ?", id))!;
+}
+
+export async function deleteStaffSchedule(id: string): Promise<void> {
+  await queryRun("DELETE FROM staff_schedule WHERE id = ?", id);
+}
+
+// ---- KID-47 Round 6: notification prefs ----
+export const NOTIFICATION_ACTIVITIES = [
+  "newsfeed",
+  "homework",
+  "supplies",
+  "billing",
+  "attendance",
+  "incidents",
+  "messages",
+] as const;
+
+export async function getNotificationPrefs(accountId: string): Promise<Row[]> {
+  try {
+    return await queryAll(`SELECT * FROM notification_pref WHERE account_id = ?`, accountId);
+  } catch {
+    return [];
+  }
+}
+
+export async function setNotificationPref(
+  accountId: string,
+  activity: string,
+  channel: string,
+  enabled: boolean
+): Promise<void> {
+  await queryRun(
+    `INSERT INTO notification_pref (account_id, activity, channel, enabled)
+     VALUES (?, ?, ?, ?) ON CONFLICT DO NOTHING`,
+    accountId,
+    activity,
+    channel,
+    enabled ? 1 : 0
+  );
+  // SQLite + Postgres compatible update (no UPSERT portability issues):
+  await queryRun(
+    `UPDATE notification_pref SET enabled = ? WHERE account_id = ? AND activity = ? AND channel = ?`,
+    enabled ? 1 : 0,
+    accountId,
+    activity,
+    channel
+  );
+}
+
+// ---- KID-47 Round 6: shareable form links (#26) ----
+export async function ensureFormShareToken(formId: string): Promise<string> {
+  const existing = await queryGet("SELECT share_token FROM form_template WHERE id = ?", formId);
+  if (existing?.share_token) return String(existing.share_token);
+  const token = uid();
+  try {
+    await queryRun("UPDATE form_template SET share_token = ? WHERE id = ?", token, formId);
+  } catch {
+    // column may not exist on old DB — ignore, fall back to id link
+    return formId;
+  }
+  return token;
+}
+
+export async function getFormByShareToken(token: string): Promise<Row | undefined> {
+  try {
+    return await queryGet("SELECT * FROM form_template WHERE share_token = ?", token);
+  } catch {
+    return await queryGet("SELECT * FROM form_template WHERE id = ?", token);
+  }
 }

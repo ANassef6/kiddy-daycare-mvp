@@ -9,6 +9,11 @@ export default async function PortalChildrenDevelopmentPage() {
   requireSession();
   const instituteId = await firstInstituteId();
   if (!instituteId) return <p className="muted">No institute configured.</p>;
+  // #6 hardening: ensure curriculum tables/columns exist before reading observations
+  try {
+    const { ensureCurriculumSeeded } = await import("@/lib/curriculum");
+    await ensureCurriculumSeeded();
+  } catch {}
   const [observations, children] = await Promise.all([
     listObservations(instituteId),
     listChildren(instituteId),

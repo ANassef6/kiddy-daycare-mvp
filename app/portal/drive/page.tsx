@@ -18,10 +18,10 @@ export default async function PortalDrivePage() {
 
       <div className="card mb-4">
         <h3 className="subtitle">Share a file</h3>
-        <form action={addDriveFileAction}>
+        <form action={addDriveFileAction} encType="multipart/form-data">
           <div className="row">
-            <div className="col field"><label className="label">File name</label><input className="input" name="filename" required placeholder="e.g. Handbook 2026.pdf" /></div>
-            <div className="col field"><label className="label">File URL</label><input className="input" name="url" required placeholder="https://…" /></div>
+            <div className="col field"><label className="label">File name (optional — defaults to upload name)</label><input className="input" name="filename" placeholder="e.g. Handbook 2026.pdf" /></div>
+            <div className="col field"><label className="label">Choose from your device</label><input className="input" type="file" name="file" required /></div>
             <div className="col field">
               <label className="label">Type</label>
               <select className="select" name="kind"><option value="file">File</option><option value="pdf">PDF</option><option value="photo">Photo</option><option value="video">Video</option></select>
@@ -35,7 +35,6 @@ export default async function PortalDrivePage() {
                 {children.map((c: any) => <option key={c.id} value={c.id}>{c.first_name} {c.last_name}</option>)}
               </select>
             </div>
-            <div className="col field"><label className="label">Size (bytes, optional)</label><input className="input" type="number" name="sizeBytes" /></div>
           </div>
           <div className="field"><label className="label">Description</label><input className="input" name="description" /></div>
           <button className="btn btn-primary" type="submit">Share file</button>

@@ -22,9 +22,35 @@ export default async function PortalChildrenPage({
 
   return (
     <div>
-      <h1 className="title">Children</h1>
-      <form className="card mb-4" action={addChildAction}>
-        <h3 className="subtitle">Add a child</h3>
+      <div className="row" style={{ alignItems: "center", justifyContent: "space-between" }}>
+        <h1 className="title" style={{ marginBottom: 0 }}>Children</h1>
+        <span className="small muted">{children.length} enrolled</span>
+      </div>
+      <table className="data mt-3">
+        <thead>
+          <tr><th>Name</th><th>Room</th><th>DOB</th><th>Health</th></tr>
+        </thead>
+        <tbody>
+          {children.map((c: any) => (
+            <tr key={c.id}>
+              <td>
+                <Link href={`/portal/children/${c.id}`} className="row" style={{ color: "inherit", alignItems: "center", gap: 10, textDecoration: "none" }}>
+                  <Avatar src={c.photo_url} name={`${c.first_name} ${c.last_name}`} size={32} />
+                  <strong>{c.first_name} {c.last_name}</strong>
+                </Link>
+              </td>
+              <td>{c.room_name ?? "—"}</td>
+              <td>{c.dob ?? "—"}</td>
+              <td className="small">{c.allergies ? `Allergies: ${c.allergies}` : "—"}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      {children.length === 0 && <p className="muted small">No children yet.</p>}
+
+      <details className="card mt-4">
+        <summary style={{ cursor: "pointer", fontWeight: 700 }}>+ Add a child</summary>
+      <form className="mt-3" action={addChildAction}>
         <div className="row">
           <div className="col field"><label className="label">First name</label><input className="input" name="firstName" required /></div>
           <div className="col field"><label className="label">Last name</label><input className="input" name="lastName" required /></div>
@@ -64,28 +90,7 @@ export default async function PortalChildrenPage({
         )}
         <button className="btn btn-primary" type="submit">Add child</button>
       </form>
-
-      <table className="data">
-        <thead>
-          <tr><th>Name</th><th>Room</th><th>DOB</th><th>Health</th></tr>
-        </thead>
-        <tbody>
-          {children.map((c: any) => (
-            <tr key={c.id}>
-              <td>
-                <Link href={`/portal/children/${c.id}`} className="row" style={{ color: "inherit", alignItems: "center", gap: 10, textDecoration: "none" }}>
-                  <Avatar src={c.photo_url} name={`${c.first_name} ${c.last_name}`} size={32} />
-                  <strong>{c.first_name} {c.last_name}</strong>
-                </Link>
-              </td>
-              <td>{c.room_name ?? "—"}</td>
-              <td>{c.dob ?? "—"}</td>
-              <td className="small">{c.allergies ? `Allergies: ${c.allergies}` : "—"}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-      {children.length === 0 && <p className="muted small">No children yet.</p>}
+      </details>
 
       <h2 className="title mt-5">Invite a parent</h2>
       <form className="card" action={inviteParentAction}>

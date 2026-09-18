@@ -19,8 +19,10 @@ export default async function PortalNewsfeedPage() {
     <div>
       <h1 className="title">Newsfeed</h1>
 
-      <form className="card mb-4" action={createNewsfeedWithAttachmentAction}>
-        <div className="field"><label className="label">Post an update</label><textarea className="textarea" name="body" required /></div>
+      <details className="card mb-4" open>
+        <summary style={{ cursor: "pointer", fontWeight: 700 }}>New post — composer (recipients + attachment)</summary>
+        <form className="mt-3" action={createNewsfeedWithAttachmentAction} encType="multipart/form-data">
+        <div className="field"><label className="label">Post an update</label><textarea className="textarea" name="body" required placeholder="Click here and write…" /></div>
         <div className="row" style={{ alignItems: "flex-end" }}>
           {/* #8 searchable child tag dropdown (replaces flat checkbox list) */}
           <div className="col field" style={{ flex: 1.5 }}>
@@ -31,14 +33,16 @@ export default async function PortalNewsfeedPage() {
               placeholder="Search and tag children…"
             />
           </div>
-          {/* #8 attachments: paste a photo URL (photo picker comes with real storage) */}
+          {/* #3 attachments: local drive file picker (no URL field) */}
           <div className="col field">
-            <label className="label">Attachment (image URL)</label>
-            <input className="input" name="mediaUrl" placeholder="https://… / photo.jpg" />
+            <label className="label">Attachment (from your device)</label>
+            <input className="input" type="file" name="attachment" accept="image/*,application/pdf,video/*" />
+            <span className="small muted">Max ~2.5 MB. Stored with the post.</span>
           </div>
         </div>
         <button className="btn btn-primary" type="submit">Post</button>
-      </form>
+        </form>
+      </details>
 
       {posts.map((post: any) => (
         <div className="card mb-4" key={post.id}>

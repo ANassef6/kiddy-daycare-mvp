@@ -1,5 +1,6 @@
 import { requireSession } from "@/lib/require";
 import { listInstitutes, attendanceOn } from "@/lib/store";
+import { checkInOutAction } from "@/lib/actions";
 
 export const dynamic = "force-dynamic";
 
@@ -22,7 +23,7 @@ export default async function PortalAttendancePage({
       </p>
       <table className="data">
         <thead>
-          <tr><th>Child</th><th>Room</th><th>Status</th><th>Checked in</th><th>Checked out</th></tr>
+          <tr><th>Child</th><th>Room</th><th>Status</th><th>Checked in</th><th>Checked out</th><th>Action</th></tr>
         </thead>
         <tbody>
           {rows.map((r: any) => (
@@ -36,6 +37,15 @@ export default async function PortalAttendancePage({
               </td>
               <td className="small">{time(r.checked_in_at)}</td>
               <td className="small">{time(r.checked_out_at)}</td>
+              <td>
+                <form action={checkInOutAction} className="row" style={{ gap: 6 }}>
+                  <input type="hidden" name="childId" value={r.id} />
+                  <input type="hidden" name="type" value={r.last_event === "in" ? "out" : "in"} />
+                  <button className={r.last_event === "in" ? "btn btn-ghost small" : "btn btn-primary small"} type="submit">
+                    {r.last_event === "in" ? "Check out" : "Check in"}
+                  </button>
+                </form>
+              </td>
             </tr>
           ))}
         </tbody>

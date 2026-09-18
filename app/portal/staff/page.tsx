@@ -1,7 +1,7 @@
+import Link from "next/link";
 import { requireSession } from "@/lib/require";
 import { listStaff, listRooms, listInstitutes, staffRooms } from "@/lib/store";
 import { queryAll } from "@/lib/db";
-import { uploadPhotoAction } from "@/lib/actions";
 import Avatar from "@/components/Avatar";
 import { getBranding } from "@/lib/theme";
 import AddStaffForm from "./AddStaffForm";
@@ -41,7 +41,12 @@ export default async function PortalStaffPage({
         </div>
       ) : null}
 
-      <AddStaffForm rooms={rooms.map((r) => ({ id: String(r.id), name: String(r.name) }))} />
+      <details className="card mb-4">
+        <summary style={{ cursor: "pointer", fontWeight: 700 }}>+ Add staff</summary>
+        <div className="mt-3">
+          <AddStaffForm rooms={rooms.map((r) => ({ id: String(r.id), name: String(r.name) }))} />
+        </div>
+      </details>
 
       <table className="data">
         <thead><tr><th>Name</th><th>Role</th><th>Login</th><th>Rooms</th><th>Status</th><th>Photo</th></tr></thead>
@@ -50,7 +55,7 @@ export default async function PortalStaffPage({
             <tr key={s.id}>
               <td className="row" style={{ alignItems: "center", gap: 10 }}>
                 <Avatar src={s.photo_url} name={s.full_name} size={32} color={branding.primaryColor} />
-                <strong>{s.full_name}</strong>
+                <Link href={`/portal/staff/${s.id}`} style={{ fontWeight: 700, color: "inherit" }}>{s.full_name}</Link>
               </td>
               <td>{capital(s.role)}</td>
               <td className="small">
@@ -63,15 +68,9 @@ export default async function PortalStaffPage({
               <td className="small">{(roomByName[s.id] ?? []).map((r: any) => String(r.name)).join(", ") || "—"}</td>
               <td><span className={s.active ? "badge badge-green" : "badge badge-red"}>{s.active ? "Active" : "Inactive"}</span></td>
               <td>
-                <form action={uploadPhotoAction} className="row" style={{ gap: 6, alignItems: "center" }}>
-                  <input type="hidden" name="entityType" value="staff" />
-                  <input type="hidden" name="entityId" value={s.id} />
-                  <input type="file" name="file" accept="image/*" required id={`staffphoto-${s.id}`} style={{ display: "none" }} />
-                  <label htmlFor={`staffphoto-${s.id}`} className="btn btn-ghost" style={{ cursor: "pointer", fontSize: 12, padding: "4px 10px" }}>
-                    {s.photo_url ? "Change" : "Add photo"}
-                  </label>
-                  <button className="btn btn-primary" type="submit" style={{ fontSize: 12, padding: "4px 10px" }}>Save</button>
-                </form>
+                <Link className="btn btn-ghost" style={{ fontSize: 12, padding: "4px 10px" }} href={`/portal/staff/${s.id}`}>
+                  {s.photo_url ? "View profile / photo" : "Open profile"}
+                </Link>
               </td>
             </tr>
           ))}

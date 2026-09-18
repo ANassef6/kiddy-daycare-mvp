@@ -261,7 +261,9 @@ export async function linkInviteAction(formData: FormData) {
 function authAccount(): SessionCookie {
   const cookie = cookies().get(SESSION_COOKIE)?.value;
   if (!cookie) throw new Error("not signed in");
-  return verifyToken(decodeURIComponent(cookie)) as SessionCookie;
+  const session = verifyToken(decodeURIComponent(cookie)) as SessionCookie | null;
+  if (!session?.accountId) throw new Error("not signed in");
+  return session;
 }
 
 async function firstInstituteId(): Promise<string> {
@@ -273,7 +275,14 @@ export async function checkInOutAction(formData: FormData) {
   const childId = String(formData.get("childId") ?? "");
   const type = String(formData.get("type") ?? "") as "in" | "out";
   const me = authAccount();
-  await checkChildInOut({ childId, accountId: me.accountId, type });
+  if (childId && (type === "in" || type === "out")) {
+    await checkChildInOut({ childId, accountId: me.accountId, type });
+  }
+  // #7: stay in portal when invoked from portal pages instead of forcing /child/…
+  const referer = headers().get("referer") ?? "";
+  if (referer.includes("/portal/")) {
+    redirect(referer.split("?")[0] + "?checked=1");
+  }
   redirect(`/child/${childId}`);
 }
 
@@ -674,16 +683,40 @@ export async function addDriveFileAction(formData: FormData) {
   const me = authAccount();
   const instituteId = await requireInstitute();
   if (instituteId) {
-    await addDriveFile({
-      instituteId,
-      filename: String(formData.get("filename") ?? ""),
-      url: String(formData.get("url") ?? ""),
-      kind: String(formData.get("kind") ?? "file"),
-      sizeBytes: Number(formData.get("sizeBytes")) || undefined,
-      description: String(formData.get("description") ?? ""),
-      childId: String(formData.get("childId") ?? "") || undefined,
-      accountId: me.accountId,
-    });
+    // #4: upload from local drive only — no file-URL input, no size field.
+    const uploaded = formData.get("file");
+    let filename = String(formData.get("filename") ?? "").trim();
+    let url = "";
+    let kind = String(formData.get("kind") ?? "file");
+    let sizeBytes: number | undefined;
+    if (uploaded instanceof File && uploaded.size > 0) {
+      filename = filename || uploaded.name || "upload";
+      sizeBytes = uploaded.size;
+      const buf = Buffer.from(await uploaded.arrayBuffer());
+      const mime = uploaded.type || "application/octet-stream";
+      if (kind === "file") {
+        if (mime.startsWith("image/")) kind = "photo";
+        else if (mime === "application/pdf") kind = "pdf";
+        else if (mime.startsWith("video/")) kind = "video";
+      }
+      url = `data:${mime};base64,${buf.toString("base64")}`;
+    } else {
+      // Back-compat: older form posts still carry url/sizeBytes
+      url = String(formData.get("url") ?? "");
+      sizeBytes = Number(formData.get("sizeBytes")) || undefined;
+    }
+    if (filename && url) {
+      await addDriveFile({
+        instituteId,
+        filename,
+        url,
+        kind,
+        sizeBytes,
+        description: String(formData.get("description") ?? ""),
+        childId: String(formData.get("childId") ?? "") || undefined,
+        accountId: me.accountId,
+      });
+    }
   }
   redirect("/portal/drive");
 }
@@ -692,23 +725,39 @@ export async function createObservationAction(formData: FormData) {
   const me = authAccount();
   const instituteId = await requireInstitute();
   const childId = String(formData.get("childId") ?? "");
-  if (instituteId && childId) {
-    const { ensureCurriculumSeeded } = await import("@/lib/curriculum");
-    await ensureCurriculumSeeded();
-    const ageGroup = String(formData.get("ageGroup") ?? "").trim();
-    await createObservation({
-      instituteId,
-      childId,
-      accountId: me.accountId,
-      kind: String(formData.get("kind") ?? "observation"),
-      title: String(formData.get("title") ?? "") || undefined,
-      body: String(formData.get("body") ?? ""),
-      ageGroup: ageGroup || undefined,
-      learningPointId: String(formData.get("learningPointId") ?? "") || undefined,
-      milestoneId: String(formData.get("milestoneId") ?? "") || undefined,
-      recordedAt: String(formData.get("recordedAt") ?? "") || undefined,
-    });
+  const body = String(formData.get("body") ?? "").trim();
+  // #6: validate before write so a bad child/body can't crash the server component
+  if (!instituteId || !childId || !body) {
+    redirect("/portal/learning?error=observation");
   }
+  const { ensureCurriculumSeeded } = await import("@/lib/curriculum");
+  await ensureCurriculumSeeded();
+  const ageGroup = String(formData.get("ageGroup") ?? "").trim();
+  let learningPointId: string | undefined =
+    String(formData.get("learningPointId") ?? "") || undefined;
+  let milestoneId: string | undefined =
+    String(formData.get("milestoneId") ?? "") || undefined;
+  // #6: stale/tampered curriculum ids must not raise FK violations — null them
+  if (learningPointId) {
+    const lp = await queryGet("SELECT id FROM curriculum_learning_point WHERE id = ?", learningPointId);
+    if (!lp) learningPointId = undefined;
+  }
+  if (milestoneId) {
+    const ms = await queryGet("SELECT id FROM curriculum_milestone WHERE id = ?", milestoneId);
+    if (!ms) milestoneId = undefined;
+  }
+  await createObservation({
+    instituteId,
+    childId,
+    accountId: me.accountId,
+    kind: String(formData.get("kind") ?? "observation"),
+    title: String(formData.get("title") ?? "") || undefined,
+    body,
+    ageGroup: ageGroup || undefined,
+    learningPointId,
+    milestoneId,
+    recordedAt: String(formData.get("recordedAt") ?? "") || undefined,
+  });
   redirect("/portal/learning");
 }
 
@@ -857,22 +906,144 @@ export async function toggleLikeAction(formData: FormData) {
   redirect(referer);
 }
 
-// ---- #8 Newsfeed post with attachment URL ----
+// ---- #3 Newsfeed post with local-drive attachment (no URL field) ----
 export async function createNewsfeedWithAttachmentAction(formData: FormData) {
   const me = authAccount();
   await ensureSchema();
   const instituteId = await firstInstituteId();
   const body = String(formData.get("body") ?? "");
-  const mediaUrl = String(formData.get("mediaUrl") ?? "").trim() || undefined;
+  let mediaUrl: string | undefined;
+  const attachment = formData.get("attachment");
+  if (attachment instanceof File && attachment.size > 0 && attachment.size <= 2_500_000) {
+    const buf = Buffer.from(await attachment.arrayBuffer());
+    const mime = attachment.type || "application/octet-stream";
+    mediaUrl = `data:${mime};base64,${buf.toString("base64")}`;
+  }
   const tagChildIds = formData.getAll("childIds").map(String).filter(Boolean);
   if (body) {
-    await createNewsfeedPost({
-      instituteId,
-      accountId: me.accountId,
-      body,
-      mediaUrl,
-      tagChildIds,
-    });
+    await createNewsfeedPost({ instituteId, accountId: me.accountId, body, mediaUrl, tagChildIds });
   }
   redirect("/portal/newsfeed");
+}
+
+// ---- KID-47 Round 6: homework assign (#8) ----
+export async function assignHomeworkAction(formData: FormData) {
+  const me = authAccount();
+  await ensureSchema();
+  const { createHomework } = await import("@/lib/store");
+  const instituteId = await requireInstitute();
+  const title = String(formData.get("title") ?? "").trim();
+  if (instituteId && title) {
+    await createHomework({
+      instituteId,
+      childId: String(formData.get("childId") ?? "") || undefined,
+      title,
+      description: String(formData.get("description") ?? ""),
+      dueDate: String(formData.get("dueDate") ?? "") || undefined,
+      accountId: me.accountId,
+    });
+  }
+  redirect("/portal/learning/homework");
+}
+
+// ---- KID-47 Round 6: supplies (#9) ----
+export async function createSupplyAction(formData: FormData) {
+  const me = authAccount();
+  await ensureSchema();
+  const { createSupply, createNewsfeedPost } = await import("@/lib/store");
+  const instituteId = await requireInstitute();
+  const title = String(formData.get("title") ?? "").trim();
+  if (instituteId && title) {
+    await createSupply({
+      instituteId,
+      title,
+      quantity: Number(formData.get("quantity") ?? 1) || 1,
+      unit: String(formData.get("unit") ?? "pcs"),
+      notes: String(formData.get("notes") ?? ""),
+      accountId: me.accountId,
+    });
+    // Notify parents of updates via newsfeed
+    try {
+      await createNewsfeedPost({
+        instituteId,
+        accountId: me.accountId,
+        body: `Supplies needed: ${title} × ${Number(formData.get("quantity") ?? 1) || 1} ${String(formData.get("unit") ?? "pcs")}`,
+      });
+    } catch {}
+  }
+  redirect("/portal/supplies");
+}
+
+export async function updateSupplyStatusAction(formData: FormData) {
+  authAccount();
+  await ensureSchema();
+  const { updateSupplyStatus } = await import("@/lib/store");
+  const id = String(formData.get("id") ?? "");
+  const status = String(formData.get("status") ?? "needed");
+  if (id) await updateSupplyStatus(id, status);
+  redirect("/portal/supplies");
+}
+
+// ---- KID-47 Round 6: staff schedules (#13) ----
+export async function createStaffScheduleAction(formData: FormData) {
+  authAccount();
+  await ensureSchema();
+  const { createStaffSchedule } = await import("@/lib/store");
+  const staffId = String(formData.get("staffId") ?? "");
+  if (staffId) {
+    await createStaffSchedule({
+      staffId,
+      dayOfWeek: Number(formData.get("dayOfWeek") ?? 1),
+      startTime: String(formData.get("startTime") ?? "08:00"),
+      endTime: String(formData.get("endTime") ?? "16:00"),
+      notes: String(formData.get("notes") ?? ""),
+    });
+  }
+  redirect("/portal/staff/schedule");
+}
+
+export async function deleteStaffScheduleAction(formData: FormData) {
+  authAccount();
+  const { deleteStaffSchedule } = await import("@/lib/store");
+  const id = String(formData.get("id") ?? "");
+  if (id) await deleteStaffSchedule(id);
+  redirect("/portal/staff/schedule");
+}
+
+// ---- KID-47 Round 6: notification prefs (#28) ----
+export async function saveNotificationPrefsAction(formData: FormData) {
+  const me = authAccount();
+  await ensureSchema();
+  const { setNotificationPref, NOTIFICATION_ACTIVITIES } = await import("@/lib/store");
+  for (const activity of NOTIFICATION_ACTIVITIES as readonly string[]) {
+    for (const channel of ["email", "inapp"]) {
+      const key = `${activity}_${channel}`;
+      await setNotificationPref(me.accountId, activity, channel, formData.get(key) === "on");
+    }
+  }
+  redirect("/portal/notifications?saved=1");
+}
+
+// ---- KID-47 Round 6: shareable form link (#26) ----
+export async function generateFormShareLinkAction(formData: FormData) {
+  authAccount();
+  const { ensureFormShareToken } = await import("@/lib/store");
+  const formId = String(formData.get("formId") ?? "");
+  if (formId) await ensureFormShareToken(formId);
+  redirect("/portal/forms");
+}
+
+// Public (no-login) parent submission via share token
+export async function submitPublicFormAction(formData: FormData) {
+  await ensureSchema();
+  const { saveFormResponse, getFormByShareToken } = await import("@/lib/store");
+  const token = String(formData.get("token") ?? "");
+  const form = token ? await getFormByShareToken(token) : undefined;
+  if (!form) redirect("/");
+  const answers: Record<string, string> = {};
+  for (let i = 0; i < 20; i++) {
+    answers[`field_${i}`] = String(formData.get(`field_${i}`) ?? "").trim();
+  }
+  await saveFormResponse({ formId: String(form.id), answersJson: JSON.stringify(answers) });
+  redirect(`/forms/f/${token}?sent=1`);
 }
