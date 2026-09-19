@@ -1,8 +1,9 @@
 import { requireSession } from "@/lib/require";
-import { listInstitutes, listNewsfeed, listChildren } from "@/lib/store";
+import { listInstitutes, listNewsfeed, listChildren, listRooms, staffRooms } from "@/lib/store";
 import { createNewsfeedWithAttachmentAction, commentAction, toggleLikeAction } from "@/lib/actions";
-import SearchableChildDropdown from "@/components/SearchableChildDropdown";
+import RecipientsPicker from "@/components/RecipientsPicker";
 import Avatar from "@/components/Avatar";
+import { queryGet } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 
@@ -10,10 +11,20 @@ export default async function PortalNewsfeedPage() {
   const session = requireSession();
   const institutes = await listInstitutes();
   const iid = institutes[0]?.id as string | undefined;
-  const [posts, children] = await Promise.all([
+  const [posts, children, rooms] = await Promise.all([
     iid ? listNewsfeed(iid, session.accountId) : Promise.resolve([]),
     iid ? listChildren(iid) : Promise.resolve([]),
+    iid ? listRooms(iid) : Promise.resolve([]),
   ]);
+  // KID-53 #1: staff recipients are limited to their assigned classrooms.
+  let assignedRoomIds: string[] = [];
+  if (session.role === "staff" || session.role === "carer") {
+    const me = await queryGet("SELECT staff_id FROM account WHERE id = ?", session.accountId);
+    if (me?.staff_id) {
+      const roomsForStaff = await staffRooms(String(me.staff_id));
+      assignedRoomIds = roomsForStaff.map((r) => String(r.id));
+    }
+  }
 
   return (
     <div>
@@ -24,13 +35,14 @@ export default async function PortalNewsfeedPage() {
         <form className="mt-3" action={createNewsfeedWithAttachmentAction} encType="multipart/form-data">
         <div className="field"><label className="label">Post an update</label><textarea className="textarea" name="body" required placeholder="Click here and write…" /></div>
         <div className="row" style={{ alignItems: "flex-end" }}>
-          {/* #8 searchable child tag dropdown (replaces flat checkbox list) */}
+          {/* #1 recipients picker with pre-defined channels */}
           <div className="col field" style={{ flex: 1.5 }}>
-            <label className="label">Tag children (searchable)</label>
-            <SearchableChildDropdown
-              children={children.map((c: any) => ({ id: String(c.id), first_name: String(c.first_name), last_name: String(c.last_name) }))}
-              name="childIds"
-              placeholder="Search and tag children…"
+            <label className="label">Recipients</label>
+            <RecipientsPicker
+              children={children.map((c: any) => ({ id: String(c.id), first_name: String(c.first_name), last_name: String(c.last_name), room_id: c.room_id ? String(c.room_id) : null, room_name: c.room_name ? String(c.room_name) : null }))}
+              rooms={rooms.map((r) => ({ id: String(r.id), name: String(r.name) }))}
+              role={session.role}
+              assignedRoomIds={assignedRoomIds}
             />
           </div>
           {/* #3 attachments: local drive file picker (no URL field) */}
@@ -40,7 +52,7 @@ export default async function PortalNewsfeedPage() {
             <span className="small muted">Max ~2.5 MB. Stored with the post.</span>
           </div>
         </div>
-        <button className="btn btn-primary" type="submit">Post</button>
+        <div className="mt-2"><button className="btn btn-primary" type="submit">Post</button></div>
         </form>
       </details>
 

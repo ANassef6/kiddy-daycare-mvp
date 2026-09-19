@@ -57,6 +57,12 @@ export function sqliteSchema(db: any): void {
     role TEXT NOT NULL DEFAULT 'carer',
     photo_url TEXT,
     active INTEGER NOT NULL DEFAULT 1,
+    email TEXT,
+    phone TEXT,
+    bio TEXT,
+    status TEXT,
+    status_note TEXT,
+    status_at TEXT,
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
   );
 
@@ -74,6 +80,7 @@ export function sqliteSchema(db: any): void {
     first_name TEXT NOT NULL,
     last_name TEXT NOT NULL,
     dob TEXT,
+    gender TEXT,
     photo_url TEXT,
     active INTEGER NOT NULL DEFAULT 1,
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
@@ -292,6 +299,7 @@ export function sqliteSchema(db: any): void {
     account_id TEXT REFERENCES account(id),
     child_id TEXT REFERENCES child(id) ON DELETE CASCADE,
     answers_json TEXT NOT NULL DEFAULT '{}',
+    status TEXT NOT NULL DEFAULT 'new',
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
   );
 
@@ -361,6 +369,7 @@ export function sqliteSchema(db: any): void {
     title TEXT,
     body TEXT NOT NULL,
     age_group TEXT,
+    curriculum_goal_ids TEXT,
     learning_point_id TEXT REFERENCES curriculum_learning_point(id) ON DELETE SET NULL,
     milestone_id TEXT REFERENCES curriculum_milestone(id) ON DELETE SET NULL,
     recorded_at TEXT,
@@ -436,6 +445,19 @@ export function sqliteSchema(db: any): void {
     enabled INTEGER NOT NULL DEFAULT 1,
     PRIMARY KEY (account_id, activity, channel)
   );
+
+  CREATE TABLE IF NOT EXISTS staff_status (
+    id TEXT PRIMARY KEY,
+    staff_id TEXT NOT NULL REFERENCES staff(id) ON DELETE CASCADE,
+    kind TEXT NOT NULL,
+    note TEXT,
+    created_by_account_id TEXT REFERENCES account(id),
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_staff_status ON staff_status (staff_id, created_at DESC);
+  CREATE INDEX IF NOT EXISTS idx_billing_institute ON child_billing (institute_id, due_date);
+  CREATE INDEX IF NOT EXISTS idx_form_resp_status ON form_response (form_id, status);
   `);
 
   // Idempotent column backfills for databases created before these columns
@@ -469,6 +491,40 @@ export function sqliteSchema(db: any): void {
     const formCols = db.prepare("PRAGMA table_info(form_template)").all() as { name: string }[];
     if (!formCols.some((c) => c.name === "share_token")) {
       db.exec("ALTER TABLE form_template ADD COLUMN share_token TEXT");
+    }
+  } catch {}
+
+  // KID-53 part 2: additive column + table backfills for databases created
+  // before these columns existed.
+  try {
+    const obsCols2 = db.prepare("PRAGMA table_info(learning_observation)").all() as { name: string }[];
+    if (!obsCols2.some((c) => c.name === "curriculum_goal_ids")) {
+      db.exec("ALTER TABLE learning_observation ADD COLUMN curriculum_goal_ids TEXT");
+    }
+  } catch {}
+  try {
+    const staffCols2 = db.prepare("PRAGMA table_info(staff)").all() as { name: string }[];
+    for (const [col, ddl] of [
+      ["email", "ALTER TABLE staff ADD COLUMN email TEXT"],
+      ["phone", "ALTER TABLE staff ADD COLUMN phone TEXT"],
+      ["bio", "ALTER TABLE staff ADD COLUMN bio TEXT"],
+      ["status", "ALTER TABLE staff ADD COLUMN status TEXT"],
+      ["status_note", "ALTER TABLE staff ADD COLUMN status_note TEXT"],
+      ["status_at", "ALTER TABLE staff ADD COLUMN status_at TEXT"],
+    ] as const) {
+      if (!staffCols2.some((c) => c.name === col)) db.exec(ddl);
+    }
+  } catch {}
+  try {
+    const childCols = db.prepare("PRAGMA table_info(child)").all() as { name: string }[];
+    if (!childCols.some((c) => c.name === "gender")) {
+      db.exec("ALTER TABLE child ADD COLUMN gender TEXT");
+    }
+  } catch {}
+  try {
+    const frCols = db.prepare("PRAGMA table_info(form_response)").all() as { name: string }[];
+    if (!frCols.some((c) => c.name === "status")) {
+      db.exec("ALTER TABLE form_response ADD COLUMN status TEXT NOT NULL DEFAULT 'new'");
     }
   } catch {}
 }

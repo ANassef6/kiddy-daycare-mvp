@@ -19,19 +19,27 @@ export async function GET(req: Request) {
   const to = url.searchParams.get("to") ?? "";
   const status = url.searchParams.get("status") ?? "";
   const instituteId = await firstInstituteId();
-  const { queryAll } = await import("@/lib/db");
   let rows: Record<string, unknown>[] = [];
   let name = `${type}-export.csv`;
 
   if (type === "billing") {
-    rows = (await queryAll(
-      `SELECT cb.*, c.first_name, c.last_name FROM child_billing cb JOIN child c ON c.id = cb.child_id WHERE cb.institute_id = ?`,
-      instituteId
-    )) as Record<string, unknown>[];
-    if (child) rows = rows.filter((r) => `${r.first_name} ${r.last_name}`.toLowerCase().includes(child));
+    const { listInstituteBilling } = await import("@/lib/store");
+    rows = ((await listInstituteBilling(instituteId)) as Record<string, unknown>[]).map((r) => ({
+      reference: r.reference ?? r.id,
+      child: `${r.first_name ?? ""} ${r.last_name ?? ""}`.trim(),
+      payer: r.payer_name ?? "",
+      payer_phone: r.payer_phone ?? "",
+      period: r.period ?? "",
+      due_date: r.due_date ?? "",
+      currency: r.currency ?? "AED",
+      status: r.status ?? "draft",
+      discount: r.discount ?? "",
+      total: r.amount ?? 0,
+    }));
+    if (child) rows = rows.filter((r) => String(r.child).toLowerCase().includes(child));
     if (status) rows = rows.filter((r) => String(r.status) === status);
-    if (from) rows = rows.filter((r) => String(r.due_date ?? r.created_at ?? "") >= from);
-    if (to) rows = rows.filter((r) => String(r.due_date ?? r.created_at ?? "") <= to);
+    if (from) rows = rows.filter((r) => String(r.due_date ?? "") >= from);
+    if (to) rows = rows.filter((r) => String(r.due_date ?? "") <= to);
     name = "billing-export.csv";
   } else if (type === "attendance") {
     const day = url.searchParams.get("day") ?? new Date().toISOString().slice(0, 10);
@@ -47,10 +55,24 @@ export async function GET(req: Request) {
   } else if (type === "children") {
     const gender = (url.searchParams.get("gender") ?? "").toLowerCase();
     const maxAge = Number(url.searchParams.get("maxAge") ?? "") || null;
+    const child = (url.searchParams.get("child") ?? "").toLowerCase();
+    const roomId = (url.searchParams.get("roomId") ?? "").toLowerCase();
+    const enrolledFrom = url.searchParams.get("enrolledFrom") ?? "";
+    const keepCols = (url.searchParams.get("cols") ?? "")
+      .split(",")
+      .map((c) => c.trim())
+      .filter(Boolean);
     const { listChildren } = await import("@/lib/store");
     let kids = ((await listChildren(instituteId)) as Record<string, unknown>[]);
     if (child) kids = kids.filter((k) => `${k.first_name} ${k.last_name}`.toLowerCase().includes(child));
     if (gender) kids = kids.filter((k) => String((k as any).gender ?? "").toLowerCase() === gender);
+    if (roomId) kids = kids.filter((k) => String((k as any).room_id ?? "").toLowerCase() === roomId);
+    if (enrolledFrom) {
+      kids = kids.filter((k) => {
+        const ea = (k as any).enrolled_at ? String((k as any).enrolled_at).slice(0, 10) : "";
+        return ea >= enrolledFrom;
+      });
+    }
     if (maxAge !== null) {
       kids = kids.filter((k) => {
         const dob = (k as any).dob as string | undefined;
@@ -59,13 +81,16 @@ export async function GET(req: Request) {
         return age < maxAge;
       });
     }
-    rows = kids.map((k) => ({
-      name: `${k.first_name} ${k.last_name}`,
-      room: (k as any).room_name ?? "",
-      dob: (k as any).dob ?? "",
-      gender: (k as any).gender ?? "",
-      allergies: (k as any).allergies ?? "",
-    }));
+    const COL_FNS: Record<string, (k: any) => unknown> = {
+      name: (k) => `${k.first_name} ${k.last_name}`.trim(),
+      room: (k) => k.room_name ?? "",
+      dob: (k) => k.dob ?? "",
+      age: (k) => (k.dob ? Math.floor((Date.now() - new Date(k.dob).getTime()) / (365.25 * 24 * 3600 * 1000)) : ""),
+      gender: (k) => k.gender ?? "",
+      allergies: (k) => k.allergies ?? "",
+    };
+    const columns = keepCols.length > 0 ? keepCols.filter((c) => c in COL_FNS) : Object.keys(COL_FNS);
+    rows = kids.map((k) => Object.fromEntries(columns.map((c) => [c, COL_FNS[c](k)])));
     name = "children-smart-list.csv";
   }
 

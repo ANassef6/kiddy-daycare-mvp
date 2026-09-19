@@ -12,7 +12,7 @@ import {
   setEmailConfirmed,
   emailConfirmedFor,
 } from "@/lib/auth";
-import { queryGet, queryRun, ensureSchema } from "@/lib/db";
+import { queryGet, queryRun, queryAll, ensureSchema } from "@/lib/db";
 import {
   getInviteByCode,
   linkFamily,
@@ -362,7 +362,8 @@ export async function createIncidentAction(formData: FormData) {
 
 export async function acknowledgeIncidentAction(formData: FormData) {
   await acknowledgeIncident(String(formData.get("id") ?? ""));
-  redirect("/child/incidents");
+  const fromPortal = String(formData.get("portal") ?? "") === "1";
+  redirect(fromPortal ? "/portal/incidents" : "/child/incidents");
 }
 
 export async function addChildAction(formData: FormData) {
@@ -753,6 +754,24 @@ export async function createObservationAction(formData: FormData) {
     const ms = await queryGet("SELECT id FROM curriculum_milestone WHERE id = ?", milestoneId);
     if (!ms) milestoneId = undefined;
   }
+  // KID-53 #4: the modal's "Add curriculum goals" picker can attach several
+  // milestones at once — keep the primary one in milestone_id for back-compat
+  // and persist the full set as comma-separated ids in curriculum_goal_ids.
+  let curriculumGoalIds: string[] | undefined;
+  const rawGoals = formData.getAll("goalIds").map(String).filter(Boolean);
+  if (rawGoals.length > 0) {
+    const unique = Array.from(new Set(rawGoals));
+    if (!milestoneId) milestoneId = unique[0];
+    const existing = await queryAll(
+      `SELECT id FROM curriculum_milestone WHERE id IN (${unique.map(() => "?").join(", ")})`,
+      ...unique
+    );
+    const valid = new Set(existing.map((e) => String(e.id)));
+    curriculumGoalIds = unique.filter((id) => valid.has(id));
+    if (curriculumGoalIds.length > 0 && !learningPointId) {
+      learningPointId = await curriculumPointForMilestone(curriculumGoalIds[0]);
+    }
+  }
   await createObservation({
     instituteId,
     childId,
@@ -763,9 +782,20 @@ export async function createObservationAction(formData: FormData) {
     ageGroup: ageGroup || undefined,
     learningPointId,
     milestoneId,
+    curriculumGoalIds,
     recordedAt: String(formData.get("recordedAt") ?? "") || undefined,
   });
   redirect("/portal/learning");
+}
+
+async function curriculumPointForMilestone(milestoneId: string): Promise<string | undefined> {
+  const row = await queryGet("SELECT learning_point_id FROM curriculum_milestone WHERE id = ?", milestoneId);
+  return row ? String(row.learning_point_id) : undefined;
+}
+
+export async function accountName(accountId: string): Promise<string> {
+  const row = await queryGet("SELECT COALESCE(full_name, email, id) AS name FROM account WHERE id = ?", accountId);
+  return row ? String(row.name) : accountId;
 }
 
 export async function createSupportTicketAction(formData: FormData) {
@@ -926,7 +956,20 @@ export async function createNewsfeedWithAttachmentAction(formData: FormData) {
     const mime = attachment.type || "application/octet-stream";
     mediaUrl = `data:${mime};base64,${buf.toString("base64")}`;
   }
-  const tagChildIds = formData.getAll("childIds").map(String).filter(Boolean);
+
+  // KID-53 #1: pre-defined recipient channels. A channel wins over individual
+  // picks — Center = every child, Rooms = every child in the chosen rooms
+  // (admin sees all rooms, staff only their assigned ones), Children = the
+  // explicitly picked children. Falls back to the picked children otherwise.
+  const { listChildren, childrenByRooms } = await import("@/lib/store");
+  const channel = String(formData.get("recipientChannel") ?? "").trim();
+  let tagChildIds: string[] = formData.getAll("childIds").map(String).filter(Boolean);
+  if (channel === "center") {
+    tagChildIds = (await listChildren(instituteId)).map((c) => String(c.id));
+  } else if (channel === "rooms") {
+    const roomIds = formData.getAll("recipientRoomIds").map(String).filter(Boolean);
+    tagChildIds = (await childrenByRooms(roomIds)).map((c) => String(c.id));
+  }
   if (body) {
     await createNewsfeedPost({ instituteId, accountId: me.accountId, body, mediaUrl, tagChildIds });
   }
@@ -1101,4 +1144,66 @@ export async function submitPublicFormAction(formData: FormData) {
   }
   await saveFormResponse({ formId: String(form.id), answersJson: JSON.stringify(answers) });
   redirect(`/forms/f/${token}?sent=1`);
+}
+
+// ---- KID-53 part 2 ----
+
+// Staff presence / availability status (staff profile card).
+export async function logStaffStatusAction(formData: FormData) {
+  const me = authAccount();
+  await ensureSchema();
+  const { logStaffStatus } = await import("@/lib/store");
+  const staffId = String(formData.get("staffId") ?? "");
+  const kind = String(formData.get("kind") ?? "").trim();
+  if (staffId && kind) {
+    await logStaffStatus({
+      staffId,
+      kind,
+      note: String(formData.get("note") ?? "").trim() || undefined,
+      accountId: me.accountId,
+    });
+  }
+  redirect(`/portal/staff/${staffId}`);
+}
+
+// Staff profile edits (full name, role, contact, rooms).
+export async function updateStaffInfoAction(formData: FormData) {
+  authAccount();
+  await ensureSchema();
+  const { updateStaffInfo } = await import("@/lib/store");
+  const staffId = String(formData.get("staffId") ?? "");
+  if (staffId) {
+    await updateStaffInfo(staffId, {
+      fullName: String(formData.get("fullName") ?? "").trim() || undefined,
+      role: String(formData.get("role") ?? "").trim() || undefined,
+      email: String(formData.get("email") ?? "").trim().toLowerCase() || undefined,
+      phone: String(formData.get("phone") ?? "").trim() || undefined,
+      bio: String(formData.get("bio") ?? "").trim() || undefined,
+      roomIds: formData.getAll("roomIds").map(String),
+    });
+  }
+  redirect(`/portal/staff/${staffId}`);
+}
+
+// Form-response submission funnel status.
+export async function setFormResponseStatusAction(formData: FormData) {
+  authAccount();
+  await ensureSchema();
+  const { setFormResponseStatus } = await import("@/lib/store");
+  const responseId = String(formData.get("responseId") ?? "");
+  const status = String(formData.get("status") ?? "new");
+  const formId = String(formData.get("formId") ?? "");
+  if (responseId) await setFormResponseStatus(responseId, status);
+  redirect(formId ? `/portal/forms?view=${formId}` : "/portal/forms");
+}
+
+// Smart-list creation (persists the list name; the builder filters live).
+export async function createSmartListAction(formData: FormData) {
+  const instituteId = await requireInstitute();
+  const name = String(formData.get("name") ?? "").trim();
+  const { createTag } = await import("@/lib/store");
+  if (instituteId && name) {
+    await createTag(String(instituteId), name, "#DC2626");
+  }
+  redirect("/portal/tags");
 }

@@ -921,12 +921,13 @@ export async function createObservation(data: {
   ageGroup?: string;
   learningPointId?: string;
   milestoneId?: string;
+  curriculumGoalIds?: string[];
   recordedAt?: string;
 }): Promise<Row> {
   const id = uid();
   await queryRun(
-    `INSERT INTO learning_observation (id, institute_id, child_id, account_id, kind, title, body, age_group, learning_point_id, milestone_id, recorded_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO learning_observation (id, institute_id, child_id, account_id, kind, title, body, age_group, learning_point_id, milestone_id, curriculum_goal_ids, recorded_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     id,
     data.instituteId,
     data.childId,
@@ -937,6 +938,7 @@ export async function createObservation(data: {
     data.ageGroup ?? null,
     data.learningPointId ?? null,
     data.milestoneId ?? null,
+    (data.curriculumGoalIds?.length ?? 0) > 0 ? data.curriculumGoalIds!.join(",") : null,
     data.recordedAt ?? null
   );
   return (await queryGet("SELECT * FROM learning_observation WHERE id = ?", id))!;
@@ -1361,4 +1363,195 @@ export async function getFormByShareToken(token: string): Promise<Row | undefine
   } catch {
     return await queryGet("SELECT * FROM form_template WHERE id = ?", token);
   }
+}
+
+// ---- KID-53 part 2: recipients channels, staff status, billing, funnel ----
+
+// Children restricted to a set of rooms (used by the staff view of the
+// recipients picker: staff may only pick children from their own rooms).
+export async function childrenByRooms(roomIds: string[]): Promise<Row[]> {
+  if (roomIds.length === 0) return [];
+  const placeholders = roomIds.map(() => "?").join(", ");
+  return queryAll(
+    `SELECT c.*, r.name AS room_name, h.allergies, h.conditions, h.notes
+     FROM child c
+     LEFT JOIN room r ON r.id = c.room_id
+     LEFT JOIN child_health h ON h.child_id = c.id
+     WHERE c.active = 1 AND c.room_id IN (${placeholders})
+     ORDER BY c.first_name, c.last_name`,
+    ...roomIds
+  );
+}
+
+// Staff availability / presence status card.
+export const STAFF_STATUS_KINDS = ["checkin", "sick", "vacation", "absent", "child_sick"] as const;
+
+export async function logStaffStatus(data: {
+  staffId: string;
+  kind: string;
+  note?: string;
+  accountId?: string;
+}): Promise<Row> {
+  const id = uid();
+  await queryRun(
+    `INSERT INTO staff_status (id, staff_id, kind, note, created_by_account_id)
+     VALUES (?, ?, ?, ?, ?)`,
+    id,
+    data.staffId,
+    data.kind,
+    data.note ?? null,
+    data.accountId ?? null
+  );
+  const now = new Date().toISOString();
+  await queryRun(
+    "UPDATE staff SET status = ?, status_note = ?, status_at = ? WHERE id = ?",
+    data.kind,
+    data.note ?? null,
+    now,
+    data.staffId
+  );
+  return (await queryGet(
+    `SELECT ss.*, a.full_name AS recorded_by_name FROM staff_status ss
+     LEFT JOIN account a ON a.id = ss.created_by_account_id
+     WHERE ss.id = ?`,
+    id
+  ))!;
+}
+
+export async function staffStatusLog(staffId: string, limit = 10): Promise<Row[]> {
+  try {
+    return await queryAll(
+      `SELECT ss.*, a.full_name AS recorded_by_name FROM staff_status ss
+       LEFT JOIN account a ON a.id = ss.created_by_account_id
+       WHERE ss.staff_id = ? ORDER BY ss.created_at DESC LIMIT ?`,
+      staffId,
+      limit
+    );
+  } catch {
+    return [];
+  }
+}
+
+// Staff profile editable info + fallback contact columns.
+export async function updateStaffInfo(
+  staffId: string,
+  patch: { fullName?: string; role?: string; email?: string; phone?: string; bio?: string; roomIds?: string[] }
+): Promise<void> {
+  const fields: string[] = [];
+  const values: unknown[] = [];
+  if (patch.fullName !== undefined) {
+    fields.push("full_name = ?");
+    values.push(patch.fullName);
+  }
+  if (patch.role !== undefined) {
+    fields.push("role = ?");
+    values.push(patch.role);
+  }
+  if (patch.email !== undefined) {
+    fields.push("email = ?");
+    values.push(patch.email);
+  }
+  if (patch.phone !== undefined) {
+    fields.push("phone = ?");
+    values.push(patch.phone);
+  }
+  if (patch.bio !== undefined) {
+    fields.push("bio = ?");
+    values.push(patch.bio);
+  }
+  if (fields.length > 0) {
+    values.push(staffId);
+    await queryRun(`UPDATE staff SET ${fields.join(", ")} WHERE id = ?`, ...values);
+  }
+  if (patch.roomIds && Array.isArray(patch.roomIds)) {
+    await queryRun("DELETE FROM staff_room WHERE staff_id = ?", staffId);
+    for (const roomId of patch.roomIds) {
+      await queryRun("INSERT INTO staff_room (staff_id, room_id) VALUES (?, ?) ON CONFLICT DO NOTHING", staffId, roomId);
+    }
+  }
+}
+
+// Center-wide invoice list (finance tab): invoices joined to child + primary
+// payer contact so the transactions table can show Child and Payer columns.
+export async function listInstituteBilling(instituteId: string): Promise<Row[]> {
+  return queryAll(
+    `SELECT cb.*, c.first_name, c.last_name, c.room_id, r.name AS room_name,
+            (SELECT full_name FROM contact k WHERE k.child_id = c.id ORDER BY k.is_emergency DESC, k.created_at ASC LIMIT 1) AS payer
+     FROM child_billing cb
+     JOIN child c ON c.id = cb.child_id
+     LEFT JOIN room r ON r.id = c.room_id
+     WHERE cb.institute_id = ?
+     ORDER BY cb.due_date DESC, cb.created_at DESC`,
+    instituteId
+  );
+}
+
+// Per-form response status counts for the submissions funnel.
+export const FORM_RESPONSE_STATUSES = ["new", "viewed", "contacted", "completed", "archived"] as const;
+
+export async function setFormResponseStatus(responseId: string, status: string): Promise<void> {
+  await queryRun("UPDATE form_response SET status = ? WHERE id = ?", status, responseId);
+}
+
+export async function formResponseStatusCounts(formId: string): Promise<Record<string, number>> {
+  const counts: Record<string, number> = {};
+  for (const s of FORM_RESPONSE_STATUSES as readonly string[]) counts[s] = 0;
+  try {
+    const rows = await queryAll(
+      `SELECT status, COUNT(*) AS c FROM form_response WHERE form_id = ? GROUP BY status`,
+      formId
+    );
+    for (const r of rows) counts[String(r.status)] = Number(r.c ?? 0);
+  } catch {}
+  counts.total = Object.values(counts).reduce((a, b) => a + b, 0);
+  return counts;
+}
+
+// Per-staff activity counts for the Performance tab (dropped-down staff).
+// `from`/`to` are ISO date strings (optional) — when given, only activity on
+// or between those days counts.
+export async function staffActivity(staffId: string, opts: { from?: string; to?: string } = {}): Promise<Row> {
+  const result: Record<string, number> = {
+    posts: 0,
+    media: 0,
+    messages: 0,
+    observations: 0,
+    assessments: 0,
+    twoYearChecks: 0,
+    reports: 0,
+    checkIns: 0,
+    incidents: 0,
+  };
+  const from = opts.from ? `${opts.from} 00:00:00` : null;
+  const to = opts.to ? `${opts.to} 23:59:59` : null;
+  const range = (col: string) => {
+    const parts: string[] = [];
+    const args: string[] = [];
+    if (from) { parts.push(`${col} >= ?`); args.push(from); }
+    if (to) { parts.push(`${col} <= ?`); args.push(to); }
+    return { sql: parts.length ? `AND ${parts.join(" AND ")}` : "", args };
+  };
+  try {
+    const q = async (sql: string, arg: string, r: { sql: string; args: string[] }) =>
+      Number((await queryGet(sql + r.sql, arg, ...r.args))?.c ?? 0);
+    result.posts = await q("SELECT COUNT(*) c FROM newsfeed_post WHERE account_id = ?", staffId, range("created_at"));
+    result.media = await q("SELECT COUNT(*) c FROM media WHERE account_id = ?", staffId, range("created_at"));
+    result.messages =
+      (await q("SELECT COUNT(*) c FROM message WHERE sender_account_id = ?", staffId, range("created_at"))) +
+      (await q("SELECT COUNT(*) c FROM message WHERE recipient_account_id = ?", staffId, range("created_at")));
+
+    const obsRange = range("recorded_at");
+    // recorded_at can be null on legacy rows — fall back to created_at.
+    const obsSql = (kindWhere: string) =>
+      `SELECT COUNT(*) c FROM learning_observation WHERE account_id = ? ${kindWhere} ${obsRange.sql}`;
+    result.observations = Number((await queryGet(obsSql(""), staffId, ...obsRange.args))?.c ?? 0);
+    result.assessments = Number((await queryGet(obsSql("AND kind = 'assessment'"), staffId, ...obsRange.args))?.c ?? 0);
+    result.twoYearChecks = Number(
+      (await queryGet(obsSql("AND (LOWER(COALESCE(title,'')) LIKE '%2 year%' OR LOWER(COALESCE(body,'')) LIKE '%2 year%')"), staffId, ...obsRange.args))?.c ?? 0
+    );
+    result.reports = await q("SELECT COUNT(*) c FROM daily_report WHERE created_by_account_id = ?", staffId, range("created_at"));
+    result.checkIns = await q("SELECT COUNT(*) c FROM check_in WHERE account_id = ?", staffId, range("created_at"));
+    result.incidents = await q("SELECT COUNT(*) c FROM incident_report WHERE account_id = ?", staffId, range("created_at"));
+  } catch {}
+  return result;
 }

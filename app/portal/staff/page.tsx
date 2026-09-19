@@ -8,10 +8,19 @@ import AddStaffForm from "./AddStaffForm";
 
 export const dynamic = "force-dynamic";
 
+const ROLES = ["Owner", "Admin", "Teacher", "Carer", "Caregiver"];
+const STATUS_KIND_LABEL: Record<string, string> = {
+  checkin: "Checked in",
+  sick: "Sick",
+  vacation: "Vacation",
+  absent: "Absent",
+  child_sick: "Child sick",
+};
+
 export default async function PortalStaffPage({
   searchParams,
 }: {
-  searchParams?: { added?: string; email?: string };
+  searchParams?: { added?: string; email?: string; q?: string; role?: string };
 }) {
   requireSession();
   const branding = await getBranding();
@@ -26,9 +35,28 @@ export default async function PortalStaffPage({
   const logins = await queryAll("SELECT staff_id, email FROM account WHERE staff_id IS NOT NULL");
   const emailByStaff = Object.fromEntries(logins.map((l) => [String(l.staff_id), String(l.email)]));
 
+  const q = (searchParams?.q ?? "").toLowerCase();
+  const roleFilter = searchParams?.role ?? "";
+  const rows = staff.filter((s: any) => {
+    if (roleFilter && s.role !== roleFilter.toLowerCase()) return false;
+    if (q) {
+      const hay = `${s.full_name} ${emailByStaff[s.id] ?? ""} ${String(s.role)}`.toLowerCase();
+      if (!hay.includes(q)) return false;
+    }
+    return true;
+  });
+
+  const counts = Object.fromEntries(ROLES.map((r) => [r, staff.filter((s: any) => capital(s.role) === r).length]));
+
   return (
     <div>
-      <h1 className="title">Staff</h1>
+      <div className="row" style={{ justifyContent: "space-between", alignItems: "center" }}>
+        <div>
+          <h1 className="title" style={{ marginBottom: 0 }}>Staff &amp; access control</h1>
+          <p className="subtitle" style={{ marginBottom: 0 }}>Manage your team, their classrooms, and their status.</p>
+        </div>
+        <AddStaffButton rooms={rooms.map((r) => ({ id: String(r.id), name: String(r.name) }))} />
+      </div>
 
       {searchParams?.added ? (
         <div className="card mb-4" role="status" style={{ borderColor: "var(--brand-accent)" }}>
@@ -41,42 +69,87 @@ export default async function PortalStaffPage({
         </div>
       ) : null}
 
-      <details className="card mb-4">
-        <summary style={{ cursor: "pointer", fontWeight: 700 }}>+ Add staff</summary>
-        <div className="mt-3">
-          <AddStaffForm rooms={rooms.map((r) => ({ id: String(r.id), name: String(r.name) }))} />
-        </div>
-      </details>
-
-      <table className="data">
-        <thead><tr><th>Name</th><th>Role</th><th>Login</th><th>Rooms</th><th>Status</th><th>Photo</th></tr></thead>
-        <tbody>
-          {staff.map((s: any) => (
-            <tr key={s.id}>
-              <td className="row" style={{ alignItems: "center", gap: 10 }}>
-                <Avatar src={s.photo_url} name={s.full_name} size={32} color={branding.primaryColor} />
-                <Link href={`/portal/staff/${s.id}`} style={{ fontWeight: 700, color: "inherit" }}>{s.full_name}</Link>
-              </td>
-              <td>{capital(s.role)}</td>
-              <td className="small">
-                {emailByStaff[s.id] ? (
-                  emailByStaff[s.id]
-                ) : (
-                  <span className="muted">No login yet</span>
-                )}
-              </td>
-              <td className="small">{(roomByName[s.id] ?? []).map((r: any) => String(r.name)).join(", ") || "—"}</td>
-              <td><span className={s.active ? "badge badge-green" : "badge badge-red"}>{s.active ? "Active" : "Inactive"}</span></td>
-              <td>
-                <Link className="btn btn-ghost" style={{ fontSize: 12, padding: "4px 10px" }} href={`/portal/staff/${s.id}`}>
-                  {s.photo_url ? "View profile / photo" : "Open profile"}
-                </Link>
-              </td>
-            </tr>
+      {/* #8(c) "Access roles" panel: one chip per role with live member counts */}
+      <div className="card mb-4">
+        <h3 className="subtitle">Access roles</h3>
+        <div className="row" style={{ gap: 8 }}>
+          {ROLES.map((r) => (
+            <span key={r} className={roleFilter === r.toLowerCase() ? "badge badge-red" : "badge badge-gray"} style={{ padding: "6px 12px" }}>
+              {r} · {counts[r] ?? 0}
+            </span>
           ))}
-        </tbody>
-      </table>
+        </div>
+      </div>
+
+      <div className="card mb-4">
+        <form method="get" className="row" style={{ gap: 10, alignItems: "center", justifyContent: "space-between" }}>
+          <div className="row" style={{ gap: 8 }}>
+            <input className="input" name="q" defaultValue={searchParams?.q ?? ""} placeholder="Search staff by name, email, or role…" style={{ minWidth: 260 }} />
+            <select className="select" name="role" defaultValue={roleFilter} style={{ maxWidth: 150 }}>
+              <option value="">All roles</option>
+              {ROLES.map((r) => (
+                <option key={r} value={r.toLowerCase()}>{r}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <button className="btn btn-ghost small" type="submit">Apply</button>
+            <Link className="btn btn-ghost small" href="/portal/staff">Clear</Link>
+          </div>
+        </form>
+      </div>
+
+      <div className="card">
+        <table className="data">
+          <thead>
+            <tr><th>Name</th><th>Access</th><th>Assigned classrooms</th><th>Status</th><th>Actions</th></tr>
+          </thead>
+          <tbody>
+            {rows.length === 0 ? (
+              <tr><td colSpan={5} className="muted small">No staff match.</td></tr>
+            ) : null}
+            {rows.map((s: any) => (
+              <tr key={s.id}>
+                <td className="row" style={{ alignItems: "center", gap: 10 }}>
+                  <Avatar src={s.photo_url} name={s.full_name} size={32} color={branding.primaryColor} />
+                  <div>
+                    <Link href={`/portal/staff/${s.id}`} style={{ fontWeight: 700, color: "inherit" }}>{s.full_name}</Link>
+                    <div className="muted small">{s.email ? s.email : (emailByStaff[s.id] ?? "") || "No login yet"}</div>
+                  </div>
+                </td>
+                <td>{capital(s.role)}</td>
+                <td className="small">{(roomByName[s.id] ?? []).map((r: any) => String(r.name)).join(", ") || "—"}</td>
+                <td>
+                  {s.status && STATUS_KIND_LABEL[s.status] ? (
+                    <span className={`badge ${s.status === "checkin" ? "badge-green" : s.status === "sick" || s.status === "child_sick" ? "badge-red" : "badge-gray"}`}>{STATUS_KIND_LABEL[s.status]}</span>
+                  ) : (
+                    <span className={s.active ? "badge badge-green" : "badge badge-red"}>{s.active ? "Active" : "Inactive"}</span>
+                  )}
+                </td>
+                <td>
+                  <div className="row" style={{ gap: 6 }}>
+                    <Link className="btn btn-ghost small" href={`/portal/staff/${s.id}`}>Profile</Link>
+                    <Link className="btn btn-ghost small" href={`/portal/staff/${s.id}?edit=status`}>Set status</Link>
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        <p className="small muted mt-2">{rows.length} staff member{rows.length === 1 ? "" : "s"} · {rooms.length} classrooms</p>
+      </div>
     </div>
+  );
+}
+
+function AddStaffButton({ rooms }: { rooms: { id: string; name: string }[] }) {
+  return (
+    <details style={{ position: "relative" }}>
+      <summary className="btn btn-primary" style={{ cursor: "pointer", listStyle: "none" }}>+ Add staff</summary>
+      <div style={{ position: "absolute", right: 0, top: "calc(100% + 8px)", width: 520, maxWidth: "90vw" }}>
+        <AddStaffForm rooms={rooms} />
+      </div>
+    </details>
   );
 }
 

@@ -1,13 +1,14 @@
 import { requireSession } from "@/lib/require";
 import { listObservations, listChildren } from "@/lib/store";
-import { ageGroupForDob, curriculumTree, ensureCurriculumSeeded } from "@/lib/curriculum";
+import { curriculumTree, ensureCurriculumSeeded } from "@/lib/curriculum";
 import { firstInstituteId, cap } from "@/lib/helpers";
-import ObservationForm from "@/components/ObservationForm";
+import { queryGet } from "@/lib/db";
+import ObservationModalTrigger from "@/components/ObservationModalTrigger";
 
 export const dynamic = "force-dynamic";
 
 export default async function PortalLearningPage() {
-  requireSession();
+  const session = requireSession();
   // KID-47 fix: seeding must never 500 the page on the live DB — a seeding
   // hiccup falls back to whatever curriculum already exists (dev pages already
   // use this pattern).
@@ -27,30 +28,17 @@ export default async function PortalLearningPage() {
     areas = [];
   }
 
-  const learningPoints: any[] = [];
-  for (const area of areas) {
-    for (const lp of area.learning_points ?? []) {
-      learningPoints.push({ ...lp, area_name: area.name });
-    }
-  }
-
-  const ageByChild: Record<string, string> = {};
-  for (const c of children) {
-    const band = ageGroupForDob(c.dob);
-    if (band) ageByChild[c.id] = band;
-  }
+  const me = await queryGet("SELECT full_name, email FROM account WHERE id = ?", session.accountId);
+  const byName = String(me?.full_name ?? me?.email ?? session.accountId);
 
   return (
     <div>
       <h1 className="title">Learning &amp; development</h1>
-      <div className="subtitle">Log a learning observation, milestone, or goal for a child — pick the learning point, age group, and milestone from the curriculum. Parents see these on their side.</div>
-      <div className="mb-4">
+      <div className="subtitle">Log a learning observation, milestone, or goal for a child — attach curriculum goals from the Egyptian kindergarten curriculum. Parents see these on their side.</div>
+      <div className="mb-4 row" style={{ gap: 8, alignItems: "center" }}>
+        {/* KID-53 #4: observation modal with curriculum-goals picker */}
+        <ObservationModalTrigger children={children as any} areas={areas} byName={byName} />
         <a className="small" href="/portal/learning/curriculum">View curriculum →</a>
-      </div>
-
-      <div className="card mb-4">
-        <h3 className="subtitle">Record an observation</h3>
-        <ObservationForm children={children as any} learningPoints={learningPoints} ageByChild={ageByChild} />
       </div>
 
       <div className="card">
