@@ -499,15 +499,17 @@ export async function sendMessage(data: {
   senderAccountId: string;
   recipientAccountId: string;
   body: string;
+  threadId?: string | null;
 }): Promise<Row> {
   const id = uid();
   await queryRun(
-    "INSERT INTO message (id, institute_id, sender_account_id, recipient_account_id, body) VALUES (?, ?, ?, ?, ?)",
+    "INSERT INTO message (id, institute_id, sender_account_id, recipient_account_id, body, thread_id) VALUES (?, ?, ?, ?, ?, ?)",
     id,
     data.instituteId,
     data.senderAccountId,
     data.recipientAccountId,
-    data.body
+    data.body,
+    data.threadId ?? null
   );
   return (await queryGet("SELECT * FROM message WHERE id = ?", id))!;
 }
@@ -530,6 +532,174 @@ export async function conversation(a: string, b: string): Promise<Row[]> {
 
 export async function markRead(otherAccountId: string, me: string): Promise<void> {
   await queryRun("UPDATE message SET read = 1 WHERE sender_account_id = ? AND recipient_account_id = ?", otherAccountId, me);
+}
+
+export async function markThreadRead(threadId: string, me: string): Promise<void> {
+  await queryRun("UPDATE message SET read = 1 WHERE thread_id = ? AND recipient_account_id = ?", threadId, me);
+}
+
+// KID-56: unread counts drive badges + row highlighting.
+export async function unreadCountForAccount(accountId: string): Promise<number> {
+  const row = await queryGet(
+    "SELECT COUNT(*) c FROM message WHERE recipient_account_id = ? AND read = 0",
+    accountId
+  );
+  return Number(row?.c ?? 0);
+}
+
+// KID-56: rooms (classrooms) a staff account is assigned to. Accounts without
+// a staff link (owner/admin/parent) get every room — no classroom scoping.
+export async function scopedRoomIds(instituteId: string, accountId: string): Promise<string[] | null> {
+  const acct = await queryGet("SELECT staff_id, role FROM account WHERE id = ?", accountId);
+  const staffId = acct?.staff_id ? String(acct.staff_id) : null;
+  if (!staffId) return null;
+  const rooms = await queryAll(
+    `SELECT r.id FROM room r JOIN staff_room sr ON sr.room_id = r.id
+     JOIN staff s ON s.id = sr.staff_id
+     WHERE s.institute_id = ? AND sr.staff_id = ? ORDER BY r.name`,
+    instituteId,
+    staffId
+  );
+  return rooms.map((r) => String(r.id));
+}
+
+// KID-56: staff see only parents in their assigned classrooms; everyone else
+// sees the full parent list. Recipient rows carry the parent's own name (a
+// child can have several parents — staff message a specific parent).
+export async function parentAccountsScoped(instituteId: string, accountId: string): Promise<Row[]> {
+  const roomIds = await scopedRoomIds(instituteId, accountId);
+  if (roomIds === null) return parentAccounts(instituteId);
+  if (roomIds.length === 0) return [];
+  const placeholders = roomIds.map(() => "?").join(", ");
+  return queryAll(
+    `SELECT DISTINCT a.id, a.email, a.full_name
+     FROM account a
+     JOIN family_member fm ON fm.account_id = a.id
+     JOIN child c ON c.id = fm.child_id
+     WHERE c.institute_id = ? AND a.role = 'parent' AND c.room_id IN (${placeholders})
+     ORDER BY a.full_name`,
+    instituteId,
+    ...roomIds
+  );
+}
+
+// KID-56: pre-defined class channels (one per room in scope) with the number
+// of parents reachable through each channel.
+export async function roomChannelsForAccount(instituteId: string, accountId: string): Promise<Row[]> {
+  const roomIds = await scopedRoomIds(instituteId, accountId);
+  const rooms =
+    roomIds === null
+      ? await queryAll("SELECT * FROM room WHERE institute_id = ? ORDER BY name", instituteId)
+      : roomIds.length === 0
+        ? []
+        : await queryAll(
+            `SELECT * FROM room WHERE institute_id = ? AND id IN (${roomIds.map(() => "?").join(", ")}) ORDER BY name`,
+            instituteId,
+            ...roomIds
+          );
+  const out: Row[] = [];
+  for (const r of rooms) {
+    const parents = await roomParentIds(instituteId, String(r.id));
+    out.push({ ...r, parent_count: parents.length });
+  }
+  return out;
+}
+
+export async function roomParentIds(instituteId: string, roomId: string): Promise<string[]> {
+  const rows = await queryAll(
+    `SELECT DISTINCT a.id FROM account a
+     JOIN family_member fm ON fm.account_id = a.id
+     JOIN child c ON c.id = fm.child_id
+     WHERE c.institute_id = ? AND a.role = 'parent' AND c.room_id = ?`,
+    instituteId,
+    roomId
+  );
+  return rows.map((r) => String(r.id));
+}
+
+// KID-56: threads (group or private-multi). Fan-out rows share thread_id so
+// every participant's reply lands in the same thread when group mode is on.
+export async function createMessageThread(data: {
+  instituteId: string;
+  title?: string;
+  isGroup: boolean;
+  createdBy: string;
+  participantIds: string[];
+}): Promise<Row> {
+  const id = uid();
+  await queryRun(
+    "INSERT INTO message_thread (id, institute_id, title, is_group, created_by_account_id) VALUES (?, ?, ?, ?, ?)",
+    id,
+    data.instituteId,
+    data.title ?? null,
+    data.isGroup ? 1 : 0,
+    data.createdBy
+  );
+  const unique = Array.from(new Set([data.createdBy, ...data.participantIds]));
+  for (const pid of unique) {
+    await queryRun(
+      "INSERT INTO message_thread_participant (thread_id, account_id) VALUES (?, ?)",
+      id,
+      pid
+    );
+  }
+  return (await queryGet("SELECT * FROM message_thread WHERE id = ?", id))!;
+}
+
+export async function threadParticipantIds(threadId: string): Promise<string[]> {
+  const rows = await queryAll("SELECT account_id FROM message_thread_participant WHERE thread_id = ?", threadId);
+  return rows.map((r) => String(r.account_id));
+}
+
+export async function threadForViewer(threadId: string, viewerId: string): Promise<Row | undefined> {
+  const thread = await queryGet("SELECT * FROM message_thread WHERE id = ?", threadId);
+  if (!thread) return undefined;
+  const participants = await threadParticipantIds(threadId);
+  if (!participants.includes(viewerId)) return undefined;
+  return { ...thread, participant_ids: participants };
+}
+
+export async function threadMessages(threadId: string): Promise<Row[]> {
+  return queryAll(
+    `SELECT m.*, ac.full_name AS from_name, sc.full_name AS to_name
+     FROM message m
+     JOIN account ac ON ac.id = m.sender_account_id
+     JOIN account sc ON sc.id = m.recipient_account_id
+     WHERE m.thread_id = ? ORDER BY m.created_at ASC`,
+    threadId
+  );
+}
+
+export async function threadsForAccount(accountId: string): Promise<Row[]> {
+  return queryAll(
+    `SELECT t.*, t.title AS thread_title,
+            (SELECT body FROM message WHERE thread_id = t.id ORDER BY created_at DESC LIMIT 1) AS last_message,
+            (SELECT created_at FROM message WHERE thread_id = t.id ORDER BY created_at DESC LIMIT 1) AS last_at,
+            (SELECT COUNT(*) FROM message WHERE thread_id = t.id AND recipient_account_id = ? AND read = 0) AS unread_count
+     FROM message_thread t
+     JOIN message_thread_participant p ON p.thread_id = t.id
+     WHERE p.account_id = ?
+     ORDER BY last_at DESC`,
+    accountId,
+    accountId
+  );
+}
+
+// KID-56: most recent private/group thread shared by a 1:1 pair, so a plain
+// 1:1 reply re-attaches to its private thread instead of orphaning.
+export async function latestPairThread(a: string, b: string): Promise<string | null> {
+  const row = await queryGet(
+    `SELECT thread_id FROM message
+     WHERE thread_id IS NOT NULL
+       AND ((sender_account_id = ? AND recipient_account_id = ?)
+         OR (sender_account_id = ? AND recipient_account_id = ?))
+     ORDER BY created_at DESC LIMIT 1`,
+    a,
+    b,
+    b,
+    a
+  );
+  return row?.thread_id ? String(row.thread_id) : null;
 }
 
 // ---------- Media ----------
@@ -1051,7 +1221,8 @@ export async function conversationsForAccount(accountId: string): Promise<Row[]>
              ORDER BY message.created_at DESC LIMIT 1) AS last_message,
             (SELECT created_at FROM message WHERE (sender_account_id = ? AND recipient_account_id = other.id)
               OR (sender_account_id = other.id AND recipient_account_id = ?)
-             ORDER BY message.created_at DESC LIMIT 1) AS last_at
+             ORDER BY message.created_at DESC LIMIT 1) AS last_at,
+            (SELECT COUNT(*) FROM message WHERE sender_account_id = other.id AND recipient_account_id = ? AND read = 0) AS unread_count
      FROM account other
      WHERE other.id != ? AND EXISTS (
        SELECT 1 FROM message m
@@ -1064,10 +1235,12 @@ export async function conversationsForAccount(accountId: string): Promise<Row[]>
     accountId,
     accountId,
     accountId,
+    accountId,
     accountId
   );
 }
 
+// ---- Live chat / messaging helpers ----
 export async function centerContactAccount(instituteId: string): Promise<Row | undefined> {
   // MVP live-chat: parents talk to the daycare's owner/admin account.
   return queryGet(

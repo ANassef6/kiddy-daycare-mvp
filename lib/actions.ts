@@ -829,21 +829,127 @@ export async function sendMessageAction(formData: FormData) {
   await ensureSchema();
   const instituteId = await firstInstituteId();
   if (recipient && body && instituteId) {
-    await sendMessage({ instituteId, senderAccountId: me.accountId, recipientAccountId: recipient, body });
+    const { latestPairThread } = await import("@/lib/store");
+    const threadId = await latestPairThread(me.accountId, recipient);
+    await sendMessage({ instituteId, senderAccountId: me.accountId, recipientAccountId: recipient, body, threadId });
   }
   redirect(`/portal/messages?with=${recipient}`);
+}
+
+// KID-56: composer send — parents and/or whole-class channels, with the
+// "make it group message" toggle. Group on: one shared thread, every reply
+// stays visible to all. Group off: one private thread per recipient.
+export async function sendComposerAction(formData: FormData) {
+  const me = authAccount();
+  await ensureSchema();
+  const instituteId = await firstInstituteId();
+  const body = String(formData.get("body") ?? "").trim();
+  if (!instituteId || !body) redirect("/portal/messages");
+  const { parentAccountsScoped, roomParentIds, scopedRoomIds, createMessageThread } = await import("@/lib/store");
+
+  const pickedParents = formData.getAll("recipients").map(String).filter(Boolean);
+  const pickedRooms = formData.getAll("channels").map(String).filter(Boolean);
+  const groupMode = String(formData.get("groupMode") ?? "") === "on";
+
+  // Resolve + scope-check: parents must be in the sender's classroom scope,
+  // channels must be rooms in scope.
+  const allowedParents = new Set((await parentAccountsScoped(String(instituteId), me.accountId)).map((p) => String(p.id)));
+  const scopeRooms = await scopedRoomIds(String(instituteId), me.accountId);
+  const allowedRooms = new Set(
+    scopeRooms === null
+      ? (await (await import("@/lib/store")).listRooms(String(instituteId))).map((r) => String(r.id))
+      : scopeRooms
+  );
+  const recipientIds = new Set<string>();
+  for (const pid of pickedParents) if (allowedParents.has(pid) && pid !== me.accountId) recipientIds.add(pid);
+  const channelNames: string[] = [];
+  for (const rid of pickedRooms) {
+    if (!allowedRooms.has(rid)) continue;
+    const room = await (await import("@/lib/store")).getRoom(rid);
+    if (room) channelNames.push(String(room.name));
+    for (const pid of await roomParentIds(String(instituteId), rid)) {
+      if (pid !== me.accountId) recipientIds.add(pid);
+    }
+  }
+  if (recipientIds.size === 0) redirect("/portal/messages?error=norecipients");
+
+  const recipients = Array.from(recipientIds);
+  if (groupMode) {
+    const names = (await parentAccountsScoped(String(instituteId), me.accountId)).filter((p) => recipientIds.has(String(p.id)));
+    const title = channelNames.length > 0 ? channelNames.join(", ") : names.map((p) => String(p.full_name)).slice(0, 3).join(", ");
+    const thread = await createMessageThread({
+      instituteId: String(instituteId),
+      title,
+      isGroup: true,
+      createdBy: me.accountId,
+      participantIds: recipients,
+    });
+    for (const rid of recipients) {
+      await sendMessage({ instituteId: String(instituteId), senderAccountId: me.accountId, recipientAccountId: rid, body, threadId: String(thread.id) });
+    }
+    redirect(`/portal/messages?thread=${thread.id}`);
+  }
+  // Private mode: one private thread per recipient.
+  let firstThread: string | null = null;
+  for (const rid of recipients) {
+    const thread = await createMessageThread({
+      instituteId: String(instituteId),
+      isGroup: false,
+      createdBy: me.accountId,
+      participantIds: [rid],
+    });
+    await sendMessage({ instituteId: String(instituteId), senderAccountId: me.accountId, recipientAccountId: rid, body, threadId: String(thread.id) });
+    if (!firstThread) firstThread = String(thread.id);
+  }
+  redirect(firstThread ? `/portal/messages?thread=${firstThread}` : "/portal/messages");
+}
+
+// KID-56: reply inside a thread — fans out to every other participant so a
+// group reply stays in the same shared thread for all to see.
+export async function replyThreadAction(formData: FormData) {
+  const me = authAccount();
+  await ensureSchema();
+  const instituteId = await firstInstituteId();
+  const threadId = String(formData.get("threadId") ?? "");
+  const body = String(formData.get("body") ?? "").trim();
+  const returnTo = String(formData.get("returnTo") ?? "");
+  if (!instituteId || !threadId || !body) redirect("/portal/messages");
+  const { threadForViewer, threadParticipantIds } = await import("@/lib/store");
+  const thread = await threadForViewer(threadId, me.accountId);
+  if (!thread) redirect("/portal/messages?error=thread");
+  const others = (await threadParticipantIds(threadId)).filter((pid) => pid !== me.accountId);
+  for (const rid of others) {
+    await sendMessage({ instituteId: String(instituteId), senderAccountId: me.accountId, recipientAccountId: rid, body, threadId });
+  }
+  const fallback = returnTo.startsWith("/child/") ? "/child/messages" : `/portal/messages?thread=${threadId}`;
+  redirect(returnTo.startsWith("/") ? returnTo : fallback);
 }
 
 export async function sendParentMessageAction(formData: FormData) {
   const me = authAccount();
   const recipient = String(formData.get("recipientId") ?? "");
   const body = String(formData.get("body") ?? "").trim();
+  const threadId = String(formData.get("threadId") ?? "");
   await ensureSchema();
   const instituteId = await firstInstituteId();
   if (recipient && body && instituteId) {
-    await sendMessage({ instituteId, senderAccountId: me.accountId, recipientAccountId: recipient, body });
+    const { latestPairThread, threadForViewer, threadParticipantIds } = await import("@/lib/store");
+    if (threadId) {
+      // Reply inside a thread: fan out to every other participant so group
+      // threads stay shared, private threads stay private.
+      const thread = await threadForViewer(threadId, me.accountId);
+      if (thread) {
+        const others = (await threadParticipantIds(threadId)).filter((pid) => pid !== me.accountId);
+        for (const rid of others) {
+          await sendMessage({ instituteId, senderAccountId: me.accountId, recipientAccountId: rid, body, threadId });
+        }
+      }
+    } else {
+      const tid = await latestPairThread(me.accountId, recipient);
+      await sendMessage({ instituteId, senderAccountId: me.accountId, recipientAccountId: recipient, body, threadId: tid });
+    }
   }
-  redirect("/child/messages");
+  redirect(threadId ? `/child/messages?thread=${threadId}` : "/child/messages");
 }
 
 // ---- #1 Logo / branding image upload ----

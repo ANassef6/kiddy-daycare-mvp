@@ -217,8 +217,28 @@ export function sqliteSchema(db: any): void {
     recipient_account_id TEXT NOT NULL REFERENCES account(id) ON DELETE CASCADE,
     body TEXT NOT NULL,
     read INTEGER NOT NULL DEFAULT 0,
+    thread_id TEXT,
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
   );
+
+  -- KID-56: group/class threads + per-thread participants.
+  CREATE TABLE IF NOT EXISTS message_thread (
+    id TEXT PRIMARY KEY,
+    institute_id TEXT NOT NULL REFERENCES institute(id) ON DELETE CASCADE,
+    title TEXT,
+    is_group INTEGER NOT NULL DEFAULT 0,
+    created_by_account_id TEXT REFERENCES account(id),
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+
+  CREATE TABLE IF NOT EXISTS message_thread_participant (
+    thread_id TEXT NOT NULL REFERENCES message_thread(id) ON DELETE CASCADE,
+    account_id TEXT NOT NULL REFERENCES account(id) ON DELETE CASCADE,
+    PRIMARY KEY (thread_id, account_id)
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_message_thread ON message (thread_id, created_at);
+  CREATE INDEX IF NOT EXISTS idx_message_unread ON message (recipient_account_id, read);
 
   CREATE TABLE IF NOT EXISTS media (
     id TEXT PRIMARY KEY,
@@ -525,6 +545,13 @@ export function sqliteSchema(db: any): void {
     const frCols = db.prepare("PRAGMA table_info(form_response)").all() as { name: string }[];
     if (!frCols.some((c) => c.name === "status")) {
       db.exec("ALTER TABLE form_response ADD COLUMN status TEXT NOT NULL DEFAULT 'new'");
+    }
+  } catch {}
+  // KID-56: thread column for databases created before threads existed.
+  try {
+    const msgCols = db.prepare("PRAGMA table_info(message)").all() as { name: string }[];
+    if (!msgCols.some((c) => c.name === "thread_id")) {
+      db.exec("ALTER TABLE message ADD COLUMN thread_id TEXT");
     }
   } catch {}
 }
