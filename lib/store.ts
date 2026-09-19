@@ -396,8 +396,11 @@ export async function upsertDailyReport(data: {
 }
 
 export async function reportFor(childId: string, reportDate: string): Promise<Row | undefined> {
+  // KID-55 #4: attribute the report — who saved it and when.
   return queryGet(
-    "SELECT * FROM daily_report WHERE child_id = ? AND report_date = ?",
+    `SELECT dr.*, a.full_name AS saved_by_name
+     FROM daily_report dr LEFT JOIN account a ON a.id = dr.created_by_account_id
+     WHERE dr.child_id = ? AND dr.report_date = ?`,
     childId,
     reportDate
   );
@@ -1181,6 +1184,26 @@ export async function updateChildBilling(billingId: string, patch: { status?: st
 // ---- #5a/#7b photo_url update helpers ----
 export async function updateChildPhoto(childId: string, photoUrl: string | null): Promise<void> {
   await queryRun("UPDATE child SET photo_url = ? WHERE id = ?", photoUrl, childId);
+}
+
+// KID-55 #5: edit child's details from the About tab.
+export async function updateChildDetails(childId: string, patch: {
+  firstName?: string;
+  lastName?: string;
+  dob?: string | null;
+  gender?: string | null;
+  roomId?: string | null;
+}): Promise<void> {
+  const fields: string[] = [];
+  const values: unknown[] = [];
+  if (patch.firstName !== undefined) { fields.push("first_name = ?"); values.push(patch.firstName); }
+  if (patch.lastName !== undefined) { fields.push("last_name = ?"); values.push(patch.lastName); }
+  if (patch.dob !== undefined) { fields.push("dob = ?"); values.push(patch.dob); }
+  if (patch.gender !== undefined) { fields.push("gender = ?"); values.push(patch.gender); }
+  if (patch.roomId !== undefined) { fields.push("room_id = ?"); values.push(patch.roomId); }
+  if (fields.length === 0) return;
+  values.push(childId);
+  await queryRun(`UPDATE child SET ${fields.join(", ")} WHERE id = ?`, ...values);
 }
 
 export async function updateStaffPhoto(staffId: string, photoUrl: string | null): Promise<void> {

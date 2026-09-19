@@ -4,6 +4,7 @@ import { requireSession } from "@/lib/require";
 import {
   getChild,
   listContacts,
+  listRooms,
   reportFor,
   incidentsForChild,
   todayStatus,
@@ -15,6 +16,7 @@ import {
 } from "@/lib/store";
 import {
   saveDailyReportAction,
+  updateChildDetailsAction,
   addContactAction,
   createIncidentAction,
   saveChildStatusAction,
@@ -22,6 +24,7 @@ import {
   acknowledgeIncidentAction,
 } from "@/lib/actions";
 import Avatar from "@/components/Avatar";
+import MediaDownloadAll from "@/components/MediaDownloadAll";
 import { getBranding } from "@/lib/theme";
 import { firstInstituteId, fmtDate, cap } from "@/lib/helpers";
 import ChildProfileTabs from "@/components/ChildProfileTabs";
@@ -52,7 +55,7 @@ export default async function PortalChildPage({ params }: { params: { id: string
 
   const today = new Date().toISOString().slice(0, 10);
   const iid = await firstInstituteId();
-  const [report, contacts, incidents, status, todayStatuses, observations, billing, media, consents] =
+  const [report, contacts, incidents, status, todayStatuses, observations, billing, media, consents, rooms] =
     await Promise.all([
       reportFor(child.id, today),
       listContacts(child.id),
@@ -63,6 +66,7 @@ export default async function PortalChildPage({ params }: { params: { id: string
       listChildBilling(child.id),
       iid ? listMedia(iid, child.id) : Promise.resolve([]),
       iid ? listConsents(iid) : Promise.resolve([]),
+      iid ? listRooms(iid) : Promise.resolve([]),
     ]);
   const meal = safeJson(report?.meal);
   const branding = await getBranding();
@@ -88,7 +92,7 @@ export default async function PortalChildPage({ params }: { params: { id: string
     {
       id: "about",
       label: "About",
-      node: aboutTab(child, status),
+      node: aboutTab(child, status, rooms),
     },
     {
       id: "family",
@@ -161,6 +165,12 @@ function dailyReportTab(child: any, report: any, today: string, todayStatuses: a
     <div>
       <div className="card mb-4">
         <h3 className="subtitle">Today&apos;s daily report</h3>
+        {report?.saved_by_name && (
+          <p className="small muted" style={{ marginTop: -4 }}>
+            Last saved by <strong>{report.saved_by_name}</strong>
+            {report?.created_at ? ` · ${fmtDate(report.created_at)} ${time(report.created_at)}` : ""}
+          </p>
+        )}
         <form action={saveDailyReportAction}>
           <input type="hidden" name="childId" value={child.id as string} />
           <input type="hidden" name="reportDate" value={today} />
@@ -289,7 +299,7 @@ function dailyReportTab(child: any, report: any, today: string, todayStatuses: a
   );
 }
 
-function aboutTab(child: any, status: any) {
+function aboutTab(child: any, status: any, rooms: any[]) {
   const rows: [string, string][] = [
     ["Full name", `${child.first_name} ${child.last_name}`],
     ["Date of birth", child.dob ? fmtDate(child.dob) : "—"],
@@ -300,19 +310,50 @@ function aboutTab(child: any, status: any) {
     ["Check-in today", status.lastEvent ? cap(status.lastEvent.type) : "Not yet"],
   ];
   return (
-    <div className="card">
-      <h3 className="subtitle">About {child.first_name}</h3>
-      <table className="table">
-        <tbody>
-          {rows.map(([k, v]) => (
-            <tr key={k}>
-              <td className="muted" style={{ width: 180 }}>{k}</td>
-              <td><strong>{v}</strong></td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-      <Link className="btn btn-ghost small mt-3" href={`/portal/children/${child.id}/development`}>Log learning &amp; development →</Link>
+    <div className="grid">
+      <div className="card">
+        <h3 className="subtitle">About {child.first_name}</h3>
+        <table className="table">
+          <tbody>
+            {rows.map(([k, v]) => (
+              <tr key={k}>
+                <td className="muted" style={{ width: 180 }}>{k}</td>
+                <td><strong>{v}</strong></td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        <Link className="btn btn-ghost small mt-3" href={`/portal/children/${child.id}/development`}>Log learning &amp; development →</Link>
+      </div>
+      <div className="card">
+        <h3 className="subtitle">Edit details</h3>
+        <form action={updateChildDetailsAction}>
+          <input type="hidden" name="childId" value={child.id as string} />
+          <div className="row">
+            <div className="col field"><label className="label">First name</label><input className="input" name="firstName" defaultValue={String(child.first_name ?? "")} required /></div>
+            <div className="col field"><label className="label">Last name</label><input className="input" name="lastName" defaultValue={String(child.last_name ?? "")} required /></div>
+          </div>
+          <div className="row">
+            <div className="col field"><label className="label">Date of birth</label><input className="input" name="dob" type="date" defaultValue={child.dob ? String(child.dob).slice(0, 10) : ""} /></div>
+            <div className="col field"><label className="label">Gender</label>
+              <select className="select" name="gender" defaultValue={String(child.gender ?? "")}>
+                <option value="">—</option>
+                <option value="male">Male</option>
+                <option value="female">Female</option>
+              </select>
+            </div>
+          </div>
+          <div className="field"><label className="label">Room</label>
+            <select className="select" name="roomId" defaultValue={String(child.room_id ?? "")}>
+              <option value="">—</option>
+              {(rooms as any[]).map((r: any) => (
+                <option key={r.id} value={String(r.id)}>{r.name}</option>
+              ))}
+            </select>
+          </div>
+          <button className="btn btn-primary" type="submit">Save changes</button>
+        </form>
+      </div>
     </div>
   );
 }
@@ -350,7 +391,10 @@ function contactsTab(child: any, contacts: any[]) {
 function mediaTab(media: any[]) {
   return (
     <div className="card">
-      <h3 className="subtitle">Media ({media.length})</h3>
+      <div className="row" style={{ justifyContent: "space-between", alignItems: "center" }}>
+        <h3 className="subtitle">Media ({media.length})</h3>
+        <MediaDownloadAll files={(media as any[]).map((m: any) => ({ url: String(m.url), caption: String(m.caption ?? "") }))} />
+      </div>
       {media.length === 0 ? <p className="muted small">No photos or media yet — add them from the Check-in flow or newsfeed.</p> : null}
       <div className="row" style={{ gap: 10, flexWrap: "wrap" }}>
         {media.map((m: any) => (

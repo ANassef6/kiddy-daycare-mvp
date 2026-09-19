@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { requireSession } from "@/lib/require";
 import { listMedia, listEvents, listNewsfeed } from "@/lib/store";
+import { createEventAction } from "@/lib/actions";
 import { firstInstituteId, cap } from "@/lib/helpers";
 
 export const dynamic = "force-dynamic";
@@ -23,9 +24,26 @@ export default async function PortalActivitiesPage() {
     <div>
       <h1 className="title">Activities</h1>
       <p className="subtitle">
-        Photos, videos, and recent activity moments captured in the center. Full media management is on the
+        Photos, videos, and recent activity moments captured in the center. Create a new activity below —
+        full media management stays on the
         <Link href="/portal/events" className="small" style={{ fontWeight: 600, marginLeft: 4 }}>Events &amp; video</Link> page.
       </p>
+
+      <form className="card mb-4" action={createEventAction}>
+        <h3 className="subtitle">New activity</h3>
+        <input type="hidden" name="returnTo" value="/portal/learning/activities" />
+        <div className="row">
+          <div className="col field"><label className="label">Title</label><input className="input" name="title" required placeholder="e.g. Water play morning" /></div>
+          <div className="col field"><label className="label">Date</label><input className="input" name="eventDate" type="date" required /></div>
+        </div>
+        <div className="row">
+          <div className="col field"><label className="label">Start</label><input className="input" name="startTime" type="time" /></div>
+          <div className="col field"><label className="label">End</label><input className="input" name="endTime" type="time" /></div>
+          <div className="col field"><label className="label">Location</label><input className="input" name="location" placeholder="e.g. Garden" /></div>
+        </div>
+        <div className="field"><label className="label">Description</label><textarea className="textarea" name="description" placeholder="What will the children do?" /></div>
+        <button className="btn btn-primary" type="submit">Create activity</button>
+      </form>
 
       {recentMedia.length > 0 && (
         <div className="card mb-4">

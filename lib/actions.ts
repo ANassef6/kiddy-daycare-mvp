@@ -592,7 +592,9 @@ export async function createEventAction(formData: FormData) {
       accountId: me.accountId,
     });
   }
-  redirect("/portal/events");
+  // KID-55 #10: activities page posts inline with returnTo=/portal/learning/activities.
+  const returnTo = String(formData.get("returnTo") ?? "");
+  redirect(returnTo.startsWith("/portal/") ? returnTo : "/portal/events");
 }
 
 export async function addEventMediaAction(formData: FormData) {
@@ -754,9 +756,8 @@ export async function createObservationAction(formData: FormData) {
     const ms = await queryGet("SELECT id FROM curriculum_milestone WHERE id = ?", milestoneId);
     if (!ms) milestoneId = undefined;
   }
-  // KID-53 #4: the modal's "Add curriculum goals" picker can attach several
-  // milestones at once — keep the primary one in milestone_id for back-compat
-  // and persist the full set as comma-separated ids in curriculum_goal_ids.
+  // KID-55 #7: single curriculum goal (radio). Older multi-goal posts still
+  // validate — keep the first as milestone_id and persist the valid set.
   let curriculumGoalIds: string[] | undefined;
   const rawGoals = formData.getAll("goalIds").map(String).filter(Boolean);
   if (rawGoals.length > 0) {
@@ -901,6 +902,22 @@ export async function uploadPhotoAction(formData: FormData) {
     }
   }
   redirect(entityType === "child" ? `/portal/children/${entityId}` : "/portal/staff");
+}
+
+// KID-55 #5: edit child's details from the About tab.
+export async function updateChildDetailsAction(formData: FormData) {
+  await ensureSchema();
+  const childId = String(formData.get("childId") ?? "");
+  if (!childId) redirect("/portal/children");
+  const { updateChildDetails } = await import("@/lib/store");
+  await updateChildDetails(childId, {
+    firstName: String(formData.get("firstName") ?? "").trim() || undefined,
+    lastName: String(formData.get("lastName") ?? "").trim() || undefined,
+    dob: String(formData.get("dob") ?? "") || null,
+    gender: String(formData.get("gender") ?? "") || null,
+    roomId: String(formData.get("roomId") ?? "") || null,
+  });
+  redirect(`/portal/children/${childId}`);
 }
 
 // ---- #4b Admin child billing ----

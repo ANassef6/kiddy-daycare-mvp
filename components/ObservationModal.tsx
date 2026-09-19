@@ -8,11 +8,12 @@ type LearningPoint = { id: string; name: string; age_group?: string; milestones?
 type Area = { id: string; name: string; learning_points?: LearningPoint[] };
 type Child = { id: string; first_name: string; last_name: string; dob?: string };
 
-const PARENT_PILOT = ["Playful", "Curious", "Focused", "Social", "Needs support"];
+const PROGRESS_LEVELS = ["Emerging", "Developing", "Secure"] as const;
 
-// KID-53 #4: observation modal — By/To row, observation + next-steps columns,
-// ParentPilot quick tags, attachment icons, Post, and the "Add curriculum
-// goals" picker (areas left, age bands, goal checkboxes, Cancel/Add selected).
+// KID-53 #4, KID-55 #7/#8/#9: observation modal — By/To row, observation +
+// next-steps columns, file attach input, Post, and the "Add curriculum
+// goals" picker (areas left, age bands, single goal radio + progress level,
+// Cancel/Add selected).
 export default function ObservationModal({
   children,
   areas,
@@ -33,11 +34,13 @@ export default function ObservationModal({
   const [childId, setChildId] = useState(defaultChildId ?? children[0]?.id ?? "");
   const [ageGroup, setAgeGroup] = useState(defaultAgeGroup ?? "");
   const [areaId, setAreaId] = useState(areas[0]?.id ?? "");
-  const [pilot, setPilot] = useState("");
   const [observation, setObservation] = useState("");
   const [nextSteps, setNextSteps] = useState("");
   const [showGoals, setShowGoals] = useState(false);
-  const [selectedGoals, setSelectedGoals] = useState<Set<string>>(new Set());
+  // KID-55 #7: single curriculum goal only (radio, not multi-checkbox).
+  const [selectedGoal, setSelectedGoal] = useState<string | null>(null);
+  // KID-55 #8: child's progress level for the chosen goal + age band.
+  const [progress, setProgress] = useState<string>("");
 
   const activeArea = areas.find((a) => a.id === areaId);
 
@@ -52,13 +55,7 @@ export default function ObservationModal({
     return out;
   }, [activeArea, ageGroup]);
 
-  const toggleGoal = (id: string) =>
-    setSelectedGoals((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
+  const toggleGoal = (id: string) => setSelectedGoal((prev) => (prev === id ? null : id));
 
   const ageGroups = Array.from(
     new Set(areas.flatMap((a) => (a.learning_points ?? []).map((lp) => lp.age_group).filter(Boolean))) as Set<string>
@@ -66,8 +63,9 @@ export default function ObservationModal({
 
   if (!open) return null;
 
-  const chosenGoalRows = goalsInView.filter((m) => selectedGoals.has(m.id));
-  const body = [observation.trim(), pilot ? `ParentPilot: ${pilot}` : "", nextSteps.trim() ? `Next steps: ${nextSteps.trim()}` : ""]
+  const chosenGoalRows = goalsInView.filter((m) => m.id === selectedGoal);
+  const chosenGoal = chosenGoalRows[0];
+  const body = [observation.trim(), progress && chosenGoal ? `Progress: ${progress}` : "", nextSteps.trim() ? `Next steps: ${nextSteps.trim()}` : ""]
     .filter(Boolean)
     .join("\n\n");
 
@@ -133,23 +131,6 @@ export default function ObservationModal({
           </div>
 
           <div className="field">
-            <label className="label">ParentPilot</label>
-            <div className="row" style={{ gap: 6 }}>
-              {PARENT_PILOT.map((tag) => (
-                <button
-                  key={tag}
-                  type="button"
-                  onClick={() => setPilot((p) => (p === tag ? "" : tag))}
-                  className={pilot === tag ? "badge badge-green" : "badge badge-gray"}
-                  style={{ cursor: "pointer", border: "none", background: pilot === tag ? undefined : undefined, fontSize: 12 }}
-                >
-                  {tag}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div className="field">
             <label className="label">Kind</label>
             <select className="select" name="kind" defaultValue="observation" style={{ maxWidth: 200 }}>
               <option value="observation">Observation</option>
@@ -162,17 +143,19 @@ export default function ObservationModal({
           <input type="hidden" name="body" value={body} />
           <input type="hidden" name="ageGroup" value={ageGroup} />
           <input type="hidden" name="title" value={nextSteps.trim() ? `Next steps: ${nextSteps.trim()}` : ""} />
-          {selectedGoals.size > 0 && Array.from(selectedGoals).map((g) => <input key={g} type="hidden" name="goalIds" value={g} />)}
-          {selectedGoals.size > 0 && <input type="hidden" name="learningPointId" value={goalsInView.find((m) => m.id === Array.from(selectedGoals)[0])?.id ? "" : ""} />}
+          <input type="hidden" name="progress" value={progress} />
+          {selectedGoal && <input type="hidden" name="goalIds" value={selectedGoal} />}
+          {selectedGoal && <input type="hidden" name="learningPointId" value="" />}
 
           <div className="row" style={{ justifyContent: "space-between", alignItems: "center" }}>
             <div className="row" style={{ gap: 10, alignItems: "center" }}>
-              <span className="small muted" style={{ display: "inline-flex", gap: 6 }} title="Attach media (optional)">
-                📷 🎞 📎
-              </span>
-              {selectedGoals.size > 0 && (
+              <label className="small muted" style={{ display: "inline-flex", gap: 6, cursor: "pointer" }} title="Attach media or files">
+                <span aria-hidden="true">📷 🎞 📎</span> Attach
+                <input type="file" name="attachments" multiple accept="image/*,video/*,.pdf,.doc,.docx,.xls,.xlsx,.txt" style={{ display: "none" }} />
+              </label>
+              {selectedGoal && (
                 <button type="button" className="badge badge-green" style={{ cursor: "default" }}>
-                  {selectedGoals.size} curriculum goal{selectedGoals.size > 1 ? "s" : ""} attached
+                  1 curriculum goal attached{progress ? ` · ${progress}` : ""}
                 </button>
               )}
               <button type="button" onClick={() => setShowGoals((s) => !s)} className="btn btn-ghost small">
@@ -227,8 +210,9 @@ export default function ObservationModal({
                 {goalsInView.map((m) => (
                   <label key={m.id} style={{ display: "flex", gap: 8, alignItems: "flex-start", padding: "5px 0", cursor: "pointer", fontSize: 13 }}>
                     <input
-                      type="checkbox"
-                      checked={selectedGoals.has(m.id)}
+                      type="radio"
+                      name="goalChoice"
+                      checked={selectedGoal === m.id}
                       onChange={() => toggleGoal(m.id)}
                       style={{ accentColor: "var(--brand-primary)", marginTop: 2 }}
                     />
@@ -241,9 +225,28 @@ export default function ObservationModal({
                 ))}
               </div>
             </div>
+            {selectedGoal && ageGroup && (
+              <div className="mt-3">
+                <div className="label">Age band: {ageGroup} — how is {children.find((c) => c.id === childId)?.first_name ?? "the child"} doing here? Pick one:</div>
+                <div className="row" style={{ gap: 6, marginTop: 6 }}>
+                  {PROGRESS_LEVELS.map((level) => (
+                    <button
+                      key={level}
+                      type="button"
+                      onClick={() => setProgress((p) => (p === level ? "" : level))}
+                      className={progress === level ? "badge badge-red" : "badge badge-gray"}
+                      style={{ cursor: "pointer", border: "none", fontSize: 12 }}
+                    >
+                      <span style={{ marginRight: 4 }}>{level === "Emerging" ? "🟡" : level === "Developing" ? "🟢" : "🔵"}</span>
+                      {level}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
             <div className="row mt-3" style={{ justifyContent: "flex-end" }}>
-              <button type="button" className="btn btn-ghost small" onClick={() => setSelectedGoals(new Set())}>Cancel</button>
-              <button type="button" className="btn btn-primary small" onClick={() => setShowGoals(false)}>Add selected ({selectedGoals.size})</button>
+              <button type="button" className="btn btn-ghost small" onClick={() => { setSelectedGoal(null); setProgress(""); }}>Cancel</button>
+              <button type="button" className="btn btn-primary small" onClick={() => setShowGoals(false)}>Add selected ({selectedGoal ? 1 : 0})</button>
             </div>
           </div>
         )}
