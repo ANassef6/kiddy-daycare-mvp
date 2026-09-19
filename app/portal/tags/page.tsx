@@ -1,8 +1,8 @@
 import Link from "next/link";
 import { requireSession } from "@/lib/require";
-import { listTags, listChildren, tagsForChild } from "@/lib/store";
+import { listTags, listChildren } from "@/lib/store";
 import { firstInstituteId, fmtDate } from "@/lib/helpers";
-import { createSmartListAction, setChildTagsAction } from "@/lib/actions";
+import { createSmartListAction } from "@/lib/actions";
 import SmartListColumns from "@/components/SmartListColumns";
 
 export const dynamic = "force-dynamic";
@@ -31,9 +31,6 @@ export default async function PortalTagsPage({
     listChildren(instituteId),
     (await import("@/lib/store")).listRooms(instituteId),
   ]);
-  const childrenWithTags = await Promise.all(
-    children.map(async (c: any) => ({ ...c, tags: await tagsForChild(c.id) }))
-  );
 
   const builderName = searchParams.list ?? "Untitled list";
   const showing = Boolean(searchParams.list);
@@ -189,32 +186,6 @@ export default async function PortalTagsPage({
           </div>
         </div>
       </div>
-
-      {/* Existing manual tag management kept available */}
-      <details className="card">
-        <summary style={{ cursor: "pointer", fontWeight: 700 }}>Manual tags (legacy)</summary>
-        <div className="mt-3 grid">
-          <div className="card">
-            <h3 className="subtitle">Assign tags to children</h3>
-            {childrenWithTags.length === 0 && <p className="muted small">No children yet.</p>}
-            {childrenWithTags.map((c: any) => (
-              <form action={setChildTagsAction} key={c.id} className="list-item">
-                <input type="hidden" name="childId" value={String(c.id)} />
-                <div className="small" style={{ minWidth: 120 }}>
-                  <strong>{c.first_name} {c.last_name}</strong>
-                  <div className="muted">{c.tags.map((t: any) => t.name).join(", ") || "no tags"}</div>
-                </div>
-                <select className="select small" name="tagIds" multiple size={Math.min(tags.length, 4) || 1} style={{ maxWidth: 200 }}>
-                  {tags.map((t: any) => (
-                    <option key={String(t.id)} value={String(t.id)} selected={(c.tags ?? []).some((ct: any) => String(ct.id) === String(t.id))}>{t.name}</option>
-                  ))}
-                </select>
-                <button className="btn btn-ghost small" type="submit">Save</button>
-              </form>
-            ))}
-          </div>
-        </div>
-      </details>
     </div>
   );
 }
