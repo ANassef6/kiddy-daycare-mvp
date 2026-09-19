@@ -18,7 +18,7 @@ export default async function PortalPerformancePage() {
           <div style={{ fontWeight: 700 }}>Report center</div>
           <div className="muted small mt-1">Generate and export reports across the center.</div>
         </a>
-        <a className="card" href="/portal/children/development" style={{ textDecoration: "none", color: "inherit" }}>
+        <a className="card" href="/portal/learning" style={{ textDecoration: "none", color: "inherit" }}>
           <div style={{ fontWeight: 700 }}>Development tracking</div>
           <div className="muted small mt-1">Review each child&apos;s learning milestones and goals.</div>
         </a>

@@ -26,7 +26,6 @@ export const PORTAL_NAV: NavGroup[] = [
     href: "/portal/children",
     items: [
       { label: "Child profile", href: "/portal/children" },
-      { label: "Development", href: "/portal/children/development" },
       { label: "Attendance", href: "/portal/attendance" },
     ],
   },
@@ -50,9 +49,8 @@ export const PORTAL_NAV: NavGroup[] = [
   },
   {
     label: "Tools",
-    href: "/portal/reports",
+    href: "/portal/report-center",
     items: [
-      { label: "Reports", href: "/portal/reports" },
       { label: "Report center", href: "/portal/report-center" },
       { label: "Inquiries", href: "/portal/inquiries" },
       { label: "Smart list", href: "/portal/tags" },
@@ -139,10 +137,15 @@ function PortalSidebarNav({ groups }: { groups: NavGroup[] }) {
     [groups, pathname]
   );
   useEffect(() => {
-    if (activeGroup) setOpen((prev) => (prev[activeGroup] ? prev : { ...prev, [activeGroup]: true }));
+    // KID-52 #13: single-open accordion — navigating to another menu's page
+    // collapses the previous group instead of stacking them.
+    if (!activeGroup) return;
+    setOpen((prev) => (prev[activeGroup] && Object.keys(prev).length === 1 ? prev : { [activeGroup]: true }));
   }, [activeGroup]);
 
-  const toggle = (label: string) => () => setOpen((prev) => ({ ...prev, [label]: !prev[label] }));
+  // KID-52 #13: accordion — expanding one group collapses the others.
+  const toggle = (label: string) => () =>
+    setOpen((prev) => (prev[label] ? {} : { [label]: true }));
 
   return (
     <>

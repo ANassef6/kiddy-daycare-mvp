@@ -78,7 +78,7 @@ export default async function PortalDashboard() {
           <div style={{ fontSize: 24, fontWeight: 700 }}>{openIncidents}</div>
           <span className="small mt-2" style={{ fontWeight: 600 }}>Open incidents →</span>
         </Link>
-        <Link href="/portal/reports" className="card" style={{ textDecoration: "none", color: "inherit" }}>
+        <Link href="/portal/report-center#filtered" className="card" style={{ textDecoration: "none", color: "inherit" }}>
           <h3 className="subtitle">Latest daily report</h3>
           {latestReport ? (
             <p className="small mt-1">

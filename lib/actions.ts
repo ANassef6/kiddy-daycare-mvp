@@ -637,7 +637,11 @@ export async function createFormAction(formData: FormData) {
       accountId: me.accountId,
     });
   }
-  redirect("/portal/forms");
+  // KID-52 #10: allow callers (e.g. the Surveys tab) to create forms/surveys
+  // without leaving their page — a relative returnTo wins over /portal/forms.
+  const rawReturnTo = String(formData.get("returnTo") ?? "/portal/forms");
+  const returnTo = rawReturnTo.startsWith("/portal/") ? rawReturnTo : "/portal/forms";
+  redirect(returnTo);
 }
 
 export async function submitFormAction(formData: FormData) {
