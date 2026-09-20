@@ -52,7 +52,11 @@ import {
   updateChildPhoto,
   updateStaffPhoto,
   toggleLike,
+  saveWorkingHours,
+  checkInAllowed,
+  runAutoCheckoutSweep,
 } from "@/lib/store";
+import type { WorkingWeek } from "@/lib/working-hours";
 import { supabaseConfigured, getSupabase } from "@/lib/supabase";
 
 const SESSION_COOKIE = "kiddy_sess";
@@ -273,7 +277,6 @@ async function firstInstituteId(): Promise<string> {
   return String(row?.id ?? "");
 }
 
-
 // KID-57: persist the user's app language (English | Arabic). The root layout
 // and every page resolve the locale from `account.language`, and once saved the
 // server action also drops the lang cookie so `dir`/`lang` apply immediately.
@@ -301,6 +304,16 @@ export async function checkInOutAction(formData: FormData) {
   const type = String(formData.get("type") ?? "") as "in" | "out";
   const me = authAccount();
   if (childId && (type === "in" || type === "out")) {
+    // KID-58: no one can check in before the center opens.
+    if (type === "in") {
+      const instituteId = await firstInstituteId();
+      if (instituteId) {
+        const policy = await checkInAllowed(String(instituteId));
+        if (!policy.allowed) {
+          return { error: policy.error ?? "Check-in is not allowed at this time." };
+        }
+      }
+    }
     await checkChildInOut({ childId, accountId: me.accountId, type });
   }
   // #7: stay in portal when invoked from portal pages instead of forcing /child/…
@@ -568,6 +581,34 @@ export async function saveCenterDetailsAction(formData: FormData) {
     await updateInstitute(String(instituteId), patch);
   }
   redirect("/portal/settings");
+}
+
+// KID-55 item 3 / KID-58: per-day open/close editor persisted on the institute.
+export async function saveWorkingHoursAction(formData: FormData) {
+  await ensureSchema();
+  const instituteId = await firstInstituteId();
+  if (!instituteId) return { ok: false, error: "No center configured." };
+  const week: WorkingWeek = {};
+  for (let day = 0; day <= 6; day++) {
+    if (formData.get(`closed_${day}`) === "on") continue;
+    const open = String(formData.get(`open_${day}`) ?? "").trim();
+    const close = String(formData.get(`close_${day}`) ?? "").trim();
+    if (open && close) week[String(day)] = { open, close };
+  }
+  await saveWorkingHours(String(instituteId), week);
+  return { ok: true, days: Object.keys(week).length };
+}
+
+// KID-58: run the auto check-out sweep now (also runs when attendance
+// surfaces load). Kept as an action so it can be triggered from the UI or a
+// scheduler dispatcher.
+export async function runAttendanceSweepAction() {
+  await ensureSchema();
+  const instituteId = await firstInstituteId();
+  const result = instituteId
+    ? await runAutoCheckoutSweep(String(instituteId))
+    : { children: [], staff: [], at: "", reason: null, cutoff: null };
+  redirect(`/portal/attendance?sweep=1&children=${result.children.length}`);
 }
 
 export async function submitContactAction(formData: FormData) {
@@ -1303,13 +1344,20 @@ export async function logStaffStatusAction(formData: FormData) {
   const { logStaffStatus } = await import("@/lib/store");
   const staffId = String(formData.get("staffId") ?? "");
   const kind = String(formData.get("kind") ?? "").trim();
+  const note = String(formData.get("note") ?? "").trim() || undefined;
   if (staffId && kind) {
-    await logStaffStatus({
-      staffId,
-      kind,
-      note: String(formData.get("note") ?? "").trim() || undefined,
-      accountId: me.accountId,
-    });
+    // KID-58: staff cannot check in before the center opens (same gate as
+    // children). Check-outs and other statuses are always allowed.
+    if (kind === "checkin") {
+      const instituteId = await firstInstituteId();
+      if (instituteId) {
+        const policy = await checkInAllowed(String(instituteId));
+        if (!policy.allowed) {
+          return { error: policy.error ?? "Check-in is not allowed at this time." };
+        }
+      }
+    }
+    await logStaffStatus({ staffId, kind, note, accountId: me.accountId });
   }
   redirect(`/portal/staff/${staffId}`);
 }

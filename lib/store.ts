@@ -1,4 +1,11 @@
 import { queryAll, queryGet, queryRun, uid, type Row } from "./db";
+import {
+  normalizeWorkingHours,
+  encodeWorkingHours,
+  checkInOpen,
+  closeCutoff,
+  type WorkingWeek,
+} from "./working-hours";
 
 // ---------- Institute / branding (white-label) ----------
 export async function getInstitute(instituteId: string): Promise<Row | undefined> {
@@ -272,6 +279,140 @@ export async function attendanceOn(instituteId: string, day: string): Promise<Ro
     day,
     instituteId
   );
+}
+
+// ---------- Working hours + auto check-out (KID-55 item 3 / KID-58) ----------
+export async function saveWorkingHours(instituteId: string, week: WorkingWeek): Promise<void> {
+  await updateInstitute(instituteId, { opening_hours: encodeWorkingHours(week) });
+}
+
+export async function getWorkingHours(instituteId: string): Promise<WorkingWeek> {
+  const inst = await getInstitute(instituteId);
+  return normalizeWorkingHours(inst?.opening_hours);
+}
+
+// Early check-in gate used by both the child and the staff attendance flows.
+export async function checkInAllowed(
+  instituteId: string,
+  now = new Date()
+): Promise<{ allowed: boolean; error?: string; open?: string }> {
+  const week = await getWorkingHours(instituteId);
+  return checkInOpen(week, now);
+}
+
+// The "system" actor for unattended mutations (auto check-outs). A hidden
+// account so every check_in/staff_status row keeps a real actor reference.
+// Always verified against the DB (no module cache) so rows stay valid even if
+// the account table is re-seeded under the process.
+export async function systemAccountId(): Promise<string> {
+  const existing = await queryGet("SELECT id FROM account WHERE email = 'system@kiddy.local'");
+  if (existing?.id) {
+    return String(existing.id);
+  }
+  const { createAccount } = await import("./auth");
+  const acc = await createAccount({
+    email: "system@kiddy.local",
+    password: "system-account-disabled",
+    fullName: "System",
+    role: "system",
+  });
+  return String(acc.id);
+}
+
+export async function autoCheckoutChild(
+  childId: string,
+  at: Date,
+  actorAccountId: string
+): Promise<Row> {
+  const id = uid();
+  await queryRun(
+    `INSERT INTO check_in (id, child_id, account_id, type, is_edit, recorded_at)
+     VALUES (?, ?, ?, 'out', 0, ?)`,
+    id,
+    childId,
+    actorAccountId,
+    at.toISOString()
+  );
+  return (await queryGet("SELECT * FROM check_in WHERE id = ?", id))!;
+}
+
+export async function autoCheckoutStaff(
+  staffId: string,
+  at: Date,
+  actorAccountId: string
+): Promise<Row> {
+  const id = uid();
+  const iso = at.toISOString();
+  await queryRun(
+    `INSERT INTO staff_status (id, staff_id, kind, note, created_by_account_id, created_at)
+     VALUES (?, ?, 'out', 'Auto check-out after working hours (+3h)', ?, ?)`,
+    id,
+    staffId,
+    actorAccountId,
+    iso
+  );
+  await queryRun(
+    "UPDATE staff SET status = 'out', status_note = 'Auto check-out after working hours', status_at = ? WHERE id = ?",
+    iso,
+    staffId
+  );
+  return (await queryGet("SELECT * FROM staff_status WHERE id = ?", id))!;
+}
+
+// The auto check-out sweep: everyone still checked-in 3h after today's closing
+// time is checked out with actor=system and a fresh timestamp. Runs anywhere
+// attendance is shown so the data is always correct after hours.
+export async function runAutoCheckoutSweep(
+  instituteId: string,
+  now = new Date()
+): Promise<{ children: Row[]; staff: Row[]; at: string; reason: string | null; cutoff: string | null }> {
+  const week = await getWorkingHours(instituteId);
+  const cutoff = closeCutoff(week, now);
+  const stamp = now.toISOString();
+  if (!cutoff || now < cutoff) {
+    return {
+      children: [],
+      staff: [],
+      at: stamp,
+      reason: cutoff ? "before cutoff" : "no working hours configured for today",
+      cutoff: cutoff ? cutoff.toISOString() : null,
+    };
+  }
+  const actor = await systemAccountId();
+  const today = stamp.slice(0, 10);
+  const dueChildren = await queryAll(
+    `SELECT c.id, c.first_name, c.last_name,
+            (SELECT recorded_at FROM check_in WHERE child_id = c.id AND date(recorded_at) = ? AND type='in' ORDER BY recorded_at DESC, id DESC LIMIT 1) AS checked_in_at
+     FROM child c
+     WHERE c.institute_id = ? AND c.active = 1
+       AND (SELECT type FROM check_in WHERE child_id = c.id AND date(recorded_at) = ? ORDER BY recorded_at DESC, id DESC LIMIT 1) = 'in'`,
+    today,
+    instituteId,
+    today
+  );
+  const childrenOut: Row[] = [];
+  for (const child of dueChildren) {
+    if (!child.checked_in_at || new Date(String(child.checked_in_at)) > cutoff) continue;
+    await autoCheckoutChild(String(child.id), now, actor);
+    childrenOut.push(child);
+  }
+  const dueStaff = await queryAll(
+    "SELECT id, full_name, status_at FROM staff WHERE institute_id = ? AND active = 1 AND status = 'checkin'",
+    instituteId
+  );
+  const staffOut: Row[] = [];
+  for (const staff of dueStaff) {
+    if (!staff.status_at || new Date(String(staff.status_at)) > cutoff) continue;
+    await autoCheckoutStaff(String(staff.id), now, actor);
+    staffOut.push(staff);
+  }
+  return {
+    children: childrenOut,
+    staff: staffOut,
+    at: stamp,
+    reason: "close + 3h reached",
+    cutoff: cutoff.toISOString(),
+  };
 }
 
 // Live "who is checked in right now": children whose latest event today is a

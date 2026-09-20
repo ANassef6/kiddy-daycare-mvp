@@ -1,11 +1,12 @@
 import { requireSession } from "@/lib/require";
-import { listInstitutes, getInstitute } from "@/lib/store";
+import { listInstitutes, getInstitute, getWorkingHours } from "@/lib/store";
 import { saveBrandingAction, saveCenterDetailsAction, uploadBrandingImageAction } from "@/lib/actions";
 import { brandingFromInstitute } from "@/lib/theme";
 import Avatar from "@/components/Avatar";
 import LanguageSettingsCard from "@/components/LanguageSettingsCard";
 import { i18nForAccount } from "@/lib/i18n-session";
 import { tr } from "@/lib/i18n";
+import { WorkingHoursEditor } from "@/components/WorkingHoursEditor";
 
 export const dynamic = "force-dynamic";
 
@@ -15,6 +16,7 @@ export default async function PortalSettingsPage() {
   const institutes = await listInstitutes();
   const iid = institutes[0]?.id as string | undefined;
   const institute = iid ? await getInstitute(iid) : undefined;
+  const week = iid ? await getWorkingHours(iid) : {};
   const b = brandingFromInstitute(institute as any);
 
   return (
@@ -29,6 +31,23 @@ export default async function PortalSettingsPage() {
       </p>
 
       <LanguageSettingsCard locale={locale} dict={dict} />
+
+      <div className="card mb-4" id="working-hours">
+        <h3 className="subtitle">{tr(dict, "settings.workingHoursTitle")}</h3>
+        <p className="small muted">{tr(dict, "settings.workingHoursHint")}</p>
+        <WorkingHoursEditor
+          week={week}
+          t={{
+            day: tr(dict, "settings.day"),
+            open: tr(dict, "settings.open"),
+            close: tr(dict, "settings.close"),
+            closed: tr(dict, "settings.closed"),
+            save: tr(dict, "settings.saveWorkingHours"),
+            help: tr(dict, "settings.workingHoursHelp"),
+            saved: tr(dict, "settings.workingHoursSaved"),
+          }}
+        />
+      </div>
 
       <form className="card mb-4" action={saveCenterDetailsAction}>
         <h3 className="subtitle">{tr(dict, "settings.centerDetails")}</h3>

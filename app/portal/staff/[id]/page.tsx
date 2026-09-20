@@ -3,16 +3,18 @@ import { notFound } from "next/navigation";
 import { requireSession } from "@/lib/require";
 import { listStaff, staffRooms, listStaffSchedules, staffStatusLog, staffActivity, listRooms } from "@/lib/store";
 import { queryAll } from "@/lib/db";
-import { uploadPhotoAction, logStaffStatusAction, updateStaffInfoAction } from "@/lib/actions";
+import { uploadPhotoAction, updateStaffInfoAction } from "@/lib/actions";
 import Avatar from "@/components/Avatar";
 import { cap } from "@/lib/helpers";
 import ChildProfileTabs from "@/components/ChildProfileTabs";
+import { StaffStatusForm } from "@/components/StaffStatusForm";
 
 export const dynamic = "force-dynamic";
 
 const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const STATUS_KIND_LABEL: Record<string, string> = {
   checkin: "Checked in",
+  out: "Checked out",
   sick: "Sick",
   vacation: "Vacation",
   absent: "Absent",
@@ -66,7 +68,12 @@ export default async function StaffProfilePage({ params, searchParams }: { param
 
 function statusCard(staff: any) {
   const current = STATUS_KIND_LABEL[staff.status] ?? (staff.active ? "Active" : "Inactive");
-  const tone = staff.status === "checkin" ? "green" : staff.status === "sick" || staff.status === "child_sick" ? "red" : staff.status ? "gray" : staff.active ? "green" : "red";
+  const tone =
+    staff.status === "checkin" ? "green"
+    : staff.status === "out" ? "gray"
+    : staff.status === "sick" || staff.status === "child_sick" ? "red"
+    : staff.status ? "gray"
+    : staff.active ? "green" : "red";
   return (
     <div className="card mb-4" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
       <div>
@@ -77,19 +84,7 @@ function statusCard(staff: any) {
         {staff.status_note && <div className="muted small mt-1">{staff.status_note}</div>}
         {staff.status_at && <div className="muted small">Since {new Date(staff.status_at).toLocaleString()}</div>}
       </div>
-      <form action={logStaffStatusAction} className="row" style={{ gap: 8, alignItems: "center" }}>
-        <input type="hidden" name="staffId" value={String(staff.id)} />
-        <select className="select" name="kind" defaultValue={staff.status ?? "checkin"} style={{ maxWidth: 160 }}>
-          <option value="">Set status…</option>
-          <option value="checkin">Checked in</option>
-          <option value="sick">Sick</option>
-          <option value="vacation">Vacation</option>
-          <option value="absent">Absent</option>
-          <option value="child_sick">Child sick</option>
-        </select>
-        <input className="input" name="note" placeholder="Notes (optional)" style={{ maxWidth: 220 }} />
-        <button className="btn btn-primary small" type="submit">Update</button>
-      </form>
+      <StaffStatusForm staffId={String(staff.id)} current={staff.status ?? ""} />
     </div>
   );
 }

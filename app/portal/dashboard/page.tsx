@@ -9,6 +9,7 @@ import {
   checkedInNow,
   recentReports,
   listContactRequests,
+  runAutoCheckoutSweep,
 } from "@/lib/store";
 import { i18nForAccount } from "@/lib/i18n-session";
 import { tr } from "@/lib/i18n";
@@ -29,6 +30,7 @@ export default async function PortalDashboard() {
   }
   // KID-58: auto check-out sweep also fires when the portal loads so nobody
   // stays checked-in past closing +3h even if a scheduler never runs.
+  await runAutoCheckoutSweep(instituteId);
   const [children, rooms, staff, checkedIn] = await Promise.all([
     listChildren(instituteId),
     listRooms(instituteId),
