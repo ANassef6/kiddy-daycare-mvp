@@ -19,7 +19,7 @@ export function CheckInButton({ childId, checkedIn, dict }: { childId: string; c
             const fd = new FormData();
             fd.set("childId", childId);
             fd.set("type", checkedIn ? "out" : "in");
-            const res = await checkInOutAction(fd);
+            const res = (await checkInOutAction(fd)) as { error?: string } | undefined;
             if (res?.error) setError(res.error);
           })
         }
