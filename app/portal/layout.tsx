@@ -1,6 +1,6 @@
 import Link from "next/link";
 import PortalSidebar from "@/components/PortalSidebar";
-import { requireSession } from "@/lib/require";
+import { requireSessionWithWithdrawalCheck } from "@/lib/require";
 import { getBranding } from "@/lib/theme";
 import { i18nForAccount } from "@/lib/i18n-session";
 import { tr } from "@/lib/i18n";
@@ -8,7 +8,7 @@ import { tr } from "@/lib/i18n";
 export const dynamic = "force-dynamic";
 
 export default async function PortalLayout({ children }: { children: React.ReactNode }) {
-  const session = requireSession();
+  const session = await requireSessionWithWithdrawalCheck();
   const { locale, dict } = await i18nForAccount(session.accountId);
   let logoUrl: string | null = null;
   let brandName = "Kiddy";

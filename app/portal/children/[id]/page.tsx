@@ -303,7 +303,8 @@ function aboutTab(child: any, status: any, rooms: any[], dict: any) {
     [t("profile.gender"), child.gender ? cap(child.gender) : "—"],
     [t("common.room"), child.room_name ?? "—"],
     [t("profile.enrolled"), child.enrolled_at ? fmtDate(child.enrolled_at) : "—"],
-    [t("profile.status"), child.status ? cap(String(child.status)) : t("profile.active")],
+    [t("profile.status"), child.status ? cap(String(child.status).replace("_", " ")) : t("profile.active")],
+    [t("profile.lastDate"), child.last_date ? fmtDate(child.last_date) : "—"],
     [t("profile.checkInToday"), status.lastEvent ? cap(status.lastEvent.type) : t("profile.notYet")],
   ];
   return (
@@ -348,6 +349,22 @@ function aboutTab(child: any, status: any, rooms: any[], dict: any) {
               ))}
             </select>
           </div>
+          <div className="row">
+            <div className="col field">
+              <label className="label">{t("profile.status")}</label>
+              <select className="select" name="status" defaultValue={String(child.status ?? "active")}>
+                <option value="active">{t("profile.active")}</option>
+                <option value="on_hold">{t("profile.onHold")}</option>
+                <option value="pending">{t("profile.pending")}</option>
+                <option value="withdrawn">{t("profile.withdrawn")}</option>
+              </select>
+            </div>
+            <div className="col field">
+              <label className="label">{t("profile.lastDate")}</label>
+              <input className="input" name="lastDate" type="date" defaultValue={child.last_date ? String(child.last_date).slice(0, 10) : ""} />
+            </div>
+          </div>
+          <p className="small muted">{t("profile.lastDateHint")}</p>
           <button className="btn btn-primary" type="submit">{t("profile.saveChanges")}</button>
         </form>
       </div>

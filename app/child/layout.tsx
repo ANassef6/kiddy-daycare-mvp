@@ -1,6 +1,6 @@
 import Link from "next/link";
 import ActiveLink from "@/components/ActiveLink";
-import { requireSession } from "@/lib/require";
+import { requireSessionWithWithdrawalCheck } from "@/lib/require";
 import { familiesForAccount } from "@/lib/store";
 import { getBranding } from "@/lib/theme";
 import { i18nForAccount } from "@/lib/i18n-session";
@@ -9,7 +9,7 @@ import { tr } from "@/lib/i18n";
 export const dynamic = "force-dynamic";
 
 export default async function ParentLayout({ children }: { children: React.ReactNode }) {
-  const session = requireSession();
+  const session = await requireSessionWithWithdrawalCheck();
   const { dict } = await i18nForAccount(session.accountId);
   let families: Record<string, unknown>[] = [];
   let logoUrl: string | null = null;

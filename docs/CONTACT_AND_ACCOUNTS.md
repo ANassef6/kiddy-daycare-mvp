@@ -53,3 +53,26 @@ The portal's **Staff → Add staff** form now takes a **login email** and a
 The admin shares the email + password with the staff member, who signs in at
 `/login` and lands in the portal. Staff without a login email are listed as
 "No login yet".
+
+## Access withdrawal with a last date (KID-86 item 9)
+
+Both **child** and **staff** profiles now have a **Last date** field in their
+About / Registration section.
+
+- For a **staff** member, the last date withdraws that staff account. On the
+  date (or as soon as the system sees the date after it), the staff row is set
+  to `active = 0` and the linked account can no longer sign in or load any
+  portal/child page.
+- For a **child**, the last date sets the child record to `status = 'withdrawn'`
+  and `active = 0`. The child disappears from default lists, and a parent whose
+  remaining linked children are all withdrawn is also blocked at sign-in and on
+  every page load.
+
+The mechanism is intentionally simple and does **not** require an external
+scheduler:
+
+1. `runWithdrawalSweep()` updates every row whose `last_date <= today`.
+2. `isAccountAccessWithdrawn(accountId)` checks the account.
+3. Both the **login action** and the authenticated **portal/child layouts**
+   run these checks, so withdrawal takes effect automatically on the date even
+   if the user already has a live session cookie.

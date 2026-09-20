@@ -16,6 +16,10 @@ import {
 } from "@/lib/auth";
 import { queryGet, queryRun, queryAll, ensureSchema } from "@/lib/db";
 import {
+  isAccountAccessWithdrawn,
+  runWithdrawalSweep,
+} from "@/lib/store";
+import {
   getInviteByCode,
   linkFamily,
   checkChildInOut,
@@ -118,6 +122,15 @@ export async function loginAction(formData: FormData) {
   const account = await findAccountByEmail(email);
   if (!account || !verifyPassword(password, account.password_hash)) {
     return { error: "Invalid email or password." };
+  }
+  // KID-86 item 9: apply any reached last-dates before letting the session in.
+  try {
+    await runWithdrawalSweep();
+  } catch (err) {
+    console.error("Login withdrawal sweep failed:", err);
+  }
+  if (await isAccountAccessWithdrawn(account.id)) {
+    return { error: "This account's access has been withdrawn." };
   }
   await setSession(account.email);
   redirect(emailConfirmedFor(account) ? homeForRole(account.role) : "/welcome");
@@ -1088,6 +1101,8 @@ export async function updateChildDetailsAction(formData: FormData) {
     dob: String(formData.get("dob") ?? "") || null,
     gender: String(formData.get("gender") ?? "") || null,
     roomId: String(formData.get("roomId") ?? "") || null,
+    status: String(formData.get("status") ?? "") || null,
+    lastDate: String(formData.get("lastDate") ?? "") || null,
   });
   redirect(`/portal/children/${childId}`);
 }
@@ -1362,7 +1377,7 @@ export async function logStaffStatusAction(formData: FormData) {
   redirect(`/portal/staff/${staffId}`);
 }
 
-// Staff profile edits (full name, role, contact, rooms).
+// Staff profile edits (full name, role, contact, rooms, last date).
 export async function updateStaffInfoAction(formData: FormData) {
   authAccount();
   await ensureSchema();
@@ -1376,6 +1391,7 @@ export async function updateStaffInfoAction(formData: FormData) {
       phone: String(formData.get("phone") ?? "").trim() || undefined,
       bio: String(formData.get("bio") ?? "").trim() || undefined,
       roomIds: formData.getAll("roomIds").map(String),
+      lastDate: String(formData.get("lastDate") ?? "") || null,
     });
   }
   redirect(`/portal/staff/${staffId}`);

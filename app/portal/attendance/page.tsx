@@ -1,5 +1,6 @@
+import Link from "next/link";
 import { requireSession } from "@/lib/require";
-import { listInstitutes, attendanceOn, runAutoCheckoutSweep } from "@/lib/store";
+import { listInstitutes, attendanceOn, runAutoCheckoutSweep, scopedRoomIds, listRooms } from "@/lib/store";
 import { AttendanceCheckIn } from "@/components/AttendanceCheckIn";
 
 export const dynamic = "force-dynamic";
@@ -7,16 +8,38 @@ export const dynamic = "force-dynamic";
 export default async function PortalAttendancePage({
   searchParams,
 }: {
-  searchParams: { day?: string; sweep?: string };
+  searchParams: { day?: string; sweep?: string; q?: string; room?: string };
 }) {
-  requireSession();
+  const session = requireSession();
   const institutes = await listInstitutes();
   const iid = institutes[0]?.id as string | undefined;
   const day = searchParams.day ?? new Date().toISOString().slice(0, 10);
+  const q = searchParams.q ?? "";
+  const roomId = searchParams.room ?? "";
+
   // Auto check-out sweep: anyone still checked-in 3h after closing gets
   // checked out by the system before attendance is rendered.
   const sweep = iid ? await runAutoCheckoutSweep(iid) : undefined;
-  const rows = iid ? await attendanceOn(iid, day) : [];
+
+  // Resolve the rooms this account may see.
+  const allowedRoomIds = iid ? await scopedRoomIds(iid, session.accountId) : null;
+  const allRooms = iid ? await listRooms(iid) : [];
+  const visibleRooms =
+    allowedRoomIds === null
+      ? allRooms
+      : allRooms.filter((r) => allowedRoomIds.includes(String(r.id)));
+
+  // Validate the requested room filter is within scope.
+  const effectiveRoomId =
+    roomId && (allowedRoomIds === null || allowedRoomIds.includes(roomId)) ? roomId : "";
+
+  const rows = iid
+    ? await attendanceOn(iid, day, {
+        accountId: session.accountId,
+        roomId: effectiveRoomId || undefined,
+        search: q || undefined,
+      })
+    : [];
 
   return (
     <div>
@@ -39,6 +62,32 @@ export default async function PortalAttendancePage({
           {sweep.staff.length > 0 ? " (staff)" : ""} checked out by the system after closing +3h.
         </p>
       )}
+
+      <form className="card mb-4" method="get">
+        <input type="hidden" name="day" value={day} />
+        <div className="row" style={{ alignItems: "flex-end", gap: 12 }}>
+          <div className="col field" style={{ minWidth: 180 }}>
+            <label className="label">Search by name</label>
+            <input className="input" name="q" defaultValue={q} placeholder="e.g. Omar" />
+          </div>
+          <div className="col field" style={{ minWidth: 180 }}>
+            <label className="label">Room</label>
+            <select className="select" name="room" defaultValue={effectiveRoomId}>
+              <option value="">All rooms</option>
+              {visibleRooms.map((r: any) => (
+                <option key={r.id} value={String(r.id)}>{String(r.name)}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <button className="btn btn-ghost" type="submit">Filter</button>
+          </div>
+          {(q || effectiveRoomId) && (
+            <Link href="/portal/attendance" className="btn btn-ghost">Clear</Link>
+          )}
+        </div>
+      </form>
+
       <table className="data">
         <thead>
           <tr><th>Child</th><th>Room</th><th>Status</th><th>Checked in</th><th>Checked out</th><th>Action</th></tr>
@@ -62,6 +111,7 @@ export default async function PortalAttendancePage({
           ))}
         </tbody>
       </table>
+      {rows.length === 0 && <p className="muted small mt-3">No children match the current filters.</p>}
     </div>
   );
 }

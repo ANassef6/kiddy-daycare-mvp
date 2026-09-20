@@ -98,6 +98,7 @@ function profileTab(staff: any, rooms: any[], email: string | undefined, statusL
     ["Assigned classrooms", rooms.map((r) => r.name).join(", ") || "—"],
     ["Bio", staff.bio || "—"],
     ["Member since", staff.created_at ? new Date(staff.created_at).toDateString() : "—"],
+    ["Last date", staff.last_date ? new Date(staff.last_date).toDateString() : "—"],
   ];
   const openEdit = editing === "status" || editing === "info";
   return (
@@ -126,6 +127,13 @@ function profileTab(staff: any, rooms: any[], email: string | undefined, statusL
                 <div className="col field"><label className="label">Phone</label><input className="input" name="phone" defaultValue={staff.phone ?? ""} /></div>
               </div>
               <div className="field"><label className="label">Bio</label><textarea className="textarea" name="bio" defaultValue={staff.bio ?? ""} /></div>
+              <div className="row">
+                <div className="col field">
+                  <label className="label">Last date</label>
+                  <input className="input" name="lastDate" type="date" defaultValue={staff.last_date ? String(staff.last_date).slice(0, 10) : ""} />
+                </div>
+              </div>
+              <p className="small muted">When the last date is reached this staff account can no longer sign in or use the portal.</p>
               <div className="field">
                 <label className="label">Room access</label>
                 <div className="row">

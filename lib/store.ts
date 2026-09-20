@@ -165,20 +165,49 @@ export async function createChild(data: {
   return (await queryGet("SELECT * FROM child WHERE id = ?", childId))!;
 }
 
-export async function listChildren(instituteId: string): Promise<Row[]> {
+export async function listChildren(
+  instituteId: string,
+  opts: { status?: string; roomId?: string; search?: string } = {}
+): Promise<Row[]> {
+  const conditions = ["c.institute_id = ?"];
+  const args: unknown[] = [instituteId];
+  if (opts.status && opts.status !== "all") {
+    conditions.push("c.status = ?");
+    args.push(opts.status);
+  } else if (!opts.status) {
+    // Default portal view hides withdrawn children unless explicitly filtered.
+    conditions.push("c.status != 'withdrawn'");
+  }
+  if (opts.roomId) {
+    conditions.push("c.room_id = ?");
+    args.push(opts.roomId);
+  }
+  if (opts.search?.trim()) {
+    conditions.push("(LOWER(c.first_name) LIKE ? OR LOWER(c.last_name) LIKE ?)");
+    const like = `%${opts.search.trim().toLowerCase()}%`;
+    args.push(like, like);
+  }
+  const where = conditions.join(" AND ");
   return queryAll(
     `SELECT c.*, r.name AS room_name, h.allergies, h.conditions, h.notes
      FROM child c
      LEFT JOIN room r ON r.id = c.room_id
      LEFT JOIN child_health h ON h.child_id = c.id
-     WHERE c.institute_id = ? AND c.active = 1
+     WHERE ${where}
      ORDER BY c.first_name, c.last_name`,
-    instituteId
+    ...args
   );
 }
 
 export async function getChild(childId: string): Promise<Row | undefined> {
-  return queryGet("SELECT * FROM child WHERE id = ?", childId);
+  return queryGet(
+    `SELECT c.*, r.name AS room_name, h.allergies, h.conditions, h.notes
+     FROM child c
+     LEFT JOIN room r ON r.id = c.room_id
+     LEFT JOIN child_health h ON h.child_id = c.id
+     WHERE c.id = ?`,
+    childId
+  );
 }
 
 export async function addContact(data: {
@@ -264,7 +293,36 @@ export async function todayStatus(childId: string): Promise<{ checkedIn?: Row; c
   };
 }
 
-export async function attendanceOn(instituteId: string, day: string): Promise<Row[]> {
+export async function attendanceOn(
+  instituteId: string,
+  day: string,
+  opts: { accountId?: string; roomId?: string; search?: string } = {}
+): Promise<Row[]> {
+  const conditions = ["c.institute_id = ?", "c.active = 1"];
+  const args: unknown[] = [instituteId];
+
+  // Staff members only see children in their assigned classrooms.
+  let allowedRoomIds: string[] | null = null;
+  if (opts.accountId) {
+    allowedRoomIds = await scopedRoomIds(instituteId, opts.accountId);
+  }
+  if (allowedRoomIds !== null) {
+    if (allowedRoomIds.length === 0) return [];
+    conditions.push(`c.room_id IN (${allowedRoomIds.map(() => "?").join(", ")})`);
+    args.push(...allowedRoomIds);
+  }
+
+  if (opts.roomId) {
+    conditions.push("c.room_id = ?");
+    args.push(opts.roomId);
+  }
+  if (opts.search?.trim()) {
+    conditions.push("(LOWER(c.first_name) LIKE ? OR LOWER(c.last_name) LIKE ?)");
+    const like = `%${opts.search.trim().toLowerCase()}%`;
+    args.push(like, like);
+  }
+
+  const where = conditions.join(" AND ");
   return queryAll(
     `SELECT c.id, c.first_name, c.last_name, r.name AS room_name,
             (SELECT type FROM check_in WHERE child_id = c.id AND date(recorded_at) = ? ORDER BY recorded_at DESC LIMIT 1) AS last_event,
@@ -272,12 +330,12 @@ export async function attendanceOn(instituteId: string, day: string): Promise<Ro
             (SELECT recorded_at FROM check_in WHERE child_id = c.id AND date(recorded_at) = ? AND type='out' ORDER BY recorded_at DESC LIMIT 1) AS checked_out_at
      FROM child c
      LEFT JOIN room r ON r.id = c.room_id
-     WHERE c.institute_id = ? AND c.active = 1
+     WHERE ${where}
      ORDER BY r.name, c.first_name`,
     day,
     day,
     day,
-    instituteId
+    ...args
   );
 }
 
@@ -1507,6 +1565,8 @@ export async function updateChildDetails(childId: string, patch: {
   dob?: string | null;
   gender?: string | null;
   roomId?: string | null;
+  status?: string | null;
+  lastDate?: string | null;
 }): Promise<void> {
   const fields: string[] = [];
   const values: unknown[] = [];
@@ -1515,6 +1575,8 @@ export async function updateChildDetails(childId: string, patch: {
   if (patch.dob !== undefined) { fields.push("dob = ?"); values.push(patch.dob); }
   if (patch.gender !== undefined) { fields.push("gender = ?"); values.push(patch.gender); }
   if (patch.roomId !== undefined) { fields.push("room_id = ?"); values.push(patch.roomId); }
+  if (patch.status !== undefined) { fields.push("status = ?"); values.push(patch.status); }
+  if (patch.lastDate !== undefined) { fields.push("last_date = ?"); values.push(patch.lastDate); }
   if (fields.length === 0) return;
   values.push(childId);
   await queryRun(`UPDATE child SET ${fields.join(", ")} WHERE id = ?`, ...values);
@@ -1772,7 +1834,7 @@ export async function staffStatusLog(staffId: string, limit = 10): Promise<Row[]
 // Staff profile editable info + fallback contact columns.
 export async function updateStaffInfo(
   staffId: string,
-  patch: { fullName?: string; role?: string; email?: string; phone?: string; bio?: string; roomIds?: string[] }
+  patch: { fullName?: string; role?: string; email?: string; phone?: string; bio?: string; roomIds?: string[]; lastDate?: string | null }
 ): Promise<void> {
   const fields: string[] = [];
   const values: unknown[] = [];
@@ -1796,6 +1858,10 @@ export async function updateStaffInfo(
     fields.push("bio = ?");
     values.push(patch.bio);
   }
+  if (patch.lastDate !== undefined) {
+    fields.push("last_date = ?");
+    values.push(patch.lastDate);
+  }
   if (fields.length > 0) {
     values.push(staffId);
     await queryRun(`UPDATE staff SET ${fields.join(", ")} WHERE id = ?`, ...values);
@@ -1806,6 +1872,68 @@ export async function updateStaffInfo(
       await queryRun("INSERT INTO staff_room (staff_id, room_id) VALUES (?, ?) ON CONFLICT DO NOTHING", staffId, roomId);
     }
   }
+}
+
+// ---- Access withdrawal (KID-86 item 9) ----
+
+// Returns true when the account should no longer access the portal because its
+// own staff last-date has passed or every child it is linked to is withdrawn.
+// The check is cheap and idempotent; the same logic is run at login and on
+// every authenticated page load (requireSession) so withdrawal happens on the
+// date automatically without an external scheduler.
+export async function isAccountAccessWithdrawn(accountId: string): Promise<boolean> {
+  const account = await queryGet("SELECT role, staff_id FROM account WHERE id = ?", accountId);
+  if (!account) return true;
+
+  // Staff withdrawal: last_date reached => access removed.
+  if (account.staff_id) {
+    const staff = await queryGet("SELECT last_date, active FROM staff WHERE id = ?", account.staff_id);
+    if (staff) {
+      if (String(staff.active) === "0") return true;
+      if (staff.last_date && !isFutureDate(String(staff.last_date))) return true;
+    }
+  }
+
+  // Parent withdrawal: only when every linked child is withdrawn.
+  if (account.role === "parent") {
+    const activeChildren = await queryGet(
+      `SELECT COUNT(*) c FROM family_member fm
+       JOIN child c ON c.id = fm.child_id
+       WHERE fm.account_id = ? AND c.status != 'withdrawn'`,
+      accountId
+    );
+    return Number((activeChildren as { c: number })?.c ?? 0) === 0;
+  }
+
+  return false;
+}
+
+// Runs the withdrawal sweep for children and staff whose last_date is today
+// or earlier. Safe to call on every page load; it only mutates rows that have
+// crossed the threshold. Returns counts for logging/feedback.
+export async function runWithdrawalSweep(now = new Date()): Promise<{ children: number; staff: number }> {
+  const today = now.toISOString().slice(0, 10);
+  const childResult = await queryRun(
+    "UPDATE child SET status = 'withdrawn', active = 0 WHERE last_date IS NOT NULL AND last_date <= ? AND status != 'withdrawn'",
+    today
+  );
+  const staffResult = await queryRun(
+    "UPDATE staff SET active = 0 WHERE last_date IS NOT NULL AND last_date <= ? AND active = 1",
+    today
+  );
+  return {
+    children: childResult.rowCount,
+    staff: staffResult.rowCount,
+  };
+}
+
+function isFutureDate(dateString: string): boolean {
+  const d = new Date(dateString);
+  if (Number.isNaN(d.getTime())) return true; // invalid dates are treated as not reached
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const compare = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  return compare > today;
 }
 
 // Center-wide invoice list (finance tab): invoices joined to child + primary

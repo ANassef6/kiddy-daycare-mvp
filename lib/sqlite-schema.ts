@@ -63,6 +63,7 @@ export function sqliteSchema(db: any): void {
     status TEXT,
     status_note TEXT,
     status_at TEXT,
+    last_date TEXT,
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
   );
 
@@ -82,6 +83,8 @@ export function sqliteSchema(db: any): void {
     dob TEXT,
     gender TEXT,
     photo_url TEXT,
+    status TEXT NOT NULL DEFAULT 'active',
+    last_date TEXT,
     active INTEGER NOT NULL DEFAULT 1,
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
   );
@@ -478,6 +481,9 @@ export function sqliteSchema(db: any): void {
   CREATE INDEX IF NOT EXISTS idx_staff_status ON staff_status (staff_id, created_at DESC);
   CREATE INDEX IF NOT EXISTS idx_billing_institute ON child_billing (institute_id, due_date);
   CREATE INDEX IF NOT EXISTS idx_form_resp_status ON form_response (form_id, status);
+  CREATE INDEX IF NOT EXISTS idx_child_status ON child (institute_id, status);
+  CREATE INDEX IF NOT EXISTS idx_child_last_date ON child (last_date);
+  CREATE INDEX IF NOT EXISTS idx_staff_last_date ON staff (last_date);
   `);
 
   // Idempotent column backfills for databases created before these columns
@@ -531,6 +537,7 @@ export function sqliteSchema(db: any): void {
       ["status", "ALTER TABLE staff ADD COLUMN status TEXT"],
       ["status_note", "ALTER TABLE staff ADD COLUMN status_note TEXT"],
       ["status_at", "ALTER TABLE staff ADD COLUMN status_at TEXT"],
+      ["last_date", "ALTER TABLE staff ADD COLUMN last_date TEXT"],
     ] as const) {
       if (!staffCols2.some((c) => c.name === col)) db.exec(ddl);
     }
@@ -539,6 +546,12 @@ export function sqliteSchema(db: any): void {
     const childCols = db.prepare("PRAGMA table_info(child)").all() as { name: string }[];
     if (!childCols.some((c) => c.name === "gender")) {
       db.exec("ALTER TABLE child ADD COLUMN gender TEXT");
+    }
+    if (!childCols.some((c) => c.name === "status")) {
+      db.exec("ALTER TABLE child ADD COLUMN status TEXT NOT NULL DEFAULT 'active'");
+    }
+    if (!childCols.some((c) => c.name === "last_date")) {
+      db.exec("ALTER TABLE child ADD COLUMN last_date TEXT");
     }
   } catch {}
   try {
