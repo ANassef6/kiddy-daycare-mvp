@@ -2,6 +2,8 @@
 
 import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
+import { revalidatePath } from "next/cache";
+import { LANG_COOKIE } from "@/lib/i18n";
 import {
   createAccount,
   findAccountByEmail,
@@ -269,6 +271,29 @@ function authAccount(): SessionCookie {
 async function firstInstituteId(): Promise<string> {
   const row = await queryGet("SELECT id FROM institute LIMIT 1");
   return String(row?.id ?? "");
+}
+
+
+// KID-57: persist the user's app language (English | Arabic). The root layout
+// and every page resolve the locale from `account.language`, and once saved the
+// server action also drops the lang cookie so `dir`/`lang` apply immediately.
+export async function saveLanguageAction(formData: FormData) {
+  const locale = String(formData.get("locale") ?? "");
+  if (locale !== "en" && locale !== "ar") redirect("/");
+  const me = authAccount();
+  const { setAccountLanguage } = await import("@/lib/auth");
+  const account = await (await import("@/lib/auth")).getAccount(me.accountId);
+  if (account) {
+    await setAccountLanguage(me.accountId, locale);
+  }
+  cookies().set(LANG_COOKIE, locale, {
+    httpOnly: false,
+    sameSite: "lax",
+    path: "/",
+    maxAge: 30 * 24 * 3600,
+  });
+  revalidatePath("/", "layout");
+  redirect(homeForRole(me.role) === "/child" ? "/child" : "/portal/settings");
 }
 
 export async function checkInOutAction(formData: FormData) {

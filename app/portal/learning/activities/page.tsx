@@ -3,13 +3,17 @@ import { requireSession } from "@/lib/require";
 import { listMedia, listEvents, listNewsfeed } from "@/lib/store";
 import { createEventAction } from "@/lib/actions";
 import { firstInstituteId, cap } from "@/lib/helpers";
+import { i18nForAccount } from "@/lib/i18n-session";
+import { tr } from "@/lib/i18n";
 
 export const dynamic = "force-dynamic";
 
 export default async function PortalActivitiesPage() {
-  requireSession();
+  const session = requireSession();
+  const { dict } = await i18nForAccount(session.accountId);
+  const t = (key: string, vars?: Record<string, string | number>) => tr(dict, key, vars);
   const instituteId = await firstInstituteId();
-  if (!instituteId) return <p className="muted">No institute configured.</p>;
+  if (!instituteId) return <p className="muted">{t("learning.noInstitute")}</p>;
 
   const [media, events, newsfeed] = await Promise.all([
     listMedia(instituteId),
@@ -22,38 +26,40 @@ export default async function PortalActivitiesPage() {
 
   return (
     <div>
-      <h1 className="title">Activities</h1>
+      <h1 className="title">{t("activities.title")}</h1>
       <p className="subtitle">
-        Photos, videos, and recent activity moments captured in the center. Create a new activity below —
-        full media management stays on the
-        <Link href="/portal/events" className="small" style={{ fontWeight: 600, marginLeft: 4 }}>Events &amp; video</Link> page.
+        {t("activities.subtitle")}
+        <Link href="/portal/events" className="small" style={{ fontWeight: 600, marginLeft: 4 }}>
+          {t("activities.eventsAndVideo")}
+        </Link>
+        {t("activities.subtitleTail")}
       </p>
 
       <form className="card mb-4" action={createEventAction}>
-        <h3 className="subtitle">New activity</h3>
+        <h3 className="subtitle">{t("activities.newActivity")}</h3>
         <input type="hidden" name="returnTo" value="/portal/learning/activities" />
         <div className="row">
-          <div className="col field"><label className="label">Title</label><input className="input" name="title" required placeholder="e.g. Water play morning" /></div>
-          <div className="col field"><label className="label">Date</label><input className="input" name="eventDate" type="date" required /></div>
+          <div className="col field"><label className="label">{t("activities.titleLabel")}</label><input className="input" name="title" required placeholder="e.g. Water play morning" /></div>
+          <div className="col field"><label className="label">{t("activities.dateLabel")}</label><input className="input" name="eventDate" type="date" required /></div>
         </div>
         <div className="row">
-          <div className="col field"><label className="label">Start</label><input className="input" name="startTime" type="time" /></div>
-          <div className="col field"><label className="label">End</label><input className="input" name="endTime" type="time" /></div>
-          <div className="col field"><label className="label">Location</label><input className="input" name="location" placeholder="e.g. Garden" /></div>
+          <div className="col field"><label className="label">{t("activities.start")}</label><input className="input" name="startTime" type="time" /></div>
+          <div className="col field"><label className="label">{t("activities.end")}</label><input className="input" name="endTime" type="time" /></div>
+          <div className="col field"><label className="label">{t("common.location")}</label><input className="input" name="location" placeholder="e.g. Garden" /></div>
         </div>
-        <div className="field"><label className="label">Description</label><textarea className="textarea" name="description" placeholder="What will the children do?" /></div>
-        <button className="btn btn-primary" type="submit">Create activity</button>
+        <div className="field"><label className="label">{t("activities.description")}</label><textarea className="textarea" name="description" placeholder={t("activities.whatWillChildrenDo")} /></div>
+        <button className="btn btn-primary" type="submit">{t("activities.createActivity")}</button>
       </form>
 
       {recentMedia.length > 0 && (
         <div className="card mb-4">
-          <h3 className="subtitle">Recent media</h3>
+          <h3 className="subtitle">{t("activities.recentMedia")}</h3>
           <div className="row" style={{ flexWrap: "wrap", gap: 8 }}>
             {recentMedia.map((m: any) => (
               <div key={m.id} style={{ width: 120 }}>
                 <Link href={m.url} target="_blank" rel="noreferrer">
                   {m.kind === "video" ? (
-                    <div style={{ width: 120, height: 80, borderRadius: 8, background: "#e2e8f0", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, color: "#64748b" }}>▶ Video</div>
+                    <div style={{ width: 120, height: 80, borderRadius: 8, background: "#e2e8f0", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, color: "#64748b" }}>▶ {t("activities.video")}</div>
                   ) : (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img src={m.url} alt={m.caption ?? ""} width={120} height={80} style={{ objectFit: "cover", borderRadius: 8 }} />
@@ -67,8 +73,8 @@ export default async function PortalActivitiesPage() {
       )}
 
       <div className="card mb-4">
-        <h3 className="subtitle">Upcoming events</h3>
-        {events.length === 0 && <p className="muted small">No upcoming events.</p>}
+        <h3 className="subtitle">{t("activities.upcomingEvents")}</h3>
+        {events.length === 0 && <p className="muted small">{t("activities.noUpcomingEvents")}</p>}
         {(events as any[]).slice(0, 3).map((e: any) => (
           <div className="list-item" key={e.id}>
             <div className="small">
@@ -80,12 +86,12 @@ export default async function PortalActivitiesPage() {
       </div>
 
       <div className="card">
-        <h3 className="subtitle">Recent newsfeed posts</h3>
-        {recentPosts.length === 0 && <p className="muted small">No posts yet.</p>}
+        <h3 className="subtitle">{t("activities.recentNewsfeed")}</h3>
+        {recentPosts.length === 0 && <p className="muted small">{t("activities.noPostsYet")}</p>}
         {recentPosts.map((p: any) => (
           <div className="list-item" key={p.id}>
             <div className="small">
-              <strong>{p.author_name ?? "Admin"}</strong> · {cap(p.created_at)}
+              <strong>{p.author_name ?? t("activities.admin")}</strong> · {cap(p.created_at)}
               <div className="muted mt-1">{p.body?.slice(0, 120)}{p.body?.length > 120 ? "…" : ""}</div>
             </div>
           </div>

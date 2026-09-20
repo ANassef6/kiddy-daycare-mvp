@@ -31,25 +31,20 @@ import ChildProfileTabs from "@/components/ChildProfileTabs";
 import { curriculumTree, ensureCurriculumSeeded } from "@/lib/curriculum";
 import ObservationModalTrigger from "@/components/ObservationModalTrigger";
 import { queryGet } from "@/lib/db";
+import { i18nForAccount } from "@/lib/i18n-session";
+import { tr } from "@/lib/i18n";
 
 export const dynamic = "force-dynamic";
 
-const MOODS = [
-  ["happy", "Happy"],
-  ["okay", "Okay"],
-  ["fussy", "Fussy"],
-  ["tired", "Tired"],
-] as const;
-const DIAPERS = [
-  ["wet", "Wet"],
-  ["soiled", "Soiled"],
-  ["dry", "Dry check"],
-] as const;
-const SLEEP_VALUES = ["Fell asleep", "Woke up"];
-const SICK_VALUES = ["yes", "no"];
+const MOODS = ["happy", "okay", "fussy", "tired"] as const;
+const DIAPERS = ["wet", "soiled", "dry"] as const;
+const SLEEP_VALUES = ["fellAsleep", "wokeUp"] as const;
+const SICK_VALUES = ["yes", "no"] as const;
 
 export default async function PortalChildPage({ params }: { params: { id: string } }) {
   const session = requireSession();
+  const { locale, dict } = await i18nForAccount(session.accountId);
+  const t = (key: string, vars?: Record<string, string | number>) => tr(dict, key, vars);
   const child = await getChild(params.id);
   if (!child) notFound();
 
@@ -86,71 +81,71 @@ export default async function PortalChildPage({ params }: { params: { id: string
   const tabs = [
     {
       id: "daily",
-      label: "Daily report",
-      node: dailyReportTab(child, report, today, todayStatuses),
+      label: t("profile.todaysDailyReport"),
+      node: dailyReportTab(child, report, today, todayStatuses, dict),
     },
     {
       id: "about",
-      label: "About",
-      node: aboutTab(child, status, rooms),
+      label: t("profile.about", { name: child.first_name }),
+      node: aboutTab(child, status, rooms, dict),
     },
     {
       id: "family",
-      label: "Family",
-      node: contactsTab(child, contacts),
+      label: t("profile.pickupAndFamilyContacts"),
+      node: contactsTab(child, contacts, dict),
     },
     {
       id: "media",
-      label: "Media",
-      node: mediaTab(media),
+      label: t("profile.media", { count: media.length }),
+      node: mediaTab(media, dict),
     },
     {
       id: "documents",
-      label: "Documents",
-      node: documentsTab(consents),
+      label: t("profile.signedDocuments"),
+      node: documentsTab(consents, dict),
     },
     {
       id: "schedules",
-      label: "Schedules (Beta)",
-      node: schedulesTab(child),
+      label: `${t("profile.schedules")} (${t("profile.beta")})`,
+      node: schedulesTab(child, dict),
     },
     {
       id: "invoices",
-      label: "Invoices",
-      node: invoicesTab(child, billing),
+      label: t("profile.invoices"),
+      node: invoicesTab(child, billing, dict),
     },
     {
       id: "learning",
-      label: "Learning",
-      node: learningTab(child, areas, observations, byName),
+      label: t("profile.learningHistory"),
+      node: learningTab(child, areas, observations, byName, dict, locale),
     },
     {
       id: "incident",
-      label: "Incident & Accident",
-      node: incidentsTab(child, incidents),
+      label: t("profile.incidentsAndAccidents"),
+      node: incidentsTab(child, incidents, dict),
     },
   ];
 
   return (
     <div>
-      <Link className="small muted" href="/portal/children">← Children</Link>
+      <Link className="small muted" href="/portal/children">← {t("profile.backToChildren")}</Link>
       <div className="row" style={{ alignItems: "center", gap: 14, marginTop: 8 }}>
         <Avatar src={child.photo_url} name={`${child.first_name} ${child.last_name}`} size={56} color={branding.primaryColor} />
         <div style={{ flex: 1 }}>
           <h1 className="title mt-1" style={{ marginBottom: 0 }}>{child.first_name} {child.last_name}</h1>
           <p className="subtitle" style={{ marginBottom: 0 }}>
-            Room: {child.room_name ?? "—"} · {child.dob ? `DOB ${fmtDate(child.dob)}` : ""}{child.gender ? ` · ${cap(child.gender)}` : ""} · Today:{" "}
-            {status.lastEvent ? cap(status.lastEvent.type) : "not reported yet"}
+            {t("profile.room", { room: child.room_name ?? "—" })} · {child.dob ? t("profile.dob", { date: fmtDate(child.dob) }) : ""}{child.gender ? ` · ${cap(child.gender)}` : ""} · {t("profile.today")}{" "}
+            {status.lastEvent ? cap(status.lastEvent.type) : t("profile.notReportedYet")}
           </p>
         </div>
         <form action={uploadPhotoAction} style={{ display: "flex", gap: 8, alignItems: "center" }}>
           <input type="hidden" name="entityType" value="child" />
           <input type="hidden" name="entityId" value={child.id as string} />
           <input type="file" name="file" accept="image/*" required id={`photo-${child.id}`} style={{ display: "none" }} />
-          <label htmlFor={`photo-${child.id}`} className="btn btn-ghost" style={{ cursor: "pointer", fontSize: 13 }}>{child.photo_url ? "Change photo" : "Add photo"}</label>
-          <button className="btn btn-primary" type="submit" style={{ fontSize: 13 }}>Save</button>
+          <label htmlFor={`photo-${child.id}`} className="btn btn-ghost" style={{ cursor: "pointer", fontSize: 13 }}>{child.photo_url ? t("profile.changePhoto") : t("profile.addPhoto")}</label>
+          <button className="btn btn-primary" type="submit" style={{ fontSize: 13 }}>{t("profile.save")}</button>
         </form>
-        <Link href={`/portal/children/${child.id}/development`} className="btn btn-ghost" style={{ fontSize: 13 }}>Development</Link>
+        <Link href={`/portal/children/${child.id}/development`} className="btn btn-ghost" style={{ fontSize: 13 }}>{t("profile.development")}</Link>
       </div>
       <div style={{ marginTop: 18 }}>
         <ChildProfileTabs tabs={tabs} />
@@ -159,15 +154,16 @@ export default async function PortalChildPage({ params }: { params: { id: string
   );
 }
 
-function dailyReportTab(child: any, report: any, today: string, todayStatuses: any[]) {
+function dailyReportTab(child: any, report: any, today: string, todayStatuses: any[], dict: any) {
   const meal = safeJson(report?.meal);
+  const t = (key: string, vars?: Record<string, string | number>) => tr(dict, key, vars);
   return (
     <div>
       <div className="card mb-4">
-        <h3 className="subtitle">Today&apos;s daily report</h3>
+        <h3 className="subtitle">{t("profile.todaysDailyReport")}</h3>
         {report?.saved_by_name && (
           <p className="small muted" style={{ marginTop: -4 }}>
-            Last saved by <strong>{report.saved_by_name}</strong>
+            {t("profile.lastSavedBy")} <strong>{report.saved_by_name}</strong>
             {report?.created_at ? ` · ${fmtDate(report.created_at)} ${time(report.created_at)}` : ""}
           </p>
         )}
@@ -175,85 +171,85 @@ function dailyReportTab(child: any, report: any, today: string, todayStatuses: a
           <input type="hidden" name="childId" value={child.id as string} />
           <input type="hidden" name="reportDate" value={today} />
           <div className="field">
-            <label className="label">Summary</label>
+            <label className="label">{t("profile.summary")}</label>
             <textarea className="textarea" name="summary" defaultValue={String(report?.summary ?? "")} />
           </div>
           <div className="row">
-            <div className="col field"><label className="label">Mood</label>
+            <div className="col field"><label className="label">{t("profile.mood")}</label>
               <select className="select" name="mood" defaultValue={String(report?.mood ?? "")}>
                 <option value="">—</option>
-                <option>Happy</option><option>Okay</option><option>Fussy</option><option>Tired</option>
+                {MOODS.map((m) => <option key={m}>{mo(t, m)}</option>)}
               </select>
             </div>
-            <div className="col field"><label className="label">Sleep</label><input className="input" name="sleep" defaultValue={String(report?.sleep ?? "")} placeholder="12:30-14:00" /></div>
-            <div className="col field"><label className="label">Diaper</label><input className="input" name="diaper" defaultValue={String(report?.diaper ?? "")} /></div>
+            <div className="col field"><label className="label">{t("profile.sleep")}</label><input className="input" name="sleep" defaultValue={String(report?.sleep ?? "")} placeholder="12:30-14:00" /></div>
+            <div className="col field"><label className="label">{t("profile.diaper")}</label><input className="input" name="diaper" defaultValue={String(report?.diaper ?? "")} /></div>
           </div>
           <div className="row">
-            <div className="col field"><label className="label">Breakfast</label><input className="input" name="breakfast" defaultValue={String(meal?.breakfast ?? "")} /></div>
-            <div className="col field"><label className="label">Lunch</label><input className="input" name="lunch" defaultValue={String(meal?.lunch ?? "")} /></div>
-            <div className="col field"><label className="label">Snack</label><input className="input" name="snack" defaultValue={String(meal?.snack ?? "")} /></div>
+            <div className="col field"><label className="label">{t("child.breakfast")}</label><input className="input" name="breakfast" defaultValue={String(meal?.breakfast ?? "")} /></div>
+            <div className="col field"><label className="label">{t("child.lunch")}</label><input className="input" name="lunch" defaultValue={String(meal?.lunch ?? "")} /></div>
+            <div className="col field"><label className="label">{t("child.snack")}</label><input className="input" name="snack" defaultValue={String(meal?.snack ?? "")} /></div>
           </div>
-          <div className="field"><label className="label">Observation (learning note)</label><textarea className="textarea" name="observation" defaultValue={String(report?.observation ?? "")} /></div>
-          <div className="field"><label className="label">Note</label><input className="input" name="note" defaultValue={String(report?.note ?? "")} /></div>
+          <div className="field"><label className="label">{t("profile.observation")}</label><textarea className="textarea" name="observation" defaultValue={String(report?.observation ?? "")} /></div>
+          <div className="field"><label className="label">{t("profile.note")}</label><input className="input" name="note" defaultValue={String(report?.note ?? "")} /></div>
           <label className="row" style={{ alignItems: "center", gap: 8 }}>
-            <input type="checkbox" name="sick" defaultChecked={!!report?.sick} /> <span>Mark as sick</span>
+            <input type="checkbox" name="sick" defaultChecked={!!report?.sick} /> <span>{t("profile.markAsSick")}</span>
           </label>
-          <div className="mt-3"><button className="btn btn-primary" type="submit">Save report</button></div>
+          <div className="mt-3"><button className="btn btn-primary" type="submit">{t("profile.saveReport")}</button></div>
         </form>
       </div>
 
       <div className="card mb-4">
-        <h3 className="subtitle">Status log</h3>
-        <p className="small muted">Logged instantly with the current time — multiple entries per day.</p>
+        <h3 className="subtitle">{t("profile.statusLog")}</h3>
+        <p className="small muted">{t("profile.loggedInstantly")}</p>
         <div className="row mt-2">
           <div className="col">
-            <div className="label">Mood</div>
+            <div className="label">{t("profile.mood")}</div>
             <div className="row" style={{ gap: 6 }}>
-              {MOODS.map(([value, label]) => (
+              {MOODS.map((value) => (
                 <form key={value} action={saveChildStatusAction}>
                   <input type="hidden" name="childId" value={child.id as string} />
                   <input type="hidden" name="kind" value="mood" />
                   <input type="hidden" name="value" value={value} />
-                  <button className="status-chip status-chip-mood" type="submit">{label}</button>
+                  <button className="status-chip status-chip-mood" type="submit">{mo(t, value)}</button>
                 </form>
               ))}
             </div>
           </div>
           <div className="col">
-            <div className="label">Diaper</div>
+            <div className="label">{t("profile.diaper")}</div>
             <div className="row" style={{ gap: 6 }}>
-              {DIAPERS.map(([value, label]) => (
+              {DIAPERS.map((value) => (
                 <form key={value} action={saveChildStatusAction}>
                   <input type="hidden" name="childId" value={child.id as string} />
                   <input type="hidden" name="kind" value="diaper" />
                   <input type="hidden" name="value" value={value} />
-                  <button className="status-chip status-chip-diaper" type="submit">{label}</button>
+                  <button className="status-chip status-chip-diaper" type="submit">{di(t, value)}</button>
                 </form>
               ))}
             </div>
           </div>
           <div className="col">
-            <div className="label">Sleep</div>
+            <div className="label">{t("profile.sleep")}</div>
             <div className="row" style={{ gap: 6 }}>
-              {SLEEP_VALUES.map((label) => (
-                <form key={label} action={saveChildStatusAction}>
+              {SLEEP_VALUES.map((value) => (
+                <form key={value} action={saveChildStatusAction}>
                   <input type="hidden" name="childId" value={child.id as string} />
                   <input type="hidden" name="kind" value="sleep" />
-                  <input type="hidden" name="value" value={label} />
-                  <button className="status-chip status-chip-sleep" type="submit">{label}</button>
+                  <input type="hidden" name="value" value={t(`profile.${value}`)} />
+                  <button className="status-chip status-chip-sleep" type="submit">{t(`profile.${value}`)}</button>
                 </form>
               ))}
             </div>
           </div>
           <div className="col">
-            <div className="label">Sick</div>
+            <div className="label">{t("profile.sick")}</div>
             <div className="row" style={{ gap: 6 }}>
-              {SICK_VALUES.map((label) => (
-                <form key={label} action={saveChildStatusAction}>
+              {SICK_VALUES.map((value) => (
+                <form key={value} action={saveChildStatusAction}>
                   <input type="hidden" name="childId" value={child.id as string} />
                   <input type="hidden" name="kind" value="sick" />
-                  <input type="hidden" name="value" value={label} />
-                  <button className="status-chip status-chip-sick" type="submit">{label === "yes" ? "Feeling sick" : "All good"}</button>
+                  <input type="hidden" name="value" value={value} />
+                  <button className="status-chip status-chip-sick" type="submit">{value === "yes" ? t("child.feelingSick") : t("child.allGood")}</button>
                 </form>
               ))}
             </div>
@@ -263,30 +259,30 @@ function dailyReportTab(child: any, report: any, today: string, todayStatuses: a
         <form action={saveChildStatusAction} className="row mt-3" style={{ alignItems: "flex-end" }}>
           <input type="hidden" name="childId" value={child.id as string} />
           <div className="col field">
-            <label className="label">Custom entry</label>
+            <label className="label">{t("profile.customEntry")}</label>
             <div className="row">
               <select className="select" name="kind" defaultValue="mood" style={{ maxWidth: 130 }}>
-                <option value="mood">Mood</option>
-                <option value="diaper">Diaper</option>
-                <option value="sleep">Sleep</option>
-                <option value="sick">Sick</option>
+                <option value="mood">{t("profile.mood")}</option>
+                <option value="diaper">{t("profile.diaper")}</option>
+                <option value="sleep">{t("profile.sleep")}</option>
+                <option value="sick">{t("profile.sick")}</option>
               </select>
               <input className="input" name="value" required placeholder="e.g. 'Rash on arm' or '12:45-13:30'" />
             </div>
           </div>
-          <div className="col field"><label className="label">Note</label><input className="input" name="note" placeholder="optional" /></div>
-          <div><button className="btn btn-ghost" type="submit">Log status</button></div>
+          <div className="col field"><label className="label">{t("profile.note")}</label><input className="input" name="note" placeholder={t("profile.optional")} /></div>
+          <div><button className="btn btn-ghost" type="submit">{t("profile.logStatus")}</button></div>
         </form>
 
         {todayStatuses.length === 0 ? (
-          <p className="muted small mt-3">No status entries yet today.</p>
+          <p className="muted small mt-3">{t("profile.noStatusYet")}</p>
         ) : (
           <div className="mt-3" style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             {todayStatuses.map((s: any) => (
               <div className="list-item small" key={s.id}>
-                <span className={`status-chip status-chip-${String(s.kind)}`}>{cap(s.kind)}</span>
+                <span className={`status-chip status-chip-${String(s.kind)}`}>{kindName(String(s.kind), t)}</span>
                 <div>
-                  <strong>{displayValue(String(s.kind), String(s.value))}</strong>
+                  <strong>{displayValue(String(s.kind), String(s.value), t)}</strong>
                   {s.note ? <span className="muted"> — {s.note}</span> : null}
                 </div>
                 <span className="muted">{time(s.recorded_at)}{s.recorded_by_name ? ` · ${s.recorded_by_name}` : ""}</span>
@@ -299,20 +295,21 @@ function dailyReportTab(child: any, report: any, today: string, todayStatuses: a
   );
 }
 
-function aboutTab(child: any, status: any, rooms: any[]) {
+function aboutTab(child: any, status: any, rooms: any[], dict: any) {
+  const t = (key: string, vars?: Record<string, string | number>) => tr(dict, key, vars);
   const rows: [string, string][] = [
-    ["Full name", `${child.first_name} ${child.last_name}`],
-    ["Date of birth", child.dob ? fmtDate(child.dob) : "—"],
-    ["Gender", child.gender ? cap(child.gender) : "—"],
-    ["Room", child.room_name ?? "—"],
-    ["Enrolled", child.enrolled_at ? fmtDate(child.enrolled_at) : "—"],
-    ["Status", child.status ? cap(String(child.status)) : "Active"],
-    ["Check-in today", status.lastEvent ? cap(status.lastEvent.type) : "Not yet"],
+    [t("profile.fullName"), `${child.first_name} ${child.last_name}`],
+    [t("profile.dateOfBirth"), child.dob ? fmtDate(child.dob) : "—"],
+    [t("profile.gender"), child.gender ? cap(child.gender) : "—"],
+    [t("common.room"), child.room_name ?? "—"],
+    [t("profile.enrolled"), child.enrolled_at ? fmtDate(child.enrolled_at) : "—"],
+    [t("profile.status"), child.status ? cap(String(child.status)) : t("profile.active")],
+    [t("profile.checkInToday"), status.lastEvent ? cap(status.lastEvent.type) : t("profile.notYet")],
   ];
   return (
     <div className="grid">
       <div className="card">
-        <h3 className="subtitle">About {child.first_name}</h3>
+        <h3 className="subtitle">{t("profile.about", { name: child.first_name })}</h3>
         <table className="table">
           <tbody>
             {rows.map(([k, v]) => (
@@ -323,27 +320,27 @@ function aboutTab(child: any, status: any, rooms: any[]) {
             ))}
           </tbody>
         </table>
-        <Link className="btn btn-ghost small mt-3" href={`/portal/children/${child.id}/development`}>Log learning &amp; development →</Link>
+        <Link className="btn btn-ghost small mt-3" href={`/portal/children/${child.id}/development`}>{t("profile.learningHistory")} →</Link>
       </div>
       <div className="card">
-        <h3 className="subtitle">Edit details</h3>
+        <h3 className="subtitle">{t("profile.editDetails")}</h3>
         <form action={updateChildDetailsAction}>
           <input type="hidden" name="childId" value={child.id as string} />
           <div className="row">
-            <div className="col field"><label className="label">First name</label><input className="input" name="firstName" defaultValue={String(child.first_name ?? "")} required /></div>
-            <div className="col field"><label className="label">Last name</label><input className="input" name="lastName" defaultValue={String(child.last_name ?? "")} required /></div>
+            <div className="col field"><label className="label">{t("profile.firstName")}</label><input className="input" name="firstName" defaultValue={String(child.first_name ?? "")} required /></div>
+            <div className="col field"><label className="label">{t("profile.lastName")}</label><input className="input" name="lastName" defaultValue={String(child.last_name ?? "")} required /></div>
           </div>
           <div className="row">
-            <div className="col field"><label className="label">Date of birth</label><input className="input" name="dob" type="date" defaultValue={child.dob ? String(child.dob).slice(0, 10) : ""} /></div>
-            <div className="col field"><label className="label">Gender</label>
+            <div className="col field"><label className="label">{t("profile.dateOfBirth")}</label><input className="input" name="dob" type="date" defaultValue={child.dob ? String(child.dob).slice(0, 10) : ""} /></div>
+            <div className="col field"><label className="label">{t("profile.gender")}</label>
               <select className="select" name="gender" defaultValue={String(child.gender ?? "")}>
                 <option value="">—</option>
-                <option value="male">Male</option>
-                <option value="female">Female</option>
+                <option value="male">{t("profile.male")}</option>
+                <option value="female">{t("profile.female")}</option>
               </select>
             </div>
           </div>
-          <div className="field"><label className="label">Room</label>
+          <div className="field"><label className="label">{t("common.room")}</label>
             <select className="select" name="roomId" defaultValue={String(child.room_id ?? "")}>
               <option value="">—</option>
               {(rooms as any[]).map((r: any) => (
@@ -351,51 +348,53 @@ function aboutTab(child: any, status: any, rooms: any[]) {
               ))}
             </select>
           </div>
-          <button className="btn btn-primary" type="submit">Save changes</button>
+          <button className="btn btn-primary" type="submit">{t("profile.saveChanges")}</button>
         </form>
       </div>
     </div>
   );
 }
 
-function contactsTab(child: any, contacts: any[]) {
+function contactsTab(child: any, contacts: any[], dict: any) {
+  const t = (key: string, vars?: Record<string, string | number>) => tr(dict, key, vars);
   return (
     <div className="grid">
       <div className="card">
-        <h3 className="subtitle">Pickup &amp; family contacts</h3>
-        {contacts.length === 0 ? <p className="muted small">None.</p> : null}
+        <h3 className="subtitle">{t("profile.pickupAndFamilyContacts")}</h3>
+        {contacts.length === 0 ? <p className="muted small">{t("profile.noneContact")}</p> : null}
         {contacts.map((c: any) => (
           <div className="list-item" key={c.id}>
             <div className="small"><strong>{c.full_name}</strong> ({c.relationship})<br /><span className="muted">{c.phone}</span>{c.email ? <><br /><span className="muted">{c.email}</span></> : null}</div>
-            <div>{c.is_pickup && <span className="badge">Pickup</span>}{c.is_emergency && <span className="badge badge-red">Emerg</span>}</div>
+            <div>{c.is_pickup && <span className="badge">{t("child.pickup")}</span>}{c.is_emergency && <span className="badge badge-red">{t("child.emergency")}</span>}</div>
           </div>
         ))}
       </div>
       <div className="card">
-        <h3 className="subtitle">Add contact</h3>
+        <h3 className="subtitle">{t("profile.addContact")}</h3>
         <form action={addContactAction}>
           <input type="hidden" name="childId" value={child.id as string} />
-          <div className="field"><label className="label">Full name</label><input className="input" name="fullName" required /></div>
-          <div className="field"><label className="label">Relationship</label><input className="input" name="relationship" required /></div>
-          <div className="field"><label className="label">Phone</label><input className="input" name="phone" /></div>
-          <div className="field"><label className="label">Email</label><input className="input" name="email" /></div>
-          <label className="row small" style={{ alignItems: "center", gap: 8 }}><input type="checkbox" name="isPickup" /> Authorized pickup</label>
-          <label className="row small mt-2" style={{ alignItems: "center", gap: 8 }}><input type="checkbox" name="isEmergency" /> Emergency contact</label>
-          <div className="mt-3"><button className="btn btn-ghost" type="submit">Add contact</button></div>
+          <div className="field"><label className="label">{t("profile.fullName")}</label><input className="input" name="fullName" required /></div>
+          <div className="field"><label className="label">{t("profile.relationship")}</label><input className="input" name="relationship" required /></div>
+          <div className="field"><label className="label">{t("common.phone")}</label><input className="input" name="phone" /></div>
+          <div className="field"><label className="label">{t("common.email")}</label><input className="input" name="email" /></div>
+          <label className="row small" style={{ alignItems: "center", gap: 8 }}><input type="checkbox" name="isPickup" /> {t("profile.authorizedPickup")}</label>
+          <label className="row small mt-2" style={{ alignItems: "center", gap: 8 }}><input type="checkbox" name="isEmergency" /> {t("profile.emergencyContact")}</label>
+          <div className="mt-3"><button className="btn btn-ghost" type="submit">{t("profile.addContactBtn")}</button></div>
         </form>
       </div>
     </div>
   );
 }
 
-function mediaTab(media: any[]) {
+function mediaTab(media: any[], dict: any) {
+  const t = (key: string, vars?: Record<string, string | number>) => tr(dict, key, vars);
   return (
     <div className="card">
       <div className="row" style={{ justifyContent: "space-between", alignItems: "center" }}>
-        <h3 className="subtitle">Media ({media.length})</h3>
+        <h3 className="subtitle">{t("profile.media", { count: media.length })}</h3>
         <MediaDownloadAll files={(media as any[]).map((m: any) => ({ url: String(m.url), caption: String(m.caption ?? "") }))} />
       </div>
-      {media.length === 0 ? <p className="muted small">No photos or media yet — add them from the Check-in flow or newsfeed.</p> : null}
+      {media.length === 0 ? <p className="muted small">{t("profile.noMedia")}</p> : null}
       <div className="row" style={{ gap: 10, flexWrap: "wrap" }}>
         {media.map((m: any) => (
           <a key={m.id} href={m.url} target="_blank" rel="noreferrer" style={{ display: "block", width: 120, height: 120, borderRadius: 10, overflow: "hidden", border: "1px solid var(--color-border)" }}>
@@ -407,46 +406,49 @@ function mediaTab(media: any[]) {
   );
 }
 
-function documentsTab(consents: any[]) {
+function documentsTab(consents: any[], dict: any) {
+  const t = (key: string, vars?: Record<string, string | number>) => tr(dict, key, vars);
   return (
     <div className="card">
-      <h3 className="subtitle">Signed documents &amp; consents</h3>
-      {consents.length === 0 ? <p className="muted small">No documents yet.</p> : null}
+      <h3 className="subtitle">{t("profile.signedDocuments")}</h3>
+      {consents.length === 0 ? <p className="muted small">{t("profile.noDocuments")}</p> : null}
       {consents.map((c: any) => (
         <div className="list-item small" key={c.id}>
           <div><strong>{c.title}</strong><br /><span className="muted">{fmtDate(c.created_at)} — {c.description ?? ""}</span></div>
-          <span className="badge badge-green">{c.consentee_name ? `Signed · ${c.consentee_name}` : cap(c.status ?? "open")}</span>
+          <span className="badge badge-green">{c.consentee_name ? t("profile.signed", { name: c.consentee_name }) : cap(c.status ?? "open")}</span>
         </div>
       ))}
     </div>
   );
 }
 
-function schedulesTab(child: any) {
+function schedulesTab(child: any, dict: any) {
+  const t = (key: string, vars?: Record<string, string | number>) => tr(dict, key, vars);
   return (
     <div className="card">
-      <h3 className="subtitle">Schedules <span className="badge badge-gray">Beta</span></h3>
-      <p className="muted small">Daycare schedules (daily routine, nap times, feeding plan) for {child.first_name} ship in a beta iteration. Room routines already follow the daily report above.</p>
+      <h3 className="subtitle">{t("profile.schedules")} <span className="badge badge-gray">{t("profile.beta")}</span></h3>
+      <p className="muted small">{t("profile.scheduleHint", { name: child.first_name })}</p>
     </div>
   );
 }
 
-function invoicesTab(child: any, billing: any[]) {
+function invoicesTab(child: any, billing: any[], dict: any) {
+  const t = (key: string, vars?: Record<string, string | number>) => tr(dict, key, vars);
   const totals = billing.reduce((acc: any, b: any) => acc + Number(b.amount ?? 0), 0);
   const overdue = billing.filter((b: any) => b.status === "overdue").length;
   return (
     <div className="card">
       <div className="row" style={{ justifyContent: "space-between", alignItems: "center" }}>
-        <h3 className="subtitle">Invoices</h3>
-        <Link href={`/portal/children/${child.id}/billing`} className="btn btn-accent small">Manage billing</Link>
+        <h3 className="subtitle">{t("profile.invoices")}</h3>
+        <Link href={`/portal/children/${child.id}/billing`} className="btn btn-accent small">{t("profile.manageBilling")}</Link>
       </div>
       <p className="small">
-        <strong>{billing.length}</strong> invoices · total <strong>AED {totals.toFixed(2)}</strong> · {overdue} overdue
+        {t("profile.invoiceSummary", { count: billing.length, total: `AED ${totals.toFixed(2)}`, overdue })}
       </p>
-      {billing.length === 0 ? <p className="muted small">No invoices yet.</p> : null}
+      {billing.length === 0 ? <p className="muted small">{t("profile.noInvoices")}</p> : null}
       {billing.map((b: any) => (
         <div className="list-item small" key={b.id}>
-          <div><strong>{b.period ?? "Invoice"}</strong><br /><span className="muted">{b.reference ?? b.id}</span></div>
+          <div><strong>{b.period ?? t("profile.invoice")}</strong><br /><span className="muted">{b.reference ?? b.id}</span></div>
           <div style={{ textAlign: "right" }}>
             <strong>AED {Number(b.amount ?? 0).toFixed(2)}</strong><br />
             <span className={`badge ${b.status === "paid" || b.status === "approved" ? "badge-green" : b.status === "overdue" ? "badge-red" : "badge-gray"}`}>{cap(b.status ?? "draft")}</span>
@@ -457,20 +459,21 @@ function invoicesTab(child: any, billing: any[]) {
   );
 }
 
-function learningTab(child: any, areas: any[], observations: any[], byName: string) {
+function learningTab(child: any, areas: any[], observations: any[], byName: string, dict: any, locale: string) {
+  const t = (key: string, vars?: Record<string, string | number>) => tr(dict, key, vars);
   return (
     <div className="grid">
       <div className="card">
         <div className="row" style={{ justifyContent: "space-between", alignItems: "center" }}>
-          <h3 className="subtitle">Learning history</h3>
-          <Link className="btn btn-ghost small" href={`/portal/children/${child.id}/development`}>Full development →</Link>
+          <h3 className="subtitle">{t("profile.learningHistory")}</h3>
+          <Link className="btn btn-ghost small" href={`/portal/children/${child.id}/development`}>{t("profile.fullDevelopment")}</Link>
         </div>
-        {observations.length === 0 ? <p className="muted small">No observations yet.</p> : null}
+        {observations.length === 0 ? <p className="muted small">{t("profile.noObservationsYet")}</p> : null}
         {observations.slice(0, 6).map((o: any) => (
           <div className="list-item small" key={o.id}>
             <div>
               <span className="badge">{cap(o.kind)}</span>{" "}
-              <strong>{o.title ?? "Observation"}</strong>
+              <strong>{o.title ?? t("learning.observation")}</strong>
               <span className="muted"> · {fmtDate(o.recorded_at ?? o.created_at)}</span>
               {o.milestone_name && <div className="mt-1"><span className="badge badge-green">{o.milestone_name}</span></div>}
               {o.body ? <div className="muted mt-1">{o.body}</div> : null}
@@ -479,36 +482,38 @@ function learningTab(child: any, areas: any[], observations: any[], byName: stri
         ))}
       </div>
       <div className="card">
-        <h3 className="subtitle">New observation</h3>
-        <p className="small muted">Attach curriculum goals from the Egyptian kindergarten curriculum.</p>
+        <h3 className="subtitle">{t("profile.logObservation")}</h3>
+        <p className="small muted">{t("profile.learningHint")}</p>
         <ObservationModalTrigger
           children={[child]}
           areas={areas}
           byName={byName}
           defaultChildId={String(child.id)}
-          trigger={<button type="button" className="btn btn-primary small">Log observation</button>}
+          locale={locale as any}
+          dict={dict}
         />
       </div>
     </div>
   );
 }
 
-function incidentsTab(child: any, incidents: any[]) {
+function incidentsTab(child: any, incidents: any[], dict: any) {
+  const t = (key: string, vars?: Record<string, string | number>) => tr(dict, key, vars);
   return (
     <div className="grid">
       <div className="card">
-        <h3 className="subtitle">Incidents &amp; accidents</h3>
-        {incidents.length === 0 ? <p className="muted small">None.</p> : null}
+        <h3 className="subtitle">{t("profile.incidentsAndAccidents")}</h3>
+        {incidents.length === 0 ? <p className="muted small">{t("profile.noneIncident")}</p> : null}
         {incidents.map((i: any) => (
           <div className="list-item small" key={i.id}>
             <div><strong>{cap(i.type)}</strong> — {new Date(i.created_at).toDateString()}<br /><span className="muted">{i.description}</span></div>
             <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 6 }}>
-              <span className={i.acknowledged ? "badge badge-green" : "badge badge-red"}>{i.acknowledged ? "Acked" : "Open"}</span>
+              <span className={i.acknowledged ? "badge badge-green" : "badge badge-red"}>{i.acknowledged ? t("profile.acked") : t("profile.open")}</span>
               {!i.acknowledged && (
                 <form action={acknowledgeIncidentAction}>
                   <input type="hidden" name="id" value={String(i.id)} />
                   <input type="hidden" name="portal" value="1" />
-                  <button className="btn btn-ghost small" type="submit">Acknowledge</button>
+                  <button className="btn btn-ghost small" type="submit">{t("profile.acknowledge")}</button>
                 </form>
               )}
             </div>
@@ -516,14 +521,14 @@ function incidentsTab(child: any, incidents: any[]) {
         ))}
       </div>
       <div className="card">
-        <h3 className="subtitle">Log incident</h3>
+        <h3 className="subtitle">{t("profile.logIncidentTitle")}</h3>
         <form action={createIncidentAction}>
           <input type="hidden" name="childId" value={child.id as string} />
-          <div className="field"><label className="label">Type</label>
-            <select className="select" name="type"><option value="incident">Incident</option><option value="accident">Accident</option></select>
+          <div className="field"><label className="label">{t("profile.type")}</label>
+            <select className="select" name="type"><option value="incident">{t("profile.incident")}</option><option value="accident">{t("profile.accident")}</option></select>
           </div>
-          <div className="field"><label className="label">Description</label><textarea className="textarea" name="description" required /></div>
-          <button className="btn btn-danger" type="submit">Log incident</button>
+          <div className="field"><label className="label">{t("common.description")}</label><textarea className="textarea" name="description" required /></div>
+          <button className="btn btn-danger" type="submit">{t("profile.logIncidentBtn")}</button>
         </form>
       </div>
     </div>
@@ -539,8 +544,28 @@ function time(v?: unknown): string {
   if (!v) return "—";
   return new Date(String(v)).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 }
-function displayValue(kind: string, value: string): string {
-  if (kind === "sick" && value === "yes") return "Feeling sick";
-  if (kind === "sick" && value === "no") return "All good";
-  return value.charAt(0).toUpperCase() + value.slice(1);
+function displayValue(kind: string, value: string, t: any): string {
+  if (kind === "sick" && value === "yes") return t("child.feelingSick");
+  if (kind === "sick" && value === "no") return t("child.allGood");
+  if (kind === "mood") return mo(t, value as any);
+  if (kind === "diaper") return di(t, value as any);
+  if (kind === "sleep") return value === "Fell asleep" || value === "Woke up" ? value : cap(value);
+  return cap(value);
+}
+function mo(t: any, value: string): string {
+  if (value === "happy" || value === "okay" || value === "fussy" || value === "tired") return t(`profile.${value}`);
+  return cap(value);
+}
+function di(t: any, value: string): string {
+  if (value === "wet") return t("profile.wet");
+  if (value === "soiled") return t("profile.soiled");
+  if (value === "dry") return t("profile.dryCheck");
+  return cap(value);
+}
+function kindName(kind: string, t: any): string {
+  if (kind === "mood") return t("child.mood");
+  if (kind === "sleep") return t("child.sleep");
+  if (kind === "diaper") return t("child.diaper");
+  if (kind === "sick") return t("child.sickToday");
+  return cap(kind);
 }

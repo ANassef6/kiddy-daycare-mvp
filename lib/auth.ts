@@ -131,6 +131,10 @@ export async function setPin(accountId: string, pin: string): Promise<void> {
   await queryRun("UPDATE account SET pin = ? WHERE id = ?", crypto.createHash("sha256").update(pin).digest("hex"), accountId);
 }
 
+export async function setAccountLanguage(accountId: string, language: string): Promise<void> {
+  await queryRun("UPDATE account SET language = ? WHERE id = ?", language, accountId);
+}
+
 export async function findAccountByEmail(email: string): Promise<DbRow | undefined> {
   return (await queryGet(`SELECT ${ACCOUNT_SELECT} FROM account WHERE email = ?`, email.toLowerCase())) as DbRow | undefined;
 }

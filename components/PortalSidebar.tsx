@@ -3,76 +3,84 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { usePathname } from "next/navigation";
+import { tr, type Dict, type Locale } from "@/lib/i18n";
 
 export type NavItem = { label: string; href: string };
 export type NavGroup = { label: string; href: string; items: NavItem[] };
 
 // Confirmed menu tree (founder, 2026-09-13): five top-level menus plus a
 // separate Settings (gear) for center configuration. Every sub-item maps to a
-// real route — nothing here may be a dead link.
-export const PORTAL_NAV: NavGroup[] = [
-  {
-    label: "Home",
-    href: "/portal/dashboard",
-    items: [
-      { label: "Dashboard", href: "/portal/dashboard" },
-      { label: "News feed", href: "/portal/newsfeed" },
-      { label: "Calendar", href: "/portal/calendar" },
-      { label: "Parent drive", href: "/portal/drive" },
-    ],
-  },
-  {
-    label: "Children",
-    href: "/portal/children",
-    items: [
-      { label: "Child profile", href: "/portal/children" },
-      { label: "Attendance", href: "/portal/attendance" },
-    ],
-  },
-  {
-    label: "Learning",
-    href: "/portal/learning",
-    items: [
-      { label: "Development", href: "/portal/learning" },
-      { label: "Activities", href: "/portal/learning/activities" },
-      { label: "Homework", href: "/portal/learning/homework" },
-    ],
-  },
-  {
-    label: "Staff",
-    href: "/portal/staff",
-    items: [
-      { label: "Staff profile", href: "/portal/staff" },
-      { label: "Staff schedule", href: "/portal/staff/schedule" },
-      { label: "Working hours", href: "/portal/staff/hours" },
-    ],
-  },
-  {
-    label: "Tools",
-    href: "/portal/report-center",
-    items: [
-      { label: "Report center", href: "/portal/report-center" },
-      { label: "Inquiries", href: "/portal/inquiries" },
-      { label: "Smart list", href: "/portal/tags" },
-      { label: "Smart form", href: "/portal/forms" },
-      { label: "Surveys", href: "/portal/surveys" },
-      { label: "Performance", href: "/portal/performance" },
-      { label: "Finance", href: "/portal/finance" },
-      { label: "Supplies", href: "/portal/supplies" },
-    ],
-  },
-];
+// real route — nothing here may be a dead link. Labels come from the active
+// locale dictionary (KID-57).
+export function portalNav(dict: Dict): NavGroup[] {
+  const t = (key: string) => tr(dict, key);
+  return [
+    {
+      label: t("nav.home"),
+      href: "/portal/dashboard",
+      items: [
+        { label: t("nav.dashboard"), href: "/portal/dashboard" },
+        { label: t("nav.newsFeed"), href: "/portal/newsfeed" },
+        { label: t("nav.calendar"), href: "/portal/calendar" },
+        { label: t("nav.parentDrive"), href: "/portal/drive" },
+      ],
+    },
+    {
+      label: t("nav.children"),
+      href: "/portal/children",
+      items: [
+        { label: t("nav.childProfile"), href: "/portal/children" },
+        { label: t("nav.attendance"), href: "/portal/attendance" },
+      ],
+    },
+    {
+      label: t("nav.learning"),
+      href: "/portal/learning",
+      items: [
+        { label: t("nav.development"), href: "/portal/learning" },
+        { label: t("nav.activities"), href: "/portal/learning/activities" },
+        { label: t("nav.homework"), href: "/portal/learning/homework" },
+      ],
+    },
+    {
+      label: t("nav.staff"),
+      href: "/portal/staff",
+      items: [
+        { label: t("nav.staffProfile"), href: "/portal/staff" },
+        { label: t("nav.staffSchedule"), href: "/portal/staff/schedule" },
+        { label: t("nav.workingHours"), href: "/portal/staff/hours" },
+      ],
+    },
+    {
+      label: t("nav.tools"),
+      href: "/portal/report-center",
+      items: [
+        { label: t("nav.reportCenter"), href: "/portal/report-center" },
+        { label: t("nav.inquiries"), href: "/portal/inquiries" },
+        { label: t("nav.smartList"), href: "/portal/tags" },
+        { label: t("nav.smartForm"), href: "/portal/forms" },
+        { label: t("nav.surveys"), href: "/portal/surveys" },
+        { label: t("nav.performance"), href: "/portal/performance" },
+        { label: t("nav.finance"), href: "/portal/finance" },
+        { label: t("nav.supplies"), href: "/portal/supplies" },
+      ],
+    },
+  ];
+}
 
 // Settings (center configuration) lives behind its own gear icon, separate from
 // the top-level menus.
-export const SETTINGS_NAV: NavGroup = {
-  label: "Settings",
-  href: "/portal/settings",
-  items: [
-    { label: "Center details", href: "/portal/settings" },
-    { label: "Rooms", href: "/portal/rooms" },
-  ],
-};
+export function portalSettingsNav(dict: Dict): NavGroup {
+  const t = (key: string) => tr(dict, key);
+  return {
+    label: t("nav.settings"),
+    href: "/portal/settings",
+    items: [
+      { label: t("nav.centerDetails"), href: "/portal/settings" },
+      { label: t("nav.rooms"), href: "/portal/rooms" },
+    ],
+  };
+}
 
 function matches(pathname: string, href: string): boolean {
   // Prefix match, so child pages stay highlighted under their menu item.
@@ -88,18 +96,19 @@ function activeIn(items: NavItem[], pathname: string): string {
   return hit.sort((a, b) => b.href.length - a.href.length)[0].href;
 }
 
-function PortalSettingsNav({ pathname }: { pathname: string }) {
+function PortalSettingsNav({ pathname, dict }: { pathname: string; dict: Dict }) {
   const [open, setOpen] = useState(false);
-  const group = SETTINGS_NAV;
+  const group = portalSettingsNav(dict);
   const activeHref = activeIn(group.items, pathname);
   const expanded = open || !!activeHref;
+  const t = (key: string) => tr(dict, key);
 
   return (
     <div className="portal-nav-settings">
       <button
         type="button"
         className={`portal-nav-settings-toggle${activeHref ? " active" : ""}`}
-        aria-label="Settings — center configuration"
+        aria-label={t("nav.settings")}
         aria-expanded={expanded}
         onClick={() => setOpen((prev) => !prev)}
       >
@@ -126,9 +135,10 @@ function PortalSettingsNav({ pathname }: { pathname: string }) {
   );
 }
 
-function PortalSidebarNav({ groups }: { groups: NavGroup[] }) {
+function PortalSidebarNav({ groups, dict }: { groups: NavGroup[]; dict: Dict }) {
   const pathname = usePathname();
   const [open, setOpen] = useState<Record<string, boolean>>({});
+  const t = (key: string) => tr(dict, key);
 
   // Keep the menu containing the current page expanded.
   const activeGroup = useMemo(
@@ -161,7 +171,7 @@ function PortalSidebarNav({ groups }: { groups: NavGroup[] }) {
                 <button
                   type="button"
                   className="portal-nav-toggle"
-                  aria-label={`${expanded ? "Collapse" : "Expand"} ${group.label}`}
+                  aria-label={`${expanded ? t("nav.collapse") : t("nav.expand")} ${group.label}`}
                   aria-expanded={expanded}
                   onClick={toggle(group.label)}
                 >
@@ -188,7 +198,7 @@ function PortalSidebarNav({ groups }: { groups: NavGroup[] }) {
           );
         })}
       </div>
-      <PortalSettingsNav pathname={pathname} />
+      <PortalSettingsNav pathname={pathname} dict={dict} />
     </>
   );
 }
@@ -196,10 +206,16 @@ function PortalSidebarNav({ groups }: { groups: NavGroup[] }) {
 export default function PortalSidebar({
   brandName,
   logoUrl,
+  locale,
+  dict,
 }: {
   brandName: string;
   logoUrl?: string | null;
+  locale: Locale;
+  dict: Dict;
 }) {
+  const t = (key: string) => tr(dict, key);
+  const groups = useMemo(() => portalNav(dict), [dict]);
   return (
     <aside className="shell-side">
       <Link href="/portal/dashboard" className="site-brand" style={{ textDecoration: "none" }}>
@@ -210,9 +226,9 @@ export default function PortalSidebar({
         <span className="brand">{brandName}</span>
       </Link>
       <div className="mt-4 d-flex-col">
-        <PortalSidebarNav groups={PORTAL_NAV} />
+        <PortalSidebarNav groups={groups} dict={dict} />
         <a href="/api/logout" className="small muted mt-3" style={{ display: "inline-block" }}>
-          Sign out
+          {t("nav.signOut")}
         </a>
       </div>
     </aside>

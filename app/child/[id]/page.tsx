@@ -14,11 +14,15 @@ import { CheckInButton } from "@/components/CheckInButton";
 import Avatar from "@/components/Avatar";
 import { getBranding } from "@/lib/theme";
 import { toggleLikeAction } from "@/lib/actions";
+import { i18nForAccount } from "@/lib/i18n-session";
+import { tr } from "@/lib/i18n";
 
 export const dynamic = "force-dynamic";
 
 export default async function ChildDetailPage({ params }: { params: { id: string } }) {
   const session = requireSession();
+  const { dict } = await i18nForAccount(session.accountId);
+  const t = (key: string, vars?: Record<string, string | number>) => tr(dict, key, vars);
   const child = await getChild(params.id);
   if (!child) notFound();
 
@@ -39,7 +43,7 @@ export default async function ChildDetailPage({ params }: { params: { id: string
 
   return (
     <div>
-      <Link className="small muted" href="/child">← My children</Link>
+      <Link className="small muted" href="/child">← {t("child.backToChildren")}</Link>
 
       <div className="card mt-3">
         <div className="status-card">
@@ -50,39 +54,39 @@ export default async function ChildDetailPage({ params }: { params: { id: string
               <div style={{ fontWeight: 800, fontSize: 22 }}>
                 {child.first_name} {child.last_name}
               </div>
-              <div className="muted small">{child.dob ?? "No DOB"} · {child.room_name ?? "No room"}</div>
+              <div className="muted small">{child.dob ?? t("child.noDob")} · {child.room_name ?? t("child.noRoom")}</div>
             </div>
           </div>
           {checkedIn ? (
-            <span className="badge badge-green">Checked in</span>
+            <span className="badge badge-green">{t("attendees.checkedIn")}</span>
           ) : (
-            <span className="badge">Not checked in yet</span>
+            <span className="badge">{t("attendees.notCheckedInYet")}</span>
           )}
         </div>
 
         <div className="mt-4">
-          <CheckInButton childId={child.id as string} checkedIn={checkedIn} />
+          <CheckInButton childId={child.id as string} checkedIn={checkedIn} dict={dict} />
         </div>
 
         {status.lastEvent && (
           <p className="muted small mt-2">
-            {status.checkedIn && `Checked in at ${time(status.checkedIn.recorded_at)}`}
+            {status.checkedIn && t("attendees.checkedInAt", { time: time(status.checkedIn.recorded_at) })}
             {status.checkedIn && status.checkedOut && " · "}
-            {status.checkedOut && `Checked out at ${time(status.checkedOut.recorded_at)}`}
+            {status.checkedOut && t("attendees.checkedOutAt", { time: time(status.checkedOut.recorded_at) })}
           </p>
         )}
       </div>
 
-      <h2 className="title mt-5">Today&apos;s updates</h2>
+      <h2 className="title mt-5">{t("child.todaysUpdates")}</h2>
       {statuses.length === 0 ? (
-        <p className="muted small">No status updates posted yet today.</p>
+        <p className="muted small">{t("child.noUpdatesYet")}</p>
       ) : (
         <div className="card" style={{ display: "flex", flexDirection: "column", gap: 8 }}>
           {statuses.map((s: any) => (
             <div className="list-item small" key={s.id}>
-              <span className={`status-chip status-chip-${String(s.kind)}`}>{capital(s.kind)}</span>
+              <span className={`status-chip status-chip-${String(s.kind)}`}>{kindLabel(String(s.kind))}</span>
               <div>
-                <strong>{statusValue(String(s.kind), String(s.value))}</strong>
+                <strong>{statusValue(String(s.kind), String(s.value), t)}</strong>
                 {s.note ? <span className="muted"> — {s.note}</span> : null}
               </div>
               <span className="muted">{time(s.recorded_at)}</span>
@@ -91,35 +95,35 @@ export default async function ChildDetailPage({ params }: { params: { id: string
         </div>
       )}
 
-      <h2 className="title mt-5">Today&apos;s report</h2>
+      <h2 className="title mt-5">{t("child.todaysReport")}</h2>
       {report ? (
         <div className="card">
           {report.mood && (
-            <p className="small"><strong>Mood:</strong> {capital(report.mood)}</p>
+            <p className="small"><strong>{t("child.mood")}:</strong> {capital(report.mood)}</p>
           )}
           {report.summary && <p className="mt-2">{report.summary}</p>}
           {report.observation && (
-            <p className="muted small mt-2"><strong>Observation:</strong> {report.observation}</p>
+            <p className="muted small mt-2"><strong>{t("child.observation")}:</strong> {report.observation}</p>
           )}
           {meal?.breakfast || meal?.lunch || meal?.snack ? (
             <div className="row mt-3">
-              {meal.breakfast && (<div className="col card small"><strong>Breakfast</strong><div>{meal.breakfast}</div></div>)}
-              {meal.lunch && (<div className="col card small"><strong>Lunch</strong><div>{meal.lunch}</div></div>)}
-              {meal.snack && (<div className="col card small"><strong>Snack</strong><div>{meal.snack}</div></div>)}
+              {meal.breakfast && (<div className="col card small"><strong>{t("child.breakfast")}</strong><div>{meal.breakfast}</div></div>)}
+              {meal.lunch && (<div className="col card small"><strong>{t("child.lunch")}</strong><div>{meal.lunch}</div></div>)}
+              {meal.snack && (<div className="col card small"><strong>{t("child.snack")}</strong><div>{meal.snack}</div></div>)}
             </div>
           ) : null}
-          {sleep && <p className="muted small mt-2"><strong>Sleep:</strong> {sleep}</p>}
-          {report.diaper && <p className="muted small mt-2"><strong>Diaper:</strong> {report.diaper}</p>}
-          {report.sick ? <p className="muted small mt-2" style={{ color: "#b91c1c" }}><strong>Sick today</strong></p> : null}
-          {report.note && <p className="muted small mt-2"><strong>Note:</strong> {report.note}</p>}
+          {sleep && <p className="muted small mt-2"><strong>{t("child.sleep")}:</strong> {sleep}</p>}
+          {report.diaper && <p className="muted small mt-2"><strong>{t("child.diaper")}:</strong> {report.diaper}</p>}
+          {report.sick ? <p className="muted small mt-2" style={{ color: "#b91c1c" }}><strong>{t("child.sickToday")}</strong></p> : null}
+          {report.note && <p className="muted small mt-2"><strong>{t("common.notes")}:</strong> {report.note}</p>}
         </div>
       ) : (
-        <p className="muted small">No report posted yet today.</p>
+        <p className="muted small">{t("child.noReportYet")}</p>
       )}
 
-      <h2 className="title mt-5">Newsfeed</h2>
+      <h2 className="title mt-5">{t("child.newsfeed")}</h2>
       {feed.length === 0 ? (
-        <p className="muted small">Nothing posted for {child.first_name} yet.</p>
+        <p className="muted small">{t("child.nothingPostedFor", { name: child.first_name })}</p>
       ) : (
         feed.map((post: any) => (
           <div className="card mb-4" key={post.id}>
@@ -131,7 +135,7 @@ export default async function ChildDetailPage({ params }: { params: { id: string
                   type="submit"
                   className={post.liked ? "badge badge-green" : "badge badge-gray"}
                   style={{ cursor: "pointer", border: "none", fontSize: 12 }}
-                  title={post.liked ? "Unlike" : "Like"}
+                  title={post.liked ? t("child.unlike") : t("child.like")}
                 >
                   {post.liked ? "♥" : "♡"} {post.like_count}
                 </button>
@@ -143,9 +147,9 @@ export default async function ChildDetailPage({ params }: { params: { id: string
         ))
       )}
 
-      <h2 className="title mt-5">Pickup &amp; contacts</h2>
+      <h2 className="title mt-5">{t("child.pickupContacts")}</h2>
       {contacts.length === 0 ? (
-        <p className="muted small">No contacts added.</p>
+        <p className="muted small">{t("child.noContacts")}</p>
       ) : (
         contacts.map((c: any) => (
           <div className="list-item" key={c.id}>
@@ -154,8 +158,8 @@ export default async function ChildDetailPage({ params }: { params: { id: string
               <div className="muted small">{c.phone}{c.email ? ` · ${c.email}` : ""}</div>
             </div>
             <div>
-              {c.is_pickup && <span className="badge">Pickup</span>}{" "}
-              {c.is_emergency && <span className="badge badge-red">Emergency</span>}
+              {c.is_pickup && <span className="badge">{t("child.pickup")}</span>}{" "}
+              {c.is_emergency && <span className="badge badge-red">{t("child.emergency")}</span>}
             </div>
           </div>
         ))
@@ -163,13 +167,13 @@ export default async function ChildDetailPage({ params }: { params: { id: string
 
       {incidents.length > 0 && (
         <>
-          <h2 className="title mt-5">Incident reports</h2>
+          <h2 className="title mt-5">{t("child.incidentReports")}</h2>
           {incidents.map((i: any) => (
             <div className="card mb-3" key={i.id}>
               <div className="small muted">{capital(i.type)} · {new Date(i.created_at).toLocaleString()}</div>
               <p className="mt-2">{i.description}</p>
               <span className={i.acknowledged ? "badge badge-green" : "badge badge-red"}>
-                {i.acknowledged ? "Acknowledged" : "Needs acknowledgement"}
+                {i.acknowledged ? t("child.acknowledged") : t("child.needsAcknowledgement")}
               </span>
             </div>
           ))}
@@ -197,8 +201,11 @@ function capitalize(s: string) {
 function capital(s: unknown) {
   return capitalize(String(s ?? ""));
 }
-function statusValue(kind: string, value: string): string {
-  if (kind === "sick" && value === "yes") return "Feeling sick";
-  if (kind === "sick" && value === "no") return "All good";
+function kindLabel(kind: string): string {
+  return capitalize(kind);
+}
+function statusValue(kind: string, value: string, t: (k: string, v?: Record<string, string | number>) => string): string {
+  if (kind === "sick" && value === "yes") return t("child.feelingSick");
+  if (kind === "sick" && value === "no") return t("child.allGood");
   return capitalize(value);
 }

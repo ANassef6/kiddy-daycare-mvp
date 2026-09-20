@@ -3,11 +3,15 @@ import { listInstitutes, getInstitute } from "@/lib/store";
 import { saveBrandingAction, saveCenterDetailsAction, uploadBrandingImageAction } from "@/lib/actions";
 import { brandingFromInstitute } from "@/lib/theme";
 import Avatar from "@/components/Avatar";
+import LanguageSettingsCard from "@/components/LanguageSettingsCard";
+import { i18nForAccount } from "@/lib/i18n-session";
+import { tr } from "@/lib/i18n";
 
 export const dynamic = "force-dynamic";
 
 export default async function PortalSettingsPage() {
-  requireSession();
+  const session = requireSession();
+  const { locale, dict } = await i18nForAccount(session.accountId);
   const institutes = await listInstitutes();
   const iid = institutes[0]?.id as string | undefined;
   const institute = iid ? await getInstitute(iid) : undefined;
@@ -15,20 +19,25 @@ export default async function PortalSettingsPage() {
 
   return (
     <div>
-      <h1 className="title">Settings — center configuration</h1>
+      <h1 className="title">{tr(dict, "settings.title")}</h1>
       <p className="subtitle">
-        Center details (name, contact, address) and the white-label branding. Rooms are managed on the
-        <a href="/portal/rooms" className="small" style={{ fontWeight: 600, marginLeft: 4 }}>Rooms</a> page.
+        {tr(dict, "settings.subtitle")}{" "}
+        <a href="/portal/rooms" className="small" style={{ fontWeight: 600, marginLeft: 4 }}>
+          {tr(dict, "settings.roomsPage")}
+        </a>
+        {tr(dict, "settings.subtitleTail")}
       </p>
 
+      <LanguageSettingsCard locale={locale} dict={dict} />
+
       <form className="card mb-4" action={saveCenterDetailsAction}>
-        <h3 className="subtitle">Center details</h3>
+        <h3 className="subtitle">{tr(dict, "settings.centerDetails")}</h3>
         <div className="row">
-          <div className="col field"><label className="label">Center name</label><input className="input" name="name" defaultValue={institute?.name ?? ""} placeholder="e.g. Sunshine Daycare" /></div>
-          <div className="col field"><label className="label">Contact</label><input className="input" name="contact" defaultValue={String(institute?.contact ?? "")} placeholder="Phone / email, e.g. +20 100 000 0000" /></div>
+          <div className="col field"><label className="label">{tr(dict, "settings.centerName")}</label><input className="input" name="name" defaultValue={institute?.name ?? ""} placeholder="e.g. Sunshine Daycare" /></div>
+          <div className="col field"><label className="label">{tr(dict, "settings.contact")}</label><input className="input" name="contact" defaultValue={String(institute?.contact ?? "")} placeholder="Phone / email, e.g. +20 100 000 0000" /></div>
         </div>
-        <div className="field"><label className="label">Address</label><input className="input" name="address" defaultValue={String(institute?.address ?? "")} placeholder="Street, district, city" /></div>
-        <button className="btn btn-primary" type="submit">Save center details</button>
+        <div className="field"><label className="label">{tr(dict, "settings.address")}</label><input className="input" name="address" defaultValue={String(institute?.address ?? "")} placeholder="Street, district, city" /></div>
+        <button className="btn btn-primary" type="submit">{tr(dict, "settings.saveCenterDetails")}</button>
       </form>
 
       <div className="card mb-4" style={{ background: `linear-gradient(135deg, ${b.primaryColor}, ${b.accentColor})`, color: "#fff" }}>
@@ -39,29 +48,33 @@ export default async function PortalSettingsPage() {
           )}
           <div>
             <div style={{ fontWeight: 800, fontSize: 22 }}>{b.name}</div>
-            <div className="small">Primary: {b.primaryColor} · Accent: {b.accentColor} · Font: {b.font}</div>
+            <div className="small">
+              {tr(dict, "settings.primary", { color: b.primaryColor })} ·{" "}
+              {tr(dict, "settings.accent", { color: b.accentColor })} ·{" "}
+              {tr(dict, "settings.font", { font: b.font })}
+            </div>
           </div>
         </div>
       </div>
 
       {/* #1 Logo upload */}
       <div className="card mb-4">
-        <h3 className="subtitle">Logo &amp; brand image</h3>
-        <p className="small muted">Upload a logo (displayed in headers and the login page) and a brand image.</p>
+        <h3 className="subtitle">{tr(dict, "settings.logoAndBrandImage")}</h3>
+        <p className="small muted">{tr(dict, "settings.logoHint")}</p>
         <div className="row mt-3">
           <div className="col">
-            <div className="label">Logo</div>
+            <div className="label">{tr(dict, "settings.logo")}</div>
             <div className="row" style={{ alignItems: "center", gap: 12 }}>
               <Avatar src={b.logoUrl} name={b.name} size={48} color={b.primaryColor} />
               <form action={uploadBrandingImageAction} style={{ display: "flex", gap: 8, alignItems: "center" }}>
                 <input type="hidden" name="kind" value="logo" />
                 <input type="file" name="file" accept="image/*" required style={{ fontSize: 13 }} />
-                <button className="btn btn-ghost" type="submit" style={{ fontSize: 13 }}>Upload</button>
+                <button className="btn btn-ghost" type="submit" style={{ fontSize: 13 }}>{tr(dict, "settings.upload")}</button>
               </form>
             </div>
           </div>
           <div className="col">
-            <div className="label">Brand image</div>
+            <div className="label">{tr(dict, "settings.brandImage")}</div>
             <div className="row" style={{ alignItems: "center", gap: 12 }}>
               {b.brandImageUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element
@@ -72,7 +85,7 @@ export default async function PortalSettingsPage() {
               <form action={uploadBrandingImageAction} style={{ display: "flex", gap: 8, alignItems: "center" }}>
                 <input type="hidden" name="kind" value="brandImage" />
                 <input type="file" name="file" accept="image/*" required style={{ fontSize: 13 }} />
-                <button className="btn btn-ghost" type="submit" style={{ fontSize: 13 }}>Upload</button>
+                <button className="btn btn-ghost" type="submit" style={{ fontSize: 13 }}>{tr(dict, "settings.upload")}</button>
               </form>
             </div>
           </div>
@@ -81,11 +94,11 @@ export default async function PortalSettingsPage() {
 
       <form className="card" action={saveBrandingAction}>
         <div className="row">
-          <div className="col field"><label className="label">Daycare name</label><input className="input" name="name" defaultValue={b.name} /></div>
-          <div className="col field"><label className="label">Primary color</label><input className="input" name="primaryColor" type="color" defaultValue={b.primaryColor} style={{ height: 44 }} /></div>
-          <div className="col field"><label className="label">Accent color</label><input className="input" name="accentColor" type="color" defaultValue={b.accentColor} style={{ height: 44 }} /></div>
+          <div className="col field"><label className="label">{tr(dict, "settings.daycareName")}</label><input className="input" name="name" defaultValue={b.name} /></div>
+          <div className="col field"><label className="label">{tr(dict, "settings.primaryColor")}</label><input className="input" name="primaryColor" type="color" defaultValue={b.primaryColor} style={{ height: 44 }} /></div>
+          <div className="col field"><label className="label">{tr(dict, "settings.accentColor")}</label><input className="input" name="accentColor" type="color" defaultValue={b.accentColor} style={{ height: 44 }} /></div>
         </div>
-        <div className="field"><label className="label">Font</label>
+        <div className="field"><label className="label">{tr(dict, "settings.fontLabel")}</label>
           <select className="select" name="font" defaultValue={b.font}>
             <option value="Inter">Inter</option>
             <option value="Nunito">Nunito</option>
@@ -93,7 +106,7 @@ export default async function PortalSettingsPage() {
             <option value="Georgia">Georgia</option>
           </select>
         </div>
-        <button className="btn btn-primary" type="submit">Save branding</button>
+        <button className="btn btn-primary" type="submit">{tr(dict, "settings.saveBranding")}</button>
       </form>
     </div>
   );

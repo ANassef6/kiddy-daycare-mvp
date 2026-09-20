@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import ObservationModal from "@/components/ObservationModal";
+import type { Locale, Dict } from "@/lib/i18n";
+import { tr } from "@/lib/i18n";
 
 type Props = {
   children: any[];
@@ -10,6 +12,8 @@ type Props = {
   defaultChildId?: string;
   defaultAgeGroup?: string;
   trigger?: React.ReactNode;
+  locale: Locale;
+  dict: Dict;
 };
 
 export default function ObservationModalTrigger({
@@ -19,12 +23,14 @@ export default function ObservationModalTrigger({
   defaultChildId,
   defaultAgeGroup,
   trigger,
+  locale,
+  dict,
 }: Props) {
   const [open, setOpen] = useState(false);
   return (
     <>
       <span onClick={() => setOpen(true)} style={{ cursor: "pointer", display: "inline-block" }}>
-        {trigger ?? <button type="button" className="btn btn-primary small">New observation</button>}
+        {trigger ?? <button type="button" className="btn btn-primary small">{tr(dict, "learning.newObservation")}</button>}
       </span>
       <ObservationModal
         children={children}
@@ -34,6 +40,8 @@ export default function ObservationModalTrigger({
         defaultAgeGroup={defaultAgeGroup}
         open={open}
         onClose={() => setOpen(false)}
+        locale={locale}
+        dict={dict}
       />
     </>
   );
