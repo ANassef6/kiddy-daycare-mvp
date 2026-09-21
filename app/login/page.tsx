@@ -6,14 +6,17 @@ import { loginAction } from "@/lib/actions";
 
 export default function LoginPage() {
   const [error, setError] = useState<string | null>(null);
+  const [confirmed, setConfirmed] = useState(false);
   const [brand, setBrand] = useState<{ name: string; logoUrl: string | null; primaryColor: string } | null>(null);
 
-  // Fetch branding on mount
+  // Fetch branding on mount and read query params
   if (typeof window !== "undefined" && !brand) {
     fetch("/api/branding")
       .then((r) => r.json())
       .then(setBrand)
       .catch(() => {});
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("confirmed") === "1") setConfirmed(true);
   }
 
   return (
@@ -27,6 +30,20 @@ export default function LoginPage() {
       </div>
       <h1 className="title mt-4">Sign in</h1>
       <p className="subtitle">Welcome back. Sign in to see your daycare&apos;s day.</p>
+      {confirmed && (
+        <div
+          className="small"
+          style={{
+            background: "#d1fae5",
+            border: "1px solid #10b981",
+            borderRadius: 8,
+            padding: "10px 12px",
+            marginBottom: 16,
+          }}
+        >
+          Your email is confirmed. You can now sign in.
+        </div>
+      )}
       <form
         className="card"
         action={async (fd) => {

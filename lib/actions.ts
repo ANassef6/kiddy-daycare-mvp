@@ -62,6 +62,7 @@ import {
 } from "@/lib/store";
 import type { WorkingWeek } from "@/lib/working-hours";
 import { supabaseConfigured, getSupabase } from "@/lib/supabase";
+import { requestOrigin } from "@/lib/url";
 
 const SESSION_COOKIE = "kiddy_sess";
 
@@ -168,7 +169,11 @@ export async function registerAction(formData: FormData) {
   let authUserId: string | null = null;
   let emailConfirmed = true;
   if (supabaseConfigured()) {
-    const { data, error } = await getSupabase().auth.signUp({ email, password });
+    const { data, error } = await getSupabase().auth.signUp({
+      email,
+      password,
+      options: { emailRedirectTo: `${requestOrigin()}/auth/confirm` },
+    });
     const isRateLimited = !!(
       error &&
       (error.code === "over_email_send_rate_limit" ||
@@ -221,12 +226,14 @@ export async function resendConfirmationAction() {
   return { ok: true };
 }
 
-function requestOrigin(): string {
-  const h = headers();
-  const host = h.get("host");
-  const proto = h.get("x-forwarded-proto") ?? "https";
-  if (!host) return "";
-  return `${proto}://${host}`;
+// Called by /auth/confirm after Supabase verifies the email token. Marks the
+// local account mirror as confirmed so password sign-in and the UI banner agree.
+export async function confirmEmailAction(email: string) {
+  const account = await findAccountByEmail(email);
+  if (account && !emailConfirmedFor(account)) {
+    await setEmailConfirmed(account.id, true);
+  }
+  return { ok: true };
 }
 
 // Forgot password: Supabase Auth sends the recovery email, and the /reset-password
@@ -478,7 +485,11 @@ export async function addStaffAction(formData: FormData) {
     // Best-effort GoTrue identity so the reset-password email flow works later.
     if (supabaseConfigured()) {
       try {
-        await getSupabase().auth.signUp({ email, password });
+        await getSupabase().auth.signUp({
+          email,
+          password,
+          options: { emailRedirectTo: `${requestOrigin()}/auth/confirm` },
+        });
       } catch {
         /* non-fatal: the app-side account still works */
       }
