@@ -1,16 +1,20 @@
 import Link from "next/link";
 import PortalSidebar from "@/components/PortalSidebar";
+import Avatar from "@/components/Avatar";
 import { requireSessionWithWithdrawalCheck } from "@/lib/require";
 import { isAdminRole } from "@/lib/role";
 import { getBranding } from "@/lib/theme";
 import { i18nForAccount } from "@/lib/i18n-session";
 import { tr } from "@/lib/i18n";
+import { accountProfile } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
 export default async function PortalLayout({ children }: { children: React.ReactNode }) {
   const session = await requireSessionWithWithdrawalCheck();
   const { locale, dict } = await i18nForAccount(session.accountId);
+  const profile = await accountProfile(session.accountId);
+  const displayName = profile.fullName || session.email;
   let logoUrl: string | null = null;
   let brandName = "Kiddy";
   try {
@@ -38,18 +42,17 @@ export default async function PortalLayout({ children }: { children: React.React
           </Link>
           <details className="portal-account">
             <summary className="portal-account-toggle" aria-label={tr(dict, "topbar.accountSettings")} title={session.email}>
-              <span className="portal-account-avatar" aria-hidden="true">
-                {session.email.charAt(0).toUpperCase()}
-              </span>
-              <span className="portal-account-name">{session.email}</span>
+              <Avatar src={profile.photoUrl} name={displayName} size={28} className="portal-account-avatar" />
+              <span className="portal-account-name">{displayName}</span>
             </summary>
             <div className="portal-account-menu">
               <div className="portal-account-meta">
                 <div className="portal-account-email">{session.email}</div>
                 <div className="small muted">{session.role}</div>
               </div>
+              <Link href="/portal/account" className="portal-account-link">{tr(dict, "topbar.accountSettings")}</Link>
               {isAdminRole(session.role) && (
-                <Link href="/portal/settings" className="portal-account-link">{tr(dict, "topbar.accountSettings")}</Link>
+                <Link href="/portal/settings" className="portal-account-link">{tr(dict, "topbar.centerSettings")}</Link>
               )}
               <Link href="/portal/support" className="portal-account-link">{tr(dict, "topbar.helpSupport")}</Link>
               <a href="/api/logout" className="portal-account-link">{tr(dict, "topbar.logout")}</a>

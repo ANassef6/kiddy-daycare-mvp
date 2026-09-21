@@ -1872,6 +1872,153 @@ export async function setNotificationPref(
   );
 }
 
+// ---- KID-107: unified recent-activity feed for the notification bell ----
+export type ActivityItem = {
+  id: string;
+  type: string;
+  title: string;
+  body?: string;
+  timestamp: string;
+  link: string;
+  meta?: string;
+};
+
+export async function recentActivityFeed(
+  instituteId: string,
+  accountId: string,
+  limit = 50
+): Promise<ActivityItem[]> {
+  const allowedRoomIds = await scopedRoomIds(instituteId, accountId);
+  const roomFilter =
+    allowedRoomIds === null
+      ? ""
+      : allowedRoomIds.length === 0
+        ? "AND 1=0"
+        : `AND c.room_id IN (${allowedRoomIds.map(() => "?").join(", ")})`;
+  const roomArgs = allowedRoomIds?.length ? [...allowedRoomIds] : [];
+
+  const since = new Date();
+  since.setDate(since.getDate() - 7);
+  const sinceIso = since.toISOString();
+
+  const [newsfeed, homework, supplies, billing, attendance, incidents] = await Promise.all([
+    listNewsfeed(instituteId, accountId),
+    listHomework(instituteId, accountId),
+    listSupplies(instituteId),
+    queryAll(
+      `SELECT cb.id, cb.description, cb.amount_cents, cb.currency, cb.status, cb.created_at,
+              c.first_name, c.last_name
+       FROM child_billing cb
+       JOIN child c ON c.id = cb.child_id
+       WHERE cb.institute_id = ? ${roomFilter}
+       ORDER BY cb.created_at DESC LIMIT ?`,
+      instituteId,
+      ...roomArgs,
+      limit
+    ),
+    queryAll(
+      `SELECT ci.id, ci.type, ci.recorded_at, c.first_name, c.last_name
+       FROM check_in ci
+       JOIN child c ON c.id = ci.child_id
+       WHERE c.institute_id = ? AND ci.recorded_at >= ? ${roomFilter}
+       ORDER BY ci.recorded_at DESC LIMIT ?`,
+      instituteId,
+      sinceIso,
+      ...roomArgs,
+      limit
+    ),
+    queryAll(
+      `SELECT ir.id, ir.type, ir.description, ir.created_at,
+              c.first_name, c.last_name, a.full_name AS reported_by
+       FROM incident_report ir
+       JOIN child c ON c.id = ir.child_id
+       JOIN account a ON a.id = ir.account_id
+       WHERE ir.institute_id = ? ${roomFilter}
+       ORDER BY ir.created_at DESC LIMIT ?`,
+      instituteId,
+      ...roomArgs,
+      limit
+    ),
+  ]);
+
+  const items: ActivityItem[] = [];
+
+  for (const n of newsfeed.slice(0, limit)) {
+    items.push({
+      id: String(n.id),
+      type: "newsfeed",
+      title: String(n.author_name ?? "Newsfeed"),
+      body: String(n.body ?? ""),
+      timestamp: String(n.created_at),
+      link: "/portal/newsfeed",
+      meta: `${n.comment_count ?? 0} comments · ${n.like_count ?? 0} likes`,
+    });
+  }
+
+  for (const h of homework.slice(0, limit)) {
+    items.push({
+      id: String(h.id),
+      type: "homework",
+      title: String(h.title),
+      body: String(h.description ?? ""),
+      timestamp: String(h.created_at),
+      link: "/portal/learning/homework",
+      meta: h.due_date ? `Due ${String(h.due_date).slice(0, 10)}` : undefined,
+    });
+  }
+
+  for (const s of supplies.slice(0, limit)) {
+    items.push({
+      id: String(s.id),
+      type: "supplies",
+      title: `Supplies: ${String(s.title)}`,
+      body: `${s.quantity ?? 1} ${String(s.unit ?? "pcs")}${s.notes ? ` — ${String(s.notes)}` : ""}`,
+      timestamp: String(s.created_at),
+      link: "/portal/supplies",
+      meta: `Status: ${String(s.status ?? "needed")}`,
+    });
+  }
+
+  for (const b of billing.slice(0, limit)) {
+    const amount = Number(b.amount_cents ?? 0) / 100;
+    items.push({
+      id: String(b.id),
+      type: "billing",
+      title: `Billing: ${String(b.description)}`,
+      body: `${b.first_name} ${b.last_name}`,
+      timestamp: String(b.created_at),
+      link: "/portal/finance",
+      meta: `${amount.toFixed(2)} ${String(b.currency ?? "CAD")} · ${String(b.status ?? "pending")}`,
+    });
+  }
+
+  for (const a of attendance.slice(0, limit)) {
+    items.push({
+      id: String(a.id),
+      type: "attendance",
+      title: `${a.type === "in" ? "Checked in" : "Checked out"}: ${a.first_name} ${a.last_name}`,
+      timestamp: String(a.recorded_at),
+      link: "/portal/attendance",
+      meta: new Date(String(a.recorded_at)).toLocaleString(),
+    });
+  }
+
+  for (const i of incidents.slice(0, limit)) {
+    items.push({
+      id: String(i.id),
+      type: "incidents",
+      title: `Incident: ${i.first_name} ${i.last_name}`,
+      body: String(i.description ?? ""),
+      timestamp: String(i.created_at),
+      link: "/portal/incidents",
+      meta: `Reported by ${String(i.reported_by ?? "")}`,
+    });
+  }
+
+  items.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+  return items.slice(0, limit);
+}
+
 // ---- KID-47 Round 6: shareable form links (#26) ----
 export async function ensureFormShareToken(formId: string): Promise<string> {
   const existing = await queryGet("SELECT share_token FROM form_template WHERE id = ?", formId);

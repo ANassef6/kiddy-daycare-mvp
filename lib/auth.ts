@@ -143,6 +143,31 @@ export async function getAccount(accountId: string): Promise<DbRow | undefined> 
   return (await queryGet(`SELECT ${ACCOUNT_SELECT} FROM account WHERE id = ?`, accountId)) as DbRow | undefined;
 }
 
+export async function accountProfile(accountId: string): Promise<{
+  accountId: string;
+  email: string;
+  fullName: string;
+  role: string;
+  staffId?: string;
+  photoUrl?: string | null;
+}> {
+  const row = await queryGet(
+    `SELECT a.id, a.email, a.full_name, a.role, a.staff_id, s.photo_url
+     FROM account a
+     LEFT JOIN staff s ON s.id = a.staff_id
+     WHERE a.id = ?`,
+    accountId
+  );
+  return {
+    accountId,
+    email: row?.email ? String(row.email) : "",
+    fullName: row?.full_name ? String(row.full_name) : "",
+    role: row?.role ? String(row.role) : "",
+    staffId: row?.staff_id ? String(row.staff_id) : undefined,
+    photoUrl: row?.photo_url ? String(row.photo_url) : null,
+  };
+}
+
 export async function staffIdForAccount(accountId: string): Promise<string | undefined> {
   const row = await queryGet("SELECT staff_id FROM account WHERE id = ?", accountId);
   return row?.staff_id ? String(row.staff_id) : undefined;

@@ -77,10 +77,12 @@ export function portalNav(dict: Dict, role?: string): NavGroup[] {
 }
 
 // Settings (center configuration) lives behind its own gear icon, separate from
-// the top-level menus.
+// the top-level menus. KID-107: account settings is reachable for all portal
+// users; center details remain admin-only.
 export function portalSettingsNav(dict: Dict, role?: string): NavGroup {
   const t = (key: string) => tr(dict, key);
   const items: NavItem[] = [];
+  items.push({ label: t("nav.account"), href: "/portal/account" });
   // KID-105 #15: Center details is admin-only.
   if (isAdminRole(role ?? "")) {
     items.push({ label: t("nav.centerDetails"), href: "/portal/settings" });

@@ -391,7 +391,7 @@ export async function saveLanguageAction(formData: FormData) {
     maxAge: 30 * 24 * 3600,
   });
   revalidatePath("/", "layout");
-  redirect(homeForRole(me.role) === "/child" ? "/child" : "/portal/settings");
+  redirect(homeForRole(me.role) === "/child" ? "/child" : "/portal/account");
 }
 
 export async function checkInOutAction(formData: FormData) {
@@ -1227,6 +1227,38 @@ export async function uploadPhotoAction(formData: FormData) {
   redirect(entityType === "child" ? `/portal/children/${entityId}` : "/portal/staff");
 }
 
+// KID-107: staff upload their own photo from Account Settings.
+export async function uploadAccountPhotoAction(formData: FormData) {
+  await ensureSchema();
+  const me = authAccount();
+  const staffId = String(formData.get("staffId") ?? "");
+  const file = formData.get("file") as File | null;
+  if (!file || file.size === 0 || !staffId) {
+    redirect("/portal/account");
+  }
+  // Staff may only update their own linked profile.
+  const myStaffId = await staffIdForAccount(me.accountId);
+  if (!myStaffId || myStaffId !== staffId) {
+    redirect("/portal/account");
+  }
+
+  const ext = file.name.split(".").pop() || "jpg";
+  const filename = `staff/${staffId}/photo-${Date.now()}.${ext}`;
+
+  const { supabaseConfigured, getSupabase } = await import("@/lib/supabase");
+  if (supabaseConfigured()) {
+    const supabase = getSupabase();
+    const { error } = await supabase.storage
+      .from("kiddy-public")
+      .upload(filename, file, { contentType: file.type, upsert: true });
+    if (!error) {
+      const { data: urlData } = supabase.storage.from("kiddy-public").getPublicUrl(filename);
+      await updateStaffPhoto(staffId, urlData.publicUrl);
+    }
+  }
+  redirect("/portal/account");
+}
+
 // KID-55 #5: edit child's details from the About tab.
 export async function updateChildDetailsAction(formData: FormData) {
   await ensureSchema();
@@ -1472,7 +1504,7 @@ export async function deleteStaffScheduleAction(formData: FormData) {
   redirect("/portal/staff/schedule");
 }
 
-// ---- KID-47 Round 6: notification prefs (#28) ----
+// ---- KID-47 Round 6 / KID-107: notification prefs live on Account Settings ----
 export async function saveNotificationPrefsAction(formData: FormData) {
   const me = authAccount();
   await ensureSchema();
@@ -1483,7 +1515,7 @@ export async function saveNotificationPrefsAction(formData: FormData) {
       await setNotificationPref(me.accountId, activity, channel, formData.get(key) === "on");
     }
   }
-  redirect("/portal/notifications?saved=1");
+  redirect("/portal/account?saved=1");
 }
 
 // ---- KID-47 Round 6: shareable form link (#26) ----

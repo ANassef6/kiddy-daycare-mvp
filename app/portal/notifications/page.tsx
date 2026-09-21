@@ -1,51 +1,79 @@
+import Link from "next/link";
 import { requireSession } from "@/lib/require";
-import { getNotificationPrefs, NOTIFICATION_ACTIVITIES } from "@/lib/store";
-import { saveNotificationPrefsAction } from "@/lib/actions";
+import { i18nForAccount } from "@/lib/i18n-session";
+import { tr } from "@/lib/i18n";
+import { listInstitutes, recentActivityFeed, type ActivityItem } from "@/lib/store";
 
 export const dynamic = "force-dynamic";
 
-const LABELS: Record<string, string> = {
-  newsfeed: "Newsfeed posts",
-  homework: "Homework",
-  supplies: "Supplies",
-  billing: "Billing",
-  attendance: "Attendance",
-  incidents: "Incidents",
-  messages: "Messages",
+const TYPE_ICONS: Record<string, string> = {
+  newsfeed: "📰",
+  homework: "📝",
+  supplies: "📦",
+  billing: "💳",
+  attendance: "⏰",
+  incidents: "⚠️",
 };
 
-export default async function PortalNotificationsPage({ searchParams }: { searchParams: { saved?: string } }) {
+function ActivityRow({ item, dict }: { item: ActivityItem; dict: any }) {
+  const when = new Date(item.timestamp);
+  const timeAgo = formatTimeAgo(when);
+  return (
+    <div className="list-item" style={{ alignItems: "flex-start", gap: 12 }}>
+      <span style={{ fontSize: 20 }} aria-hidden="true">{TYPE_ICONS[item.type] ?? "•"}</span>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div className="row" style={{ justifyContent: "space-between", gap: 8 }}>
+          <Link href={item.link} className="small" style={{ fontWeight: 700, color: "var(--brand-primary)" }}>
+            {item.title}
+          </Link>
+          <span className="small muted" title={when.toLocaleString()}>{timeAgo}</span>
+        </div>
+        {item.body && <p className="small muted" style={{ margin: "4px 0 0", whiteSpace: "pre-line" }}>{item.body}</p>}
+        {item.meta && <div className="small muted mt-1">{item.meta}</div>}
+      </div>
+    </div>
+  );
+}
+
+function formatTimeAgo(when: Date): string {
+  const now = new Date();
+  const diffMs = now.getTime() - when.getTime();
+  const diffMin = Math.floor(diffMs / 60000);
+  const diffHour = Math.floor(diffMin / 60);
+  const diffDay = Math.floor(diffHour / 24);
+  if (diffMin < 1) return "just now";
+  if (diffMin < 60) return `${diffMin}m ago`;
+  if (diffHour < 24) return `${diffHour}h ago`;
+  if (diffDay < 7) return `${diffDay}d ago`;
+  return when.toLocaleDateString();
+}
+
+export default async function PortalNotificationsPage() {
   const session = requireSession();
-  const prefs = await getNotificationPrefs(session.accountId);
-  const on = (activity: string, channel: string) => {
-    const hit = (prefs as any[]).find((p) => p.activity === activity && p.channel === channel);
-    return hit ? Number(hit.enabled) !== 0 : channel === "inapp";
-  };
+  const { dict } = await i18nForAccount(session.accountId);
+  const institutes = await listInstitutes();
+  const iid = institutes[0]?.id as string | undefined;
+  const feed = iid ? await recentActivityFeed(String(iid), session.accountId, 50) : [];
 
   return (
     <div>
       <div className="row" style={{ alignItems: "center", justifyContent: "space-between" }}>
-        <h1 className="title">Notifications</h1>
-        <a className="btn btn-ghost small" href="/portal/messages">Open messaging center →</a>
+        <h1 className="title">{tr(dict, "notifications.title")}</h1>
+        <Link className="btn btn-ghost small" href="/portal/account">{tr(dict, "notifications.managePrefs")}</Link>
       </div>
-      <p className="subtitle">Customize how (email / in-app) and for which activities you get notified.</p>
-      {searchParams.saved && <div className="card mb-4" role="status"><strong>Preferences saved.</strong></div>}
+      <p className="subtitle">{tr(dict, "notifications.subtitle")}</p>
 
-      <form className="card" action={saveNotificationPrefsAction}>
-        <table className="data">
-          <thead><tr><th>Activity</th><th>Email</th><th>In-app</th></tr></thead>
-          <tbody>
-            {(NOTIFICATION_ACTIVITIES as readonly string[]).map((a) => (
-              <tr key={a}>
-                <td style={{ fontWeight: 600 }}>{LABELS[a] ?? a}</td>
-                <td><input type="checkbox" name={`${a}_email`} defaultChecked={on(a, "email")} /></td>
-                <td><input type="checkbox" name={`${a}_inapp`} defaultChecked={on(a, "inapp")} /></td>
-              </tr>
+      <div className="card">
+        {feed.length === 0 ? (
+          <p className="muted">{tr(dict, "notifications.noActivity")}</p>
+        ) : (
+          <div>
+            {feed.map((item) => (
+              <ActivityRow key={`${item.type}-${item.id}`} item={item} dict={dict} />
             ))}
-          </tbody>
-        </table>
-        <button className="btn btn-primary mt-3" type="submit">Save preferences</button>
-      </form>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
