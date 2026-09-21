@@ -1,4 +1,6 @@
 import { requireSession } from "@/lib/require";
+import { staffIdForAccount } from "@/lib/auth";
+import { isAdminRole } from "@/lib/role";
 import { listStaff, listStaffSchedules } from "@/lib/store";
 import { firstInstituteId, cap } from "@/lib/helpers";
 import { createStaffScheduleAction, deleteStaffScheduleAction } from "@/lib/actions";
@@ -11,10 +13,20 @@ const DAYS = [
 ];
 
 export default async function PortalStaffSchedulePage() {
-  requireSession();
+  const session = requireSession();
   const instituteId = await firstInstituteId();
   if (!instituteId) return <p className="muted">No institute configured.</p>;
-  const staff = await listStaff(instituteId);
+
+  // KID-105 #13: staff sees only their own schedule.
+  let staff: any[];
+  if (isAdminRole(session.role)) {
+    staff = await listStaff(instituteId);
+  } else {
+    const myStaffId = await staffIdForAccount(session.accountId);
+    const me = myStaffId ? (await listStaff(instituteId)).find((s: any) => String(s.id) === myStaffId) : undefined;
+    staff = me ? [me] : [];
+  }
+
   const schedules = await Promise.all(staff.map((s: any) => listStaffSchedules(s.id)));
   const byStaff: Record<string, any[]> = {};
   staff.forEach((s: any, i: number) => { byStaff[String(s.id)] = schedules[i] as any[]; });

@@ -1,16 +1,27 @@
 import { requireSession } from "@/lib/require";
+import { staffIdForAccount } from "@/lib/auth";
+import { isAdminRole } from "@/lib/role";
 import { listInstitutes, listStaff, staffRooms, getInstitute } from "@/lib/store";
 import { cap, safeJson } from "@/lib/helpers";
 
 export const dynamic = "force-dynamic";
 
 export default async function PortalStaffHoursPage() {
-  requireSession();
+  const session = requireSession();
   const institutes = await listInstitutes();
   const iid = institutes[0]?.id as string | undefined;
-  const [staff] = await Promise.all([
-    iid ? listStaff(iid) : Promise.resolve([]),
-  ]);
+  const allStaff = iid ? await listStaff(iid) : [];
+
+  // KID-105 #13: staff sees only their own working-hours row.
+  let staff: any[];
+  if (isAdminRole(session.role)) {
+    staff = allStaff;
+  } else {
+    const myStaffId = await staffIdForAccount(session.accountId);
+    const me = myStaffId ? allStaff.find((s: any) => String(s.id) === myStaffId) : undefined;
+    staff = me ? [me] : [];
+  }
+
   const institute = iid ? await getInstitute(iid) : undefined;
   const openingHours = safeJson<Record<string, string>>(institute?.opening_hours, {});
   const roomAccess = await Promise.all(staff.map((s: any) => staffRooms(s.id)));

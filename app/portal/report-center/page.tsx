@@ -1,5 +1,5 @@
 import { requireSession } from "@/lib/require";
-import { reportCenterStats, staffPerformance, attendanceOn, listChildren, listRooms, recentReports } from "@/lib/store";
+import { reportCenterStats, staffPerformance, attendanceOn, listChildren, listRoomsScoped, recentReports } from "@/lib/store";
 import { firstInstituteId, cap } from "@/lib/helpers";
 
 export const dynamic = "force-dynamic";
@@ -9,19 +9,20 @@ export default async function PortalReportCenterPage({
 }: {
   searchParams: { child?: string; from?: string; to?: string; status?: string };
 }) {
-  requireSession();
+  const session = requireSession();
   const instituteId = await firstInstituteId();
   if (!instituteId) return <p className="muted">No institute configured.</p>;
 
+  // KID-103: report-center counts and filters respect classroom assignments.
   const [stats, performance, children, rooms, dailyReports] = await Promise.all([
-    reportCenterStats(instituteId),
+    reportCenterStats(instituteId, session.accountId),
     staffPerformance(instituteId),
-    listChildren(instituteId),
-    listRooms(instituteId),
-    recentReports(instituteId),
+    listChildren(instituteId, { accountId: session.accountId }),
+    listRoomsScoped(instituteId, session.accountId),
+    recentReports(instituteId, 50, session.accountId),
   ]);
   const today = new Date().toISOString().slice(0, 10);
-  const attendance = await attendanceOn(instituteId, today);
+  const attendance = await attendanceOn(instituteId, today, { accountId: session.accountId });
   // KID-52 #7: filtered-reports section moved here from the removed Reports
   // tab so billing/daily filters + exports live in one place.
   const q = (searchParams.child ?? "").toLowerCase();

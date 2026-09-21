@@ -23,13 +23,14 @@ export default async function PortalTagsPage({
     cols?: string;
   };
 }) {
-  requireSession();
+  const session = requireSession();
   const instituteId = await firstInstituteId();
   if (!instituteId) return <p className="muted">No institute configured.</p>;
+  // KID-103: smart lists respect classroom scoping.
   const [tags, children, rooms] = await Promise.all([
     listTags(instituteId),
-    listChildren(instituteId),
-    (await import("@/lib/store")).listRooms(instituteId),
+    listChildren(instituteId, { accountId: session.accountId }),
+    (await import("@/lib/store")).listRoomsScoped(instituteId, session.accountId),
   ]);
 
   const builderName = searchParams.list ?? "Untitled list";

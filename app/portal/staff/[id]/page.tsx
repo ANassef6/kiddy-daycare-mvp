@@ -1,6 +1,8 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { requireSession } from "@/lib/require";
+import { staffIdForAccount } from "@/lib/auth";
+import { isAdminRole } from "@/lib/role";
 import { listStaff, staffRooms, listStaffSchedules, staffStatusLog, staffActivity, listRooms } from "@/lib/store";
 import { queryAll } from "@/lib/db";
 import { uploadPhotoAction, updateStaffInfoAction } from "@/lib/actions";
@@ -22,10 +24,22 @@ const STATUS_KIND_LABEL: Record<string, string> = {
 };
 
 export default async function StaffProfilePage({ params, searchParams }: { params: { id: string }; searchParams?: { edit?: string } }) {
-  requireSession();
+  const session = requireSession();
   const { listInstitutes } = await import("@/lib/store");
   const institutes = await listInstitutes();
   const iid = institutes[0]?.id as string | undefined;
+
+  // KID-105 #13: staff can only view their own profile.
+  if (!isAdminRole(session.role)) {
+    const myStaffId = await staffIdForAccount(session.accountId);
+    if (myStaffId && myStaffId !== params.id) {
+      redirect(`/portal/staff/${myStaffId}`);
+    }
+    if (!myStaffId) {
+      return <p className="muted">No staff profile linked to this account.</p>;
+    }
+  }
+
   const staff = iid ? (await listStaff(iid)).find((s: any) => String(s.id) === params.id) : undefined;
   if (!staff) notFound();
   const [rooms, schedules, logins, statusLog, activity] = await Promise.all([

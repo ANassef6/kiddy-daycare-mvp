@@ -1,17 +1,22 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireSession } from "@/lib/require";
-import { getChild, observationsForChild } from "@/lib/store";
-import { cap, fmtDate } from "@/lib/helpers";
+import { getChild, observationsForChild, isChildInScope } from "@/lib/store";
+import { cap, fmtDate, firstInstituteId } from "@/lib/helpers";
 import { ageGroupForDob } from "@/lib/curriculum";
 import Avatar from "@/components/Avatar";
 
 export const dynamic = "force-dynamic";
 
 export default async function ChildDevelopmentPage({ params }: { params: { id: string } }) {
-  requireSession();
+  const session = requireSession();
   const child = await getChild(params.id);
   if (!child) notFound();
+  // KID-103: direct URLs to out-of-scope children are hidden.
+  const iid = await firstInstituteId();
+  if (iid && !(await isChildInScope(iid, session.accountId, String(child.id)))) {
+    notFound();
+  }
   try {
     const { ensureCurriculumSeeded } = await import("@/lib/curriculum");
     await ensureCurriculumSeeded();

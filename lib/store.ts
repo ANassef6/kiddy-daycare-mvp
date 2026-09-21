@@ -167,10 +167,22 @@ export async function createChild(data: {
 
 export async function listChildren(
   instituteId: string,
-  opts: { status?: string; roomId?: string; search?: string } = {}
+  opts: { status?: string; roomId?: string; search?: string; accountId?: string } = {}
 ): Promise<Row[]> {
   const conditions = ["c.institute_id = ?"];
   const args: unknown[] = [instituteId];
+
+  // KID-103: staff accounts only see children in their assigned classrooms.
+  let allowedRoomIds: string[] | null = null;
+  if (opts.accountId) {
+    allowedRoomIds = await scopedRoomIds(instituteId, opts.accountId);
+  }
+  if (allowedRoomIds !== null) {
+    if (allowedRoomIds.length === 0) return [];
+    conditions.push(`c.room_id IN (${allowedRoomIds.map(() => "?").join(", ")})`);
+    args.push(...allowedRoomIds);
+  }
+
   if (opts.status && opts.status !== "all") {
     conditions.push("c.status = ?");
     args.push(opts.status);
@@ -475,8 +487,17 @@ export async function runAutoCheckoutSweep(
 
 // Live "who is checked in right now": children whose latest event today is a
 // check-in (checked out afterwards flips them back out of the list).
-export async function checkedInNow(instituteId: string): Promise<Row[]> {
+// KID-103: scoped to the account's assigned classrooms when accountId is given.
+export async function checkedInNow(instituteId: string, accountId?: string): Promise<Row[]> {
   const today = new Date().toISOString().slice(0, 10);
+  const allowedRoomIds = accountId ? await scopedRoomIds(instituteId, accountId) : null;
+  if (allowedRoomIds !== null && allowedRoomIds.length === 0) return [];
+  const roomFilter =
+    allowedRoomIds === null
+      ? ""
+      : `AND c.room_id IN (${allowedRoomIds.map(() => "?").join(", ")})`;
+  const args: unknown[] = [today, instituteId, today];
+  if (allowedRoomIds?.length) args.push(...allowedRoomIds);
   return queryAll(
     `SELECT c.id, c.first_name, c.last_name, r.name AS room_name,
             (SELECT recorded_at FROM check_in WHERE child_id = c.id AND date(recorded_at) = ? AND type='in' ORDER BY recorded_at DESC, id DESC LIMIT 1) AS checked_in_at
@@ -484,10 +505,9 @@ export async function checkedInNow(instituteId: string): Promise<Row[]> {
      LEFT JOIN room r ON r.id = c.room_id
      WHERE c.institute_id = ? AND c.active = 1
        AND (SELECT type FROM check_in WHERE child_id = c.id AND date(recorded_at) = ? ORDER BY recorded_at DESC, id DESC LIMIT 1) = 'in'
+       ${roomFilter}
      ORDER BY r.name, c.first_name`,
-    today,
-    instituteId,
-    today
+    ...args
   );
 }
 
@@ -605,14 +625,23 @@ export async function reportFor(childId: string, reportDate: string): Promise<Ro
   );
 }
 
-export async function recentReports(instituteId: string, limit = 50): Promise<Row[]> {
+// KID-103: scoped to the account's assigned classrooms when accountId is given.
+export async function recentReports(instituteId: string, limit = 50, accountId?: string): Promise<Row[]> {
+  const allowedRoomIds = accountId ? await scopedRoomIds(instituteId, accountId) : null;
+  if (allowedRoomIds !== null && allowedRoomIds.length === 0) return [];
+  const roomFilter =
+    allowedRoomIds === null
+      ? ""
+      : `AND c.room_id IN (${allowedRoomIds.map(() => "?").join(", ")})`;
+  const args: unknown[] = [instituteId];
+  if (allowedRoomIds?.length) args.push(...allowedRoomIds);
+  args.push(limit);
   return queryAll(
     `SELECT dr.*, c.first_name, c.last_name FROM daily_report dr
      JOIN child c ON c.id = dr.child_id
-     WHERE c.institute_id = ?
+     WHERE c.institute_id = ? ${roomFilter}
      ORDER BY dr.report_date DESC, dr.created_at DESC LIMIT ?`,
-    instituteId,
-    limit
+    ...args
   );
 }
 
@@ -639,7 +668,19 @@ export async function createNewsfeedPost(data: {
   return (await queryGet("SELECT * FROM newsfeed_post WHERE id = ?", id))!;
 }
 
+// KID-103: when forAccountId is a scoped staff account, only posts that tag at
+// least one child in an assigned classroom are returned. Owners/admins/parents
+// remain unscoped.
 export async function listNewsfeed(instituteId: string, forAccountId?: string): Promise<Row[]> {
+  const allowedRoomIds = forAccountId ? await scopedRoomIds(instituteId, forAccountId) : null;
+  const scopeFilter =
+    allowedRoomIds === null
+      ? ""
+      : allowedRoomIds.length === 0
+        ? "AND 1=0"
+        : `AND EXISTS (SELECT 1 FROM newsfeed_tag t2 JOIN child c2 ON c2.id = t2.child_id WHERE t2.post_id = p.id AND c2.room_id IN (${allowedRoomIds.map(() => "?").join(", ")}))`;
+  const args: unknown[] = [forAccountId ?? "", instituteId];
+  if (allowedRoomIds?.length) args.push(...allowedRoomIds);
   const rows = await queryAll(
     `SELECT p.*, a.full_name AS author_name, a.role AS author_role,
             (SELECT COUNT(*) FROM newsfeed_like l WHERE l.post_id = p.id) AS like_count,
@@ -647,10 +688,9 @@ export async function listNewsfeed(instituteId: string, forAccountId?: string): 
             EXISTS(SELECT 1 FROM newsfeed_like l WHERE l.post_id = p.id AND l.account_id = ?) AS liked
      FROM newsfeed_post p
      JOIN account a ON a.id = p.account_id
-     WHERE p.institute_id = ?
+     WHERE p.institute_id = ? ${scopeFilter}
      ORDER BY p.created_at DESC`,
-    forAccountId ?? "",
-    instituteId
+    ...args
   );
   const results: Row[] = [];
   for (const row of rows) {
@@ -746,10 +786,13 @@ export async function unreadCountForAccount(accountId: string): Promise<number> 
   return Number(row?.c ?? 0);
 }
 
-// KID-56: rooms (classrooms) a staff account is assigned to. Accounts without
-// a staff link (owner/admin/parent) get every room — no classroom scoping.
+// KID-56 / KID-103: rooms (classrooms) a staff account is assigned to.
+// Owners and admins are never scoped; staff linked to a staff record are scoped
+// to their assigned rooms. An unlinked account (parent / legacy) is unscoped.
 export async function scopedRoomIds(instituteId: string, accountId: string): Promise<string[] | null> {
   const acct = await queryGet("SELECT staff_id, role FROM account WHERE id = ?", accountId);
+  const role = String(acct?.role ?? "");
+  if (role === "owner" || role === "admin") return null;
   const staffId = acct?.staff_id ? String(acct.staff_id) : null;
   if (!staffId) return null;
   const rooms = await queryAll(
@@ -760,6 +803,31 @@ export async function scopedRoomIds(instituteId: string, accountId: string): Pro
     staffId
   );
   return rooms.map((r) => String(r.id));
+}
+
+// KID-103: returns true when the child is in one of the account's assigned
+// classrooms. Owners/admins/parents always pass.
+export async function isChildInScope(instituteId: string, accountId: string, childId: string): Promise<boolean> {
+  const roomIds = await scopedRoomIds(instituteId, accountId);
+  if (roomIds === null) return true;
+  if (roomIds.length === 0) return false;
+  const child = await queryGet("SELECT room_id FROM child WHERE id = ? AND institute_id = ?", childId, instituteId);
+  if (!child) return false;
+  return roomIds.includes(String(child.room_id ?? ""));
+}
+
+// KID-103: rooms visible to the account (all for admins/owners, assigned only
+// for staff).
+export async function listRoomsScoped(instituteId: string, accountId: string): Promise<Row[]> {
+  const roomIds = await scopedRoomIds(instituteId, accountId);
+  if (roomIds === null) return listRooms(instituteId);
+  if (roomIds.length === 0) return [];
+  const placeholders = roomIds.map(() => "?").join(", ");
+  return queryAll(
+    `SELECT * FROM room WHERE institute_id = ? AND id IN (${placeholders}) ORDER BY name`,
+    instituteId,
+    ...roomIds
+  );
 }
 
 // KID-56: staff see only parents in their assigned classrooms; everyone else
@@ -1254,14 +1322,26 @@ export async function addDriveFile(data: {
   return (await queryGet("SELECT * FROM drive_file WHERE id = ?", id))!;
 }
 
-export async function listDriveFiles(instituteId: string): Promise<Row[]> {
+// KID-103: scoped staff accounts cannot see files shared with children outside
+// their assigned classrooms. Center-wide files (no child_id) remain visible.
+export async function listDriveFiles(instituteId: string, accountId?: string): Promise<Row[]> {
+  const allowedRoomIds = accountId ? await scopedRoomIds(instituteId, accountId) : null;
+  const scopeFilter =
+    allowedRoomIds === null
+      ? ""
+      : allowedRoomIds.length === 0
+        ? "AND d.child_id IS NULL"
+        : `AND (d.child_id IS NULL OR EXISTS (SELECT 1 FROM child c2 WHERE c2.id = d.child_id AND c2.room_id IN (${allowedRoomIds.map(() => "?").join(", ")})))`;
+  const args: unknown[] = [instituteId];
+  if (allowedRoomIds?.length) args.push(...allowedRoomIds);
   return queryAll(
     `SELECT d.*, c.first_name, c.last_name, a.full_name AS uploaded_by
      FROM drive_file d
      LEFT JOIN child c ON c.id = d.child_id
      LEFT JOIN account a ON a.id = d.uploaded_by_account_id
-     WHERE d.institute_id = ? ORDER BY d.created_at DESC`,
-    instituteId
+     WHERE d.institute_id = ? ${scopeFilter}
+     ORDER BY d.created_at DESC`,
+    ...args
   );
 }
 
@@ -1350,22 +1430,34 @@ export async function observationsForChild(childId: string): Promise<Row[]> {
   }
 }
 
-export async function listObservations(instituteId: string): Promise<Row[]> {
+// KID-103: scoped staff accounts only see observations for children in their
+// assigned classrooms.
+export async function listObservations(instituteId: string, accountId?: string): Promise<Row[]> {
+  const allowedRoomIds = accountId ? await scopedRoomIds(instituteId, accountId) : null;
+  if (allowedRoomIds !== null && allowedRoomIds.length === 0) return [];
+  const roomFilter =
+    allowedRoomIds === null
+      ? ""
+      : `AND c.room_id IN (${allowedRoomIds.map(() => "?").join(", ")})`;
+  const args: unknown[] = [instituteId];
+  if (allowedRoomIds?.length) args.push(...allowedRoomIds);
   try {
     return await queryAll(
       `${OBSERVATION_SELECT}
-     WHERE o.institute_id = ? ORDER BY o.recorded_at DESC, o.created_at DESC`,
-      instituteId
+     WHERE o.institute_id = ? ${roomFilter} ORDER BY o.recorded_at DESC, o.created_at DESC`,
+      ...args
     );
   } catch {
+    const fallbackArgs: unknown[] = [instituteId];
+    if (allowedRoomIds?.length) fallbackArgs.push(...allowedRoomIds);
     return queryAll(
       `SELECT o.*, c.first_name, c.last_name, NULL AS recorded_by,
               NULL AS learning_point_name, NULL AS area_id, NULL AS area_name,
               NULL AS milestone_name, NULL AS milestone_description
        FROM learning_observation o
        JOIN child c ON c.id = o.child_id
-       WHERE o.institute_id = ? ORDER BY o.created_at DESC`,
-      instituteId
+       WHERE o.institute_id = ? ${roomFilter} ORDER BY o.created_at DESC`,
+      ...fallbackArgs
     );
   }
 }
@@ -1462,27 +1554,53 @@ export async function parentAccounts(instituteId: string): Promise<Row[]> {
 }
 
 // ---- Report Center analytics ----
-export async function reportCenterStats(instituteId: string): Promise<Row> {
-  const children = await listChildren(instituteId);
+// KID-103: scoped staff accounts see counts limited to their assigned
+// classrooms. Owners/admins see the full center.
+export async function reportCenterStats(instituteId: string, accountId?: string): Promise<Row> {
+  const children = await listChildren(instituteId, accountId ? { accountId } : {});
   const active = children.length;
+  const allowedRoomIds = accountId ? await scopedRoomIds(instituteId, accountId) : null;
+  const roomFilter =
+    allowedRoomIds === null
+      ? ""
+      : allowedRoomIds.length === 0
+        ? "AND 1=0"
+        : `AND c.room_id IN (${allowedRoomIds.map(() => "?").join(", ")})`;
+  const roomArgs = allowedRoomIds?.length ? [...allowedRoomIds] : [];
+
   const reports = await queryGet(
-    "SELECT COUNT(*) c FROM daily_report dr JOIN child c ON c.id = dr.child_id WHERE c.institute_id = ?",
-    instituteId
+    `SELECT COUNT(*) c FROM daily_report dr JOIN child c ON c.id = dr.child_id WHERE c.institute_id = ? ${roomFilter}`,
+    instituteId,
+    ...roomArgs
   );
   const checkIns = await queryGet(
-    "SELECT COUNT(*) c FROM check_in ci JOIN child c ON c.id = ci.child_id WHERE c.institute_id = ? AND ci.type = 'in'",
-    instituteId
+    `SELECT COUNT(*) c FROM check_in ci JOIN child c ON c.id = ci.child_id WHERE c.institute_id = ? AND ci.type = 'in' ${roomFilter}`,
+    instituteId,
+    ...roomArgs
   );
-  const newsfeed = await queryGet("SELECT COUNT(*) c FROM newsfeed_post WHERE institute_id = ?", instituteId);
-  const media = await queryGet("SELECT COUNT(*) c FROM media WHERE institute_id = ?", instituteId);
   const incidents = await queryGet(
-    "SELECT COUNT(*) c FROM incident_report ir JOIN child c ON c.id = ir.child_id WHERE c.institute_id = ?",
-    instituteId
+    `SELECT COUNT(*) c FROM incident_report ir JOIN child c ON c.id = ir.child_id WHERE c.institute_id = ? ${roomFilter}`,
+    instituteId,
+    ...roomArgs
   );
   const observations = await queryGet(
-    "SELECT COUNT(*) c FROM learning_observation o JOIN child c ON c.id = o.child_id WHERE c.institute_id = ?",
-    instituteId
+    `SELECT COUNT(*) c FROM learning_observation o JOIN child c ON c.id = o.child_id WHERE c.institute_id = ? ${roomFilter}`,
+    instituteId,
+    ...roomArgs
   );
+  const newsfeedCount = accountId
+    ? (await listNewsfeed(instituteId, accountId)).length
+    : Number((await queryGet("SELECT COUNT(*) c FROM newsfeed_post WHERE institute_id = ?", instituteId))?.c ?? 0);
+  const media =
+    allowedRoomIds === null
+      ? await queryGet("SELECT COUNT(*) c FROM media WHERE institute_id = ?", instituteId)
+      : allowedRoomIds.length === 0
+        ? { c: 0 }
+        : await queryGet(
+            `SELECT COUNT(*) c FROM media m JOIN child c ON c.id = m.child_id WHERE m.institute_id = ? AND c.room_id IN (${allowedRoomIds.map(() => "?").join(", ")})`,
+            instituteId,
+            ...allowedRoomIds
+          );
   const consents = await queryGet(
     "SELECT COUNT(*) c FROM consent_request WHERE institute_id = ? AND status != 'pending'",
     instituteId
@@ -1491,7 +1609,7 @@ export async function reportCenterStats(instituteId: string): Promise<Row> {
     childrenCount: active,
     reportsCount: (reports?.c as number) ?? 0,
     checkInsCount: (checkIns?.c as number) ?? 0,
-    newsfeedCount: (newsfeed?.c as number) ?? 0,
+    newsfeedCount,
     mediaCount: (media?.c as number) ?? 0,
     incidentCount: (incidents?.c as number) ?? 0,
     observationCount: (observations?.c as number) ?? 0,
@@ -1587,13 +1705,25 @@ export async function updateStaffPhoto(staffId: string, photoUrl: string | null)
 }
 
 // ---- KID-47 Round 6: homework ----
-export async function listHomework(instituteId: string): Promise<Row[]> {
+// KID-103: scoped staff accounts only see homework for children in their
+// assigned classrooms. Center-wide homework (child_id IS NULL) stays visible.
+export async function listHomework(instituteId: string, accountId?: string): Promise<Row[]> {
+  const allowedRoomIds = accountId ? await scopedRoomIds(instituteId, accountId) : null;
+  const scopeFilter =
+    allowedRoomIds === null
+      ? ""
+      : allowedRoomIds.length === 0
+        ? "AND h.child_id IS NULL"
+        : `AND (h.child_id IS NULL OR c.room_id IN (${allowedRoomIds.map(() => "?").join(", ")}))`;
+  const args: unknown[] = [instituteId];
+  if (allowedRoomIds?.length) args.push(...allowedRoomIds);
   try {
     return await queryAll(
       `SELECT h.*, c.first_name, c.last_name FROM homework h
        LEFT JOIN child c ON c.id = h.child_id
-       WHERE h.institute_id = ? ORDER BY h.created_at DESC`,
-      instituteId
+       WHERE h.institute_id = ? ${scopeFilter}
+       ORDER BY h.created_at DESC`,
+      ...args
     );
   } catch {
     return [];

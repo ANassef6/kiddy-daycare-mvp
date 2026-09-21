@@ -13,6 +13,7 @@ import {
   listChildBilling,
   listMedia,
   listConsents,
+  isChildInScope,
 } from "@/lib/store";
 import {
   saveDailyReportAction,
@@ -47,9 +48,13 @@ export default async function PortalChildPage({ params }: { params: { id: string
   const t = (key: string, vars?: Record<string, string | number>) => tr(dict, key, vars);
   const child = await getChild(params.id);
   if (!child) notFound();
+  // KID-103: direct URLs to out-of-scope children are hidden.
+  const iid = await firstInstituteId();
+  if (iid && !(await isChildInScope(iid, session.accountId, String(child.id)))) {
+    notFound();
+  }
 
   const today = new Date().toISOString().slice(0, 10);
-  const iid = await firstInstituteId();
   const [report, contacts, incidents, status, todayStatuses, observations, billing, media, consents, rooms] =
     await Promise.all([
       reportFor(child.id, today),

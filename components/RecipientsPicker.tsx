@@ -22,10 +22,11 @@ type Props = {
   placeholder?: string;
 };
 
-// KID-53 #1: recipients picker with pre-defined channels. Channels first —
-// Center (everyone), then "All classrooms" for admins (or the staff member's
-// assigned classrooms), then the individual children list. Picking a child
-// clears the channel and vice versa, so a post goes to exactly one target.
+// KID-53 #1 / KID-104 #6: recipients picker with pre-defined channels. The
+// Center (everyone) channel is admin-only; staff see their assigned classrooms
+// only. "All classrooms" for admins becomes "My classrooms" for staff. Picking
+// a child clears the channel and vice versa, so a post goes to exactly one
+// target.
 export default function RecipientsPicker({
   children: kids,
   rooms,
@@ -135,20 +136,22 @@ export default function RecipientsPicker({
         >
           <div style={{ padding: "8px 12px", borderBottom: "1px solid var(--color-border)" }}>
             <div className="small muted" style={{ fontWeight: 700, marginBottom: 6 }}>Pre-defined channels</div>
-            <label
-              style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 0", cursor: "pointer", fontSize: 14 }}
-              onMouseDown={(e) => e.preventDefault()}
-            >
-              <input
-                type="radio"
-                name={channelName}
-                value="center"
-                checked={channel === "center"}
-                onChange={() => pickChannel("center", [])}
-                style={{ accentColor: "var(--brand-primary)" }}
-              />
-              Center — everyone in the daycare
-            </label>
+            {isAdmin && (
+              <label
+                style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 0", cursor: "pointer", fontSize: 14 }}
+                onMouseDown={(e) => e.preventDefault()}
+              >
+                <input
+                  type="radio"
+                  name={channelName}
+                  value="center"
+                  checked={channel === "center"}
+                  onChange={() => pickChannel("center", [])}
+                  style={{ accentColor: "var(--brand-primary)" }}
+                />
+                Center — everyone in the daycare
+              </label>
+            )}
             <label
               style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 0", cursor: "pointer", fontSize: 14 }}
               onMouseDown={(e) => e.preventDefault()}

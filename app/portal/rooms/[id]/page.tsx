@@ -1,16 +1,28 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireSession } from "@/lib/require";
-import { getRoom, roomChildren } from "@/lib/store";
+import { staffIdForAccount } from "@/lib/auth";
+import { isAdminRole } from "@/lib/role";
+import { getRoom, roomChildren, staffRooms } from "@/lib/store";
 import { updateRoomAction } from "@/lib/actions";
 
 export const dynamic = "force-dynamic";
 
 export default async function PortalRoomDetailPage({ params }: { params: { id: string } }) {
-  requireSession();
+  const session = requireSession();
   const room = await getRoom(params.id);
   if (!room) notFound();
+
+  // KID-105 #16: staff can only open rooms they are assigned to.
+  if (!isAdminRole(session.role)) {
+    const myStaffId = await staffIdForAccount(session.accountId);
+    const assigned = myStaffId ? await staffRooms(myStaffId) : [];
+    const allowed = new Set(assigned.map((r) => String(r.id)));
+    if (!allowed.has(String(room.id))) notFound();
+  }
+
   const children = await roomChildren(room.id);
+  const canEdit = isAdminRole(session.role);
 
   return (
     <div>
@@ -41,16 +53,18 @@ export default async function PortalRoomDetailPage({ params }: { params: { id: s
           </div>
         </div>
 
-        <div className="card">
-          <h3 className="subtitle">Room settings</h3>
-          <form action={updateRoomAction}>
-            <input type="hidden" name="roomId" value={room.id as string} />
-            <div className="field"><label className="label">Name</label><input className="input" name="name" required defaultValue={String(room.name)} /></div>
-            <div className="field"><label className="label">Capacity</label><input className="input" name="capacity" type="number" defaultValue={String(room.capacity ?? "")} /></div>
-            <div className="field"><label className="label">Colour</label><input className="input" name="colour" type="color" defaultValue={String(room.colour ?? "#3B82F6")} /></div>
-            <button className="btn btn-primary" type="submit">Save settings</button>
-          </form>
-        </div>
+        {canEdit && (
+          <div className="card">
+            <h3 className="subtitle">Room settings</h3>
+            <form action={updateRoomAction}>
+              <input type="hidden" name="roomId" value={room.id as string} />
+              <div className="field"><label className="label">Name</label><input className="input" name="name" required defaultValue={String(room.name)} /></div>
+              <div className="field"><label className="label">Capacity</label><input className="input" name="capacity" type="number" defaultValue={String(room.capacity ?? "")} /></div>
+              <div className="field"><label className="label">Colour</label><input className="input" name="colour" type="color" defaultValue={String(room.colour ?? "#3B82F6")} /></div>
+              <button className="btn btn-primary" type="submit">Save settings</button>
+            </form>
+          </div>
+        )}
       </div>
     </div>
   );

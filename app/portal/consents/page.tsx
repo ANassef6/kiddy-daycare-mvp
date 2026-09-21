@@ -5,12 +5,13 @@ import { createConsentAction } from "@/lib/actions";
 export const dynamic = "force-dynamic";
 
 export default async function PortalConsentsPage() {
-  requireSession();
+  const session = requireSession();
   const institutes = await listInstitutes();
   const iid = institutes[0]?.id as string | undefined;
+  // KID-103: child picker scoped to assigned classrooms.
   const [consents, children] = await Promise.all([
     iid ? listConsents(iid) : Promise.resolve([]),
-    iid ? listChildren(iid) : Promise.resolve([]),
+    iid ? listChildren(iid, { accountId: session.accountId }) : Promise.resolve([]),
   ]);
 
   return (

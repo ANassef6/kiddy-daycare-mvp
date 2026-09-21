@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { usePathname } from "next/navigation";
 import { tr, type Dict, type Locale } from "@/lib/i18n";
+import { isAdminRole } from "@/lib/role";
 
 export type NavItem = { label: string; href: string };
 export type NavGroup = { label: string; href: string; items: NavItem[] };
@@ -12,9 +13,9 @@ export type NavGroup = { label: string; href: string; items: NavItem[] };
 // separate Settings (gear) for center configuration. Every sub-item maps to a
 // real route — nothing here may be a dead link. Labels come from the active
 // locale dictionary (KID-57).
-export function portalNav(dict: Dict): NavGroup[] {
+export function portalNav(dict: Dict, role?: string): NavGroup[] {
   const t = (key: string) => tr(dict, key);
-  return [
+  const groups: NavGroup[] = [
     {
       label: t("nav.home"),
       href: "/portal/dashboard",
@@ -51,7 +52,12 @@ export function portalNav(dict: Dict): NavGroup[] {
         { label: t("nav.workingHours"), href: "/portal/staff/hours" },
       ],
     },
-    {
+  ];
+
+  // KID-105 #14: the Tools menu exposes center-wide admin surfaces (staff
+  // accounts, all children, finance, etc.). Keep it visible only to admins.
+  if (isAdminRole(role ?? "")) {
+    groups.push({
       label: t("nav.tools"),
       href: "/portal/report-center",
       items: [
@@ -64,21 +70,28 @@ export function portalNav(dict: Dict): NavGroup[] {
         { label: t("nav.finance"), href: "/portal/finance" },
         { label: t("nav.supplies"), href: "/portal/supplies" },
       ],
-    },
-  ];
+    });
+  }
+
+  return groups;
 }
 
 // Settings (center configuration) lives behind its own gear icon, separate from
 // the top-level menus.
-export function portalSettingsNav(dict: Dict): NavGroup {
+export function portalSettingsNav(dict: Dict, role?: string): NavGroup {
   const t = (key: string) => tr(dict, key);
+  const items: NavItem[] = [];
+  // KID-105 #15: Center details is admin-only.
+  if (isAdminRole(role ?? "")) {
+    items.push({ label: t("nav.centerDetails"), href: "/portal/settings" });
+  }
+  // KID-105 #16: Rooms remain reachable, but the Rooms page itself is scoped
+  // to the staff member's assigned classrooms.
+  items.push({ label: t("nav.rooms"), href: "/portal/rooms" });
   return {
     label: t("nav.settings"),
     href: "/portal/settings",
-    items: [
-      { label: t("nav.centerDetails"), href: "/portal/settings" },
-      { label: t("nav.rooms"), href: "/portal/rooms" },
-    ],
+    items,
   };
 }
 
@@ -96,9 +109,9 @@ function activeIn(items: NavItem[], pathname: string): string {
   return hit.sort((a, b) => b.href.length - a.href.length)[0].href;
 }
 
-function PortalSettingsNav({ pathname, dict }: { pathname: string; dict: Dict }) {
+function PortalSettingsNav({ pathname, dict, role }: { pathname: string; dict: Dict; role?: string }) {
   const [open, setOpen] = useState(false);
-  const group = portalSettingsNav(dict);
+  const group = portalSettingsNav(dict, role);
   const activeHref = activeIn(group.items, pathname);
   const expanded = open || !!activeHref;
   const t = (key: string) => tr(dict, key);
@@ -135,7 +148,7 @@ function PortalSettingsNav({ pathname, dict }: { pathname: string; dict: Dict })
   );
 }
 
-function PortalSidebarNav({ groups, dict }: { groups: NavGroup[]; dict: Dict }) {
+function PortalSidebarNav({ groups, dict, role }: { groups: NavGroup[]; dict: Dict; role?: string }) {
   const pathname = usePathname();
   const [open, setOpen] = useState<Record<string, boolean>>({});
   const t = (key: string) => tr(dict, key);
@@ -198,7 +211,7 @@ function PortalSidebarNav({ groups, dict }: { groups: NavGroup[]; dict: Dict }) 
           );
         })}
       </div>
-      <PortalSettingsNav pathname={pathname} dict={dict} />
+      <PortalSettingsNav pathname={pathname} dict={dict} role={role} />
     </>
   );
 }
@@ -208,14 +221,16 @@ export default function PortalSidebar({
   logoUrl,
   locale,
   dict,
+  role,
 }: {
   brandName: string;
   logoUrl?: string | null;
   locale: Locale;
   dict: Dict;
+  role?: string;
 }) {
   const t = (key: string) => tr(dict, key);
-  const groups = useMemo(() => portalNav(dict), [dict]);
+  const groups = useMemo(() => portalNav(dict, role), [dict, role]);
   return (
     <aside className="shell-side">
       <Link href="/portal/dashboard" className="site-brand" style={{ textDecoration: "none" }}>
@@ -226,7 +241,7 @@ export default function PortalSidebar({
         <span className="brand">{brandName}</span>
       </Link>
       <div className="mt-4 d-flex-col">
-        <PortalSidebarNav groups={groups} dict={dict} />
+        <PortalSidebarNav groups={groups} dict={dict} role={role} />
         <a href="/api/logout" className="small muted mt-3" style={{ display: "inline-block" }}>
           {t("nav.signOut")}
         </a>

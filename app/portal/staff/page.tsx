@@ -1,5 +1,8 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { requireSession } from "@/lib/require";
+import { staffIdForAccount } from "@/lib/auth";
+import { isAdminRole } from "@/lib/role";
 import { listStaff, listRooms, listInstitutes, staffRooms } from "@/lib/store";
 import { queryAll } from "@/lib/db";
 import Avatar from "@/components/Avatar";
@@ -22,14 +25,25 @@ export default async function PortalStaffPage({
 }: {
   searchParams?: { added?: string; email?: string; q?: string; role?: string };
 }) {
-  requireSession();
-  const branding = await getBranding();
+  const session = requireSession();
   const institutes = await listInstitutes();
   const iid = institutes[0]?.id as string | undefined;
   const [staff, rooms] = await Promise.all([
     iid ? listStaff(iid) : Promise.resolve([]),
     iid ? listRooms(iid) : Promise.resolve([]),
   ]);
+
+  // KID-105 #13: staff can only see their own profile, not the team list.
+  if (!isAdminRole(session.role)) {
+    const myStaffId = await staffIdForAccount(session.accountId);
+    if (myStaffId) {
+      redirect(`/portal/staff/${myStaffId}`);
+    }
+    // A non-admin without a linked staff record has nothing to see here.
+    return <p className="muted">No staff profile linked to this account.</p>;
+  }
+
+  const branding = await getBranding();
   const roomAccess = await Promise.all(staff.map((s) => staffRooms(s.id)));
   const roomByName = Object.fromEntries(roomAccess.map((rooms, i) => [staff[i].id, rooms]));
   const logins = await queryAll("SELECT staff_id, email FROM account WHERE staff_id IS NOT NULL");

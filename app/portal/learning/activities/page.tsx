@@ -1,10 +1,12 @@
 import Link from "next/link";
 import { requireSession } from "@/lib/require";
-import { listMedia, listEvents, listNewsfeed } from "@/lib/store";
+import { listMedia, listEvents, listNewsfeed, listChildren, listRooms, staffRooms } from "@/lib/store";
 import { createEventAction } from "@/lib/actions";
 import { firstInstituteId, cap } from "@/lib/helpers";
 import { i18nForAccount } from "@/lib/i18n-session";
 import { tr } from "@/lib/i18n";
+import RecipientsPicker from "@/components/RecipientsPicker";
+import { queryGet } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 
@@ -15,11 +17,24 @@ export default async function PortalActivitiesPage() {
   const instituteId = await firstInstituteId();
   if (!instituteId) return <p className="muted">{t("learning.noInstitute")}</p>;
 
-  const [media, events, newsfeed] = await Promise.all([
+  // KID-103: activity newsfeed, child picker, and room choices respect classroom scoping.
+  const [media, events, newsfeed, children, rooms] = await Promise.all([
     listMedia(instituteId),
     listEvents(instituteId, true),
-    listNewsfeed(instituteId),
+    listNewsfeed(instituteId, session.accountId),
+    listChildren(instituteId, { accountId: session.accountId }),
+    listRooms(instituteId),
   ]);
+
+  // KID-104 #11: staff activity recipients are limited to their assigned classrooms.
+  let assignedRoomIds: string[] = [];
+  if (session.role === "staff" || session.role === "carer") {
+    const me = await queryGet("SELECT staff_id FROM account WHERE id = ?", session.accountId);
+    if (me?.staff_id) {
+      const roomsForStaff = await staffRooms(String(me.staff_id));
+      assignedRoomIds = roomsForStaff.map((r) => String(r.id));
+    }
+  }
 
   const recentMedia = (media as any[]).slice(0, 10);
   const recentPosts = (newsfeed as any[]).slice(0, 5);
@@ -48,6 +63,15 @@ export default async function PortalActivitiesPage() {
           <div className="col field"><label className="label">{t("common.location")}</label><input className="input" name="location" placeholder="e.g. Garden" /></div>
         </div>
         <div className="field"><label className="label">{t("activities.description")}</label><textarea className="textarea" name="description" placeholder={t("activities.whatWillChildrenDo")} /></div>
+        <div className="field" style={{ maxWidth: 480 }}>
+          <label className="label">Recipients</label>
+          <RecipientsPicker
+            children={children.map((c: any) => ({ id: String(c.id), first_name: String(c.first_name), last_name: String(c.last_name), room_id: c.room_id ? String(c.room_id) : null, room_name: c.room_name ? String(c.room_name) : null }))}
+            rooms={rooms.map((r) => ({ id: String(r.id), name: String(r.name) }))}
+            role={session.role}
+            assignedRoomIds={assignedRoomIds}
+          />
+        </div>
         <button className="btn btn-primary" type="submit">{t("activities.createActivity")}</button>
       </form>
 

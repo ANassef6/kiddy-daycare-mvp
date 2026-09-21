@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { requireSession } from "@/lib/require";
-import { listChildren, listRooms, listInstitutes } from "@/lib/store";
+import { listChildren, listRoomsScoped, listInstitutes } from "@/lib/store";
 import { addChildAction, inviteParentAction } from "@/lib/actions";
 import Avatar from "@/components/Avatar";
 
@@ -26,13 +26,14 @@ export default async function PortalChildrenPage({
 }: {
   searchParams: { error?: string; status?: string };
 }) {
-  requireSession();
+  const session = requireSession();
   const institutes = await listInstitutes();
   const instituteId = institutes[0]?.id as string | undefined;
   const statusFilter = searchParams.status ?? "";
+  // KID-103: children list and room choices are scoped to assigned classrooms.
   const [children, rooms] = await Promise.all([
-    instituteId ? listChildren(instituteId, { status: statusFilter }) : Promise.resolve([]),
-    instituteId ? listRooms(instituteId) : Promise.resolve([]),
+    instituteId ? listChildren(instituteId, { status: statusFilter, accountId: session.accountId }) : Promise.resolve([]),
+    instituteId ? listRoomsScoped(instituteId, session.accountId) : Promise.resolve([]),
   ]);
   const guardianError = searchParams.error === "guardian";
 

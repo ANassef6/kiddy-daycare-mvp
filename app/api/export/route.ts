@@ -11,7 +11,7 @@ function csv(rows: Record<string, unknown>[]): string {
 }
 
 export async function GET(req: Request) {
-  requireSession();
+  const session = requireSession();
   const url = new URL(req.url);
   const type = url.searchParams.get("type") ?? "billing";
   const child = (url.searchParams.get("child") ?? "").toLowerCase();
@@ -63,7 +63,7 @@ export async function GET(req: Request) {
       .map((c) => c.trim())
       .filter(Boolean);
     const { listChildren } = await import("@/lib/store");
-    let kids = ((await listChildren(instituteId)) as Record<string, unknown>[]);
+    let kids = ((await listChildren(instituteId, { accountId: session.accountId })) as Record<string, unknown>[]);
     if (child) kids = kids.filter((k) => `${k.first_name} ${k.last_name}`.toLowerCase().includes(child));
     if (gender) kids = kids.filter((k) => String((k as any).gender ?? "").toLowerCase() === gender);
     if (roomId) kids = kids.filter((k) => String((k as any).room_id ?? "").toLowerCase() === roomId);

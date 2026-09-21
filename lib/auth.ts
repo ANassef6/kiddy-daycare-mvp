@@ -143,6 +143,11 @@ export async function getAccount(accountId: string): Promise<DbRow | undefined> 
   return (await queryGet(`SELECT ${ACCOUNT_SELECT} FROM account WHERE id = ?`, accountId)) as DbRow | undefined;
 }
 
+export async function staffIdForAccount(accountId: string): Promise<string | undefined> {
+  const row = await queryGet("SELECT staff_id FROM account WHERE id = ?", accountId);
+  return row?.staff_id ? String(row.staff_id) : undefined;
+}
+
 // ---- helpers for app router (read header) ----
 export function sessionFromHeaders(headers: Headers): Session | null {
   const cookie = headers.get("cookie");

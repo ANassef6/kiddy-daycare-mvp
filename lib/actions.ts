@@ -13,11 +13,14 @@ import {
   verifyToken,
   setEmailConfirmed,
   emailConfirmedFor,
+  staffIdForAccount,
 } from "@/lib/auth";
 import { queryGet, queryRun, queryAll, ensureSchema } from "@/lib/db";
 import {
   isAccountAccessWithdrawn,
   runWithdrawalSweep,
+  isChildInScope,
+  scopedRoomIds,
 } from "@/lib/store";
 import {
   getInviteByCode,
@@ -63,6 +66,7 @@ import {
 import type { WorkingWeek } from "@/lib/working-hours";
 import { supabaseConfigured, getSupabase } from "@/lib/supabase";
 import { requestOrigin } from "@/lib/url";
+import { isAdminRole } from "@/lib/role";
 
 const SESSION_COOKIE = "kiddy_sess";
 
@@ -292,9 +296,80 @@ function authAccount(): SessionCookie {
   return session;
 }
 
+function requireAdmin(): SessionCookie {
+  const me = authAccount();
+  if (!isAdminRole(me.role)) redirect("/portal/dashboard");
+  return me;
+}
+
 async function firstInstituteId(): Promise<string> {
   const row = await queryGet("SELECT id FROM institute LIMIT 1");
   return String(row?.id ?? "");
+}
+
+// KID-103: verifies a child belongs to the current account's assigned
+// classrooms. Owners/admins always pass; out-of-scope direct-action attempts
+// redirect to the children list instead of silently writing data.
+async function assertChildInScope(childId: string, me: SessionCookie): Promise<void> {
+  const instituteId = await firstInstituteId();
+  if (!instituteId) return;
+  if (!(await isChildInScope(instituteId, me.accountId, childId))) {
+    redirect("/portal/children?error=scope");
+  }
+}
+
+// KID-104: resolve recipient form fields into the list of child IDs a post is
+// allowed to tag. Admin/owner may use the "center" channel; staff and carers
+// are restricted to their assigned classrooms. Forged or out-of-scope values
+// are dropped rather than silently expanded.
+async function resolveNewsfeedRecipients(
+  formData: FormData,
+  me: SessionCookie,
+  instituteId: string
+): Promise<string[]> {
+  const { listChildren, childrenByRooms, staffRooms } = await import("@/lib/store");
+  const { queryGet } = await import("@/lib/db");
+  const isAdmin = me.role === "owner" || me.role === "admin";
+  const channel = String(formData.get("recipientChannel") ?? "").trim();
+
+  let allowedRoomIds: string[] = [];
+  if (!isAdmin) {
+    if (me.role === "staff" || me.role === "carer") {
+      const account = await queryGet("SELECT staff_id FROM account WHERE id = ?", me.accountId);
+      if (account?.staff_id) {
+        const roomsForStaff = await staffRooms(String(account.staff_id));
+        allowedRoomIds = roomsForStaff.map((r) => String(r.id));
+      }
+    }
+  }
+
+  if (channel === "center") {
+    if (!isAdmin) {
+      throw new Error("Only center admins can post to everyone.");
+    }
+    return (await listChildren(instituteId)).map((c) => String(c.id));
+  }
+
+  if (channel === "rooms") {
+    const requestedRoomIds = formData.getAll("recipientRoomIds").map(String).filter(Boolean);
+    const roomIds = isAdmin ? requestedRoomIds : requestedRoomIds.filter((id) => allowedRoomIds.includes(id));
+    return (await childrenByRooms(roomIds)).map((c) => String(c.id));
+  }
+
+  const requestedChildIds = formData.getAll("childIds").map(String).filter(Boolean);
+  if (isAdmin) {
+    return requestedChildIds;
+  }
+  if (allowedRoomIds.length === 0) {
+    return [];
+  }
+
+  const children = await listChildren(instituteId);
+  const allowed = new Set(allowedRoomIds);
+  return requestedChildIds.filter((cid) => {
+    const child = children.find((c) => String(c.id) === cid);
+    return child && allowed.has(child.room_id ? String(child.room_id) : "");
+  });
 }
 
 // KID-57: persist the user's app language (English | Arabic). The root layout
@@ -324,6 +399,7 @@ export async function checkInOutAction(formData: FormData) {
   const type = String(formData.get("type") ?? "") as "in" | "out";
   const me = authAccount();
   if (childId && (type === "in" || type === "out")) {
+    await assertChildInScope(childId, me);
     // KID-58: no one can check in before the center opens.
     if (type === "in") {
       const instituteId = await firstInstituteId();
@@ -348,6 +424,7 @@ export async function saveDailyReportAction(formData: FormData) {
   const childId = String(formData.get("childId") ?? "");
   const reportDate = String(formData.get("reportDate") ?? "") || new Date().toISOString().slice(0, 10);
   const me = authAccount();
+  if (childId) await assertChildInScope(childId, me);
   await upsertDailyReport({
     childId,
     reportDate,
@@ -389,12 +466,15 @@ export async function commentAction(formData: FormData) {
 
 export async function createConsentAction(formData: FormData) {
   await ensureSchema();
+  const me = authAccount();
   const instituteId = await firstInstituteId();
+  const childId = String(formData.get("childId") ?? "") || undefined;
+  if (childId) await assertChildInScope(childId, me);
   await createConsent({
     instituteId,
     title: String(formData.get("title") ?? ""),
     body: String(formData.get("body") ?? ""),
-    childId: String(formData.get("childId") ?? "") || undefined,
+    childId,
   });
   redirect("/portal/consents");
 }
@@ -408,9 +488,11 @@ export async function createIncidentAction(formData: FormData) {
   const me = authAccount();
   await ensureSchema();
   const instituteId = await firstInstituteId();
+  const childId = String(formData.get("childId") ?? "");
+  if (childId) await assertChildInScope(childId, me);
   await createIncident({
     instituteId,
-    childId: String(formData.get("childId") ?? ""),
+    childId,
     accountId: me.accountId,
     type: String(formData.get("type") ?? "incident"),
     description: String(formData.get("description") ?? ""),
@@ -426,6 +508,7 @@ export async function acknowledgeIncidentAction(formData: FormData) {
 
 export async function addChildAction(formData: FormData) {
   await ensureSchema();
+  const me = authAccount();
   const instituteId = await firstInstituteId();
 
   // #4a: a child cannot exist without at least one parent/guardian who will
@@ -439,12 +522,23 @@ export async function addChildAction(formData: FormData) {
     redirect("/portal/children?error=guardian");
   }
 
+  // KID-103: staff can only add children to their assigned classrooms.
+  const roomId = String(formData.get("roomId") ?? "") || undefined;
+  if (instituteId && roomId) {
+    const allowed = await scopedRoomIds(instituteId, me.accountId);
+    if (allowed !== null && !allowed.includes(roomId)) {
+      redirect("/portal/children?error=scope");
+    }
+  } else if ((me.role === "staff" || me.role === "carer") && !roomId) {
+    redirect("/portal/children?error=scope");
+  }
+
   const child = await createChild({
     instituteId,
     firstName: String(formData.get("firstName") ?? ""),
     lastName: String(formData.get("lastName") ?? ""),
     dob: String(formData.get("dob") ?? "") || undefined,
-    roomId: String(formData.get("roomId") ?? "") || undefined,
+    roomId,
     allergies: String(formData.get("allergies") ?? ""),
   });
   await addContact({
@@ -460,6 +554,7 @@ export async function addChildAction(formData: FormData) {
 }
 
 export async function addStaffAction(formData: FormData) {
+  requireAdmin();
   await ensureSchema();
   const instituteId = await firstInstituteId();
   const fullName = String(formData.get("fullName") ?? "").trim();
@@ -507,6 +602,7 @@ function genTempPassword(): string {
 }
 
 export async function addRoomAction(formData: FormData) {
+  requireAdmin();
   await ensureSchema();
   const instituteId = await firstInstituteId();
   await createRoom(
@@ -520,6 +616,7 @@ export async function addRoomAction(formData: FormData) {
 
 // #6 room settings: name / colour / capacity.
 export async function updateRoomAction(formData: FormData) {
+  requireAdmin();
   await ensureSchema();
   const roomId = String(formData.get("roomId") ?? "");
   const capacityRaw = String(formData.get("capacity") ?? "").trim();
@@ -536,6 +633,7 @@ export async function saveChildStatusAction(formData: FormData) {
   const me = authAccount();
   await ensureSchema();
   const childId = String(formData.get("childId") ?? "");
+  if (childId) await assertChildInScope(childId, me);
   const kind = String(formData.get("kind") ?? "").trim();
   const value = String(formData.get("value") ?? "").trim();
   const recordedAt = String(formData.get("recordedAt") ?? "").trim();
@@ -553,8 +651,11 @@ export async function saveChildStatusAction(formData: FormData) {
 }
 
 export async function addContactAction(formData: FormData) {
+  const me = authAccount();
+  const childId = String(formData.get("childId") ?? "");
+  if (childId) await assertChildInScope(childId, me);
   await addContact({
-    childId: String(formData.get("childId") ?? ""),
+    childId,
     fullName: String(formData.get("fullName") ?? ""),
     relationship: String(formData.get("relationship") ?? ""),
     phone: String(formData.get("phone") ?? ""),
@@ -562,15 +663,18 @@ export async function addContactAction(formData: FormData) {
     isPickup: formData.get("isPickup") === "on",
     isEmergency: formData.get("isEmergency") === "on",
   });
-  redirect(`/portal/children/${String(formData.get("childId"))}`);
+  redirect(`/portal/children/${childId}`);
 }
 
 export async function inviteParentAction(formData: FormData) {
   await ensureSchema();
+  const me = authAccount();
   const instituteId = await firstInstituteId();
+  const childId = String(formData.get("childId") ?? "") || null;
+  if (childId) await assertChildInScope(childId, me);
   await createInvite(
     String(instituteId),
-    String(formData.get("childId") ?? "") || null,
+    childId,
     String(formData.get("email") ?? ""),
     String(formData.get("code") ?? "")
   );
@@ -578,6 +682,7 @@ export async function inviteParentAction(formData: FormData) {
 }
 
 export async function saveBrandingAction(formData: FormData) {
+  requireAdmin();
   await ensureSchema();
   const instituteId = await firstInstituteId();
   if (instituteId) {
@@ -592,6 +697,7 @@ export async function saveBrandingAction(formData: FormData) {
 }
 
 export async function saveCenterDetailsAction(formData: FormData) {
+  requireAdmin();
   await ensureSchema();
   const instituteId = await firstInstituteId();
   if (instituteId) {
@@ -609,6 +715,7 @@ export async function saveCenterDetailsAction(formData: FormData) {
 
 // KID-55 item 3 / KID-58: per-day open/close editor persisted on the institute.
 export async function saveWorkingHoursAction(formData: FormData) {
+  requireAdmin();
   await ensureSchema();
   const instituteId = await firstInstituteId();
   if (!instituteId) return { ok: false, error: "No center configured." };
@@ -681,6 +788,18 @@ export async function createEventAction(formData: FormData) {
       description: String(formData.get("description") ?? "") || undefined,
       accountId: me.accountId,
     });
+
+    // KID-104 #11: activities respect the selected recipients by posting the
+    // new activity to the newsfeed tagged to the chosen children/rooms.
+    const tagChildIds = await resolveNewsfeedRecipients(formData, me, instituteId);
+    if (tagChildIds.length > 0) {
+      const title = String(formData.get("title") ?? "").trim();
+      const eventDate = String(formData.get("eventDate") ?? "").trim();
+      const location = String(formData.get("location") ?? "").trim();
+      const description = String(formData.get("description") ?? "").trim();
+      const body = `Activity: ${title}${eventDate ? ` (${eventDate})` : ""}${location ? ` @ ${location}` : ""}${description ? ` — ${description}` : ""}`;
+      await createNewsfeedPost({ instituteId, accountId: me.accountId, body, tagChildIds });
+    }
   }
   // KID-55 #10: activities page posts inline with returnTo=/portal/learning/activities.
   const returnTo = String(formData.get("returnTo") ?? "");
@@ -769,8 +888,10 @@ export async function createTagAction(formData: FormData) {
 }
 
 export async function setChildTagsAction(formData: FormData) {
+  const me = authAccount();
   const childId = String(formData.get("childId") ?? "");
   if (childId) {
+    await assertChildInScope(childId, me);
     await setChildTags(childId, formData.getAll("tagIds").map(String));
   }
   redirect(`/portal/children/${childId}`);
@@ -779,7 +900,9 @@ export async function setChildTagsAction(formData: FormData) {
 export async function addDriveFileAction(formData: FormData) {
   const me = authAccount();
   const instituteId = await requireInstitute();
+  const childId = String(formData.get("childId") ?? "") || undefined;
   if (instituteId) {
+    if (childId) await assertChildInScope(childId, me);
     // #4: upload from local drive only — no file-URL input, no size field.
     const uploaded = formData.get("file");
     let filename = String(formData.get("filename") ?? "").trim();
@@ -810,7 +933,7 @@ export async function addDriveFileAction(formData: FormData) {
         kind,
         sizeBytes,
         description: String(formData.get("description") ?? ""),
-        childId: String(formData.get("childId") ?? "") || undefined,
+        childId,
         accountId: me.accountId,
       });
     }
@@ -827,6 +950,7 @@ export async function createObservationAction(formData: FormData) {
   if (!instituteId || !childId || !body) {
     redirect("/portal/learning?error=observation");
   }
+  await assertChildInScope(childId, me);
   const { ensureCurriculumSeeded } = await import("@/lib/curriculum");
   // KID-47 fix: seeding must never break observation logging on the live DB.
   try {
@@ -1044,6 +1168,7 @@ export async function sendParentMessageAction(formData: FormData) {
 
 // ---- #1 Logo / branding image upload ----
 export async function uploadBrandingImageAction(formData: FormData) {
+  requireAdmin();
   await ensureSchema();
   const instituteId = await firstInstituteId();
   if (!instituteId) redirect("/portal/settings");
@@ -1072,12 +1197,14 @@ export async function uploadBrandingImageAction(formData: FormData) {
 // ---- #5a / #7b Photo upload ----
 export async function uploadPhotoAction(formData: FormData) {
   await ensureSchema();
+  const me = authAccount();
   const entityType = String(formData.get("entityType") ?? ""); // "child" | "staff"
   const entityId = String(formData.get("entityId") ?? "");
   const file = formData.get("file") as File | null;
   if (!file || file.size === 0 || !entityType || !entityId) {
     redirect(entityType === "child" ? "/portal/children" : "/portal/staff");
   }
+  if (entityType === "child") await assertChildInScope(entityId, me);
 
   const ext = file.name.split(".").pop() || "jpg";
   const filename = `${entityType}/${entityId}/photo-${Date.now()}.${ext}`;
@@ -1103,15 +1230,26 @@ export async function uploadPhotoAction(formData: FormData) {
 // KID-55 #5: edit child's details from the About tab.
 export async function updateChildDetailsAction(formData: FormData) {
   await ensureSchema();
+  const me = authAccount();
   const childId = String(formData.get("childId") ?? "");
   if (!childId) redirect("/portal/children");
+  await assertChildInScope(childId, me);
+  // KID-103: staff cannot move a child to an unassigned classroom.
+  const instituteId = await firstInstituteId();
+  const roomId = String(formData.get("roomId") ?? "") || null;
+  if (instituteId && roomId) {
+    const allowed = await scopedRoomIds(instituteId, me.accountId);
+    if (allowed !== null && !allowed.includes(roomId)) {
+      redirect("/portal/children?error=scope");
+    }
+  }
   const { updateChildDetails } = await import("@/lib/store");
   await updateChildDetails(childId, {
     firstName: String(formData.get("firstName") ?? "").trim() || undefined,
     lastName: String(formData.get("lastName") ?? "").trim() || undefined,
     dob: String(formData.get("dob") ?? "") || null,
     gender: String(formData.get("gender") ?? "") || null,
-    roomId: String(formData.get("roomId") ?? "") || null,
+    roomId,
     status: String(formData.get("status") ?? "") || null,
     lastDate: String(formData.get("lastDate") ?? "") || null,
   });
@@ -1121,9 +1259,11 @@ export async function updateChildDetailsAction(formData: FormData) {
 // ---- #4b Admin child billing ----
 export async function addChildBillingAction(formData: FormData) {
   await ensureSchema();
+  const me = authAccount();
   const instituteId = await firstInstituteId();
   const childId = String(formData.get("childId") ?? "");
   if (!instituteId || !childId) redirect("/portal/children");
+  await assertChildInScope(childId, me);
   await createChildBilling({
     childId,
     instituteId,
@@ -1138,9 +1278,11 @@ export async function addChildBillingAction(formData: FormData) {
 }
 
 export async function updateBillingStatusAction(formData: FormData) {
+  const me = authAccount();
   const billingId = String(formData.get("billingId") ?? "");
   const status = String(formData.get("status") ?? "pending");
   const childId = String(formData.get("childId") ?? "");
+  if (childId) await assertChildInScope(childId, me);
   if (billingId) {
     await updateChildBilling(billingId, { status });
   }
@@ -1172,19 +1314,9 @@ export async function createNewsfeedWithAttachmentAction(formData: FormData) {
     mediaUrl = `data:${mime};base64,${buf.toString("base64")}`;
   }
 
-  // KID-53 #1: pre-defined recipient channels. A channel wins over individual
-  // picks — Center = every child, Rooms = every child in the chosen rooms
-  // (admin sees all rooms, staff only their assigned ones), Children = the
-  // explicitly picked children. Falls back to the picked children otherwise.
-  const { listChildren, childrenByRooms } = await import("@/lib/store");
-  const channel = String(formData.get("recipientChannel") ?? "").trim();
-  let tagChildIds: string[] = formData.getAll("childIds").map(String).filter(Boolean);
-  if (channel === "center") {
-    tagChildIds = (await listChildren(instituteId)).map((c) => String(c.id));
-  } else if (channel === "rooms") {
-    const roomIds = formData.getAll("recipientRoomIds").map(String).filter(Boolean);
-    tagChildIds = (await childrenByRooms(roomIds)).map((c) => String(c.id));
-  }
+  // KID-53 #1 / KID-104 #6: pre-defined recipient channels scoped by role.
+  // The helper also enforces on the server that only admins may use Center.
+  const tagChildIds = await resolveNewsfeedRecipients(formData, me, instituteId);
   if (body) {
     await createNewsfeedPost({ instituteId, accountId: me.accountId, body, mediaUrl, tagChildIds });
   }
@@ -1200,6 +1332,12 @@ export async function assignHomeworkAction(formData: FormData) {
   const title = String(formData.get("title") ?? "").trim();
   if (instituteId && title) {
     const childId = String(formData.get("childId") ?? "") || undefined;
+    const isAdmin = me.role === "owner" || me.role === "admin";
+    if (childId) {
+      await assertChildInScope(childId, me);
+    } else if (!isAdmin) {
+      redirect("/portal/learning/homework?error=scope");
+    }
     const dueDate = String(formData.get("dueDate") ?? "") || undefined;
     const description = String(formData.get("description") ?? "");
     await createHomework({
@@ -1216,7 +1354,7 @@ export async function assignHomeworkAction(formData: FormData) {
     try {
       const tagChildIds = childId
         ? [childId]
-        : (await listChildren(instituteId)).map((c) => String(c.id));
+        : (await listChildren(instituteId, { accountId: me.accountId })).map((c) => String(c.id));
       if (tagChildIds.length > 0) {
         await createNewsfeedPost({
           instituteId,
@@ -1299,10 +1437,15 @@ export async function updateSupplyStatusAction(formData: FormData) {
 
 // ---- KID-47 Round 6: staff schedules (#13) ----
 export async function createStaffScheduleAction(formData: FormData) {
-  authAccount();
+  const me = authAccount();
   await ensureSchema();
   const { createStaffSchedule } = await import("@/lib/store");
-  const staffId = String(formData.get("staffId") ?? "");
+  let staffId = String(formData.get("staffId") ?? "");
+  // KID-105 #13: non-admins can only schedule themselves.
+  if (!isAdminRole(me.role)) {
+    const myStaffId = await staffIdForAccount(me.accountId);
+    if (!myStaffId || myStaffId !== staffId) redirect("/portal/staff/schedule");
+  }
   if (staffId) {
     await createStaffSchedule({
       staffId,
@@ -1316,9 +1459,15 @@ export async function createStaffScheduleAction(formData: FormData) {
 }
 
 export async function deleteStaffScheduleAction(formData: FormData) {
-  authAccount();
+  const me = authAccount();
   const { deleteStaffSchedule } = await import("@/lib/store");
   const id = String(formData.get("id") ?? "");
+  // KID-105 #13: non-admins can only delete their own shifts.
+  if (id && !isAdminRole(me.role)) {
+    const myStaffId = await staffIdForAccount(me.accountId);
+    const row = await queryGet("SELECT staff_id FROM staff_schedule WHERE id = ?", id);
+    if (!myStaffId || !row || String(row.staff_id) !== myStaffId) redirect("/portal/staff/schedule");
+  }
   if (id) await deleteStaffSchedule(id);
   redirect("/portal/staff/schedule");
 }
@@ -1390,7 +1539,7 @@ export async function logStaffStatusAction(formData: FormData) {
 
 // Staff profile edits (full name, role, contact, rooms, last date).
 export async function updateStaffInfoAction(formData: FormData) {
-  authAccount();
+  requireAdmin();
   await ensureSchema();
   const { updateStaffInfo } = await import("@/lib/store");
   const staffId = String(formData.get("staffId") ?? "");

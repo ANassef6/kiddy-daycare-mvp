@@ -11,9 +11,10 @@ export default async function PortalNewsfeedPage() {
   const session = requireSession();
   const institutes = await listInstitutes();
   const iid = institutes[0]?.id as string | undefined;
+  // KID-103: composer children and visible posts are scoped to assigned classrooms.
   const [posts, children, rooms] = await Promise.all([
     iid ? listNewsfeed(iid, session.accountId) : Promise.resolve([]),
-    iid ? listChildren(iid) : Promise.resolve([]),
+    iid ? listChildren(iid, { accountId: session.accountId }) : Promise.resolve([]),
     iid ? listRooms(iid) : Promise.resolve([]),
   ]);
   // KID-53 #1: staff recipients are limited to their assigned classrooms.

@@ -6,10 +6,14 @@ import { addDriveFileAction } from "@/lib/actions";
 export const dynamic = "force-dynamic";
 
 export default async function PortalDrivePage() {
-  requireSession();
+  const session = requireSession();
   const instituteId = await firstInstituteId();
   if (!instituteId) return <p className="muted">No institute configured.</p>;
-  const [files, children] = await Promise.all([listDriveFiles(instituteId), listChildren(instituteId)]);
+  // KID-103: drive lists and share-with dropdown are scoped to assigned classrooms.
+  const [files, children] = await Promise.all([
+    listDriveFiles(instituteId, session.accountId),
+    listChildren(instituteId, { accountId: session.accountId }),
+  ]);
 
   return (
     <div>

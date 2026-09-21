@@ -3,7 +3,7 @@ import { requireSession } from "@/lib/require";
 import { queryGet } from "@/lib/db";
 import {
   listChildren,
-  listRooms,
+  listRoomsScoped,
   listStaff,
   listInstitutes,
   checkedInNow,
@@ -31,11 +31,12 @@ export default async function PortalDashboard() {
   // KID-58: auto check-out sweep also fires when the portal loads so nobody
   // stays checked-in past closing +3h even if a scheduler never runs.
   await runAutoCheckoutSweep(instituteId);
+  // KID-103: dashboard cards reflect only the account's assigned classrooms.
   const [children, rooms, staff, checkedIn] = await Promise.all([
-    listChildren(instituteId),
-    listRooms(instituteId),
+    listChildren(instituteId, { accountId: session.accountId }),
+    listRoomsScoped(instituteId, session.accountId),
     listStaff(instituteId),
-    checkedInNow(instituteId),
+    checkedInNow(instituteId, session.accountId),
   ]);
   const [consentCount, incidentCount] = await Promise.all([
     queryGet("SELECT COUNT(*) c FROM consent_request WHERE status='pending'"),
@@ -44,7 +45,7 @@ export default async function PortalDashboard() {
   const inquiries = await listContactRequests(5);
   const openConsents = ((consentCount as any)?.c as number) ?? 0;
   const openIncidents = ((incidentCount as any)?.c as number) ?? 0;
-  const reports = await recentReports(instituteId, 1);
+  const reports = await recentReports(instituteId, 1, session.accountId);
   const latestReport = reports[0];
 
   return (

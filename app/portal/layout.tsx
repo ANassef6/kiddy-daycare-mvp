@@ -1,6 +1,7 @@
 import Link from "next/link";
 import PortalSidebar from "@/components/PortalSidebar";
 import { requireSessionWithWithdrawalCheck } from "@/lib/require";
+import { isAdminRole } from "@/lib/role";
 import { getBranding } from "@/lib/theme";
 import { i18nForAccount } from "@/lib/i18n-session";
 import { tr } from "@/lib/i18n";
@@ -19,7 +20,7 @@ export default async function PortalLayout({ children }: { children: React.React
   } catch {}
   return (
     <div className="shell">
-      <PortalSidebar brandName={brandName} logoUrl={logoUrl} locale={locale} dict={dict} />
+      <PortalSidebar brandName={brandName} logoUrl={logoUrl} locale={locale} dict={dict} role={session.role} />
       <main className="shell-main">
         {/* KID-52 #12: messages, notifications and account settings live in the
             top-right corner on every portal page. */}
@@ -47,7 +48,9 @@ export default async function PortalLayout({ children }: { children: React.React
                 <div className="portal-account-email">{session.email}</div>
                 <div className="small muted">{session.role}</div>
               </div>
-              <Link href="/portal/settings" className="portal-account-link">{tr(dict, "topbar.accountSettings")}</Link>
+              {isAdminRole(session.role) && (
+                <Link href="/portal/settings" className="portal-account-link">{tr(dict, "topbar.accountSettings")}</Link>
+              )}
               <Link href="/portal/support" className="portal-account-link">{tr(dict, "topbar.helpSupport")}</Link>
               <a href="/api/logout" className="portal-account-link">{tr(dict, "topbar.logout")}</a>
             </div>

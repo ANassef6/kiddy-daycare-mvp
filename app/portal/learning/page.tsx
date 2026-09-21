@@ -21,9 +21,10 @@ export default async function PortalLearningPage() {
   } catch {}
   const instituteId = await firstInstituteId();
   if (!instituteId) return <p className="muted">{t("learning.noInstitute")}</p>;
+  // KID-103: observations and the child picker are scoped to assigned classrooms.
   const [observations, children] = await Promise.all([
-    listObservations(instituteId),
-    listChildren(instituteId),
+    listObservations(instituteId, session.accountId),
+    listChildren(instituteId, { accountId: session.accountId }),
   ]);
   let areas: any[] = [];
   try {

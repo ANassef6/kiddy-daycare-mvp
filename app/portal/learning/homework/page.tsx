@@ -6,13 +6,15 @@ import { assignHomeworkAction } from "@/lib/actions";
 export const dynamic = "force-dynamic";
 
 export default async function PortalHomeworkPage() {
-  requireSession();
+  const session = requireSession();
   const instituteId = await firstInstituteId();
   if (!instituteId) return <p className="muted">No institute configured.</p>;
+  // KID-103: homework list and child picker are scoped to assigned classrooms.
   const [items, children] = await Promise.all([
-    listHomework(instituteId),
-    listChildren(instituteId),
+    listHomework(instituteId, session.accountId),
+    listChildren(instituteId, { accountId: session.accountId }),
   ]);
+  const canAssignCenterWide = session.role === "owner" || session.role === "admin";
 
   return (
     <div>
@@ -26,7 +28,7 @@ export default async function PortalHomeworkPage() {
             <div className="col field">
               <label className="label">Child</label>
               <select className="select" name="childId">
-                <option value="">All children</option>
+                {canAssignCenterWide && <option value="">All children</option>}
                 {children.map((c: any) => <option key={c.id} value={c.id}>{c.first_name} {c.last_name}</option>)}
               </select>
             </div>
