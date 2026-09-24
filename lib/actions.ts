@@ -70,6 +70,7 @@ import { isAdminRole } from "@/lib/role";
 import {
   buildParentInviteEmail,
   getInviteById,
+  getPendingInvitesByEmail,
   isValidInviteCode,
   isValidInviteEmail,
   sendParentInviteEmail,
@@ -1917,6 +1918,29 @@ export async function resendActivationAction(formData: FormData) {
       return { ok: true };
     }
     console.error(`KID-113 resend: recovery fallback failed for ${email}:`, recovery.error.message);
+    // Last resort: the parent may have an app-side account but no GoTrue user
+    // yet (never signed up), so both GoTrue paths reject. A pending invite can
+    // still reach them through the admin-invite channel, which creates the
+    // GoTrue identity. Only attempted when a pending invite exists.
+    try {
+      const pending = await getPendingInvitesByEmail(email);
+      if (pending.length > 0) {
+        const inviteResult = await sendParentInviteEmail(pending[0], {
+          origin: requestOrigin(),
+          isResend: true,
+        });
+        await logResendAttempt({
+          targetEmail: email,
+          adminAccountId: me.accountId,
+          channel: "supabase-admin-invite",
+          status: inviteResult.status === "sent" ? "sent" : "failed",
+          detail: `GoTrue resend+recovery failed (${recovery.error.message}); admin-invite fallback: ${inviteResult.detail}`,
+        });
+        if (inviteResult.status === "sent") return { ok: true };
+      }
+    } catch (err) {
+      console.error(`KID-113 resend: admin-invite fallback failed for ${email}:`, err);
+    }
     await logResendAttempt({
       targetEmail: email,
       adminAccountId: me.accountId,
