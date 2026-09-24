@@ -895,10 +895,12 @@ export async function sendInviteForContactAction(formData: FormData) {
   if (!childId) return { error: "Missing child." };
   await assertChildInScope(childId, me);
   const email = String(formData.get("email") ?? "").trim().toLowerCase();
-  const { isContactRelationship } = await import("@/lib/contact-relationship");
-  const relationship = String(formData.get("relationship") ?? "parent").trim() || "parent";
+  // Normalize (never reject): stored contact relationships predate the
+  // 4-role enum or may be blank — KID-115 showed "Unknown relationship"
+  // blocking real parents. Legacy values map to the canonical role.
+  const { normalizeLegacyRelationship } = await import("@/lib/contact-relationship");
+  const relationship = normalizeLegacyRelationship(String(formData.get("relationship") ?? "parent"));
   if (!isValidInviteEmail(email)) return { error: "Enter a valid email address." };
-  if (!isContactRelationship(relationship)) return { error: "Unknown relationship." };
 
   const {
     generateInviteCode,
