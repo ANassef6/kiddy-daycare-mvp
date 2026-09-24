@@ -62,13 +62,130 @@ async function pgRun(sql: string, args: unknown[]): Promise<{ rowCount: number }
 }
 
 // Applies a multi-statement SQL script (used for the migration file).
+//
+// Splits on `;` only outside string literals, quoted identifiers, line/block
+// comments, and dollar-quoted bodies (DO $$ ... $$). A naive split shreds
+// both `;` inside `--` comments (KID-115: migration 0016's header produced a
+// fragment starting with "this" -> 42601 on every ensureSchema call) and the
+// semicolons inside DO blocks (orphaned `END IF` fragments).
+export function splitStatements(sql: string): string[] {
+  const out: string[] = [];
+  let current = "";
+  let i = 0;
+  let lineComment = false;
+  let blockComment = false;
+  let singleQuote = false;
+  let doubleQuote = false;
+  let dollarTag: string | null = null;
+
+  const startsDollarTag = (): string | null => {
+    const m = /^\$[A-Za-z_][A-Za-z0-9_]*\$|^\$\$/.exec(sql.slice(i));
+    return m ? m[0] : null;
+  };
+
+  while (i < sql.length) {
+    const ch = sql[i];
+    const next = sql[i + 1] ?? "";
+
+    if (lineComment) {
+      current += ch;
+      if (ch === "\n") lineComment = false;
+      i++;
+      continue;
+    }
+    if (blockComment) {
+      current += ch;
+      if (ch === "*" && next === "/") {
+        current += next;
+        i += 2;
+        blockComment = false;
+      } else {
+        i++;
+      }
+      continue;
+    }
+    if (singleQuote) {
+      current += ch;
+      if (ch === "'") {
+        if (next === "'") {
+          current += next;
+          i += 2;
+        } else {
+          singleQuote = false;
+          i++;
+        }
+      } else {
+        i++;
+      }
+      continue;
+    }
+    if (doubleQuote) {
+      current += ch;
+      if (ch === '"') doubleQuote = false;
+      i++;
+      continue;
+    }
+    if (dollarTag !== null) {
+      if (sql.startsWith(dollarTag, i)) {
+        current += dollarTag;
+        i += dollarTag.length;
+        dollarTag = null;
+      } else {
+        current += ch;
+        i++;
+      }
+      continue;
+    }
+
+    if (ch === "-" && next === "-") {
+      lineComment = true;
+      current += ch + next;
+      i += 2;
+      continue;
+    }
+    if (ch === "/" && next === "*") {
+      blockComment = true;
+      current += ch + next;
+      i += 2;
+      continue;
+    }
+    if (ch === "'") {
+      singleQuote = true;
+      current += ch;
+      i++;
+      continue;
+    }
+    if (ch === '"') {
+      doubleQuote = true;
+      current += ch;
+      i++;
+      continue;
+    }
+    const tag = ch === "$" ? startsDollarTag() : null;
+    if (tag) {
+      dollarTag = tag;
+      current += tag;
+      i += tag.length;
+      continue;
+    }
+    if (ch === ";") {
+      const trimmed = current.trim();
+      if (trimmed.length > 0) out.push(trimmed);
+      current = "";
+      i++;
+      continue;
+    }
+    current += ch;
+    i++;
+  }
+  const tail = current.trim();
+  if (tail.length > 0) out.push(tail);
+  return out;
+}
+
 async function pgExec(sql: string): Promise<void> {
-  const statements = sql
-    .split(";")
-    .map((s) => s.trim())
-    .filter((s) => s.length > 0);
   const pool = getPool();
-  for (const statement of statements) {
+  for (const statement of splitStatements(sql)) {
     await pool.query(statement);
   }
 }

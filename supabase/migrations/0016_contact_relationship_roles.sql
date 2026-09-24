@@ -1,5 +1,5 @@
 -- KID-112: contact relationship is exactly 4 roles (parent / family /
--- pickup / no_access). The admin UI no longer accepts free text; this
+-- pickup / no_access). The admin UI no longer accepts free text. This
 -- migration maps every legacy free-text value, adds the invite role column
 -- that carries access into registration, and adds missing indexes behind the
 -- enforcement queries.
