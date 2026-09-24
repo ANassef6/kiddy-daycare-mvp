@@ -10,6 +10,11 @@ function RegisterForm() {
   const [error, setError] = useState<string | null>(null);
   const searchParams = useSearchParams();
   const presetCode = searchParams.get("code") ?? "";
+  // KID-115: invite links carry what the daycare already knows so invited
+  // parents don't retype their own contact details. Values come from the
+  // daycare's contact record, never from free input.
+  const presetEmail = searchParams.get("email") ?? "";
+  const presetName = searchParams.get("name") ?? "";
 
   return (
     <div className="container" style={{ maxWidth: 420, paddingTop: 80 }}>
@@ -33,11 +38,11 @@ function RegisterForm() {
         </div>
         <div className="field">
           <label className="label">Full name</label>
-          <input className="input" name="fullName" required />
+          <input className="input" name="fullName" required defaultValue={presetName} />
         </div>
         <div className="field">
           <label className="label">Email</label>
-          <input className="input" name="email" type="email" required />
+          <input className="input" name="email" type="email" required defaultValue={presetEmail} />
         </div>
         <div className="field">
           <label className="label">Password</label>

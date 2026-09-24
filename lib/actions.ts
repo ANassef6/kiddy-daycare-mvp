@@ -346,6 +346,28 @@ async function firstInstituteId(): Promise<string> {
   return String(row?.id ?? "");
 }
 
+// KID-115: the contact's display name for activation-form prefill, so invited
+// parents don't retype details the daycare already has. Never throws —
+// prefill is best-effort and must not break sending.
+async function contactNameForInvite(
+  childId: string | null,
+  email: string
+): Promise<string | undefined> {
+  try {
+    if (!childId) return undefined;
+    const row = await queryGet(
+      "SELECT full_name FROM contact WHERE child_id = ? AND lower(email) = lower(?) LIMIT 1",
+      childId,
+      email
+    );
+    const name = String(row?.full_name ?? "").trim().slice(0, 120);
+    return name || undefined;
+  } catch (err) {
+    console.error(`KID-115 contactNameForInvite failed for ${email}:`, err);
+    return undefined;
+  }
+}
+
 // KID-103: verifies a child belongs to the current account's assigned
 // classrooms. Owners/admins always pass; out-of-scope direct-action attempts
 // redirect to the children list instead of silently writing data.
@@ -787,12 +809,15 @@ export async function inviteParentAction(formData: FormData) {
     const child = await queryGet("SELECT first_name, last_name FROM child WHERE id = ?", childId);
     if (child) childName = `${String(child.first_name ?? "")} ${String(child.last_name ?? "")}`.trim() || undefined;
   }
-  const preview = buildParentInviteEmail({ parentEmail: email, code, childName, origin: origin || "(unknown origin)" });
+  // Prefill the activation form with the contact's name so invited parents
+  // don't retype details the daycare already has (KID-115).
+  const parentName = await contactNameForInvite(childId, email);
+  const preview = buildParentInviteEmail({ parentEmail: email, code, childName, parentName, origin: origin || "(unknown origin)" });
   console.log(`KID-111 invite created for ${email} (code ${code}):\n${preview.text}`);
   const created = await getInviteByCode(code);
   // KID-111: attempt delivery and record the outcome (sent / pending / failed)
   // so a missing activation email is visible instead of silently lost.
-  const result = created ? await sendParentInviteEmail(created, { origin }) : { status: "failed" as const, detail: "invite row not found after create" };
+  const result = created ? await sendParentInviteEmail(created, { origin, prefill: { email, name: parentName } }) : { status: "failed" as const, detail: "invite row not found after create" };
   const params = new URLSearchParams({ invite: result.status, email });
   if (result.activationUrl) params.set("activationUrl", result.activationUrl);
   if (result.status !== "sent") params.set("inviteDetail", result.detail);
@@ -864,7 +889,15 @@ export async function resendParentInviteAction(formData: FormData) {
   }
 
   const origin = requestOrigin();
-  const result = await sendParentInviteEmail(invite, { origin, isResend: true });
+  const parentName = await contactNameForInvite(
+    invite.child_id ? String(invite.child_id) : null,
+    email
+  );
+  const result = await sendParentInviteEmail(invite, {
+    origin,
+    isResend: true,
+    prefill: { email, name: parentName },
+  });
   await logResendAttempt({
     targetEmail: email,
     adminAccountId: me.accountId,
@@ -912,7 +945,12 @@ export async function sendInviteForContactAction(formData: FormData) {
   const existing = await getPendingInvitesByEmail(email);
   const origin = requestOrigin();
   if (existing.length > 0) {
-    const result = await sendParentInviteEmail(existing[0], { origin, isResend: true });
+    const parentName = await contactNameForInvite(childId, email);
+    const result = await sendParentInviteEmail(existing[0], {
+      origin,
+      isResend: true,
+      prefill: { email, name: parentName },
+    });
     const { logResendAttempt } = await import("@/lib/activation");
     await logResendAttempt({
       targetEmail: email,
@@ -942,10 +980,11 @@ export async function sendInviteForContactAction(formData: FormData) {
     return { error: err instanceof Error ? err.message : "Could not create the invite." };
   }
   const created = await getInviteByCode(code);
-  const preview = buildParentInviteEmail({ parentEmail: email, code, origin: origin || "(unknown origin)" });
+  const parentName = await contactNameForInvite(childId, email);
+  const preview = buildParentInviteEmail({ parentEmail: email, code, parentName, origin: origin || "(unknown origin)" });
   console.log(`KID-115 contact send: invite created for ${email} (code ${code}):\n${preview.text}`);
   const result = created
-    ? await sendParentInviteEmail(created, { origin })
+    ? await sendParentInviteEmail(created, { origin, prefill: { email, name: parentName } })
     : { status: "failed" as const, detail: "invite row not found after create" };
   const { logResendAttempt } = await import("@/lib/activation");
   await logResendAttempt({

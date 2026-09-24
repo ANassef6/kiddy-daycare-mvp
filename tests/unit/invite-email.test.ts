@@ -77,6 +77,20 @@ describe("activationUrlForCode", () => {
       "https://kiddy.example/register?code=SUNSHINE-1234"
     );
   });
+
+  it("prefills known contact details and skips invalid ones", () => {
+    const url = activationUrlForCode("https://kiddy.example", "KID-ABC123", {
+      email: "Parent@Example.com",
+      name: "Ahmed Nassef",
+    });
+    expect(url).toContain("code=KID-ABC123");
+    expect(url).toContain("email=parent%40example.com");
+    expect(url).toContain("name=Ahmed+Nassef");
+    const clean = activationUrlForCode("https://kiddy.example", "KID-ABC123", {
+      email: "not-an-email",
+    });
+    expect(clean).not.toContain("email=");
+  });
 });
 
 describe("generateInviteCode", () => {

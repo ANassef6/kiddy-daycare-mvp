@@ -58,12 +58,16 @@ export function buildParentInviteEmail(args: {
   parentEmail: string;
   code: string;
   childName?: string;
+  parentName?: string;
   origin: string;
 }): ParentInviteEmail {
   const to = args.parentEmail.trim().toLowerCase();
   const code = args.code.trim();
   const childBit = args.childName ? ` for ${args.childName}` : "";
-  const registerUrl = `${args.origin.replace(/\/$/, "")}/register?code=${encodeURIComponent(code)}`;
+  const registerUrl = activationUrlForCode(args.origin, code, {
+    email: to,
+    name: args.parentName,
+  });
   return {
     to,
     subject: "Activate your Kiddy parent account",
@@ -82,8 +86,21 @@ export function buildParentInviteEmail(args: {
   };
 }
 
-export function activationUrlForCode(origin: string, code: string): string {
-  return `${origin.replace(/\/$/, "")}/register?code=${encodeURIComponent(code.trim())}`;
+export function activationUrlForCode(
+  origin: string,
+  code: string,
+  prefill?: { email?: string; name?: string }
+): string {
+  const base = origin.replace(/\/$/, "");
+  const params = new URLSearchParams({ code: code.trim() });
+  // Prefill what the daycare already knows so invited parents don't retype
+  // their own contact details on the activation page (KID-115).
+  if (prefill?.email && isValidInviteEmail(prefill.email)) {
+    params.set("email", prefill.email.trim().toLowerCase());
+  }
+  const name = prefill?.name?.trim().slice(0, 120);
+  if (name) params.set("name", name);
+  return `${base}/register?${params.toString()}`;
 }
 
 // KID-115: server-generated invite codes for one-click sending from the
@@ -186,11 +203,13 @@ export async function getInviteById(id: string): Promise<Row | undefined> {
 // build the activation link for the pending fallback.
 export async function sendParentInviteEmail(
   invite: Row,
-  opts: { origin: string; isResend?: boolean }
+  opts: { origin: string; isResend?: boolean; prefill?: { email?: string; name?: string } }
 ): Promise<InviteDeliveryResult> {
   const email = String(invite.email ?? "").trim().toLowerCase();
   const code = String(invite.code ?? "").trim();
-  const activationUrl = opts.origin ? activationUrlForCode(opts.origin, code) : undefined;
+  const activationUrl = opts.origin
+    ? activationUrlForCode(opts.origin, code, opts.prefill ?? { email })
+    : undefined;
 
   if (!isValidInviteEmail(email) || !isValidInviteCode(code)) {
     const detail = `invalid invite data (email or code), not attempting delivery`;
