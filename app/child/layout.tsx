@@ -1,7 +1,8 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import ActiveLink from "@/components/ActiveLink";
 import { requireSessionWithWithdrawalCheck } from "@/lib/require";
-import { familiesForAccount } from "@/lib/store";
+import { familiesForAccount, familyAccessForAccount } from "@/lib/store";
 import { getBranding } from "@/lib/theme";
 import { i18nForAccount } from "@/lib/i18n-session";
 import { tr } from "@/lib/i18n";
@@ -35,6 +36,16 @@ export default async function ParentLayout({ children }: { children: React.React
     { href: "/child/support", label: tr(dict, "nav.support") },
   ];
 
+  // KID-112: no_access links never render parent pages (login already blocks;
+  // this covers sessions issued before the admin disabled the account).
+  // Pickup links only register pickup time, so the nav shrinks to MyChildren.
+  let visibleNav = navItems;
+  if (session.role === "parent") {
+    const access = await familyAccessForAccount(session.accountId);
+    if (access === "no_access") redirect("/login?error=disabled");
+    if (access === "pickup") visibleNav = navItems.slice(0, 1);
+  }
+
   return (
     <div className="container" style={{ maxWidth: 760 }}>
       {!session.emailConfirmed && (
@@ -63,7 +74,7 @@ export default async function ParentLayout({ children }: { children: React.React
           <span className="brand">{brandName}</span>
         </Link>
         <nav className="nav">
-          {navItems.map((item) => (
+          {visibleNav.map((item) => (
             <ActiveLink key={item.href} href={item.href}>{item.label}</ActiveLink>
           ))}
           <Link href="/child/settings" className="nav-settings-link small" title={tr(dict, "topbar.accountSettings")}>

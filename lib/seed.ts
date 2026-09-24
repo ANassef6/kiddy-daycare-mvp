@@ -71,7 +71,7 @@ export async function seedDemo() {
   await store.addContact({
     childId: childA.id as string,
     fullName: "Grace Nguyen",
-    relationship: "Mother",
+    relationship: "parent",
     phone: "+1 555 0100",
     email: "grace@example.test",
     isPickup: true,

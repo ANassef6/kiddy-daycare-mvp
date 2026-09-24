@@ -3,6 +3,7 @@ import { requireSession } from "@/lib/require";
 import { listChildren, listRoomsScoped, listInstitutes } from "@/lib/store";
 import { addChildAction, inviteParentAction } from "@/lib/actions";
 import Avatar from "@/components/Avatar";
+import RelationshipSelect from "@/components/RelationshipSelect";
 
 export const dynamic = "force-dynamic";
 
@@ -24,7 +25,7 @@ function statusTone(status?: string | null): "green" | "gray" | "red" | undefine
 export default async function PortalChildrenPage({
   searchParams,
 }: {
-  searchParams: { error?: string; status?: string };
+  searchParams: { error?: string; status?: string; invite?: string; email?: string; code?: string; activationUrl?: string; inviteDetail?: string };
 }) {
   const session = requireSession();
   const institutes = await listInstitutes();
@@ -36,9 +37,52 @@ export default async function PortalChildrenPage({
     instituteId ? listRoomsScoped(instituteId, session.accountId) : Promise.resolve([]),
   ]);
   const guardianError = searchParams.error === "guardian";
+  const relationshipError = searchParams.error === "relationship";
+  // KID-111: invite-delivery outcome from inviteParentAction/resendParentInviteAction.
+  const inviteStatus = searchParams.invite;
+  const inviteEmail = searchParams.email;
+  const inviteActivationUrl = searchParams.activationUrl;
+  const inviteDetail = searchParams.inviteDetail;
+  const inviteCode = searchParams.code;
 
   return (
     <div>
+      {inviteStatus && (
+        <div
+          role="status"
+          className="card mt-3"
+          style={{
+            borderLeft: `4px solid ${inviteStatus === "sent" ? "#047857" : inviteStatus === "pending" ? "#b45309" : "#b91c1c"}`,
+          }}
+        >
+          {inviteStatus === "sent" && (
+            <p className="small" style={{ margin: 0 }}>
+              Activation email sent{inviteEmail ? <> to <strong>{inviteEmail}</strong></> : null}. It should arrive within 2 minutes (check spam too).
+            </p>
+          )}
+          {inviteStatus === "pending" && (
+            <div className="small">
+              <p style={{ margin: "0 0 8px" }}>
+                Invite saved{inviteEmail ? <> for <strong>{inviteEmail}</strong></> : null}, but no mail provider is configured so no email was sent.
+                Forward the activation link manually:
+              </p>
+              {inviteActivationUrl && (
+                <p style={{ margin: "0 0 8px", overflowWrap: "anywhere" }}>
+                  <a href={inviteActivationUrl}>{inviteActivationUrl}</a>
+                </p>
+              )}
+              {inviteDetail && <p className="muted" style={{ margin: 0 }}>{inviteDetail}</p>}
+            </div>
+          )}
+          {inviteStatus !== "sent" && inviteStatus !== "pending" && (
+            <p className="small" style={{ margin: 0 }}>
+              Invite not sent ({inviteStatus}
+              {inviteCode ? <> — code <strong>{inviteCode}</strong></> : null}
+              {inviteDetail ? <>: {inviteDetail}</> : null}). Fix the details and try again.
+            </p>
+          )}
+        </div>
+      )}
       <div className="row" style={{ alignItems: "center", justifyContent: "space-between" }}>
         <h1 className="title" style={{ marginBottom: 0 }}>Children</h1>
         <span className="small muted">{children.length} enrolled</span>
@@ -114,7 +158,7 @@ export default async function PortalChildrenPage({
           <p className="small muted">A child must have at least one parent/guardian attached.</p>
           <div className="row">
             <div className="col field"><label className="label">Full name</label><input className="input" name="guardianName" required placeholder="e.g. Sam Carter" /></div>
-            <div className="col field"><label className="label">Relationship</label><input className="input" name="guardianRelationship" required placeholder="e.g. Parent, Grandparent" /></div>
+            <div className="col field"><label className="label">Relationship</label><RelationshipSelect name="guardianRelationship" /></div>
           </div>
           <div className="row">
             <div className="col field"><label className="label">Phone</label><input className="input" name="guardianPhone" /></div>
@@ -129,6 +173,11 @@ export default async function PortalChildrenPage({
           {guardianError && (
             <p className="small" style={{ color: "#b91c1c", marginTop: 8 }}>
               A parent/guardian (name, relationship, and a phone or email) is required before a child can be added.
+            </p>
+          )}
+          {relationshipError && (
+            <p className="small" style={{ color: "#b91c1c", marginTop: 8 }}>
+              Relationship must be one of: Parent, Family, Pickup, No access.
             </p>
           )}
           <button className="btn btn-primary" type="submit">Add child</button>
@@ -146,6 +195,7 @@ export default async function PortalChildrenPage({
             </select>
           </div>
           <div className="col field"><label className="label">Parent email</label><input className="input" name="email" type="email" required /></div>
+          <div className="col field"><label className="label">Relationship</label><RelationshipSelect name="relationship" /></div>
           <div className="col field"><label className="label">Invite code</label><input className="input" name="code" required placeholder="e.g. SUNSHINE-1234" /></div>
         </div>
         <button className="btn btn-accent" type="submit">Send invite</button>

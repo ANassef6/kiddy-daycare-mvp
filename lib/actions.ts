@@ -67,6 +67,13 @@ import type { WorkingWeek } from "@/lib/working-hours";
 import { supabaseConfigured, getSupabase } from "@/lib/supabase";
 import { requestOrigin } from "@/lib/url";
 import { isAdminRole } from "@/lib/role";
+import {
+  buildParentInviteEmail,
+  getInviteById,
+  isValidInviteCode,
+  isValidInviteEmail,
+  sendParentInviteEmail,
+} from "@/lib/invite-email";
 
 const SESSION_COOKIE = "kiddy_sess";
 
@@ -137,6 +144,15 @@ export async function loginAction(formData: FormData) {
   if (await isAccountAccessWithdrawn(account.id)) {
     return { error: "This account's access has been withdrawn." };
   }
+  // KID-112: contacts with relationship "No access" cannot log in
+  // (e.g. unpaid fees). The admin re-enables them by changing the role.
+  if (account.role === "parent") {
+    const { familyAccessForAccount } = await import("@/lib/store");
+    const access = await familyAccessForAccount(account.id);
+    if (access === "no_access") {
+      return { error: "This account's access is currently disabled. Contact your daycare admin." };
+    }
+  }
   await setSession(account.email);
   redirect(emailConfirmedFor(account) ? homeForRole(account.role) : "/welcome");
 }
@@ -184,8 +200,13 @@ export async function registerAction(formData: FormData) {
         String(error.message).toLowerCase().includes("rate limit"))
     );
     if (error) {
-      if (!isRateLimited) return { error: error.message };
+      if (!isRateLimited) {
+        // KID-111: log GoTrue signup failures so missing confirm emails are diagnosable.
+        console.error(`KID-111 register: GoTrue signUp failed for ${email}:`, error.code ?? "", error.message);
+        return { error: error.message };
+      }
       // Rate-limited confirmation send: keep the app session usable anyway.
+      console.warn(`KID-111 register: GoTrue confirm email rate-limited for ${email}; app session continues unconfirmed.`);
       emailConfirmed = false;
     } else {
       authUserId = data.user?.id ?? null;
@@ -209,9 +230,14 @@ export async function registerAction(formData: FormData) {
   const pin = String(formData.get("pin") ?? "").trim();
   if (pin) await setPin(account.id, pin);
 
-  // Link via the invite the daycare issued and consume it.
+  // Link via the invite the daycare issued and consume it. The invite's
+  // relationship becomes the family-link access role (KID-112).
   if (invite.child_id) {
-    await linkFamily(account.id, String(invite.child_id));
+    const { isContactRelationship } = await import("@/lib/contact-relationship");
+    const inviteRole = isContactRelationship((invite as Record<string, unknown>).role)
+      ? String((invite as Record<string, unknown>).role)
+      : "parent";
+    await linkFamily(account.id, String(invite.child_id), inviteRole);
   }
   await queryRun("UPDATE invite SET status = 'accepted' WHERE id = ?", invite.id);
 
@@ -226,7 +252,12 @@ export async function resendConfirmationAction() {
   const email = session?.email ?? "";
   if (!email) return { error: "No signed-in account to confirm." };
   const { error } = await getSupabase().auth.resend({ type: "signup", email });
-  if (error) return { error: error.message };
+  if (error) {
+    // KID-111: log resend failures instead of failing silently.
+    console.error(`KID-111 resendConfirmation: GoTrue resend failed for ${email}:`, error.message);
+    return { error: error.message };
+  }
+  console.log(`KID-111 resendConfirmation: GoTrue confirm email resent to ${email}`);
   return { ok: true };
 }
 
@@ -256,6 +287,8 @@ export async function requestPasswordResetAction(formData: FormData) {
     redirectTo: `${requestOrigin()}/reset-password`,
   });
   if (error) {
+    // KID-111: log reset-mail failures (e.g. non-routable demo addresses).
+    console.error(`KID-111 passwordReset: reset email failed for ${email}:`, error.message);
     // Supabase rejects non-routable addresses (e.g. the seeded *.test demo
     // accounts) with a generic error. Point the user at the interim path.
     return {
@@ -263,6 +296,7 @@ export async function requestPasswordResetAction(formData: FormData) {
         "We couldn't send a reset link to that address. If you're a parent or staff member, ask your daycare admin to re-invite you or set a new password.",
     };
   }
+  console.log(`KID-111 passwordReset: reset email sent to ${email}`);
   return { ok: true };
 }
 
@@ -279,7 +313,11 @@ export async function linkInviteAction(formData: FormData) {
   const invite = await getInviteByCode(code);
   if (!invite) return { error: "Invite code not found." };
   if (invite.child_id) {
-    await linkFamily(account.id, String(invite.child_id));
+    const { isContactRelationship } = await import("@/lib/contact-relationship");
+    const inviteRole = isContactRelationship((invite as Record<string, unknown>).role)
+      ? String((invite as Record<string, unknown>).role)
+      : "parent";
+    await linkFamily(account.id, String(invite.child_id), inviteRole);
     await queryRun("UPDATE invite SET status = 'accepted' WHERE id = ?", invite.id);
     return { ok: true };
   }
@@ -315,6 +353,20 @@ async function assertChildInScope(childId: string, me: SessionCookie): Promise<v
   if (!instituteId) return;
   if (!(await isChildInScope(instituteId, me.accountId, childId))) {
     redirect("/portal/children?error=scope");
+  }
+}
+
+// KID-112: enforces the contact-relationship access ladder server-side.
+// Staff/admin account roles are unaffected; parent-role accounts are gated by
+// their most-permissive family_member link (parent > family > pickup).
+// no_access accounts never reach here (blocked at login) — deny defensively.
+async function assertFamilyAction(me: SessionCookie, action: string): Promise<void> {
+  if (me.role !== "parent") return;
+  const { familyAccessForAccount } = await import("@/lib/store");
+  const { isActionAllowed } = await import("@/lib/contact-relationship");
+  const access = (await familyAccessForAccount(me.accountId)) ?? "parent";
+  if (access === "no_access" || !isActionAllowed(access, action)) {
+    redirect("/child?error=role");
   }
 }
 
@@ -398,6 +450,9 @@ export async function checkInOutAction(formData: FormData) {
   const childId = String(formData.get("childId") ?? "");
   const type = String(formData.get("type") ?? "") as "in" | "out";
   const me = authAccount();
+  // KID-112: pickup role exists only to register pickup time; no_access is
+  // blocked at login (defensive deny here too).
+  await assertFamilyAction(me, "checkInOut");
   if (childId && (type === "in" || type === "out")) {
     await assertChildInScope(childId, me);
     // KID-58: no one can check in before the center opens.
@@ -460,6 +515,8 @@ export async function createNewsfeedAction(formData: FormData) {
 
 export async function commentAction(formData: FormData) {
   const me = authAccount();
+  // KID-112: pickup accounts may only register pickup time — no commenting.
+  await assertFamilyAction(me, "comment");
   await addComment(String(formData.get("postId") ?? ""), me.accountId, String(formData.get("body") ?? ""));
   redirect(formData.get("fromParent") === "1" ? "/child/newsfeed" : "/portal/newsfeed");
 }
@@ -480,6 +537,9 @@ export async function createConsentAction(formData: FormData) {
 }
 
 export async function respondConsentAction(formData: FormData) {
+  const me = authAccount();
+  // KID-112: consent responses are parent-only (family/pickup denied).
+  await assertFamilyAction(me, "respondConsent");
   await respondConsent(String(formData.get("id") ?? ""), String(formData.get("status") ?? "approved") as "approved" | "denied");
   redirect("/child/consents");
 }
@@ -501,6 +561,9 @@ export async function createIncidentAction(formData: FormData) {
 }
 
 export async function acknowledgeIncidentAction(formData: FormData) {
+  const me = authAccount();
+  // KID-112: incident acknowledgement is parent-only (family/pickup denied).
+  await assertFamilyAction(me, "acknowledgeIncident");
   await acknowledgeIncident(String(formData.get("id") ?? ""));
   const fromPortal = String(formData.get("portal") ?? "") === "1";
   redirect(fromPortal ? "/portal/incidents" : "/child/incidents");
@@ -520,6 +583,11 @@ export async function addChildAction(formData: FormData) {
   const guardianEmail = String(formData.get("guardianEmail") ?? "").trim();
   if (!guardianName || !guardianRelationship || (!guardianPhone && !guardianEmail)) {
     redirect("/portal/children?error=guardian");
+  }
+  // KID-112: relationship is a required 4-option enum — reject free text.
+  const { isContactRelationship } = await import("@/lib/contact-relationship");
+  if (!isContactRelationship(guardianRelationship)) {
+    redirect("/portal/children?error=relationship");
   }
 
   // KID-103: staff can only add children to their assigned classrooms.
@@ -585,8 +653,11 @@ export async function addStaffAction(formData: FormData) {
           password,
           options: { emailRedirectTo: `${requestOrigin()}/auth/confirm` },
         });
-      } catch {
-        /* non-fatal: the app-side account still works */
+        console.log(`KID-111 staffInvite: GoTrue identity created for staff ${email}`);
+      } catch (err) {
+        // KID-111: never fail silently — the app-side account still works, but
+        // the failure is logged so missing staff invite/reset emails are visible.
+        console.error(`KID-111 staffInvite: GoTrue signUp failed for staff ${email}:`, err instanceof Error ? err.message : err);
       }
     }
   }
@@ -654,10 +725,16 @@ export async function addContactAction(formData: FormData) {
   const me = authAccount();
   const childId = String(formData.get("childId") ?? "");
   if (childId) await assertChildInScope(childId, me);
+  // KID-112: relationship is a required 4-option enum — reject free text.
+  const relationship = String(formData.get("relationship") ?? "").trim();
+  const { isContactRelationship } = await import("@/lib/contact-relationship");
+  if (!isContactRelationship(relationship)) {
+    redirect(`/portal/children/${childId}?error=relationship`);
+  }
   await addContact({
     childId,
     fullName: String(formData.get("fullName") ?? ""),
-    relationship: String(formData.get("relationship") ?? ""),
+    relationship,
     phone: String(formData.get("phone") ?? ""),
     email: String(formData.get("email") ?? ""),
     isPickup: formData.get("isPickup") === "on",
@@ -672,13 +749,131 @@ export async function inviteParentAction(formData: FormData) {
   const instituteId = await firstInstituteId();
   const childId = String(formData.get("childId") ?? "") || null;
   if (childId) await assertChildInScope(childId, me);
+  // KID-112: the invite carries the contact relationship so the new
+  // account's family link gets the right access role on registration.
+  const relationship = String(formData.get("relationship") ?? "parent").trim() || "parent";
+  const { isContactRelationship } = await import("@/lib/contact-relationship");
+  if (!isContactRelationship(relationship)) {
+    redirect("/portal/children?error=relationship");
+  }
+  // KID-111: fail fast on bad input; codes are single-use tokens so reject a
+  // code that is already pending instead of creating a confusing duplicate.
+  const email = String(formData.get("email") ?? "").trim().toLowerCase();
+  const code = String(formData.get("code") ?? "").trim();
+  if (!isValidInviteEmail(email)) {
+    redirect("/portal/children?invite=invalid-email");
+  }
+  if (!isValidInviteCode(code)) {
+    redirect("/portal/children?invite=invalid-code");
+  }
+  const duplicate = await getInviteByCode(code);
+  if (duplicate && String(duplicate.status ?? "pending") === "pending") {
+    console.warn(`KID-111 invite: duplicate pending code ${code} rejected for ${email}`);
+    redirect(`/portal/children?invite=code-used&code=${encodeURIComponent(code)}`);
+  }
   await createInvite(
     String(instituteId),
     childId,
-    String(formData.get("email") ?? ""),
-    String(formData.get("code") ?? "")
+    email,
+    code,
+    relationship
   );
-  redirect("/portal/children");
+  const origin = requestOrigin();
+  // Log the canonical activation message so the invite is verifiable in logs
+  // even when no mail provider is wired.
+  let childName: string | undefined;
+  if (childId) {
+    const child = await queryGet("SELECT first_name, last_name FROM child WHERE id = ?", childId);
+    if (child) childName = `${String(child.first_name ?? "")} ${String(child.last_name ?? "")}`.trim() || undefined;
+  }
+  const preview = buildParentInviteEmail({ parentEmail: email, code, childName, origin: origin || "(unknown origin)" });
+  console.log(`KID-111 invite created for ${email} (code ${code}):\n${preview.text}`);
+  const created = await getInviteByCode(code);
+  // KID-111: attempt delivery and record the outcome (sent / pending / failed)
+  // so a missing activation email is visible instead of silently lost.
+  const result = created ? await sendParentInviteEmail(created, { origin }) : { status: "failed" as const, detail: "invite row not found after create" };
+  const params = new URLSearchParams({ invite: result.status, email });
+  if (result.activationUrl) params.set("activationUrl", result.activationUrl);
+  if (result.status !== "sent") params.set("inviteDetail", result.detail);
+  redirect(`/portal/children?${params.toString()}`);
+}
+
+// KID-111: resend a pending parent invite — the activation path for existing
+// unactivated parents. If the parent already registered but never confirmed,
+// prefer the GoTrue confirmation resend; otherwise re-attempt invite delivery.
+// Always bumps resend_count and logs the outcome.
+export async function resendParentInviteAction(formData: FormData) {
+  await ensureSchema();
+  const me = authAccount();
+  if (!isAdminRole(me.role)) redirect("/portal/dashboard");
+  const inviteId = String(formData.get("inviteId") ?? "").trim();
+  const invite = inviteId ? await getInviteById(inviteId) : undefined;
+  if (!invite) redirect("/portal/children?invite=not-found");
+  if (String(invite.status ?? "pending") !== "pending") redirect("/portal/children?invite=already-used");
+  const email = String(invite.email ?? "").trim().toLowerCase();
+  // KID-111 + KID-113: share the resend rate limit and audit log so invite
+  // resends and account resends have one trail and one budget.
+  const {
+    decideRateLimit,
+    countRecentResendsForEmail,
+    countRecentResendsForAdmin,
+    logResendAttempt,
+  } = await import("@/lib/activation");
+  const [recentForEmail, recentForAdmin] = await Promise.all([
+    countRecentResendsForEmail(email),
+    countRecentResendsForAdmin(me.accountId),
+  ]);
+  const decision = decideRateLimit(recentForEmail, recentForAdmin);
+  if (decision.limited) {
+    const { recordInviteEmailAttempt } = await import("@/lib/invite-email");
+    await recordInviteEmailAttempt({ inviteId: String(invite.id), ok: false, error: decision.reason, isResend: true });
+    await logResendAttempt({
+      targetEmail: email,
+      adminAccountId: me.accountId,
+      channel: "invite",
+      status: "rate_limited",
+      detail: decision.reason,
+    });
+    redirect(`/portal/children?invite=rate-limited&email=${encodeURIComponent(email)}`);
+  }
+
+  // Registered-but-unconfirmed parent: resend the GoTrue confirmation email.
+  if (supabaseConfigured()) {
+    const account = await findAccountByEmail(email);
+    if (account && !emailConfirmedFor(account)) {
+      const { error } = await getSupabase().auth.resend({ type: "signup", email });
+      const { recordInviteEmailAttempt } = await import("@/lib/invite-email");
+      if (!error) {
+        console.log(`KID-111 resendInvite: GoTrue confirm email resent to ${email} (invite ${String(invite.id)})`);
+        await recordInviteEmailAttempt({ inviteId: String(invite.id), ok: true, isResend: true });
+        await logResendAttempt({
+          targetEmail: email,
+          adminAccountId: me.accountId,
+          channel: "supabase",
+          status: "sent",
+          detail: `invite ${String(invite.id)} resend via signup confirm.`,
+        });
+        redirect(`/portal/children?invite=sent&email=${encodeURIComponent(email)}`);
+      }
+      console.error(`KID-111 resendInvite: GoTrue resend failed for ${email}:`, error.message);
+      // Fall through to the invite-delivery attempt below; the failure is
+      // recorded there along with the recovery outcome.
+    }
+  }
+
+  const origin = requestOrigin();
+  const result = await sendParentInviteEmail(invite, { origin, isResend: true });
+  await logResendAttempt({
+    targetEmail: email,
+    adminAccountId: me.accountId,
+    channel: result.status === "sent" ? "supabase-admin-invite" : "invite",
+    status: result.status === "sent" ? "sent" : "failed",
+    detail: `invite ${String(invite.id)} resend: ${result.detail}`,
+  });
+  const params = new URLSearchParams({ invite: result.status, email });
+  if (result.activationUrl) params.set("activationUrl", result.activationUrl);
+  if (result.status !== "sent") params.set("inviteDetail", result.detail);
+  redirect(`/portal/children?${params.toString()}`);
 }
 
 export async function saveBrandingAction(formData: FormData) {
@@ -858,6 +1053,8 @@ export async function createFormAction(formData: FormData) {
 
 export async function submitFormAction(formData: FormData) {
   const me = authAccount();
+  // KID-112: form submissions are parent-only (family/pickup denied).
+  await assertFamilyAction(me, "submitForm");
   const formId = String(formData.get("formId") ?? "");
   await ensureSchema();
   const answers: Record<string, string> = {};
@@ -1015,6 +1212,8 @@ export async function accountName(accountId: string): Promise<string> {
 
 export async function createSupportTicketAction(formData: FormData) {
   const me = authAccount();
+  // KID-112: support tickets are parent-only (family/pickup denied).
+  await assertFamilyAction(me, "createSupportTicket");
   const instituteId = await requireInstitute();
   if (instituteId) {
     await createSupportTicket({
@@ -1141,6 +1340,8 @@ export async function replyThreadAction(formData: FormData) {
 
 export async function sendParentMessageAction(formData: FormData) {
   const me = authAccount();
+  // KID-112: pickup accounts may only register pickup time — no messaging.
+  await assertFamilyAction(me, "sendMessage");
   const recipient = String(formData.get("recipientId") ?? "");
   const body = String(formData.get("body") ?? "").trim();
   const threadId = String(formData.get("threadId") ?? "");
@@ -1324,6 +1525,8 @@ export async function updateBillingStatusAction(formData: FormData) {
 // ---- #8 Newsfeed likes (client calls this) ----
 export async function toggleLikeAction(formData: FormData) {
   const me = authAccount();
+  // KID-112: pickup accounts may only register pickup time — no likes.
+  await assertFamilyAction(me, "toggleLike");
   const postId = String(formData.get("postId") ?? "");
   if (postId) {
     await toggleLike(postId, me.accountId);
@@ -1610,4 +1813,127 @@ export async function createSmartListAction(formData: FormData) {
     await createTag(String(instituteId), name, "#DC2626");
   }
   redirect("/portal/tags");
+}
+
+// KID-113: admin resends the activation email to an unactivated parent or
+// staff account. Shown only for accounts whose email is still unconfirmed;
+// activated accounts never render the affordance, and this action double-
+// checks so a forged post cannot spam confirmed users. Rate-limited per
+// target address and per admin, with every attempt audit-logged.
+export async function resendActivationAction(formData: FormData) {
+  const me = authAccount();
+  if (!isAdminRole(me.role)) {
+    return { error: "Only admins can resend activation emails." };
+  }
+  await ensureSchema();
+  const {
+    normalizeEmail,
+    isValidEmail,
+    isUnactivatedAccount,
+    decideRateLimit,
+    countRecentResendsForEmail,
+    countRecentResendsForAdmin,
+    logResendAttempt,
+  } = await import("@/lib/activation");
+
+  const email = normalizeEmail(formData.get("email"));
+  if (!isValidEmail(email)) {
+    return { error: "Enter a valid email address." };
+  }
+  const account = await findAccountByEmail(email);
+  if (!account) {
+    await logResendAttempt({
+      targetEmail: email,
+      adminAccountId: me.accountId,
+      channel: "none",
+      status: "no_account",
+      detail: "No login account for this email yet.",
+    });
+    return { error: "No login account found for that email yet. Create the login first, then resend." };
+  }
+  if (!isUnactivatedAccount(account)) {
+    await logResendAttempt({
+      targetEmail: email,
+      adminAccountId: me.accountId,
+      channel: "none",
+      status: "already_active",
+      detail: "Account already activated.",
+    });
+    return { error: "That account is already activated." };
+  }
+
+  const [recentForEmail, recentForAdmin] = await Promise.all([
+    countRecentResendsForEmail(email),
+    countRecentResendsForAdmin(me.accountId),
+  ]);
+  const decision = decideRateLimit(recentForEmail, recentForAdmin);
+  if (decision.limited) {
+    await logResendAttempt({
+      targetEmail: email,
+      adminAccountId: me.accountId,
+      channel: "supabase",
+      status: "rate_limited",
+      detail: decision.reason,
+    });
+    return { error: decision.reason };
+  }
+
+  if (!supabaseConfigured()) {
+    await logResendAttempt({
+      targetEmail: email,
+      adminAccountId: me.accountId,
+      channel: "none",
+      status: "failed",
+      detail: "Email provider not configured.",
+    });
+    return { error: "Email delivery isn't configured yet. Ask the daycare admin to share an invite code instead." };
+  }
+
+  try {
+    const { error } = await getSupabase().auth.resend({ type: "signup", email });
+    if (!error) {
+      await logResendAttempt({
+        targetEmail: email,
+        adminAccountId: me.accountId,
+        channel: "supabase",
+        status: "sent",
+      });
+      return { ok: true };
+    }
+    console.error(`KID-113 resend: GoTrue resend failed for ${email}:`, error.message);
+    // Fallback: a recovery email also reaches the GoTrue identity when the
+    // signup-resend path rejects (e.g. user already exists server-side).
+    const recovery = await getSupabase().auth.resetPasswordForEmail(email, {
+      redirectTo: `${requestOrigin()}/reset-password`,
+    });
+    if (!recovery.error) {
+      await logResendAttempt({
+        targetEmail: email,
+        adminAccountId: me.accountId,
+        channel: "supabase-recovery",
+        status: "sent",
+        detail: `signup resend failed (${error.message}); recovery email sent instead.`,
+      });
+      return { ok: true };
+    }
+    console.error(`KID-113 resend: recovery fallback failed for ${email}:`, recovery.error.message);
+    await logResendAttempt({
+      targetEmail: email,
+      adminAccountId: me.accountId,
+      channel: "supabase",
+      status: "failed",
+      detail: recovery.error.message,
+    });
+    return { error: "We couldn't send the activation email right now. Try again in a few minutes." };
+  } catch (err) {
+    console.error(`KID-113 resend: unexpected failure for ${email}:`, err);
+    await logResendAttempt({
+      targetEmail: email,
+      adminAccountId: me.accountId,
+      channel: "supabase",
+      status: "failed",
+      detail: err instanceof Error ? err.message : String(err),
+    });
+    return { error: "We couldn't send the activation email right now. Try again in a few minutes." };
+  }
 }

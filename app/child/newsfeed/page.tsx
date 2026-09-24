@@ -1,11 +1,11 @@
-import { requireSession } from "@/lib/require";
+import { requireFamilyPage } from "@/lib/require";
 import { familiesForAccount, listInstitutes, listNewsfeed } from "@/lib/store";
 import { toggleLikeAction, commentAction } from "@/lib/actions";
 
 export const dynamic = "force-dynamic";
 
 export default async function ParentNewsfeedPage() {
-  const session = requireSession();
+  const session = await requireFamilyPage("/child/newsfeed");
   const families = await familiesForAccount(session.accountId);
   const childIds = families.map((f) => f.id as string);
   const childName = Object.fromEntries(families.map((f) => [f.id, f.first_name as string]));

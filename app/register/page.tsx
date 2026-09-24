@@ -1,10 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { registerAction } from "@/lib/actions";
 
-export default function RegisterPage() {
+// KID-111: the invite email / admin-forwarded activation link points here
+// with ?code= so the parent never has to retype the invite code.
+function RegisterForm() {
   const [error, setError] = useState<string | null>(null);
+  const searchParams = useSearchParams();
+  const presetCode = searchParams.get("code") ?? "";
 
   return (
     <div className="container" style={{ maxWidth: 420, paddingTop: 80 }}>
@@ -24,7 +29,7 @@ export default function RegisterPage() {
         {error && <p style={{ color: "#dc2626", marginBottom: 12 }}>{error}</p>}
         <div className="field">
           <label className="label">Invite code (from your daycare)</label>
-          <input className="input" name="inviteCode" placeholder="e.g. SUNSHINE-1234" required />
+          <input className="input" name="inviteCode" placeholder="e.g. SUNSHINE-1234" required defaultValue={presetCode} />
         </div>
         <div className="field">
           <label className="label">Full name</label>
@@ -46,5 +51,13 @@ export default function RegisterPage() {
       </form>
       <p className="small mt-3"><a href="/login">Already have an account? Sign in</a></p>
     </div>
+  );
+}
+
+export default function RegisterPage() {
+  return (
+    <Suspense>
+      <RegisterForm />
+    </Suspense>
   );
 }

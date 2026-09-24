@@ -6,6 +6,7 @@ import { isAdminRole } from "@/lib/role";
 import { listStaff, listRooms, listInstitutes, staffRooms } from "@/lib/store";
 import { queryAll } from "@/lib/db";
 import Avatar from "@/components/Avatar";
+import ResendActivationButton from "@/components/ResendActivationButton";
 import { getBranding } from "@/lib/theme";
 import AddStaffForm from "./AddStaffForm";
 
@@ -46,8 +47,14 @@ export default async function PortalStaffPage({
   const branding = await getBranding();
   const roomAccess = await Promise.all(staff.map((s) => staffRooms(s.id)));
   const roomByName = Object.fromEntries(roomAccess.map((rooms, i) => [staff[i].id, rooms]));
-  const logins = await queryAll("SELECT staff_id, email FROM account WHERE staff_id IS NOT NULL");
+  const logins = await queryAll("SELECT staff_id, email, email_confirmed FROM account WHERE staff_id IS NOT NULL");
   const emailByStaff = Object.fromEntries(logins.map((l) => [String(l.staff_id), String(l.email)]));
+  // KID-113: unactivated login accounts (email confirmation still pending)
+  // surface a "Resend activation" affordance next to the role. Activated
+  // accounts and staff without a login show nothing extra.
+  const unactivatedByStaff = new Set(
+    logins.filter((l) => Number(l.email_confirmed) === 0).map((l) => String(l.staff_id))
+  );
 
   const q = (searchParams?.q ?? "").toLowerCase();
   const roleFilter = searchParams?.role ?? "";
@@ -131,7 +138,12 @@ export default async function PortalStaffPage({
                     <div className="muted small">{s.email ? s.email : (emailByStaff[s.id] ?? "") || "No login yet"}</div>
                   </div>
                 </td>
-                <td>{capital(s.role)}</td>
+                <td>
+                  <div>{capital(s.role)}</div>
+                  {unactivatedByStaff.has(String(s.id)) && emailByStaff[s.id] ? (
+                    <ResendActivationButton email={emailByStaff[s.id]} />
+                  ) : null}
+                </td>
                 <td className="small">{(roomByName[s.id] ?? []).map((r: any) => String(r.name)).join(", ") || "—"}</td>
                 <td>
                   {s.status && STATUS_KIND_LABEL[s.status] ? (

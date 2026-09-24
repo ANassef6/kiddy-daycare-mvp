@@ -1,4 +1,4 @@
-import { requireSession } from "@/lib/require";
+import { requireFamilyPage } from "@/lib/require";
 import { familiesForAccount, observationsForChild } from "@/lib/store";
 import { cap, fmtDate } from "@/lib/helpers";
 import { i18nForAccount } from "@/lib/i18n-session";
@@ -7,7 +7,7 @@ import { tr } from "@/lib/i18n";
 export const dynamic = "force-dynamic";
 
 export default async function ParentLearningPage() {
-  const session = requireSession();
+  const session = await requireFamilyPage("/child/learning");
   const { dict } = await i18nForAccount(session.accountId);
   const t = (key: string, vars?: Record<string, string | number>) => tr(dict, key, vars);
   const families = await familiesForAccount(session.accountId);

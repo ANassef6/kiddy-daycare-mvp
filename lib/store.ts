@@ -231,6 +231,9 @@ export async function addContact(data: {
   isPickup: boolean;
   isEmergency: boolean;
 }): Promise<Row> {
+  // KID-112: relationship is a required enum — no free text.
+  const { parseContactRelationship } = await import("./contact-relationship");
+  const relationship = parseContactRelationship(String(data.relationship ?? "").trim());
   const id = uid();
   await queryRun(
     `INSERT INTO contact (id, child_id, full_name, relationship, phone, email, is_pickup, is_emergency)
@@ -238,7 +241,7 @@ export async function addContact(data: {
     id,
     data.childId,
     data.fullName,
-    data.relationship,
+    relationship,
     data.phone ?? null,
     data.email ?? null,
     data.isPickup ? 1 : 0,
@@ -247,14 +250,66 @@ export async function addContact(data: {
   return (await queryGet("SELECT * FROM contact WHERE id = ?", id))!;
 }
 
+/** KID-112: backfill helper — maps every legacy free-text relationship to the enum. */
+export async function normalizeAllContactRelationships(): Promise<{ updated: number }> {
+  const { normalizeLegacyRelationship, isContactRelationship } = await import("./contact-relationship");
+  const rows = await queryAll("SELECT id, relationship FROM contact");
+  let updated = 0;
+  for (const row of rows) {
+    const current = String(row.relationship ?? "");
+    if (isContactRelationship(current)) continue;
+    const next = normalizeLegacyRelationship(current);
+    await queryRun("UPDATE contact SET relationship = ? WHERE id = ?", next, row.id);
+    updated++;
+  }
+  const links = await queryAll("SELECT id, role FROM family_member");
+  for (const link of links) {
+    const current = String(link.role ?? "");
+    if (isContactRelationship(current)) continue;
+    const next = normalizeLegacyRelationship(current);
+    await queryRun("UPDATE family_member SET role = ? WHERE id = ?", next, link.id);
+    updated++;
+  }
+  return { updated };
+}
+
 export async function listContacts(childId: string): Promise<Row[]> {
   return queryAll("SELECT * FROM contact WHERE child_id = ? ORDER BY full_name", childId);
 }
 
 // ---------- Parent linking / invites ----------
-export async function createInvite(instituteId: string, childId: string | null, email: string, code: string): Promise<Row> {
+export async function createInvite(
+  instituteId: string,
+  childId: string | null,
+  email: string,
+  code: string,
+  role: string = "parent"
+): Promise<Row> {
+  const { parseContactRelationship } = await import("./contact-relationship");
+  const inviteRole = parseContactRelationship(String(role ?? "parent").trim() || "parent");
   const id = uid();
-  await queryRun("INSERT INTO invite (id, institute_id, child_id, email, code) VALUES (?, ?, ?, ?, ?)", id, instituteId, childId, email.toLowerCase(), code);
+  // `invite.role` exists after the KID-112 migration; older databases fall
+  // back to the original 5-column insert.
+  try {
+    await queryRun(
+      "INSERT INTO invite (id, institute_id, child_id, email, code, role) VALUES (?, ?, ?, ?, ?, ?)",
+      id,
+      instituteId,
+      childId,
+      email.toLowerCase(),
+      code,
+      inviteRole
+    );
+  } catch {
+    await queryRun(
+      "INSERT INTO invite (id, institute_id, child_id, email, code) VALUES (?, ?, ?, ?, ?)",
+      id,
+      instituteId,
+      childId,
+      email.toLowerCase(),
+      code
+    );
+  }
   return (await queryGet("SELECT * FROM invite WHERE id = ?", id))!;
 }
 
@@ -262,8 +317,31 @@ export async function getInviteByCode(code: string): Promise<Row | undefined> {
   return queryGet("SELECT * FROM invite WHERE code = ?", code);
 }
 
-export async function linkFamily(accountId: string, childId: string): Promise<void> {
-  await queryRun("INSERT INTO family_member (id, account_id, child_id) VALUES (?, ?, ?) ON CONFLICT DO NOTHING", uid(), accountId, childId);
+export async function linkFamily(accountId: string, childId: string, role: string = "parent"): Promise<void> {
+  const { parseContactRelationship } = await import("./contact-relationship");
+  const linkRole = parseContactRelationship(String(role ?? "parent").trim() || "parent");
+  await queryRun(
+    "INSERT INTO family_member (id, account_id, child_id, role) VALUES (?, ?, ?, ?) ON CONFLICT DO NOTHING",
+    uid(),
+    accountId,
+    childId,
+    linkRole
+  );
+  // Keep the stored role in sync when the link already exists (upsert is a
+  // no-op on conflict, so update explicitly).
+  await queryRun("UPDATE family_member SET role = ? WHERE account_id = ? AND child_id = ?", linkRole, accountId, childId);
+}
+
+/** KID-112: all family-link roles for an account (drives access enforcement). */
+export async function familyRolesForAccount(accountId: string): Promise<string[]> {
+  const rows = await queryAll("SELECT role FROM family_member WHERE account_id = ?", accountId);
+  return rows.map((r) => String(r.role ?? "parent"));
+}
+
+/** KID-112: effective access across all linked children (most permissive wins). */
+export async function familyAccessForAccount(accountId: string): Promise<"parent" | "family" | "pickup" | "no_access" | null> {
+  const { effectiveAccess } = await import("./contact-relationship");
+  return effectiveAccess(await familyRolesForAccount(accountId));
 }
 
 export async function familiesForAccount(accountId: string): Promise<Row[]> {

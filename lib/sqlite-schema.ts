@@ -133,8 +133,13 @@ export function sqliteSchema(db: any): void {
     email TEXT NOT NULL,
     code TEXT NOT NULL,
     status TEXT NOT NULL DEFAULT 'pending',
+    email_sent_at TEXT,
+    email_error TEXT,
+    resend_count INTEGER NOT NULL DEFAULT 0,
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
   );
+  CREATE INDEX IF NOT EXISTS idx_invite_email_status ON invite (email, status);
+  CREATE INDEX IF NOT EXISTS idx_invite_code ON invite (code);
 
   CREATE TABLE IF NOT EXISTS check_in (
     id TEXT PRIMARY KEY,
@@ -484,6 +489,19 @@ export function sqliteSchema(db: any): void {
   CREATE INDEX IF NOT EXISTS idx_child_status ON child (institute_id, status);
   CREATE INDEX IF NOT EXISTS idx_child_last_date ON child (last_date);
   CREATE INDEX IF NOT EXISTS idx_staff_last_date ON staff (last_date);
+
+  -- KID-113: audit log for admin "Resend activation" attempts.
+  CREATE TABLE IF NOT EXISTS activation_resend_log (
+    id TEXT PRIMARY KEY,
+    target_email TEXT NOT NULL,
+    admin_account_id TEXT REFERENCES account(id) ON DELETE SET NULL,
+    channel TEXT NOT NULL DEFAULT 'supabase',
+    status TEXT NOT NULL,
+    detail TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+  CREATE INDEX IF NOT EXISTS idx_activation_resend_email ON activation_resend_log (target_email, created_at);
+  CREATE INDEX IF NOT EXISTS idx_activation_resend_admin ON activation_resend_log (admin_account_id, created_at);
   `);
 
   // Idempotent column backfills for databases created before these columns
@@ -560,11 +578,65 @@ export function sqliteSchema(db: any): void {
       db.exec("ALTER TABLE form_response ADD COLUMN status TEXT NOT NULL DEFAULT 'new'");
     }
   } catch {}
+  try {
+    const inviteCols = db.prepare("PRAGMA table_info(invite)").all() as { name: string }[];
+    for (const [col, ddl] of [
+      ["email_sent_at", "ALTER TABLE invite ADD COLUMN email_sent_at TEXT"],
+      ["email_error", "ALTER TABLE invite ADD COLUMN email_error TEXT"],
+      ["resend_count", "ALTER TABLE invite ADD COLUMN resend_count INTEGER NOT NULL DEFAULT 0"],
+    ] as const) {
+      if (!inviteCols.some((c) => c.name === col)) db.exec(ddl);
+    }
+  } catch {}
   // KID-56: thread column for databases created before threads existed.
   try {
     const msgCols = db.prepare("PRAGMA table_info(message)").all() as { name: string }[];
     if (!msgCols.some((c) => c.name === "thread_id")) {
       db.exec("ALTER TABLE message ADD COLUMN thread_id TEXT");
     }
+  } catch {}
+  // KID-112: invite carries the relationship role; legacy free-text
+  // relationships map to the 4 canonical roles; missing lookup indexes.
+  try {
+    const inviteCols = db.prepare("PRAGMA table_info(invite)").all() as { name: string }[];
+    if (!inviteCols.some((c) => c.name === "role")) {
+      db.exec("ALTER TABLE invite ADD COLUMN role TEXT NOT NULL DEFAULT 'parent'");
+    }
+  } catch {}
+  try {
+    db.exec(`UPDATE contact SET relationship = CASE
+      WHEN lower(relationship) IN ('parent', 'family', 'pickup', 'no_access') THEN lower(relationship)
+      WHEN lower(relationship) LIKE '%pick%' OR lower(relationship) LIKE '%driver%' OR lower(relationship) LIKE '%nanny%' THEN 'pickup'
+      WHEN lower(relationship) LIKE '%no%access%' OR lower(relationship) LIKE '%block%'
+        OR lower(relationship) LIKE '%suspend%' OR lower(relationship) LIKE '%unpaid%'
+        OR lower(relationship) LIKE '%inactive%' OR lower(relationship) LIKE '%disable%' THEN 'no_access'
+      WHEN lower(relationship) LIKE '%grand%' OR lower(relationship) LIKE '%aunt%'
+        OR lower(relationship) LIKE '%uncle%' OR lower(relationship) LIKE '%cousin%'
+        OR lower(relationship) LIKE '%brother%' OR lower(relationship) LIKE '%sister%'
+        OR lower(relationship) LIKE '%sibling%' OR lower(relationship) LIKE '%relative%'
+        OR lower(relationship) LIKE '%family%' OR lower(relationship) LIKE '%step%'
+        OR lower(relationship) LIKE '%kin%' THEN 'family'
+      ELSE 'parent' END
+      WHERE lower(relationship) NOT IN ('parent', 'family', 'pickup', 'no_access')
+        OR relationship <> lower(relationship)`);
+    db.exec(`UPDATE family_member SET role = CASE
+      WHEN lower(role) IN ('parent', 'family', 'pickup', 'no_access') THEN lower(role)
+      WHEN lower(role) LIKE '%pick%' OR lower(role) LIKE '%driver%' OR lower(role) LIKE '%nanny%' THEN 'pickup'
+      WHEN lower(role) LIKE '%no%access%' OR lower(role) LIKE '%block%'
+        OR lower(role) LIKE '%suspend%' OR lower(role) LIKE '%unpaid%'
+        OR lower(role) LIKE '%inactive%' OR lower(role) LIKE '%disable%' THEN 'no_access'
+      WHEN lower(role) LIKE '%grand%' OR lower(role) LIKE '%aunt%'
+        OR lower(role) LIKE '%uncle%' OR lower(role) LIKE '%cousin%'
+        OR lower(role) LIKE '%brother%' OR lower(role) LIKE '%sister%'
+        OR lower(role) LIKE '%sibling%' OR lower(role) LIKE '%relative%'
+        OR lower(role) LIKE '%family%' OR lower(role) LIKE '%step%'
+        OR lower(role) LIKE '%kin%' THEN 'family'
+      ELSE 'parent' END
+      WHERE lower(role) NOT IN ('parent', 'family', 'pickup', 'no_access')
+        OR role <> lower(role)`);
+    db.exec("UPDATE invite SET role = 'parent' WHERE role NOT IN ('parent', 'family', 'pickup', 'no_access')");
+    db.exec("CREATE INDEX IF NOT EXISTS idx_contact_child ON contact (child_id)");
+    db.exec("CREATE INDEX IF NOT EXISTS idx_family_member_account ON family_member (account_id, child_id)");
+    db.exec("CREATE INDEX IF NOT EXISTS idx_invite_code ON invite (code)");
   } catch {}
 }

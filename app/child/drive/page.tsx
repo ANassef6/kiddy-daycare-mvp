@@ -1,11 +1,11 @@
-import { requireSession } from "@/lib/require";
+import { requireFamilyPage } from "@/lib/require";
 import { familiesForAccount, driveFilesFor } from "@/lib/store";
 import { cap } from "@/lib/helpers";
 
 export const dynamic = "force-dynamic";
 
 export default async function ParentDrivePage() {
-  const session = requireSession();
+  const session = await requireFamilyPage("/child/drive");
   const families = await familiesForAccount(session.accountId);
   const all = await Promise.all(
     families.map(async (c: any) => ({ childId: c.id, files: await driveFilesFor(c.institute_id, c.id) }))

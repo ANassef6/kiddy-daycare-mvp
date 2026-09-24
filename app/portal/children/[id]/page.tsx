@@ -25,6 +25,8 @@ import {
   acknowledgeIncidentAction,
 } from "@/lib/actions";
 import Avatar from "@/components/Avatar";
+import ResendActivationButton from "@/components/ResendActivationButton";
+import RelationshipSelect from "@/components/RelationshipSelect";
 import MediaDownloadAll from "@/components/MediaDownloadAll";
 import { getBranding } from "@/lib/theme";
 import { firstInstituteId, fmtDate, cap } from "@/lib/helpers";
@@ -32,6 +34,7 @@ import ChildProfileTabs from "@/components/ChildProfileTabs";
 import { curriculumTree, ensureCurriculumSeeded } from "@/lib/curriculum";
 import ObservationModalTrigger from "@/components/ObservationModalTrigger";
 import { queryGet } from "@/lib/db";
+import { CONTACT_RELATIONSHIP_LABELS } from "@/lib/contact-relationship";
 import { i18nForAccount } from "@/lib/i18n-session";
 import { tr } from "@/lib/i18n";
 
@@ -70,6 +73,11 @@ export default async function PortalChildPage({ params }: { params: { id: string
     ]);
   const meal = safeJson(report?.meal);
   const branding = await getBranding();
+  // KID-113: batched unactivated-state lookup for every contact email (one
+  // query, no N+1) so the family tab can show "Resend activation" next to
+  // the role for pending accounts only.
+  const { activationByEmails } = await import("@/lib/activation");
+  const activation = await activationByEmails((contacts as any[]).map((c: any) => c.email));
   try {
     await ensureCurriculumSeeded();
   } catch {}
@@ -97,7 +105,7 @@ export default async function PortalChildPage({ params }: { params: { id: string
     {
       id: "family",
       label: t("profile.pickupAndFamilyContacts"),
-      node: contactsTab(child, contacts, dict),
+      node: contactsTab(child, contacts, dict, activation),
     },
     {
       id: "media",
@@ -377,7 +385,7 @@ function aboutTab(child: any, status: any, rooms: any[], dict: any) {
   );
 }
 
-function contactsTab(child: any, contacts: any[], dict: any) {
+function contactsTab(child: any, contacts: any[], dict: any, activation?: Map<string, { email: string; unactivated: boolean }>) {
   const t = (key: string, vars?: Record<string, string | number>) => tr(dict, key, vars);
   return (
     <div className="grid">
@@ -386,7 +394,7 @@ function contactsTab(child: any, contacts: any[], dict: any) {
         {contacts.length === 0 ? <p className="muted small">{t("profile.noneContact")}</p> : null}
         {contacts.map((c: any) => (
           <div className="list-item" key={c.id}>
-            <div className="small"><strong>{c.full_name}</strong> ({c.relationship})<br /><span className="muted">{c.phone}</span>{c.email ? <><br /><span className="muted">{c.email}</span></> : null}</div>
+            <div className="small"><strong>{c.full_name}</strong> ({contactRoleLabel(c.relationship)})<br /><span className="muted">{c.phone}</span>{c.email ? <><br /><span className="muted">{c.email}</span></> : null}{showResendForContact(c, activation) ? <><br /><ResendActivationButton email={String(c.email)} /></> : null}</div>
             <div>{c.is_pickup && <span className="badge">{t("child.pickup")}</span>}{c.is_emergency && <span className="badge badge-red">{t("child.emergency")}</span>}</div>
           </div>
         ))}
@@ -396,7 +404,7 @@ function contactsTab(child: any, contacts: any[], dict: any) {
         <form action={addContactAction}>
           <input type="hidden" name="childId" value={child.id as string} />
           <div className="field"><label className="label">{t("profile.fullName")}</label><input className="input" name="fullName" required /></div>
-          <div className="field"><label className="label">{t("profile.relationship")}</label><input className="input" name="relationship" required /></div>
+          <div className="field"><label className="label">{t("profile.relationship")}</label><RelationshipSelect name="relationship" /></div>
           <div className="field"><label className="label">{t("common.phone")}</label><input className="input" name="phone" /></div>
           <div className="field"><label className="label">{t("common.email")}</label><input className="input" name="email" /></div>
           <label className="row small" style={{ alignItems: "center", gap: 8 }}><input type="checkbox" name="isPickup" /> {t("profile.authorizedPickup")}</label>
@@ -560,6 +568,27 @@ function incidentsTab(child: any, incidents: any[], dict: any) {
 function safeJson(v: unknown): Record<string, string> {
   if (!v) return {};
   try { return JSON.parse(String(v)); } catch { return {}; }
+}
+
+// KID-113: canonical role label when the relationship is one of the 4 enum
+// values (KID-112); legacy free text renders as-is until migrated.
+function contactRoleLabel(relationship: unknown): string {
+  const raw = String(relationship ?? "");
+  const key = raw.trim().toLowerCase();
+  const labels = CONTACT_RELATIONSHIP_LABELS as Record<string, string>;
+  return labels[key] ?? (raw || "—");
+}
+
+// KID-113: resend affordance only for contacts whose login account exists
+// and is still unconfirmed. Contacts without an account (no login yet) and
+// activated accounts show nothing.
+function showResendForContact(
+  contact: any,
+  activation?: Map<string, { email: string; unactivated: boolean }>
+): boolean {
+  const email = String(contact?.email ?? "").trim().toLowerCase();
+  if (!email || !activation) return false;
+  return activation.get(email)?.unactivated === true;
 }
 function capital(s: unknown) { const v = String(s ?? ""); return v.charAt(0).toUpperCase() + v.slice(1); }
 function time(v?: unknown): string {

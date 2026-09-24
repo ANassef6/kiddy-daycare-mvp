@@ -30,6 +30,17 @@ are `role = 'center'`.
   (`inviteParentAction`, generating a code such as `SUNSHINE-1234`). The parent
   opens `/register`, enters the invite code, and sets their password. Without a
   valid, still-pending invite code the account cannot be created.
+- **Parent invite email (KID-111).** Creating an invite attempts delivery via
+  `sendParentInviteEmail` (`lib/invite-email.ts`) and records the outcome on
+  the invite row (`email_sent_at` / `email_error` / `resend_count`, migration
+  `0014_parent_invite_email.sql`). When `SUPABASE_SERVICE_ROLE_KEY` is set, a
+  real GoTrue admin-invite email is sent; otherwise the invite stays `pending`
+  and the portal shows the admin the activation link (`/register?code=…`) to
+  forward manually. Duplicate pending codes are rejected. Pending invites can
+  be re-sent with `resendParentInviteAction` (rate-limited and audit-logged via
+  the shared `activation_resend_log`, see KID-113); if the parent already
+  registered but never confirmed, the GoTrue confirmation email is resent
+  instead.
 - **Forgot / reset password** lives at `/forgot-password` (linked from `/login`).
   It calls Supabase Auth `resetPasswordForEmail`, which sends the recovery email
   and lands on `/reset-password` to set the new password. This works for users
@@ -76,3 +87,26 @@ scheduler:
 3. Both the **login action** and the authenticated **portal/child layouts**
    run these checks, so withdrawal takes effect automatically on the date even
    if the user already has a live session cookie.
+
+## Contact relationship roles (KID-112)
+
+Child contacts and parent invites use a **required dropdown** with exactly 4
+roles (`lib/contact-relationship.ts`, `components/RelationshipSelect.tsx`) —
+free-text relationships are rejected server-side and legacy values were
+migrated (`0016_contact_relationship_roles.sql` + SQLite backfill, with
+`CHECK` constraints on new writes):
+
+- **Parent** — full access to every `/child` page and write action.
+- **Family** — limited access: full read plus pickup loop and messaging, but
+  no consent responses, form submissions, incident acknowledgements, or
+  support tickets (blocked in `lib/actions.ts` via `assertFamilyAction`).
+- **Pickup** — login only to register pickup time: sees only the children
+  list, child detail (check-in/out button), and account settings
+  (`requireFamilyPage` redirects everything else to `/child`; all write
+  actions except `checkInOutAction` are blocked).
+- **No access** — login blocked with "account's access is currently disabled"
+  (e.g. unpaid fees); existing sessions are redirected to `/login`. Admin use.
+
+The invite's role becomes the `family_member` link role at registration
+(`linkFamily(accountId, childId, role)`), and the most permissive link wins
+when an account is linked to several children.

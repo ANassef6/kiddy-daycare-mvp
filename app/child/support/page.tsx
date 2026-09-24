@@ -1,4 +1,4 @@
-import { requireSession } from "@/lib/require";
+import { requireFamilyPage } from "@/lib/require";
 import { ticketsForAccount } from "@/lib/store";
 import { cap } from "@/lib/helpers";
 import { createSupportTicketAction } from "@/lib/actions";
@@ -6,7 +6,7 @@ import { createSupportTicketAction } from "@/lib/actions";
 export const dynamic = "force-dynamic";
 
 export default async function ParentSupportPage({ searchParams }: { searchParams: { sent?: string } }) {
-  const session = requireSession();
+  const session = await requireFamilyPage("/child/support");
   const tickets = await ticketsForAccount(session.accountId);
 
   return (

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { requireSession } from "@/lib/require";
+import { requireFamilyPage } from "@/lib/require";
 import {
   centerContactAccount,
   conversation,
@@ -20,7 +20,7 @@ import { tr } from "@/lib/i18n";
 export const dynamic = "force-dynamic";
 
 export default async function ParentMessagesPage({ searchParams }: { searchParams: { thread?: string } }) {
-  const session = requireSession();
+  const session = await requireFamilyPage("/child/messages");
   const { dict } = await i18nForAccount(session.accountId);
   const t = (key: string, vars?: Record<string, string | number>) => tr(dict, key, vars);
   const instituteId = await firstInstituteId();

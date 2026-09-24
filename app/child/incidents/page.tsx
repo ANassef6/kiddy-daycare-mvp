@@ -1,11 +1,11 @@
-import { requireSession } from "@/lib/require";
+import { requireFamilyPage } from "@/lib/require";
 import { familiesForAccount, incidentsForChild } from "@/lib/store";
 import { acknowledgeIncidentAction } from "@/lib/actions";
 
 export const dynamic = "force-dynamic";
 
 export default async function ParentIncidentsPage() {
-  const session = requireSession();
+  const session = await requireFamilyPage("/child/incidents");
   const families = await familiesForAccount(session.accountId);
   const incidents: any[] = [];
   for (const f of families) {

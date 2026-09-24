@@ -1,4 +1,4 @@
-import { requireSession } from "@/lib/require";
+import { requireFamilyPage } from "@/lib/require";
 import { familiesForAccount } from "@/lib/store";
 import { queryAll } from "@/lib/db";
 import { respondConsentAction } from "@/lib/actions";
@@ -6,7 +6,7 @@ import { respondConsentAction } from "@/lib/actions";
 export const dynamic = "force-dynamic";
 
 export default async function ParentConsentsPage() {
-  const session = requireSession();
+  const session = await requireFamilyPage("/child/consents");
   const families = await familiesForAccount(session.accountId);
   const childIds = families.map((f) => f.id as string);
   const consents = childIds.length

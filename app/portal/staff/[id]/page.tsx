@@ -7,6 +7,7 @@ import { listStaff, staffRooms, listStaffSchedules, staffStatusLog, staffActivit
 import { queryAll } from "@/lib/db";
 import { uploadPhotoAction, updateStaffInfoAction } from "@/lib/actions";
 import Avatar from "@/components/Avatar";
+import ResendActivationButton from "@/components/ResendActivationButton";
 import { cap } from "@/lib/helpers";
 import ChildProfileTabs from "@/components/ChildProfileTabs";
 import { StaffStatusForm } from "@/components/StaffStatusForm";
@@ -45,11 +46,14 @@ export default async function StaffProfilePage({ params, searchParams }: { param
   const [rooms, schedules, logins, statusLog, activity] = await Promise.all([
     staffRooms(staff.id),
     listStaffSchedules(staff.id),
-    queryAll("SELECT email FROM account WHERE staff_id = ?", staff.id),
+    queryAll("SELECT email, email_confirmed FROM account WHERE staff_id = ?", staff.id),
     staffStatusLog(staff.id),
     staffActivity(staff.id),
   ]);
   const email = staff.email ?? (logins[0] as any)?.email as string | undefined;
+  // KID-113: show "Resend activation" next to the role only while the linked
+  // login account is still unconfirmed.
+  const staffUnactivated = email != null && Number((logins[0] as any)?.email_confirmed) === 0;
 
   const tabs = [
     { id: "profile", label: "Profile", node: profileTab(staff, rooms, email, statusLog, activity, searchParams?.edit) },
@@ -63,7 +67,7 @@ export default async function StaffProfilePage({ params, searchParams }: { param
         <Avatar src={staff.photo_url} name={staff.full_name} size={52} />
         <div style={{ flex: 1 }}>
           <h1 className="title" style={{ margin: 0 }}>{staff.full_name}</h1>
-          <div className="subtitle">{cap(staff.role)} · {email ?? "No login yet"} · {(rooms as any[]).map((r: any) => r.name).join(", ") || "No rooms"}</div>
+          <div className="subtitle">{cap(staff.role)} · {email ?? "No login yet"} · {(rooms as any[]).map((r: any) => r.name).join(", ") || "No rooms"}{staffUnactivated && email ? (<> · <ResendActivationButton email={email} /></>) : null}</div>
         </div>
         <form action={uploadPhotoAction} encType="multipart/form-data" className="row" style={{ gap: 8, alignItems: "center" }}>
           <input type="hidden" name="entityType" value="staff" />

@@ -1,4 +1,4 @@
-import { requireSession } from "@/lib/require";
+import { requireFamilyPage } from "@/lib/require";
 import { listForms, responsesByAccount, getForm } from "@/lib/store";
 import { firstInstituteId, safeJson } from "@/lib/helpers";
 import { submitFormAction } from "@/lib/actions";
@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 type Field = { id: string; label: string; type: string; required?: boolean; options?: string[] };
 
 export default async function ParentFormsPage({ searchParams }: { searchParams: { sent?: string; open?: string } }) {
-  const session = requireSession();
+  const session = await requireFamilyPage("/child/forms");
   const instituteId = await firstInstituteId();
   if (!instituteId) return <p className="muted">No daycare configured yet.</p>;
   const [forms, mine] = await Promise.all([listForms(instituteId), responsesByAccount(session.accountId)]);

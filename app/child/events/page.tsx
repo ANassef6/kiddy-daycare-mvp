@@ -1,11 +1,11 @@
-import { requireSession } from "@/lib/require";
+import { requireFamilyPage } from "@/lib/require";
 import { listEvents, eventMedia, listVideos } from "@/lib/store";
 import { firstInstituteId, cap, fmtTime } from "@/lib/helpers";
 
 export const dynamic = "force-dynamic";
 
 export default async function ParentEventsPage() {
-  requireSession();
+  await requireFamilyPage("/child/events");
   const instituteId = await firstInstituteId();
   if (!instituteId) return <p className="muted">No daycare configured yet.</p>;
 
