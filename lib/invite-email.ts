@@ -86,6 +86,16 @@ export function activationUrlForCode(origin: string, code: string): string {
   return `${origin.replace(/\/$/, "")}/register?code=${encodeURIComponent(code.trim())}`;
 }
 
+// KID-115: server-generated invite codes for one-click sending from the
+// child-detail page (no manual code entry). Single-use registration tokens,
+// delivered in cleartext email — uniqueness matters, secrecy does not.
+export function generateInviteCode(random: () => number = Math.random): string {
+  const alphabet = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
+  let tail = "";
+  for (let i = 0; i < 6; i++) tail += alphabet[Math.floor(random() * alphabet.length)];
+  return `KID-${tail}`;
+}
+
 export type InviteDeliveryStatus = "sent" | "pending" | "failed";
 
 export type InviteDeliveryResult = {

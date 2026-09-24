@@ -27,6 +27,7 @@ import {
 import Avatar from "@/components/Avatar";
 import ResendActivationButton from "@/components/ResendActivationButton";
 import ResendInviteButton from "@/components/ResendInviteButton";
+import SendInviteButton from "@/components/SendInviteButton";
 import { isValidInviteEmail } from "@/lib/invite-email";
 import RelationshipSelect from "@/components/RelationshipSelect";
 import MediaDownloadAll from "@/components/MediaDownloadAll";
@@ -405,16 +406,15 @@ function contactsTab(child: any, contacts: any[], dict: any, activation?: Map<st
         {contacts.map((c: any) => {
           const showActivation = showResendForContact(c, activation);
           const inviteId = showActivation ? null : pendingInviteIdForContact(c, pendingInvites);
-          // No login and no pending invite: link to the invite form with the
-          // email prefilled so the admin always has a working send path.
+          // No login and no pending invite: one-click send that creates the
+          // invite and emails it without leaving the page. The button
+          // confirms inline; failures name the cause (e.g. mail provider).
           const email = String(c?.email ?? "").trim();
-          const sendInviteHref =
-            !showActivation && !inviteId && isValidInviteEmail(email)
-              ? `/portal/children?prefillEmail=${encodeURIComponent(email.toLowerCase())}#invite-parent`
-              : null;
+          const canSendInvite =
+            !showActivation && !inviteId && isValidInviteEmail(email);
           return (
           <div className="list-item" key={c.id}>
-            <div className="small"><strong>{c.full_name}</strong> ({contactRoleLabel(c.relationship)})<br /><span className="muted">{c.phone}</span>{c.email ? <><br /><span className="muted">{c.email}</span></> : null}{showActivation ? <><br /><ResendActivationButton email={String(c.email)} /></> : inviteId ? <><br /><ResendInviteButton inviteId={inviteId} /></> : sendInviteHref ? <><br /><Link href={sendInviteHref} style={{ color: "#dc2626", fontSize: 12, fontWeight: 600 }}>Send invite</Link></> : null}</div>
+            <div className="small"><strong>{c.full_name}</strong> ({contactRoleLabel(c.relationship)})<br /><span className="muted">{c.phone}</span>{c.email ? <><br /><span className="muted">{c.email}</span></> : null}{showActivation ? <><br /><ResendActivationButton email={String(c.email)} /></> : inviteId ? <><br /><ResendInviteButton inviteId={inviteId} /></> : canSendInvite ? <><br /><SendInviteButton childId={String(child.id)} email={email.toLowerCase()} relationship={String(c.relationship ?? "parent")} /></> : null}</div>
             <div>{c.is_pickup && <span className="badge">{t("child.pickup")}</span>}{c.is_emergency && <span className="badge badge-red">{t("child.emergency")}</span>}</div>
           </div>
           );

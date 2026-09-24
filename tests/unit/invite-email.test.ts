@@ -8,6 +8,7 @@ import { describe, expect, it, beforeEach } from "vitest";
 import {
   activationUrlForCode,
   buildParentInviteEmail,
+  generateInviteCode,
   isValidInviteCode,
   isValidInviteEmail,
   pendingInviteByEmails,
@@ -75,6 +76,17 @@ describe("activationUrlForCode", () => {
     expect(activationUrlForCode("https://kiddy.example/", "SUNSHINE-1234")).toBe(
       "https://kiddy.example/register?code=SUNSHINE-1234"
     );
+  });
+});
+
+describe("generateInviteCode", () => {
+  it("produces valid unique KID- codes", () => {
+    const codes = new Set(Array.from({ length: 200 }, () => generateInviteCode()));
+    expect(codes.size).toBe(200);
+    for (const code of codes) {
+      expect(code).toMatch(/^KID-[ABCDEFGHJKMNPQRSTUVWXYZ23456789]{6}$/);
+      expect(isValidInviteCode(code)).toBe(true);
+    }
   });
 });
 

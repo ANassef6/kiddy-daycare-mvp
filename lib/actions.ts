@@ -880,6 +880,88 @@ export async function resendParentInviteAction(formData: FormData) {
   };
 }
 
+// KID-115: one-click invite send from the child-detail family tab. Creates a
+// pending invite with a server-generated code for a contact email and sends
+// it through the admin-invite channel — no navigation, no manual code entry.
+// Returns a result object so the button confirms inline like the resend
+// buttons. Logs every attempt on the invite row + activation_resend_log.
+export async function sendInviteForContactAction(formData: FormData) {
+  await ensureSchema();
+  const me = authAccount();
+  if (!isAdminRole(me.role)) return { error: "Only admins can send invites." };
+  const instituteId = await firstInstituteId();
+  if (!instituteId) return { error: "No center configured yet." };
+  const childId = String(formData.get("childId") ?? "").trim();
+  if (!childId) return { error: "Missing child." };
+  await assertChildInScope(childId, me);
+  const email = String(formData.get("email") ?? "").trim().toLowerCase();
+  const { isContactRelationship } = await import("@/lib/contact-relationship");
+  const relationship = String(formData.get("relationship") ?? "parent").trim() || "parent";
+  if (!isValidInviteEmail(email)) return { error: "Enter a valid email address." };
+  if (!isContactRelationship(relationship)) return { error: "Unknown relationship." };
+
+  const {
+    generateInviteCode,
+    sendParentInviteEmail,
+    getPendingInvitesByEmail,
+    buildParentInviteEmail,
+  } = await import("@/lib/invite-email");
+  // Reuse an existing pending invite instead of stacking duplicates.
+  const existing = await getPendingInvitesByEmail(email);
+  const origin = requestOrigin();
+  if (existing.length > 0) {
+    const result = await sendParentInviteEmail(existing[0], { origin, isResend: true });
+    const { logResendAttempt } = await import("@/lib/activation");
+    await logResendAttempt({
+      targetEmail: email,
+      adminAccountId: me.accountId,
+      channel: result.status === "sent" ? "supabase-admin-invite" : "invite",
+      status: result.status === "sent" ? "sent" : "failed",
+      detail: `contact send reused invite ${String(existing[0].id)}: ${result.detail}`,
+    });
+    if (result.status === "sent") return { ok: true as const };
+    return {
+      error: result.activationUrl
+        ? `${result.detail} Manual link: ${result.activationUrl}`
+        : result.detail,
+    };
+  }
+
+  let code = "";
+  for (let i = 0; i < 5 && !code; i++) {
+    const candidate = generateInviteCode();
+    if (!(await getInviteByCode(candidate))) code = candidate;
+  }
+  if (!code) return { error: "Could not create an invite code. Try again." };
+  try {
+    await createInvite(instituteId, childId, email, code, relationship);
+  } catch (err) {
+    console.error(`KID-115 contact send: createInvite failed for ${email}:`, err);
+    return { error: err instanceof Error ? err.message : "Could not create the invite." };
+  }
+  const created = await getInviteByCode(code);
+  const preview = buildParentInviteEmail({ parentEmail: email, code, origin: origin || "(unknown origin)" });
+  console.log(`KID-115 contact send: invite created for ${email} (code ${code}):\n${preview.text}`);
+  const result = created
+    ? await sendParentInviteEmail(created, { origin })
+    : { status: "failed" as const, detail: "invite row not found after create" };
+  const { logResendAttempt } = await import("@/lib/activation");
+  await logResendAttempt({
+    targetEmail: email,
+    adminAccountId: me.accountId,
+    channel: result.status === "sent" ? "supabase-admin-invite" : "invite",
+    status: result.status === "sent" ? "sent" : "failed",
+    detail: `contact send, invite ${created ? String(created.id) : "?"}: ${result.detail}`,
+  });
+  if (result.status === "sent") return { ok: true as const };
+  return {
+    error:
+      result.status === "pending" && result.activationUrl
+        ? `Invite saved but no mail provider is configured. Manual link: ${result.activationUrl}`
+        : result.detail,
+  };
+}
+
 export async function saveBrandingAction(formData: FormData) {
   requireAdmin();
   await ensureSchema();
