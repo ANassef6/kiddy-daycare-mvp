@@ -20,17 +20,28 @@ export default function ResendActivationButton({ email }: { email: string }) {
         onClick={async () => {
           setBusy(true);
           setStatus(null);
-          const formData = new FormData();
-          formData.set("email", email);
-          const res = await resendActivationAction(formData);
-          setBusy(false);
-          if ((res as { ok?: boolean })?.ok) {
-            setStatus({ ok: true, message: "Activation email sent." });
-          } else {
+          try {
+            const formData = new FormData();
+            formData.set("email", email);
+            const res = await resendActivationAction(formData);
+            if ((res as { ok?: boolean })?.ok) {
+              setStatus({ ok: true, message: "Activation email sent." });
+            } else {
+              setStatus({
+                ok: false,
+                message: (res as { error?: string })?.error ?? "Could not send right now.",
+              });
+            }
+          } catch (err) {
+            // Server-action redirect() surfaces as NEXT_REDIRECT — that means
+            // navigation is happening, not a failure.
+            if (err instanceof Error && err.message.includes("NEXT_REDIRECT")) return;
             setStatus({
               ok: false,
-              message: (res as { error?: string })?.error ?? "Could not send right now.",
+              message: err instanceof Error ? err.message : "Could not send right now.",
             });
+          } finally {
+            setBusy(false);
           }
         }}
         title={`Resend the activation email to ${email}`}

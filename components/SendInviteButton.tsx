@@ -28,19 +28,30 @@ export default function SendInviteButton({
         onClick={async () => {
           setBusy(true);
           setStatus(null);
-          const formData = new FormData();
-          formData.set("childId", childId);
-          formData.set("email", email);
-          formData.set("relationship", relationship);
-          const res = await sendInviteForContactAction(formData);
-          setBusy(false);
-          if ((res as { ok?: boolean })?.ok) {
-            setStatus({ ok: true, message: "Invite email sent." });
-          } else {
+          try {
+            const formData = new FormData();
+            formData.set("childId", childId);
+            formData.set("email", email);
+            formData.set("relationship", relationship);
+            const res = await sendInviteForContactAction(formData);
+            if ((res as { ok?: boolean })?.ok) {
+              setStatus({ ok: true, message: "Invite email sent." });
+            } else {
+              setStatus({
+                ok: false,
+                message: (res as { error?: string })?.error ?? "Could not send right now.",
+              });
+            }
+          } catch (err) {
+            // Server-action redirect() surfaces as NEXT_REDIRECT — that means
+            // navigation is happening (e.g. signed out or out of scope).
+            if (err instanceof Error && err.message.includes("NEXT_REDIRECT")) return;
             setStatus({
               ok: false,
-              message: (res as { error?: string })?.error ?? "Could not send right now.",
+              message: err instanceof Error ? err.message : "Could not send right now.",
             });
+          } finally {
+            setBusy(false);
           }
         }}
         title={`Send a parent invite email to ${email}`}
