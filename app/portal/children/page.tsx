@@ -25,7 +25,7 @@ function statusTone(status?: string | null): "green" | "gray" | "red" | undefine
 export default async function PortalChildrenPage({
   searchParams,
 }: {
-  searchParams: { error?: string; status?: string; invite?: string; email?: string; code?: string; activationUrl?: string; inviteDetail?: string };
+  searchParams: { error?: string; status?: string; invite?: string; email?: string; code?: string; activationUrl?: string; inviteDetail?: string; prefillEmail?: string };
 }) {
   const session = requireSession();
   const institutes = await listInstitutes();
@@ -44,6 +44,10 @@ export default async function PortalChildrenPage({
   const inviteActivationUrl = searchParams.activationUrl;
   const inviteDetail = searchParams.inviteDetail;
   const inviteCode = searchParams.code;
+  // KID-115: prefill the invite form when linked from a child-detail contact
+  // with no login and no pending invite yet. Only valid emails are accepted.
+  const rawPrefill = String(searchParams.prefillEmail ?? "").trim().toLowerCase();
+  const prefillEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(rawPrefill) && rawPrefill.length <= 200 ? rawPrefill : "";
 
   return (
     <div>
@@ -184,7 +188,7 @@ export default async function PortalChildrenPage({
         </form>
       </details>
 
-      <h2 className="title mt-5">Invite a parent</h2>
+      <h2 className="title mt-5" id="invite-parent">Invite a parent</h2>
       <form className="card" action={inviteParentAction}>
         <div className="row">
           <div className="col field">
@@ -194,7 +198,7 @@ export default async function PortalChildrenPage({
               {children.map((c: any) => <option key={c.id} value={String(c.id)}>{c.first_name} {c.last_name}</option>)}
             </select>
           </div>
-          <div className="col field"><label className="label">Parent email</label><input className="input" name="email" type="email" required /></div>
+          <div className="col field"><label className="label">Parent email</label><input className="input" name="email" type="email" required defaultValue={prefillEmail} /></div>
           <div className="col field"><label className="label">Relationship</label><RelationshipSelect name="relationship" /></div>
           <div className="col field"><label className="label">Invite code</label><input className="input" name="code" required placeholder="e.g. SUNSHINE-1234" /></div>
         </div>

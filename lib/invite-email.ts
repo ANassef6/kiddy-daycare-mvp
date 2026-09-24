@@ -154,8 +154,11 @@ export async function pendingInviteByEmails(
   const out = new Map<string, Row>();
   if (unique.length === 0) return out;
   const placeholders = unique.map(() => "?").join(", ");
+  // lower(email) keeps the match case-insensitive on Postgres, where contact
+  // emails may carry uppercase (e.g. NouranHisham22@...) while invite rows
+  // are stored lowercased.
   const rows = await queryAll(
-    `SELECT * FROM invite WHERE email IN (${placeholders}) AND status = 'pending' ORDER BY created_at DESC`,
+    `SELECT * FROM invite WHERE lower(email) IN (${placeholders}) AND status = 'pending' ORDER BY created_at DESC`,
     ...unique
   );
   for (const row of rows) {

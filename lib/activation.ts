@@ -68,8 +68,10 @@ export async function activationByEmails(emails: Array<string | null | undefined
   const out = new Map<string, ActivationEntry>();
   if (unique.length === 0) return out;
   const placeholders = unique.map(() => "?").join(", ");
+  // lower(email): account rows are stored lowercased but the lookup keys come
+  // from contact emails that may carry uppercase; keep it case-insensitive.
   const rows = await queryAll(
-    `SELECT id, email, email_confirmed FROM account WHERE email IN (${placeholders})`,
+    `SELECT id, email, email_confirmed FROM account WHERE lower(email) IN (${placeholders})`,
     ...unique
   );
   for (const row of rows) {

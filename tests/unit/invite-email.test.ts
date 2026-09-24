@@ -103,4 +103,20 @@ describe("pendingInviteByEmails (db)", () => {
     expect(map.get("contact-only@example.com")?.code).toBe("PEND-2");
     expect(map.has("no-invite@example.com")).toBe(false);
   });
+
+  it("matches case-insensitively like Postgres requires", async () => {
+    const { queryGet, queryRun, uid } = await import("@/lib/db");
+    const iid = String((await queryGet("SELECT id FROM institute LIMIT 1"))!.id);
+    // Legacy row stored with uppercase, bypassing createInvite's lowercasing.
+    await queryRun(
+      "INSERT INTO invite (id, institute_id, child_id, email, code, status) VALUES (?, ?, ?, ?, ?, 'pending')",
+      uid(),
+      iid,
+      null,
+      "MixedCase@Example.COM",
+      "PEND-MIXED"
+    );
+    const map = await pendingInviteByEmails(["mixedcase@example.com"]);
+    expect(map.get("mixedcase@example.com")?.code).toBe("PEND-MIXED");
+  });
 });
