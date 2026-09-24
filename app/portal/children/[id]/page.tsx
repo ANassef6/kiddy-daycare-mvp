@@ -85,9 +85,21 @@ export default async function PortalChildPage({ params }: { params: { id: string
   // resend path on this page at all.
   const { activationByEmails } = await import("@/lib/activation");
   const { pendingInviteByEmails } = await import("@/lib/invite-email");
+  // Either lookup failing must never 500 the whole page (production hides
+  // the cause behind a digest) — degrade to no affordance and log loudly.
   const [activation, pendingInvites] = await Promise.all([
-    activationByEmails((contacts as any[]).map((c: any) => c.email)),
-    pendingInviteByEmails((contacts as any[]).map((c: any) => c.email)),
+    activationByEmails((contacts as any[]).map((c: any) => c.email)).catch(
+      (err): Map<string, { email: string; unactivated: boolean }> => {
+        console.error(`KID-115 child ${child.id}: activation lookup failed:`, err);
+        return new Map();
+      }
+    ),
+    pendingInviteByEmails((contacts as any[]).map((c: any) => c.email)).catch(
+      (err): Map<string, any> => {
+        console.error(`KID-115 child ${child.id}: pending-invite lookup failed:`, err);
+        return new Map();
+      }
+    ),
   ]);
   try {
     await ensureCurriculumSeeded();
