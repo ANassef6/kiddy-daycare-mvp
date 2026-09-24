@@ -136,6 +136,35 @@ export async function getPendingInvitesByEmail(email: string): Promise<Row[]> {
   );
 }
 
+// Batched pending-invite lookup for a list of emails. One query — no N+1.
+// Returns the latest pending invite per email; emails without a pending
+// invite are absent. The child-detail family tab uses this to render a
+// "Resend invite" affordance for contacts that have no login account yet
+// (where the GoTrue-based ResendActivationButton correctly stays hidden).
+export async function pendingInviteByEmails(
+  emails: Array<string | null | undefined>
+): Promise<Map<string, Row>> {
+  const unique = Array.from(
+    new Set(
+      emails
+        .map((e) => String(e ?? "").trim().toLowerCase())
+        .filter((e) => e.length > 0 && isValidInviteEmail(e))
+    )
+  );
+  const out = new Map<string, Row>();
+  if (unique.length === 0) return out;
+  const placeholders = unique.map(() => "?").join(", ");
+  const rows = await queryAll(
+    `SELECT * FROM invite WHERE email IN (${placeholders}) AND status = 'pending' ORDER BY created_at DESC`,
+    ...unique
+  );
+  for (const row of rows) {
+    const email = String(row.email ?? "").trim().toLowerCase();
+    if (email && !out.has(email)) out.set(email, row);
+  }
+  return out;
+}
+
 export async function getInviteById(id: string): Promise<Row | undefined> {
   return queryGet("SELECT * FROM invite WHERE id = ?", id);
 }

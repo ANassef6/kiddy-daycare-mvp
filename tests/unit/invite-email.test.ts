@@ -1,14 +1,18 @@
 // KID-111: unit tests for the parent-invite email service.
 // Pure-function tests only (validation + template); delivery attempts need a
 // provider and are covered by the logged server-action path instead.
+// KID-115: plus one DB-backed check that pendingInviteByEmails batches the
+// family-tab lookup in a single query.
 
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, beforeEach } from "vitest";
 import {
   activationUrlForCode,
   buildParentInviteEmail,
   isValidInviteCode,
   isValidInviteEmail,
+  pendingInviteByEmails,
 } from "@/lib/invite-email";
+import { seedFixture } from "../helpers";
 
 describe("isValidInviteEmail", () => {
   it("accepts normal addresses", () => {
@@ -71,5 +75,32 @@ describe("activationUrlForCode", () => {
     expect(activationUrlForCode("https://kiddy.example/", "SUNSHINE-1234")).toBe(
       "https://kiddy.example/register?code=SUNSHINE-1234"
     );
+  });
+});
+
+describe("pendingInviteByEmails (db)", () => {
+  beforeEach(async () => {
+    await seedFixture();
+  });
+
+  it("returns the pending invite per email and skips the rest", async () => {
+    const store = await import("@/lib/store");
+    const { queryGet, queryRun } = await import("@/lib/db");
+    const iid = String((await queryGet("SELECT id FROM institute LIMIT 1"))!.id);
+    const invite = await store.createInvite(iid, null, "contact-only@example.com", "PEND-1", "parent");
+    // A used invite for the same address must not shadow the pending one.
+    await queryRun("UPDATE invite SET status = 'used' WHERE id = ?", String(invite.id));
+    await store.createInvite(iid, null, "contact-only@example.com", "PEND-2", "parent");
+
+    const map = await pendingInviteByEmails([
+      "contact-only@example.com",
+      "CONTACT-only@Example.COM",
+      "no-invite@example.com",
+      "",
+      null,
+    ]);
+
+    expect(map.get("contact-only@example.com")?.code).toBe("PEND-2");
+    expect(map.has("no-invite@example.com")).toBe(false);
   });
 });

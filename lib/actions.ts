@@ -802,15 +802,16 @@ export async function inviteParentAction(formData: FormData) {
 // KID-111: resend a pending parent invite — the activation path for existing
 // unactivated parents. If the parent already registered but never confirmed,
 // prefer the GoTrue confirmation resend; otherwise re-attempt invite delivery.
-// Always bumps resend_count and logs the outcome.
+// Always bumps resend_count and logs the outcome. Returns a result object
+// (no redirect) so both form and client-component callers can render feedback.
 export async function resendParentInviteAction(formData: FormData) {
   await ensureSchema();
   const me = authAccount();
-  if (!isAdminRole(me.role)) redirect("/portal/dashboard");
+  if (!isAdminRole(me.role)) return { error: "Only admins can resend invites." };
   const inviteId = String(formData.get("inviteId") ?? "").trim();
   const invite = inviteId ? await getInviteById(inviteId) : undefined;
-  if (!invite) redirect("/portal/children?invite=not-found");
-  if (String(invite.status ?? "pending") !== "pending") redirect("/portal/children?invite=already-used");
+  if (!invite) return { error: "Invite not found." };
+  if (String(invite.status ?? "pending") !== "pending") return { error: "That invite was already used." };
   const email = String(invite.email ?? "").trim().toLowerCase();
   // KID-111 + KID-113: share the resend rate limit and audit log so invite
   // resends and account resends have one trail and one budget.
@@ -835,7 +836,7 @@ export async function resendParentInviteAction(formData: FormData) {
       status: "rate_limited",
       detail: decision.reason,
     });
-    redirect(`/portal/children?invite=rate-limited&email=${encodeURIComponent(email)}`);
+    return { error: decision.reason };
   }
 
   // Registered-but-unconfirmed parent: resend the GoTrue confirmation email.
@@ -854,7 +855,7 @@ export async function resendParentInviteAction(formData: FormData) {
           status: "sent",
           detail: `invite ${String(invite.id)} resend via signup confirm.`,
         });
-        redirect(`/portal/children?invite=sent&email=${encodeURIComponent(email)}`);
+        return { ok: true as const };
       }
       console.error(`KID-111 resendInvite: GoTrue resend failed for ${email}:`, error.message);
       // Fall through to the invite-delivery attempt below; the failure is
@@ -871,10 +872,12 @@ export async function resendParentInviteAction(formData: FormData) {
     status: result.status === "sent" ? "sent" : "failed",
     detail: `invite ${String(invite.id)} resend: ${result.detail}`,
   });
-  const params = new URLSearchParams({ invite: result.status, email });
-  if (result.activationUrl) params.set("activationUrl", result.activationUrl);
-  if (result.status !== "sent") params.set("inviteDetail", result.detail);
-  redirect(`/portal/children?${params.toString()}`);
+  if (result.status === "sent") return { ok: true as const };
+  return {
+    error: result.activationUrl
+      ? `${result.detail} Manual link: ${result.activationUrl}`
+      : result.detail,
+  };
 }
 
 export async function saveBrandingAction(formData: FormData) {

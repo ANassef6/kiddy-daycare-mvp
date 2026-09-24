@@ -26,6 +26,7 @@ import {
 } from "@/lib/actions";
 import Avatar from "@/components/Avatar";
 import ResendActivationButton from "@/components/ResendActivationButton";
+import ResendInviteButton from "@/components/ResendInviteButton";
 import RelationshipSelect from "@/components/RelationshipSelect";
 import MediaDownloadAll from "@/components/MediaDownloadAll";
 import { getBranding } from "@/lib/theme";
@@ -76,8 +77,16 @@ export default async function PortalChildPage({ params }: { params: { id: string
   // KID-113: batched unactivated-state lookup for every contact email (one
   // query, no N+1) so the family tab can show "Resend activation" next to
   // the role for pending accounts only.
+  // KID-115: batched pending-invite lookup (one query) so contacts with no
+  // login account yet still get a "Resend invite" affordance — the GoTrue
+  // button above correctly stays hidden for them, which left admins with no
+  // resend path on this page at all.
   const { activationByEmails } = await import("@/lib/activation");
-  const activation = await activationByEmails((contacts as any[]).map((c: any) => c.email));
+  const { pendingInviteByEmails } = await import("@/lib/invite-email");
+  const [activation, pendingInvites] = await Promise.all([
+    activationByEmails((contacts as any[]).map((c: any) => c.email)),
+    pendingInviteByEmails((contacts as any[]).map((c: any) => c.email)),
+  ]);
   try {
     await ensureCurriculumSeeded();
   } catch {}
@@ -105,7 +114,7 @@ export default async function PortalChildPage({ params }: { params: { id: string
     {
       id: "family",
       label: t("profile.pickupAndFamilyContacts"),
-      node: contactsTab(child, contacts, dict, activation),
+      node: contactsTab(child, contacts, dict, activation, pendingInvites),
     },
     {
       id: "media",
@@ -385,19 +394,24 @@ function aboutTab(child: any, status: any, rooms: any[], dict: any) {
   );
 }
 
-function contactsTab(child: any, contacts: any[], dict: any, activation?: Map<string, { email: string; unactivated: boolean }>) {
+function contactsTab(child: any, contacts: any[], dict: any, activation?: Map<string, { email: string; unactivated: boolean }>, pendingInvites?: Map<string, any>) {
   const t = (key: string, vars?: Record<string, string | number>) => tr(dict, key, vars);
   return (
     <div className="grid">
       <div className="card">
         <h3 className="subtitle">{t("profile.pickupAndFamilyContacts")}</h3>
         {contacts.length === 0 ? <p className="muted small">{t("profile.noneContact")}</p> : null}
-        {contacts.map((c: any) => (
+        {contacts.map((c: any) => {
+          const inviteId = showResendForContact(c, activation)
+            ? null
+            : pendingInviteIdForContact(c, pendingInvites);
+          return (
           <div className="list-item" key={c.id}>
-            <div className="small"><strong>{c.full_name}</strong> ({contactRoleLabel(c.relationship)})<br /><span className="muted">{c.phone}</span>{c.email ? <><br /><span className="muted">{c.email}</span></> : null}{showResendForContact(c, activation) ? <><br /><ResendActivationButton email={String(c.email)} /></> : null}</div>
+            <div className="small"><strong>{c.full_name}</strong> ({contactRoleLabel(c.relationship)})<br /><span className="muted">{c.phone}</span>{c.email ? <><br /><span className="muted">{c.email}</span></> : null}{showResendForContact(c, activation) ? <><br /><ResendActivationButton email={String(c.email)} /></> : inviteId ? <><br /><ResendInviteButton inviteId={inviteId} /></> : null}</div>
             <div>{c.is_pickup && <span className="badge">{t("child.pickup")}</span>}{c.is_emergency && <span className="badge badge-red">{t("child.emergency")}</span>}</div>
           </div>
-        ))}
+          );
+        })}
       </div>
       <div className="card">
         <h3 className="subtitle">{t("profile.addContact")}</h3>
@@ -589,6 +603,20 @@ function showResendForContact(
   const email = String(contact?.email ?? "").trim().toLowerCase();
   if (!email || !activation) return false;
   return activation.get(email)?.unactivated === true;
+}
+
+// KID-115: invite-resend affordance for contacts with a pending invite but no
+// unactivated login account (the GoTrue button above correctly stays hidden
+// for them). Returns the pending invite id, or null when there is nothing to
+// resend (no email, or no pending invite — admin uses "Invite a parent").
+function pendingInviteIdForContact(
+  contact: any,
+  pendingInvites?: Map<string, any>
+): string | null {
+  const email = String(contact?.email ?? "").trim().toLowerCase();
+  if (!email || !pendingInvites) return null;
+  const invite = pendingInvites.get(email);
+  return invite ? String(invite.id) : null;
 }
 function capital(s: unknown) { const v = String(s ?? ""); return v.charAt(0).toUpperCase() + v.slice(1); }
 function time(v?: unknown): string {
