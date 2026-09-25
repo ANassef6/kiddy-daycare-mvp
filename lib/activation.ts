@@ -16,6 +16,37 @@ export const RESEND_PER_EMAIL_PER_HOUR = 3;
 export const RESEND_PER_ADMIN_PER_HOUR = 30;
 export const RESEND_WINDOW_HOURS = 1;
 
+// KID-124: step-coded activation failure messages. registerAction tags the
+// exact call that throws (step), and the human report for KID-P5YM5T carried
+// no error text — so each step now maps to its own user-facing message with
+// a short code. Auth-step codes (ACT-AUTH*) mean the sign-in service failed;
+// data-step codes (ACT-ACCOUNT/PIN/LINK/INVITE/LOOKUP) mean our database
+// write failed after the password check passed — i.e. NOT a wrong password.
+// Pure helper, unit-tested.
+const ACTIVATION_STEP_MESSAGES: Record<string, string> = {
+  findAccount:
+    "We couldn't look up your account just now (code ACT-LOOKUP). Try again in a moment, or ask your daycare for help.",
+  goTrueSignUp:
+    "Our sign-in service had a problem just now (code ACT-AUTH). Try again in a moment — your password is fine, this is on our side.",
+  goTrueAdoptSignIn:
+    "Our sign-in service had a problem just now (code ACT-AUTH). Try again in a moment — your password is fine, this is on our side.",
+  createAccount:
+    "We couldn't create your account record just now (code ACT-ACCOUNT). Try again in a moment, or ask your daycare for help — your password is fine, this is on our side.",
+  setPin:
+    "We couldn't save your PIN just now (code ACT-PIN). Try again in a moment, or continue without a PIN.",
+  linkFamily:
+    "We couldn't link your child just now (code ACT-LINK). Try again in a moment, or ask your daycare for help — your password is fine, this is on our side.",
+  consumeInvite:
+    "Your account was created but we couldn't use up the invite code (code ACT-INVITE). Ask your daycare for a fresh code — your password is fine.",
+};
+
+export function activationStepError(step: string): string {
+  return (
+    ACTIVATION_STEP_MESSAGES[step] ??
+    "We couldn't activate your account right now. Try again in a moment, or ask your daycare for help."
+  );
+}
+
 export function normalizeEmail(email: unknown): string {
   return String(email ?? "").trim().toLowerCase();
 }

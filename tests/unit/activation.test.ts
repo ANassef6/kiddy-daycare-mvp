@@ -11,6 +11,7 @@ import {
   isUnactivatedAccount,
   decideRateLimit,
   activationByEmails,
+  activationStepError,
   logResendAttempt,
   countRecentResendsForEmail,
   RESEND_PER_EMAIL_PER_HOUR,
@@ -115,5 +116,31 @@ describe("activation lookup + audit (db)", () => {
     const rows = await queryAll("SELECT target_email, status FROM activation_resend_log");
     expect(rows).toHaveLength(1);
     expect(rows[0].status).toBe("sent");
+  });
+});
+
+// KID-124: every registerAction step maps to a distinct user-facing message
+// with a short code, so the next human report names the failing call. Auth
+// steps must read as a service problem, data steps as our write problem —
+// neither may read as "wrong password".
+describe("activationStepError", () => {
+  it("codes auth steps as a sign-in service problem", () => {
+    for (const step of ["goTrueSignUp", "goTrueAdoptSignIn"]) {
+      const msg = activationStepError(step);
+      expect(msg).toContain("ACT-AUTH");
+      expect(msg).toMatch(/sign-in service/i);
+    }
+  });
+
+  it("codes data steps distinctly", () => {
+    expect(activationStepError("createAccount")).toContain("ACT-ACCOUNT");
+    expect(activationStepError("setPin")).toContain("ACT-PIN");
+    expect(activationStepError("linkFamily")).toContain("ACT-LINK");
+    expect(activationStepError("consumeInvite")).toContain("ACT-INVITE");
+    expect(activationStepError("findAccount")).toContain("ACT-LOOKUP");
+  });
+
+  it("falls back to the generic message for unknown steps", () => {
+    expect(activationStepError("somethingElse")).toContain("couldn't activate");
   });
 });

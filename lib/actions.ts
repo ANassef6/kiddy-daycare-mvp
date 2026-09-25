@@ -64,7 +64,8 @@ import {
   runAutoCheckoutSweep,
 } from "@/lib/store";
 import type { WorkingWeek } from "@/lib/working-hours";
-import { supabaseConfigured, getSupabase, isGoTrueAlreadyRegisteredError } from "@/lib/supabase";
+import { supabaseConfigured, getSupabase, isGoTrueAlreadyRegisteredError, isGoTrueServerError } from "@/lib/supabase";
+import { activationStepError } from "@/lib/activation";
 import { requestOrigin, publicOrigin } from "@/lib/url";
 import { isAdminRole } from "@/lib/role";
 import {
@@ -272,6 +273,12 @@ export async function registerAction(formData: FormData) {
             );
             console.log(`KID-123 register: adopted existing GoTrue user for ${email}; activation continues.`);
           }
+        } else if (isGoTrueServerError(error)) {
+          // KID-124: the sign-in service itself failed (HTTP 5xx / transport).
+          // This is NOT a wrong password and NOT a validation problem — say
+          // so explicitly and keep the raw exception in the server log only.
+          console.error(`KID-124 register: GoTrue signUp server error for ${email}:`, error.code ?? "", error.message);
+          return { error: activationStepError("goTrueSignUp") };
         } else {
           // KID-111: log GoTrue signup failures so missing confirm emails are diagnosable.
           console.error(`KID-111 register: GoTrue signUp failed for ${email}:`, error.code ?? "", error.message);
@@ -320,10 +327,10 @@ export async function registerAction(formData: FormData) {
       `KID-121 register: activation failed at step ${step} for ${email}:`,
       err instanceof Error ? err.message : err
     );
-    return {
-      error:
-        "We couldn't activate your account right now. Try again in a moment, or ask your daycare for help.",
-    };
+    // KID-124: step-coded message so the next human report names the failing
+    // call (auth-step codes = sign-in service, data-step codes = our write —
+    // neither means "wrong password").
+    return { error: activationStepError(step) };
   }
   if (!account) {
     return {
