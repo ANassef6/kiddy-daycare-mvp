@@ -243,19 +243,35 @@ export async function registerAction(formData: FormData) {
             password,
           });
           if (signInError || !signInData.user) {
-            console.warn(`KID-123 register: GoTrue user exists for ${email} but password sign-in failed; directing to sign-in.`);
-            return {
-              error:
-                "An account with this email already exists. Try signing in instead, or reset your password.",
-            };
+            // KID-123 fallback: the GoTrue user was created without the parent
+            // choosing a password (admin invite email). The submitted password
+            // cannot prove ownership, so fall back to the invite itself: when
+            // the pending invite was issued to exactly this email, the
+            // single-use code authorizes the claim. Activation continues with
+            // an app-side password (authUserId stays null); GoTrue is untouched
+            // until the parent uses password reset, and login falls through to
+            // the app-side verify. The invite is consumed below, so this cannot
+            // be replayed. On email mismatch, direct to sign-in instead.
+            const inviteEmail = String(invite.email ?? "").trim().toLowerCase();
+            if (inviteEmail && inviteEmail === email.toLowerCase()) {
+              console.warn(`KID-123 register: password sign-in failed for existing GoTrue user ${email}; continuing with app-side account (invite ${inviteCode} authorizes the claim).`);
+              authUserId = null;
+            } else {
+              console.warn(`KID-123 register: GoTrue user exists for ${email} but password sign-in failed; directing to sign-in.`);
+              return {
+                error:
+                  "An account with this email already exists. Try signing in instead, or reset your password.",
+              };
+            }
+          } else {
+            authUserId = signInData.user.id;
+            emailConfirmed = !!(
+              signInData.session ||
+              signInData.user.email_confirmed_at ||
+              (signInData.user as unknown as Record<string, unknown>).confirmed_at
+            );
+            console.log(`KID-123 register: adopted existing GoTrue user for ${email}; activation continues.`);
           }
-          authUserId = signInData.user.id;
-          emailConfirmed = !!(
-            signInData.session ||
-            signInData.user.email_confirmed_at ||
-            (signInData.user as unknown as Record<string, unknown>).confirmed_at
-          );
-          console.log(`KID-123 register: adopted existing GoTrue user for ${email}; activation continues.`);
         } else {
           // KID-111: log GoTrue signup failures so missing confirm emails are diagnosable.
           console.error(`KID-111 register: GoTrue signUp failed for ${email}:`, error.code ?? "", error.message);
