@@ -65,7 +65,7 @@ import {
 } from "@/lib/store";
 import type { WorkingWeek } from "@/lib/working-hours";
 import { supabaseConfigured, getSupabase } from "@/lib/supabase";
-import { requestOrigin } from "@/lib/url";
+import { requestOrigin, publicOrigin } from "@/lib/url";
 import { isAdminRole } from "@/lib/role";
 import {
   buildParentInviteEmail,
@@ -169,7 +169,22 @@ export async function registerAction(formData: FormData) {
   if (!inviteCode) {
     return { error: "Your daycare must invite you first. Ask them for an invite code." };
   }
-  const invite = await getInviteByCode(inviteCode);
+  // KID-121: the invite lookup touches the database, which can be unreachable
+  // (missing/unreachable Postgres, read-only SQLite fallback on serverless).
+  // A lookup failure must render a friendly message, never a 500 digest page.
+  let invite;
+  try {
+    invite = await getInviteByCode(inviteCode);
+  } catch (err) {
+    console.error(
+      `KID-121 register: invite lookup failed for code ${inviteCode}:`,
+      err instanceof Error ? err.message : err
+    );
+    return {
+      error:
+        "We couldn't verify that invite code right now. Try again in a moment, or ask your daycare for a new one.",
+    };
+  }
   if (!invite) {
     return { error: "That invite code wasn't found. Check the code your daycare sent you." };
   }
@@ -177,70 +192,91 @@ export async function registerAction(formData: FormData) {
     return { error: "That invite code has already been used. Ask your daycare for a new one." };
   }
 
-  if (await findAccountByEmail(email)) {
-    return { error: "An account with that email already exists." };
-  }
-
-  // Create a real GoTrue user for every self-service registration, then record
-  // whether the email still needs confirmation. GoTrue on this demo project has
-  // email confirmation enabled and rate-limits confirmation sends, so signup
-  // often returns over_email_send_rate_limit. That is NOT fatal: the app-side
-  // account + session keep the MVP usable, and the /welcome page shows the
-  // confirmation state. blindSignup notes whether we still need to confirm.
-  let authUserId: string | null = null;
+  // KID-121: every DB access below can throw when the database is unreachable.
+  // Fail with a friendly message (logged) instead of a 500 digest page. The
+  // setSession/redirect tail stays outside so NEXT_REDIRECT still propagates.
+  let account: Awaited<ReturnType<typeof createAccount>> | null = null;
   let emailConfirmed = true;
-  if (supabaseConfigured()) {
-    const { data, error } = await getSupabase().auth.signUp({
+  try {
+    if (await findAccountByEmail(email)) {
+      return { error: "An account with that email already exists." };
+    }
+
+    // Create a real GoTrue user for every self-service registration, then record
+    // whether the email still needs confirmation. GoTrue on this demo project has
+    // email confirmation enabled and rate-limits confirmation sends, so signup
+    // often returns over_email_send_rate_limit. That is NOT fatal: the app-side
+    // account + session keep the MVP usable, and the /welcome page shows the
+    // confirmation state. blindSignup notes whether we still need to confirm.
+    let authUserId: string | null = null;
+    if (supabaseConfigured()) {
+      const { data, error } = await getSupabase().auth.signUp({
+        email,
+        password,
+        options: { emailRedirectTo: `${publicOrigin(requestOrigin())}/auth/confirm` },
+      });
+      const isRateLimited = !!(
+        error &&
+        (error.code === "over_email_send_rate_limit" ||
+          String(error.message).toLowerCase().includes("rate limit"))
+      );
+      if (error) {
+        if (!isRateLimited) {
+          // KID-111: log GoTrue signup failures so missing confirm emails are diagnosable.
+          console.error(`KID-111 register: GoTrue signUp failed for ${email}:`, error.code ?? "", error.message);
+          return { error: error.message };
+        }
+        // Rate-limited confirmation send: keep the app session usable anyway.
+        console.warn(`KID-111 register: GoTrue confirm email rate-limited for ${email}; app session continues unconfirmed.`);
+        emailConfirmed = false;
+      } else {
+        authUserId = data.user?.id ?? null;
+        // On a confirmation-gated project GoTrue only issues a session (and only
+        // sets confirmed_at) once the email is verified. right after signup
+        // identities is already non-empty, so it is NOT a confirmation signal.
+        emailConfirmed = !!(data.session || data.user?.email_confirmed_at || data.user?.confirmed_at);
+      }
+    }
+
+    account = await createAccount({
       email,
       password,
-      options: { emailRedirectTo: `${requestOrigin()}/auth/confirm` },
+      fullName,
+      role: "parent",
+      authUserId,
+      emailConfirmed,
     });
-    const isRateLimited = !!(
-      error &&
-      (error.code === "over_email_send_rate_limit" ||
-        String(error.message).toLowerCase().includes("rate limit"))
-    );
-    if (error) {
-      if (!isRateLimited) {
-        // KID-111: log GoTrue signup failures so missing confirm emails are diagnosable.
-        console.error(`KID-111 register: GoTrue signUp failed for ${email}:`, error.code ?? "", error.message);
-        return { error: error.message };
-      }
-      // Rate-limited confirmation send: keep the app session usable anyway.
-      console.warn(`KID-111 register: GoTrue confirm email rate-limited for ${email}; app session continues unconfirmed.`);
-      emailConfirmed = false;
-    } else {
-      authUserId = data.user?.id ?? null;
-      // On a confirmation-gated project GoTrue only issues a session (and only
-      // sets confirmed_at) once the email is verified. right after signup
-      // identities is already non-empty, so it is NOT a confirmation signal.
-      emailConfirmed = !!(data.session || data.user?.email_confirmed_at || data.user?.confirmed_at);
+
+    // Optional PIN
+    const pin = String(formData.get("pin") ?? "").trim();
+    if (pin) await setPin(account.id, pin);
+
+    // Link via the invite the daycare issued and consume it. The invite's
+    // relationship becomes the family-link access role (KID-112).
+    if (invite.child_id) {
+      const { isContactRelationship } = await import("@/lib/contact-relationship");
+      const inviteRole = isContactRelationship((invite as Record<string, unknown>).role)
+        ? String((invite as Record<string, unknown>).role)
+        : "parent";
+      await linkFamily(account.id, String(invite.child_id), inviteRole);
     }
+    await queryRun("UPDATE invite SET status = 'accepted' WHERE id = ?", invite.id);
+  } catch (err) {
+    console.error(
+      `KID-121 register: activation failed for ${email}:`,
+      err instanceof Error ? err.message : err
+    );
+    return {
+      error:
+        "We couldn't activate your account right now. Try again in a moment, or ask your daycare for help.",
+    };
   }
-
-  const account = await createAccount({
-    email,
-    password,
-    fullName,
-    role: "parent",
-    authUserId,
-    emailConfirmed,
-  });
-
-  // Optional PIN
-  const pin = String(formData.get("pin") ?? "").trim();
-  if (pin) await setPin(account.id, pin);
-
-  // Link via the invite the daycare issued and consume it. The invite's
-  // relationship becomes the family-link access role (KID-112).
-  if (invite.child_id) {
-    const { isContactRelationship } = await import("@/lib/contact-relationship");
-    const inviteRole = isContactRelationship((invite as Record<string, unknown>).role)
-      ? String((invite as Record<string, unknown>).role)
-      : "parent";
-    await linkFamily(account.id, String(invite.child_id), inviteRole);
+  if (!account) {
+    return {
+      error:
+        "We couldn't activate your account right now. Try again in a moment, or ask your daycare for help.",
+    };
   }
-  await queryRun("UPDATE invite SET status = 'accepted' WHERE id = ?", invite.id);
 
   await setSession(account.email);
   redirect(emailConfirmed ? "/child" : "/welcome");
@@ -285,7 +321,7 @@ export async function requestPasswordResetAction(formData: FormData) {
     };
   }
   const { error } = await getSupabase().auth.resetPasswordForEmail(email, {
-    redirectTo: `${requestOrigin()}/reset-password`,
+    redirectTo: `${publicOrigin(requestOrigin())}/reset-password`,
   });
   if (error) {
     // KID-111: log reset-mail failures (e.g. non-routable demo addresses).
@@ -674,7 +710,7 @@ export async function addStaffAction(formData: FormData) {
         await getSupabase().auth.signUp({
           email,
           password,
-          options: { emailRedirectTo: `${requestOrigin()}/auth/confirm` },
+          options: { emailRedirectTo: `${publicOrigin(requestOrigin())}/auth/confirm` },
         });
         console.log(`KID-111 staffInvite: GoTrue identity created for staff ${email}`);
       } catch (err) {
@@ -801,7 +837,8 @@ export async function inviteParentAction(formData: FormData) {
     code,
     relationship
   );
-  const origin = requestOrigin();
+  // KID-119: parent devices fetch this link, so use the public host.
+  const origin = publicOrigin(requestOrigin());
   // Log the canonical activation message so the invite is verifiable in logs
   // even when no mail provider is wired.
   let childName: string | undefined;
@@ -888,7 +925,8 @@ export async function resendParentInviteAction(formData: FormData) {
     }
   }
 
-  const origin = requestOrigin();
+  // KID-119: parent devices fetch this link, so use the public host.
+  const origin = publicOrigin(requestOrigin());
   const parentName = await contactNameForInvite(
     invite.child_id ? String(invite.child_id) : null,
     email
@@ -943,7 +981,8 @@ export async function sendInviteForContactAction(formData: FormData) {
   } = await import("@/lib/invite-email");
   // Reuse an existing pending invite instead of stacking duplicates.
   const existing = await getPendingInvitesByEmail(email);
-  const origin = requestOrigin();
+  // KID-119: parent devices fetch this link, so use the public host.
+  const origin = publicOrigin(requestOrigin());
   if (existing.length > 0) {
     const parentName = await contactNameForInvite(childId, email);
     const result = await sendParentInviteEmail(existing[0], {
@@ -2031,7 +2070,7 @@ export async function resendActivationAction(formData: FormData) {
     // Fallback: a recovery email also reaches the GoTrue identity when the
     // signup-resend path rejects (e.g. user already exists server-side).
     const recovery = await getSupabase().auth.resetPasswordForEmail(email, {
-      redirectTo: `${requestOrigin()}/reset-password`,
+      redirectTo: `${publicOrigin(requestOrigin())}/reset-password`,
     });
     if (!recovery.error) {
       await logResendAttempt({
@@ -2052,7 +2091,7 @@ export async function resendActivationAction(formData: FormData) {
       const pending = await getPendingInvitesByEmail(email);
       if (pending.length > 0) {
         const inviteResult = await sendParentInviteEmail(pending[0], {
-          origin: requestOrigin(),
+          origin: publicOrigin(requestOrigin()),
           isResend: true,
         });
         await logResendAttempt({

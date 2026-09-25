@@ -93,6 +93,28 @@ describe("activationUrlForCode", () => {
   });
 });
 
+describe("sendParentInviteEmail public host (KID-119)", () => {
+  it("builds the pending activation link on NEXT_PUBLIC_SITE_URL, not localhost", async () => {
+    const { sendParentInviteEmail } = await import("@/lib/invite-email");
+    const saved = process.env.NEXT_PUBLIC_SITE_URL;
+    process.env.NEXT_PUBLIC_SITE_URL = "https://kiddy.example.com";
+    try {
+      const result = await sendParentInviteEmail(
+        { id: "kid119-test", email: "parent@example.com", code: "KID-ABC123" },
+        { origin: "http://localhost:3000" }
+      );
+      // No mail provider in test env, so delivery stays pending — but the
+      // manual activation link handed to the admin must be the public host.
+      expect(result.status).toBe("pending");
+      expect(result.activationUrl ?? "").toContain("https://kiddy.example.com/register?");
+      expect(result.activationUrl ?? "").not.toContain("localhost");
+    } finally {
+      if (saved === undefined) delete process.env.NEXT_PUBLIC_SITE_URL;
+      else process.env.NEXT_PUBLIC_SITE_URL = saved;
+    }
+  });
+});
+
 describe("generateInviteCode", () => {
   it("produces valid unique KID- codes", () => {
     const codes = new Set(Array.from({ length: 200 }, () => generateInviteCode()));

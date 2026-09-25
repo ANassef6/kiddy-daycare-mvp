@@ -28,6 +28,7 @@
 
 import { queryAll, queryGet, queryRun } from "./db";
 import type { Row } from "./db";
+import { publicOrigin } from "./url";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 export const INVITE_CODE_MIN_LENGTH = 4;
@@ -200,15 +201,18 @@ export async function getInviteById(id: string): Promise<Row | undefined> {
 }
 
 // Attempt delivery for one invite row. `origin` is the request origin used to
-// build the activation link for the pending fallback.
+// build the activation link for the pending fallback. Parent-facing links go
+// through publicOrigin() so they use the deployed host (KID-119), never the
+// sender's localhost.
 export async function sendParentInviteEmail(
   invite: Row,
   opts: { origin: string; isResend?: boolean; prefill?: { email?: string; name?: string } }
 ): Promise<InviteDeliveryResult> {
   const email = String(invite.email ?? "").trim().toLowerCase();
   const code = String(invite.code ?? "").trim();
-  const activationUrl = opts.origin
-    ? activationUrlForCode(opts.origin, code, opts.prefill ?? { email })
+  const publicBase = publicOrigin(opts.origin);
+  const activationUrl = publicBase
+    ? activationUrlForCode(publicBase, code, opts.prefill ?? { email })
     : undefined;
 
   if (!isValidInviteEmail(email) || !isValidInviteCode(code)) {
@@ -229,7 +233,7 @@ export async function sendParentInviteEmail(
         auth: { persistSession: false, autoRefreshToken: false },
       });
       const { error } = await admin.auth.admin.inviteUserByEmail(email, {
-        redirectTo: `${opts.origin.replace(/\/$/, "")}/auth/confirm`,
+        redirectTo: `${publicOrigin(opts.origin)}/auth/confirm`,
       });
       if (error) throw error;
       console.log(`KID-111 invite ${String(invite.id)}: admin invite email sent to ${email}`);
