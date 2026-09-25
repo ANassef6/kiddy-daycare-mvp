@@ -20,3 +20,16 @@ export function getSupabase(): SupabaseClient {
   });
   return _client;
 }
+
+// KID-123: GoTrue reports an already-registered email on signUp with code
+// `user_already_exists` (older projects: `email_exists`) and message "User
+// already registered". The admin invite endpoint uses "already been
+// registered". Pure helper so the register action (and unit tests) can match
+// all variants without touching the network.
+export function isGoTrueAlreadyRegisteredError(err: unknown): boolean {
+  if (!err || typeof err !== "object") return false;
+  const code = String((err as Record<string, unknown>).code ?? "").toLowerCase();
+  if (code === "user_already_exists" || code === "email_exists") return true;
+  const message = String((err as Record<string, unknown>).message ?? "").toLowerCase();
+  return message.includes("already registered") || message.includes("already been registered");
+}

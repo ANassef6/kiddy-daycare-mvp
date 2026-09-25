@@ -64,7 +64,7 @@ import {
   runAutoCheckoutSweep,
 } from "@/lib/store";
 import type { WorkingWeek } from "@/lib/working-hours";
-import { supabaseConfigured, getSupabase } from "@/lib/supabase";
+import { supabaseConfigured, getSupabase, isGoTrueAlreadyRegisteredError } from "@/lib/supabase";
 import { requestOrigin, publicOrigin } from "@/lib/url";
 import { isAdminRole } from "@/lib/role";
 import {
@@ -195,8 +195,11 @@ export async function registerAction(formData: FormData) {
   // KID-121: every DB access below can throw when the database is unreachable.
   // Fail with a friendly message (logged) instead of a 500 digest page. The
   // setSession/redirect tail stays outside so NEXT_REDIRECT still propagates.
+  // KID-123: `step` names the exact call in the catch log so the next failure
+  // is diagnosable to file:line from the runtime logs alone.
   let account: Awaited<ReturnType<typeof createAccount>> | null = null;
   let emailConfirmed = true;
+  let step = "findAccount";
   try {
     if (await findAccountByEmail(email)) {
       return { error: "An account with that email already exists." };
@@ -210,6 +213,7 @@ export async function registerAction(formData: FormData) {
     // confirmation state. blindSignup notes whether we still need to confirm.
     let authUserId: string | null = null;
     if (supabaseConfigured()) {
+      step = "goTrueSignUp";
       const { data, error } = await getSupabase().auth.signUp({
         email,
         password,
@@ -221,14 +225,42 @@ export async function registerAction(formData: FormData) {
           String(error.message).toLowerCase().includes("rate limit"))
       );
       if (error) {
-        if (!isRateLimited) {
+        if (isRateLimited) {
+          // Rate-limited confirmation send: keep the app session usable anyway.
+          console.warn(`KID-111 register: GoTrue confirm email rate-limited for ${email}; app session continues unconfirmed.`);
+          emailConfirmed = false;
+        } else if (isGoTrueAlreadyRegisteredError(error)) {
+          // KID-123: the GoTrue user exists but the app account does not
+          // (e.g. created by the 11:49 admin invite for KID-P5YM5T, or an
+          // earlier attempt that died after signUp). Without this branch the
+          // parent can never activate: signUp keeps returning "already
+          // registered" while no app account exists to sign in with. The
+          // submitted password proves ownership: a successful sign-in adopts
+          // the existing GoTrue user and activation continues below.
+          step = "goTrueAdoptSignIn";
+          const { data: signInData, error: signInError } = await getSupabase().auth.signInWithPassword({
+            email,
+            password,
+          });
+          if (signInError || !signInData.user) {
+            console.warn(`KID-123 register: GoTrue user exists for ${email} but password sign-in failed; directing to sign-in.`);
+            return {
+              error:
+                "An account with this email already exists. Try signing in instead, or reset your password.",
+            };
+          }
+          authUserId = signInData.user.id;
+          emailConfirmed = !!(
+            signInData.session ||
+            signInData.user.email_confirmed_at ||
+            (signInData.user as unknown as Record<string, unknown>).confirmed_at
+          );
+          console.log(`KID-123 register: adopted existing GoTrue user for ${email}; activation continues.`);
+        } else {
           // KID-111: log GoTrue signup failures so missing confirm emails are diagnosable.
           console.error(`KID-111 register: GoTrue signUp failed for ${email}:`, error.code ?? "", error.message);
           return { error: error.message };
         }
-        // Rate-limited confirmation send: keep the app session usable anyway.
-        console.warn(`KID-111 register: GoTrue confirm email rate-limited for ${email}; app session continues unconfirmed.`);
-        emailConfirmed = false;
       } else {
         authUserId = data.user?.id ?? null;
         // On a confirmation-gated project GoTrue only issues a session (and only
@@ -238,6 +270,7 @@ export async function registerAction(formData: FormData) {
       }
     }
 
+    step = "createAccount";
     account = await createAccount({
       email,
       password,
@@ -249,21 +282,26 @@ export async function registerAction(formData: FormData) {
 
     // Optional PIN
     const pin = String(formData.get("pin") ?? "").trim();
-    if (pin) await setPin(account.id, pin);
+    if (pin) {
+      step = "setPin";
+      await setPin(account.id, pin);
+    }
 
     // Link via the invite the daycare issued and consume it. The invite's
     // relationship becomes the family-link access role (KID-112).
     if (invite.child_id) {
+      step = "linkFamily";
       const { isContactRelationship } = await import("@/lib/contact-relationship");
       const inviteRole = isContactRelationship((invite as Record<string, unknown>).role)
         ? String((invite as Record<string, unknown>).role)
         : "parent";
       await linkFamily(account.id, String(invite.child_id), inviteRole);
     }
+    step = "consumeInvite";
     await queryRun("UPDATE invite SET status = 'accepted' WHERE id = ?", invite.id);
   } catch (err) {
     console.error(
-      `KID-121 register: activation failed for ${email}:`,
+      `KID-121 register: activation failed at step ${step} for ${email}:`,
       err instanceof Error ? err.message : err
     );
     return {
