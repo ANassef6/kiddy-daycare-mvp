@@ -285,3 +285,18 @@ async function ensurePgSchema(): Promise<void> {
 export function uid(): string {
   return Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 10);
 }
+
+// KID-125: the app-DB `account.auth_user_id` references `auth.users(id)`. On
+// the live project the adopted GoTrue id can be missing/unreadable there
+// (auth admin reads 500 with "Database error finding users"), so the account
+// INSERT throws a foreign-key violation even though sign-in succeeded.
+// Pure helper so registerAction (and unit tests) can match it on both
+// engines: pg reports code 23503, better-sqlite3 reports
+// "FOREIGN KEY constraint failed".
+export function isForeignKeyViolation(err: unknown): boolean {
+  if (!err || typeof err !== "object") return false;
+  const rec = err as Record<string, unknown>;
+  if (String(rec.code ?? "") === "23503") return true;
+  const message = String(rec.message ?? "");
+  return /foreign key constraint failed|violates foreign key constraint/i.test(message);
+}

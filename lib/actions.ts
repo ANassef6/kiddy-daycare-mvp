@@ -15,7 +15,7 @@ import {
   emailConfirmedFor,
   staffIdForAccount,
 } from "@/lib/auth";
-import { queryGet, queryRun, queryAll, ensureSchema } from "@/lib/db";
+import { queryGet, queryRun, queryAll, ensureSchema, isForeignKeyViolation } from "@/lib/db";
 import {
   isAccountAccessWithdrawn,
   runWithdrawalSweep,
@@ -294,14 +294,40 @@ export async function registerAction(formData: FormData) {
     }
 
     step = "createAccount";
-    account = await createAccount({
-      email,
-      password,
-      fullName,
-      role: "parent",
-      authUserId,
-      emailConfirmed,
-    });
+    try {
+      account = await createAccount({
+        email,
+        password,
+        fullName,
+        role: "parent",
+        authUserId,
+        emailConfirmed,
+      });
+    } catch (err) {
+      // KID-125: the adopted GoTrue id can violate the
+      // account_auth_user_id_fkey (the auth.users row is missing/unreadable
+      // on the live project) even though sign-in succeeded. The pending
+      // invite already authorized this claim, so retry app-side without the
+      // GoTrue link — login falls through to the app-side password verify
+      // and the parent is no longer stuck. Any other error (or a second
+      // failure) still throws to the ACT-ACCOUNT message below.
+      if (authUserId && isForeignKeyViolation(err)) {
+        console.warn(
+          `KID-125 register: auth_user_id FK violation for ${email}; retrying app-side without GoTrue link.`
+        );
+        authUserId = null;
+        account = await createAccount({
+          email,
+          password,
+          fullName,
+          role: "parent",
+          authUserId: null,
+          emailConfirmed,
+        });
+      } else {
+        throw err;
+      }
+    }
 
     // Optional PIN
     const pin = String(formData.get("pin") ?? "").trim();
