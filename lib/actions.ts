@@ -200,6 +200,12 @@ export async function registerAction(formData: FormData) {
   // is diagnosable to file:line from the runtime logs alone.
   let account: Awaited<ReturnType<typeof createAccount>> | null = null;
   let emailConfirmed = true;
+  // KID-126: GoTrue only sends a confirmation email on a FRESH signUp (or an
+  // admin invite). On the already-registered branches below no email is sent
+  // at all — adopt-signIn and the app-side fallback are silent — so the
+  // parent activates and logs in but never receives a confirmation email.
+  // Flag those paths so the tail can best-effort resend one confirm email.
+  let needsConfirmResend = false;
   let step = "findAccount";
   try {
     if (await findAccountByEmail(email)) {
@@ -228,8 +234,10 @@ export async function registerAction(formData: FormData) {
       if (error) {
         if (isRateLimited) {
           // Rate-limited confirmation send: keep the app session usable anyway.
+          // KID-126: GoTrue sent nothing, so flag a best-effort resend below.
           console.warn(`KID-111 register: GoTrue confirm email rate-limited for ${email}; app session continues unconfirmed.`);
           emailConfirmed = false;
+          needsConfirmResend = true;
         } else if (isGoTrueAlreadyRegisteredError(error)) {
           // KID-123: the GoTrue user exists but the app account does not
           // (e.g. created by the 11:49 admin invite for KID-P5YM5T, or an
@@ -257,6 +265,8 @@ export async function registerAction(formData: FormData) {
             if (inviteEmail && inviteEmail === email.toLowerCase()) {
               console.warn(`KID-123 register: password sign-in failed for existing GoTrue user ${email}; continuing with app-side account (invite ${inviteCode} authorizes the claim).`);
               authUserId = null;
+              // KID-126: no GoTrue call sent mail on this path either.
+              needsConfirmResend = true;
             } else {
               console.warn(`KID-123 register: GoTrue user exists for ${email} but password sign-in failed; directing to sign-in.`);
               return {
@@ -272,6 +282,9 @@ export async function registerAction(formData: FormData) {
               (signInData.user as unknown as Record<string, unknown>).confirmed_at
             );
             console.log(`KID-123 register: adopted existing GoTrue user for ${email}; activation continues.`);
+            // KID-126: adopt-signIn sends no email; resend one below when the
+            // address is still unconfirmed (already-confirmed needs nothing).
+            if (!emailConfirmed) needsConfirmResend = true;
           }
         } else if (isGoTrueServerError(error)) {
           // KID-124: the sign-in service itself failed (HTTP 5xx / transport).
@@ -363,6 +376,23 @@ export async function registerAction(formData: FormData) {
       error:
         "We couldn't activate your account right now. Try again in a moment, or ask your daycare for help.",
     };
+  }
+
+  // KID-126: the already-registered branches above activate without GoTrue
+  // ever sending a confirmation email. Best-effort resend one now — failures
+  // (rate limit, already confirmed, mailer down) are logged and never break
+  // the working activation; the parent can also resend from /welcome later.
+  if (needsConfirmResend && supabaseConfigured()) {
+    try {
+      const { error: resendError } = await getSupabase().auth.resend({ type: "signup", email });
+      if (resendError) {
+        console.warn(`KID-126 register: post-activation confirm resend failed for ${email}:`, resendError.message);
+      } else {
+        console.log(`KID-126 register: post-activation confirm email resent to ${email}`);
+      }
+    } catch (err) {
+      console.warn(`KID-126 register: post-activation confirm resend threw for ${email}:`, err instanceof Error ? err.message : err);
+    }
   }
 
   await setSession(account.email);
