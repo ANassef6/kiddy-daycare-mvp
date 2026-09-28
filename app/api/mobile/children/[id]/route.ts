@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireMobileSession, errorPayload, childSummary, serializeReport } from "@/lib/mobile-api";
+import { requireMobileSession, errorPayload, childSummary, serializeReport, isChildInFamily } from "@/lib/mobile-api";
 import { getChild, listContacts, newsfeedForChild, incidentsForChild } from "@/lib/store";
 import { queryGet } from "@/lib/db";
 
@@ -13,6 +13,10 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
 
   const child = await getChild(params.id);
   if (!child) return errorPayload("child not found", 404);
+
+  const inFamily = await isChildInFamily(session.accountId, params.id);
+  if (!inFamily) return errorPayload("forbidden", 403);
+
   const roomRow = child.room_id
     ? await queryGet("SELECT name AS room_name FROM room WHERE id = ?", child.room_id)
     : undefined;

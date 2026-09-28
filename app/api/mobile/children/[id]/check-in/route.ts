@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireMobileSession, errorPayload, childSummary } from "@/lib/mobile-api";
+import { requireMobileSession, errorPayload, childSummary, isChildInFamily } from "@/lib/mobile-api";
 import { checkChildInOut, getChild } from "@/lib/store";
 
 export const dynamic = "force-dynamic";
@@ -12,6 +12,9 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
 
   const child = await getChild(params.id);
   if (!child) return errorPayload("child not found", 404);
+
+  const inFamily = await isChildInFamily(session.accountId, params.id);
+  if (!inFamily) return errorPayload("forbidden", 403);
 
   let body: { type?: string } = {};
   try {

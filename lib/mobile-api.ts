@@ -2,7 +2,7 @@
 // signed session tokens (lib/auth.ts) so the app and web share one identity.
 import { NextRequest, NextResponse } from "next/server";
 import { verifyToken, getAccount } from "./auth";
-import type { Row } from "./db";
+import { queryGet, type Row } from "./db";
 import { getFirstInstitute, brandingFromInstitute, type Branding } from "./theme";
 import { familiesForAccount, getChild, todayStatus, reportFor } from "./store";
 
@@ -37,6 +37,21 @@ export async function requireMobileSession(req: NextRequest): Promise<MobileSess
     return NextResponse.json({ error: "account not found" }, { status: 401 });
   }
   return session;
+}
+
+// True when the account has an active family link to the child. This is the
+// mobile API's IDOR guard: every child-scoped endpoint must verify membership
+// before returning child data or acting on the child's behalf.
+export async function isChildInFamily(accountId: string, childId: string): Promise<boolean> {
+  const row = await queryGet(
+    `SELECT 1 FROM family_member fm
+     JOIN child c ON c.id = fm.child_id
+     WHERE fm.account_id = ? AND fm.child_id = ? AND c.active = 1
+     LIMIT 1`,
+    accountId,
+    childId
+  );
+  return row !== undefined;
 }
 
 // ---- response shaping for the mobile client ----
