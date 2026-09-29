@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import ActiveLink from "@/components/ActiveLink";
 import { requireSessionWithWithdrawalCheck } from "@/lib/require";
 import { familiesForAccount, familyAccessForAccount } from "@/lib/store";
+import { ensureSchema } from "@/lib/db";
 import { getBranding } from "@/lib/theme";
 import { i18nForAccount } from "@/lib/i18n-session";
 import { tr } from "@/lib/i18n";
@@ -11,6 +12,17 @@ export const dynamic = "force-dynamic";
 
 export default async function ParentLayout({ children }: { children: React.ReactNode }) {
   const session = await requireSessionWithWithdrawalCheck();
+  // KID-147: the parent read path is pure SELECT, so it never triggered
+  // ensureSchema(). A migration that backfills family_member rows could
+  // therefore stay unapplied until some unrelated staff write action ran,
+  // and the parent still saw a stale child list. Migrations are applied here
+  // so "deploy" and "parent sees the backfill" are the same event. Warm
+  // requests are a single ledger read (see ensurePgSchema).
+  try {
+    await ensureSchema();
+  } catch (err) {
+    console.error("ensureSchema failed on the parent layout:", err);
+  }
   const { dict } = await i18nForAccount(session.accountId);
   let families: Record<string, unknown>[] = [];
   let logoUrl: string | null = null;

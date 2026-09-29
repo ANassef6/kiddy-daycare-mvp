@@ -3,6 +3,7 @@ import PortalSidebar from "@/components/PortalSidebar";
 import Avatar from "@/components/Avatar";
 import { requireSessionWithWithdrawalCheck } from "@/lib/require";
 import { isAdminRole } from "@/lib/role";
+import { ensureSchema } from "@/lib/db";
 import { getBranding } from "@/lib/theme";
 import { i18nForAccount } from "@/lib/i18n-session";
 import { tr } from "@/lib/i18n";
@@ -12,6 +13,15 @@ export const dynamic = "force-dynamic";
 
 export default async function PortalLayout({ children }: { children: React.ReactNode }) {
   const session = await requireSessionWithWithdrawalCheck();
+  // KID-147: same reason as app/child/layout.tsx. Only a handful of portal
+  // pages and the server actions called ensureSchema(), so a pending migration
+  // sat unapplied until an organic write. Both authenticated roots now apply
+  // them, which makes a deploy sufficient instead of merely necessary.
+  try {
+    await ensureSchema();
+  } catch (err) {
+    console.error("ensureSchema failed on the portal layout:", err);
+  }
   const { locale, dict } = await i18nForAccount(session.accountId);
   const profile = await accountProfile(session.accountId);
   const displayName = profile.fullName || session.email;
