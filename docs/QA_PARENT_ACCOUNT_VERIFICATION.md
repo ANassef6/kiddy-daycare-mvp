@@ -63,6 +63,14 @@ N/A for QA: P1 to P3 are deploy evidence, checked by reading KID-147, not by re-
 - **C12 (console clean).** **Given** the full pass, **when** the browser console is read at the
   end, **then** there are no uncaught errors and no failed same-origin requests on `/child`
   or `/child/messages`.
+- **C13 (cross-tenant isolation — added after KID-152).** **Given** a parent account linked to a
+  child at the QA centre, **when** a staff member at a second centre records a contact carrying
+  that same parent email, **then** the parent account does not gain access to the second
+  centre's child, and that child does not appear in the parent's list.
+  - This is the production check for the runtime leak in KID-152. It needs a second institute,
+    so it cannot be demonstrated against single-institute production. It is verified at the
+    data layer by `tests/unit/kid149-backfill-isolation.test.ts`. Record here whether that
+    test was green at the deployed commit, since production cannot show this case itself.
 
 N/A for this change: performance envelope. The list is a small bounded set per account and
 the change adds a migration, not a query on a hot path. Recording this rather than omitting it.
