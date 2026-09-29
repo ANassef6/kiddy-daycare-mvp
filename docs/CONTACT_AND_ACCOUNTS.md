@@ -110,3 +110,53 @@ migrated (`0016_contact_relationship_roles.sql` + SQLite backfill, with
 The invite's role becomes the `family_member` link role at registration
 (`linkFamily(accountId, childId, role)`), and the most permissive link wins
 when an account is linked to several children.
+
+## Same-email parent profile backfill (KID-143)
+
+A parent with four children at the daycare should be entered once. When a new
+child's contact is added with an email the daycare already knows, any field the
+staff member left blank is filled in from that address's existing parent
+profile, so the same person is not spelled four different ways across
+children.
+
+Implementation: `backfillContactFromSameEmail` (`lib/store.ts`), called from
+`addContact` (create) and `updateContact` (edit). It is a pure read followed by
+the caller's own write — **no existing row is ever updated**, only the row
+being created or edited.
+
+### Fields that are merged
+
+| Field              | Merged | Notes                                                        |
+| ------------------ | ------ | ------------------------------------------------------------ |
+| `full_name`        | yes    | Falls back to `"—"` when the address is unknown.             |
+| `phone`            | yes    | Stored as `null` when neither the submission nor the profile has one. |
+| `relationship`     | yes    | Must still resolve to one of the 4 KID-112 enum values.       |
+
+### Fields that are never merged
+
+`email` (it is the match key), `child_id`, `is_pickup` and `is_emergency` —
+these are per-child or per-submission facts, not personal profile data. Each
+child keeps its own pickup/emergency decision and the address is stored exactly
+as submitted.
+
+### Rules
+
+- **Source = the earliest same-email `contact` row** (`ORDER BY created_at ASC`),
+  the one created first. A later correction to one child's contact row does not
+  become the profile that future submissions copy.
+- **Only empty values are filled.** A value the staff member typed is never
+  overwritten.
+- **Matching is case-insensitive and whitespace-trimmed** on both sides, via the
+  shared `normalizeParentEmail` key — `Nouran@Example.com`, ` nouran@example.com `
+  and `NOURAN@EXAMPLE.COM` are the same address.
+- **Fallback source:** when no contact row exists for the address yet, the
+  registered parent `account` full name is used. The account contributes only
+  the name; it has no phone or relationship.
+- **No address, no backfill.** A contact added without an email is stored
+  exactly as typed.
+- On **edit**, the row being edited is excluded from the source lookup, so an
+  edit can never copy a record into itself.
+
+Matching is not scoped to a single institute: the address identifies the person,
+and a parent with children at two centers gets one consistent profile.
+

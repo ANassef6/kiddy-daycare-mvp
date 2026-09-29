@@ -218,6 +218,117 @@ describe("KID-143 same-email contact backfill", () => {
 
     expect(newContact.full_name).toBe("Existing Parent");
   });
+
+  // "earliest existing same-email parent profile" — a later correction to one
+  // child's contact must not become the profile future submissions copy.
+  it("copies from the earliest same-email contact, not the newest", async () => {
+    const childA = await store.createChild({ instituteId: iid, firstName: "Becca", lastName: "Nassef", roomId: roomA });
+    const childB = await store.createChild({ instituteId: iid, firstName: "Mikael", lastName: "Nassef", roomId: roomB });
+    const childC = await store.createChild({ instituteId: iid, firstName: "Salma", lastName: "Nassef", roomId: roomB });
+    const email = "earliest@example.com";
+
+    const first = await store.addContact({ childId: String(childA.id), fullName: "Nouran Hisham", relationship: "parent", phone: "+20 111", email, isPickup: false, isEmergency: false });
+    const second = await store.addContact({ childId: String(childB.id), fullName: "Nouran H.", relationship: "family", phone: "+20 222", email, isPickup: false, isEmergency: false });
+    // created_at has one-second resolution, so pin the order explicitly rather
+    // than relying on how fast the inserts ran.
+    await queryRun("UPDATE contact SET created_at = '2026-01-01 00:00:01' WHERE id = ?", String(first.id));
+    await queryRun("UPDATE contact SET created_at = '2026-01-01 00:00:02' WHERE id = ?", String(second.id));
+
+    const third = await store.addContact({ childId: String(childC.id), fullName: "", relationship: "", phone: "", email, isPickup: false, isEmergency: false });
+
+    expect(third.full_name).toBe("Nouran Hisham");
+    expect(third.phone).toBe("+20 111");
+    expect(third.relationship).toBe("parent");
+  });
+
+  it("matches the same address case-insensitively and ignores surrounding whitespace", async () => {
+    const childA = await store.createChild({ instituteId: iid, firstName: "Becca", lastName: "Nassef", roomId: roomA });
+    const childB = await store.createChild({ instituteId: iid, firstName: "Mikael", lastName: "Nassef", roomId: roomB });
+    await store.addContact({ childId: String(childA.id), fullName: "Nouran Hisham", relationship: "parent", phone: "+20 100", email: "  Nouran@Example.com  ", isPickup: false, isEmergency: false });
+
+    const newContact = await store.addContact({ childId: String(childB.id), fullName: "", relationship: "parent", phone: "", email: "NOURAN@example.com", isPickup: false, isEmergency: false });
+
+    expect(newContact.full_name).toBe("Nouran Hisham");
+    expect(newContact.phone).toBe("+20 100");
+  });
+
+  it("leaves the existing same-email contact untouched", async () => {
+    const childA = await store.createChild({ instituteId: iid, firstName: "Becca", lastName: "Nassef", roomId: roomA });
+    const childB = await store.createChild({ instituteId: iid, firstName: "Mikael", lastName: "Nassef", roomId: roomB });
+    const email = "untouched@example.com";
+    const original = await store.addContact({ childId: String(childA.id), fullName: "Nouran Hisham", relationship: "parent", phone: "+20 100", email, isPickup: true, isEmergency: false });
+    const before = { ...original };
+
+    await store.addContact({ childId: String(childB.id), fullName: "", relationship: "parent", phone: "", email, isPickup: false, isEmergency: false });
+
+    const after = await queryGet("SELECT * FROM contact WHERE id = ?", String(original.id));
+    expect(after).toEqual(before);
+  });
+
+  it("does not copy per-child flags or invent a profile for an unknown address", async () => {
+    const childA = await store.createChild({ instituteId: iid, firstName: "Becca", lastName: "Nassef", roomId: roomA });
+    const childB = await store.createChild({ instituteId: iid, firstName: "Mikael", lastName: "Nassef", roomId: roomB });
+    const email = "flags@example.com";
+    await store.addContact({ childId: String(childA.id), fullName: "Nouran Hisham", relationship: "parent", phone: "+20 100", email, isPickup: true, isEmergency: true });
+
+    // The new child needs its own pickup/emergency decision — it is not
+    // inherited from the sibling's contact.
+    const newContact = await store.addContact({ childId: String(childB.id), fullName: "Nouran Hisham", relationship: "parent", phone: "", email, isPickup: false, isEmergency: false });
+    expect(newContact.is_pickup).toBe(0);
+    expect(newContact.is_emergency).toBe(0);
+
+    // No address on the submission and no match: no lookup, no invented data.
+    const noEmail = await store.addContact({ childId: String(childB.id), fullName: "Someone Else", relationship: "family", phone: "+20 9", isPickup: false, isEmergency: false });
+    expect(noEmail.full_name).toBe("Someone Else");
+    expect(noEmail.phone).toBe("+20 9");
+    expect(noEmail.email).toBeNull();
+  });
+
+  it("on edit, fills blanks from the same-email profile but never from itself", async () => {
+    const childA = await store.createChild({ instituteId: iid, firstName: "Becca", lastName: "Nassef", roomId: roomA });
+    const childB = await store.createChild({ instituteId: iid, firstName: "Mikael", lastName: "Nassef", roomId: roomB });
+    const email = "edit-backfill@example.com";
+    await store.addContact({ childId: String(childA.id), fullName: "Nouran Hisham", relationship: "parent", phone: "+20 100", email, isPickup: false, isEmergency: false });
+    const target = await store.addContact({ childId: String(childB.id), fullName: "Stale Name", relationship: "family", phone: "", email, isPickup: false, isEmergency: false });
+
+    const updated = await store.updateContact(String(target.id), {
+      fullName: "",
+      relationship: "parent",
+      phone: "",
+      email,
+      isPickup: false,
+      isEmergency: false,
+    });
+
+    expect(updated.full_name).toBe("Nouran Hisham");
+    expect(updated.phone).toBe("+20 100");
+    // The value the admin submitted is never replaced by the source's.
+    expect(updated.relationship).toBe("parent");
+  });
+
+  it("reports which fields it filled and which source it used", async () => {
+    const childA = await store.createChild({ instituteId: iid, firstName: "Becca", lastName: "Nassef", roomId: roomA });
+    const source = await store.addContact({ childId: String(childA.id), fullName: "Nouran Hisham", relationship: "parent", phone: "+20 100", email: "report@example.com", isPickup: false, isEmergency: false });
+
+    const filled = await store.backfillContactFromSameEmail({
+      email: "report@example.com",
+      fullName: "",
+      phone: "",
+      relationship: "parent",
+    });
+    expect(filled.source).toBe("earliest-contact");
+    expect(filled.sourceContactId).toBe(String(source.id));
+    expect(filled.filled).toEqual(["fullName", "phone"]);
+
+    const nothing = await store.backfillContactFromSameEmail({
+      email: "report@example.com",
+      fullName: "Typed Name",
+      phone: "+20 5",
+      relationship: "parent",
+    });
+    expect(nothing.source).toBe("none");
+    expect(nothing.filled).toEqual([]);
+  });
 });
 
 describe("KID-144 classroom staff messaging", () => {

@@ -232,18 +232,15 @@ export async function addContact(data: {
   isEmergency: boolean;
 }): Promise<Row> {
   // KID-112: relationship is a required enum — no free text.
-  const { parseContactRelationship, isContactRelationship } = await import("./contact-relationship");
   // KID-143: same-email contacts/accounts should stay consistent — backfill
-  // any missing fields from the best existing record for this address.
+  // any missing fields from the earliest existing profile for this address.
   const backfill = await backfillContactFromSameEmail({
     email: data.email,
     fullName: data.fullName,
     phone: data.phone,
     relationship: data.relationship,
   });
-  const relationship = isContactRelationship(String(backfill.relationship ?? "").trim())
-    ? String(backfill.relationship).trim()
-    : parseContactRelationship(String(backfill.relationship ?? "").trim());
+  const relationship = await resolveContactRelationship(backfill.relationship);
   const id = uid();
   await queryRun(
     `INSERT INTO contact (id, child_id, full_name, relationship, phone, email, is_pickup, is_emergency)
@@ -280,20 +277,22 @@ export async function updateContact(
     isEmergency: boolean;
   }
 ): Promise<Row> {
-  const { isContactRelationship, parseContactRelationship } = await import("./contact-relationship");
   const existing = await queryGet("SELECT * FROM contact WHERE id = ?", String(contactId));
   if (!existing) throw new Error(`Contact ${String(contactId)} not found`);
 
-  // KID-143: keep the same-email profile consistent on edit too.
-  const backfill = await backfillContactFromSameEmail({
-    email: data.email,
-    fullName: data.fullName,
-    phone: data.phone,
-    relationship: data.relationship,
-  });
-  const relationship = isContactRelationship(String(backfill.relationship ?? "").trim())
-    ? String(backfill.relationship).trim()
-    : parseContactRelationship(String(backfill.relationship ?? "").trim());
+  // KID-143: keep the same-email profile consistent on edit too. The row being
+  // edited is excluded so an edit never copies itself, and only blank fields
+  // are filled — a value the admin typed always wins.
+  const backfill = await backfillContactFromSameEmail(
+    {
+      email: data.email,
+      fullName: data.fullName,
+      phone: data.phone,
+      relationship: data.relationship,
+    },
+    { excludeContactId: String(contactId) }
+  );
+  const relationship = await resolveContactRelationship(backfill.relationship);
 
   await queryRun(
     `UPDATE contact
@@ -343,43 +342,133 @@ export async function listContacts(childId: string): Promise<Row[]> {
   return queryAll("SELECT * FROM contact WHERE child_id = ? ORDER BY full_name", childId);
 }
 
-/** KID-143: when a contact is added with an email that already belongs to a
- *  parent account or another contact, copy any missing profile data from the
- *  existing record so the parent stays consistent across children.
+/** KID-143: the contact columns that may be copied from an earlier same-email
+ *  parent profile when the new submission leaves them empty. `email`,
+ *  `child_id`, `is_pickup` and `is_emergency` are deliberately NOT merged:
+ *  they are per-child or per-submission facts, not personal profile data.
+ *  Documented in docs/CONTACT_AND_ACCOUNTS.md.
  */
-async function backfillContactFromSameEmail(data: {
-  email?: string;
+export const SAME_EMAIL_MERGED_FIELDS = ["fullName", "phone", "relationship"] as const;
+
+export type SameEmailMergedField = (typeof SAME_EMAIL_MERGED_FIELDS)[number];
+
+export type SameEmailBackfill = {
   fullName: string;
   phone?: string;
   relationship?: string;
-}): Promise<{ fullName: string; phone?: string; relationship?: string }> {
-  const email = String(data.email ?? "").trim().toLowerCase();
-  if (!email) return { fullName: data.fullName, phone: data.phone, relationship: data.relationship };
+  /** Where the copied values came from. `none` means nothing was copied. */
+  source: "earliest-contact" | "account" | "none";
+  sourceContactId?: string;
+  /** Which fields were actually filled in (everything else was already set). */
+  filled: SameEmailMergedField[];
+};
 
+/** KID-143: resolve a relationship value for a write. Valid enum values pass
+ *  through; anything else goes through the KID-112 strict parser, which throws
+ *  on invalid input rather than silently defaulting.
+ */
+async function resolveContactRelationship(raw: unknown): Promise<string> {
+  const { isContactRelationship, parseContactRelationship } = await import("./contact-relationship");
+  const value = String(raw ?? "").trim();
+  if (isContactRelationship(value)) return value;
+  return parseContactRelationship(value);
+}
+
+/** KID-143: fill the gaps in a newly added / edited contact from the parent
+ *  profile that already exists for the same email address, so one parent is
+ *  not represented four different ways across their children.
+ *
+ *  Rules (all four are acceptance criteria on KID-143):
+ *  - Source = the **earliest** same-email `contact` row (`created_at ASC`), the
+ *    one that was created first. A later correction to one child's contact
+ *    must not become the profile every future submission copies.
+ *  - Only *empty* incoming values are filled. A non-empty value is never
+ *    overwritten.
+ *  - Matching is case-insensitive and whitespace-trimmed on both sides, using
+ *    the shared `normalizeParentEmail` key.
+ *  - Nothing is written back to the source row; existing data is untouched.
+ *
+ *  When no contact exists yet the registered parent `account` full name is used
+ *  as the only earlier profile. `excludeContactId` keeps the edit path from
+ *  copying a row into itself.
+ */
+export async function backfillContactFromSameEmail(
+  data: {
+    email?: string | null;
+    fullName?: string | null;
+    phone?: string | null;
+    relationship?: string | null;
+  },
+  opts: { excludeContactId?: string | null } = {}
+): Promise<SameEmailBackfill> {
+  const email = normalizeParentEmail(data.email);
+  const givenName = String(data.fullName ?? "").trim();
+  const givenPhone = String(data.phone ?? "").trim();
+  const givenRelationship = String(data.relationship ?? "").trim();
+  const filled: SameEmailMergedField[] = [];
+  const noop = (): SameEmailBackfill => ({
+    fullName: givenName,
+    phone: givenPhone || undefined,
+    relationship: givenRelationship || undefined,
+    source: "none",
+    filled,
+  });
+
+  // No address on the submission: nothing to match, so nothing to backfill.
+  if (!email) return noop();
+
+  const excludeId = String(opts.excludeContactId ?? "").trim();
+
+  // The original profile for this address: the first contact ever stored with
+  // it (excluding the row being edited, if any).
+  const source = await queryGet(
+    `SELECT id, full_name, phone, relationship
+     FROM contact
+     WHERE lower(trim(email)) = ? AND id <> ?
+     ORDER BY created_at ASC, id ASC
+     LIMIT 1`,
+    email,
+    excludeId
+  );
   let sourceName = "";
   let sourcePhone = "";
   let sourceRelationship = "";
-
-  // Prefer an existing login account's name.
-  const account = await queryGet("SELECT full_name FROM account WHERE lower(email) = ?", email);
-  if (account?.full_name) sourceName = String(account.full_name).trim();
-
-  // Then look at the newest existing contact with this email for phone/role.
-  const existing = await queryGet(
-    "SELECT full_name, phone, relationship FROM contact WHERE lower(email) = ? ORDER BY created_at DESC LIMIT 1",
-    email
-  );
-  if (existing) {
-    if (!sourceName && existing.full_name) sourceName = String(existing.full_name).trim();
-    if (existing.phone) sourcePhone = String(existing.phone).trim();
-    if (existing.relationship) sourceRelationship = String(existing.relationship).trim();
+  let kind: SameEmailBackfill["source"] = "none";
+  let sourceContactId: string | undefined;
+  if (source) {
+    kind = "earliest-contact";
+    sourceContactId = String(source.id);
+    sourceName = String(source.full_name ?? "").trim();
+    sourcePhone = String(source.phone ?? "").trim();
+    sourceRelationship = String(source.relationship ?? "").trim();
   }
 
-  const fullName = String(data.fullName ?? "").trim() || sourceName || "—";
-  const phone = String(data.phone ?? "").trim() || sourcePhone || undefined;
-  const relationship = String(data.relationship ?? "").trim() || sourceRelationship || undefined;
+  // The registered account is the other already-existing profile for an
+  // address (a parent who activated an invite before this child was added).
+  if (!sourceName) {
+    const account = await queryGet("SELECT full_name FROM account WHERE lower(trim(email)) = ?", email);
+    const accountName = String(account?.full_name ?? "").trim();
+    if (accountName) {
+      sourceName = accountName;
+      if (kind === "none") kind = "account";
+    }
+  }
 
-  return { fullName, phone, relationship };
+  const fullName = givenName || sourceName || "—";
+  const phone = givenPhone || sourcePhone || undefined;
+  const relationship = givenRelationship || sourceRelationship || undefined;
+  if (!givenName && fullName !== "—") filled.push("fullName");
+  if (!givenPhone && phone) filled.push("phone");
+  if (!givenRelationship && relationship) filled.push("relationship");
+
+  return {
+    fullName,
+    phone,
+    relationship,
+    source: filled.length > 0 ? kind : "none",
+    sourceContactId,
+    filled,
+  };
 }
 
 // ---------- Parent linking / invites ----------
