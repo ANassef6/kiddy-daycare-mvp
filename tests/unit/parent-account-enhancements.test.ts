@@ -71,6 +71,35 @@ describe("KID-142 sibling auto-link by parent email", () => {
     expect(family.map((c) => String(c.id)).sort()).toEqual([String(childA.id), String(childB.id)].sort());
   });
 
+  // KID-145 regression: the board report "I still can't see the sibling".
+  // The auto-link above only fires on a contact create/update event. A sibling
+  // that was already on file before that change never fires one, so the parent
+  // resolves only the first child. The KID-146 backfill is what closes this;
+  // this test is the assertion that must pass once the backfill has run, so the
+  // defect cannot return silently between deploys.
+  it("keeps a pre-existing same-email sibling visible to the parent", async () => {
+    const childA = await store.createChild({ instituteId: iid, firstName: "Becca", lastName: "Nassef", roomId: roomA });
+    const childB = await store.createChild({ instituteId: iid, firstName: "Mikael", lastName: "Nassef", roomId: roomB });
+    const sharedEmail = "preexisting@example.com";
+
+    // Simulate live data: both contacts already exist and the account is
+    // already linked to the first child. No create/update event fires below.
+    await store.addContact({ childId: String(childA.id), fullName: "Nouran Hisham", relationship: "parent", email: sharedEmail, isPickup: false, isEmergency: false });
+    await store.addContact({ childId: String(childB.id), fullName: "Nouran Hisham", relationship: "parent", email: sharedEmail, isPickup: false, isEmergency: false });
+    const parent = await createAccount({ email: sharedEmail, password: "x", fullName: "Nouran Hisham", role: "parent" });
+    await store.linkFamily(parent.id as string, String(childA.id), "parent");
+
+    // Running the backfill is idempotent and is the reconciliation path.
+    await store.linkSiblingsByParentEmail(parent.id as string, sharedEmail, iid);
+
+    const family = await store.familiesForAccount(parent.id as string);
+    const linkedIds = family.map((c) => String(c.id)).sort();
+    expect(linkedIds).toContain(String(childA.id));
+    expect(linkedIds).toContain(String(childB.id));
+    // The duplicate-family_member bug must not reappear via the backfill.
+    expect(linkedIds).toHaveLength(2);
+  });
+
   it("matches the parent email case-insensitively and ignores surrounding whitespace", async () => {
     const childA = await store.createChild({ instituteId: iid, firstName: "Becca", lastName: "Nassef", roomId: roomA });
     const childB = await store.createChild({ instituteId: iid, firstName: "Mikael", lastName: "Nassef", roomId: roomB });
