@@ -638,5 +638,19 @@ export function sqliteSchema(db: any): void {
     db.exec("CREATE INDEX IF NOT EXISTS idx_contact_child ON contact (child_id)");
     db.exec("CREATE INDEX IF NOT EXISTS idx_family_member_account ON family_member (account_id, child_id)");
     db.exec("CREATE INDEX IF NOT EXISTS idx_invite_code ON invite (code)");
+    // KID-142: mirror of supabase/migrations/0017_family_member_unique.sql.
+    // linkFamily() is an upsert, so (account_id, child_id) must be unique or
+    // re-linking the same pair silently inserts duplicate rows.
+    db.exec(`DELETE FROM family_member WHERE id NOT IN (
+      SELECT keep_id FROM (
+        SELECT id AS keep_id,
+               ROW_NUMBER() OVER (
+                 PARTITION BY account_id, child_id
+                 ORDER BY created_at DESC, id DESC
+               ) AS rn
+        FROM family_member
+      ) WHERE rn = 1
+    )`);
+    db.exec("CREATE UNIQUE INDEX IF NOT EXISTS uq_family_member_account_child ON family_member (account_id, child_id)");
   } catch {}
 }

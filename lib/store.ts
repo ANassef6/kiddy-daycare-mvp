@@ -232,22 +232,88 @@ export async function addContact(data: {
   isEmergency: boolean;
 }): Promise<Row> {
   // KID-112: relationship is a required enum — no free text.
-  const { parseContactRelationship } = await import("./contact-relationship");
-  const relationship = parseContactRelationship(String(data.relationship ?? "").trim());
+  const { parseContactRelationship, isContactRelationship } = await import("./contact-relationship");
+  // KID-143: same-email contacts/accounts should stay consistent — backfill
+  // any missing fields from the best existing record for this address.
+  const backfill = await backfillContactFromSameEmail({
+    email: data.email,
+    fullName: data.fullName,
+    phone: data.phone,
+    relationship: data.relationship,
+  });
+  const relationship = isContactRelationship(String(backfill.relationship ?? "").trim())
+    ? String(backfill.relationship).trim()
+    : parseContactRelationship(String(backfill.relationship ?? "").trim());
   const id = uid();
   await queryRun(
     `INSERT INTO contact (id, child_id, full_name, relationship, phone, email, is_pickup, is_emergency)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
     id,
     data.childId,
-    data.fullName,
+    backfill.fullName,
     relationship,
-    data.phone ?? null,
+    backfill.phone ?? null,
     data.email ?? null,
     data.isPickup ? 1 : 0,
     data.isEmergency ? 1 : 0
   );
+  // KID-142: a contact created with an email that already has a parent account
+  // links that account to every child sharing the address, so the parent sees
+  // all their children without a second invite.
+  await autoLinkSiblingsForContact({ childId: data.childId, email: data.email });
   return (await queryGet("SELECT * FROM contact WHERE id = ?", id))!;
+}
+
+/** KID-142: update an existing contact. Editing the email is the edge case in
+ *  the issue — a parent whose address is corrected here must gain access to
+ *  every child already carrying that address, so the sibling auto-link runs
+ *  after the write. A contact with no email is left unlinked.
+ */
+export async function updateContact(
+  contactId: string,
+  data: {
+    fullName: string;
+    relationship: string;
+    phone?: string;
+    email?: string;
+    isPickup: boolean;
+    isEmergency: boolean;
+  }
+): Promise<Row> {
+  const { isContactRelationship, parseContactRelationship } = await import("./contact-relationship");
+  const existing = await queryGet("SELECT * FROM contact WHERE id = ?", String(contactId));
+  if (!existing) throw new Error(`Contact ${String(contactId)} not found`);
+
+  // KID-143: keep the same-email profile consistent on edit too.
+  const backfill = await backfillContactFromSameEmail({
+    email: data.email,
+    fullName: data.fullName,
+    phone: data.phone,
+    relationship: data.relationship,
+  });
+  const relationship = isContactRelationship(String(backfill.relationship ?? "").trim())
+    ? String(backfill.relationship).trim()
+    : parseContactRelationship(String(backfill.relationship ?? "").trim());
+
+  await queryRun(
+    `UPDATE contact
+     SET full_name = ?, relationship = ?, phone = ?, email = ?, is_pickup = ?, is_emergency = ?
+     WHERE id = ?`,
+    backfill.fullName,
+    relationship,
+    backfill.phone ?? null,
+    data.email ?? null,
+    data.isPickup ? 1 : 0,
+    data.isEmergency ? 1 : 0,
+    String(contactId)
+  );
+  // KID-142: re-link on the (possibly new) email so an email change grants
+  // access to every sibling carrying that address.
+  await autoLinkSiblingsForContact({
+    childId: String(existing.child_id),
+    email: data.email,
+  });
+  return (await queryGet("SELECT * FROM contact WHERE id = ?", String(contactId)))!;
 }
 
 /** KID-112: backfill helper — maps every legacy free-text relationship to the enum. */
@@ -275,6 +341,45 @@ export async function normalizeAllContactRelationships(): Promise<{ updated: num
 
 export async function listContacts(childId: string): Promise<Row[]> {
   return queryAll("SELECT * FROM contact WHERE child_id = ? ORDER BY full_name", childId);
+}
+
+/** KID-143: when a contact is added with an email that already belongs to a
+ *  parent account or another contact, copy any missing profile data from the
+ *  existing record so the parent stays consistent across children.
+ */
+async function backfillContactFromSameEmail(data: {
+  email?: string;
+  fullName: string;
+  phone?: string;
+  relationship?: string;
+}): Promise<{ fullName: string; phone?: string; relationship?: string }> {
+  const email = String(data.email ?? "").trim().toLowerCase();
+  if (!email) return { fullName: data.fullName, phone: data.phone, relationship: data.relationship };
+
+  let sourceName = "";
+  let sourcePhone = "";
+  let sourceRelationship = "";
+
+  // Prefer an existing login account's name.
+  const account = await queryGet("SELECT full_name FROM account WHERE lower(email) = ?", email);
+  if (account?.full_name) sourceName = String(account.full_name).trim();
+
+  // Then look at the newest existing contact with this email for phone/role.
+  const existing = await queryGet(
+    "SELECT full_name, phone, relationship FROM contact WHERE lower(email) = ? ORDER BY created_at DESC LIMIT 1",
+    email
+  );
+  if (existing) {
+    if (!sourceName && existing.full_name) sourceName = String(existing.full_name).trim();
+    if (existing.phone) sourcePhone = String(existing.phone).trim();
+    if (existing.relationship) sourceRelationship = String(existing.relationship).trim();
+  }
+
+  const fullName = String(data.fullName ?? "").trim() || sourceName || "—";
+  const phone = String(data.phone ?? "").trim() || sourcePhone || undefined;
+  const relationship = String(data.relationship ?? "").trim() || sourceRelationship || undefined;
+
+  return { fullName, phone, relationship };
 }
 
 // ---------- Parent linking / invites ----------
@@ -317,6 +422,16 @@ export async function getInviteByCode(code: string): Promise<Row | undefined> {
   return queryGet("SELECT * FROM invite WHERE code = ?", code);
 }
 
+/** Link an account to a child. Idempotent: calling it repeatedly for the same
+ *  pair keeps exactly one `family_member` row.
+ *
+ *  KID-142: the INSERT relies on the unique index added by
+ *  supabase/migrations/0017_family_member_unique.sql (and its SQLite mirror).
+ *  Before that index existed `ON CONFLICT DO NOTHING` never fired and every
+ *  call inserted a duplicate row, so re-running the sibling auto-link fanned
+ *  the parent's children list out with repeats. The explicit UPDATE keeps the
+ *  stored role in sync when the link already exists.
+ */
 export async function linkFamily(accountId: string, childId: string, role: string = "parent"): Promise<void> {
   const { parseContactRelationship } = await import("./contact-relationship");
   const linkRole = parseContactRelationship(String(role ?? "parent").trim() || "parent");
@@ -353,6 +468,108 @@ export async function familiesForAccount(accountId: string): Promise<Row[]> {
      WHERE fm.account_id = ? AND c.active = 1`,
     accountId
   );
+}
+
+/** KID-142: grant a parent account access to every child in the same institute
+ *  whose contact record shares that email address. Uses the contact
+ *  relationship as the family-link access role (KID-112). Idempotent:
+ *  linkFamily upserts on (account_id, child_id), so re-running this is safe.
+ *
+ *  Email matching is case-insensitive and trimmed on both sides.
+ */
+export async function linkSiblingsByParentEmail(
+  accountId: string,
+  email: string,
+  instituteId: string,
+  excludeChildId?: string | null
+): Promise<{ linkedChildIds: string[] }> {
+  const { isContactRelationship, parseContactRelationship } = await import("./contact-relationship");
+  const normalizedEmail = normalizeParentEmail(email);
+  if (!normalizedEmail || !instituteId) return { linkedChildIds: [] };
+
+  const rows = await queryAll(
+    `SELECT DISTINCT c.id AS child_id, co.relationship
+     FROM contact co
+     JOIN child c ON c.id = co.child_id
+     WHERE c.institute_id = ? AND lower(trim(co.email)) = ?`,
+    instituteId,
+    normalizedEmail
+  );
+
+  const linkedChildIds: string[] = [];
+  for (const row of rows) {
+    const childId = String(row.child_id);
+    if (excludeChildId && childId === excludeChildId) continue;
+    const role = isContactRelationship(String(row.relationship))
+      ? String(row.relationship)
+      : parseContactRelationship(String(row.relationship ?? "parent"));
+    await linkFamily(accountId, childId, role);
+    linkedChildIds.push(childId);
+  }
+  return { linkedChildIds };
+}
+
+/** KID-142: case-insensitive, trimmed parent-email key used for sibling
+ *  matching. One definition so create, update, and the register path can never
+ *  drift apart on how an address is normalized.
+ */
+export function normalizeParentEmail(email: unknown): string {
+  return String(email ?? "").trim().toLowerCase();
+}
+
+/** KID-142: a contact was just created or updated for `childId` with `email`.
+ *  Any parent account that already owns that address now gets access to every
+ *  child in the institute carrying the same parent email — this is the
+ *  "create a second child with the same parent email" path from the issue.
+ *
+ *  Returns the accounts linked and the children they gained, so callers can
+ *  log/report the outcome. Never throws: a failed auto-link must not roll
+ *  back the contact write the staff member just made.
+ */
+export async function autoLinkSiblingsForContact(input: {
+  childId: string;
+  email?: string | null;
+  instituteId?: string | null;
+}): Promise<{ linkedAccountIds: string[]; linkedChildIds: string[] }> {
+  try {
+    const email = normalizeParentEmail(input.email);
+    if (!email) return { linkedAccountIds: [], linkedChildIds: [] };
+
+    const instituteId =
+      String(input.instituteId ?? "").trim() ||
+      String(
+        (
+          await queryGet("SELECT institute_id FROM child WHERE id = ?", String(input.childId))
+        )?.institute_id ?? ""
+      ).trim();
+    if (!instituteId) return { linkedAccountIds: [], linkedChildIds: [] };
+
+    // Only parent-role accounts are auto-linked. Staff/admin accounts must
+    // never gain family access as a side effect of a contact edit.
+    const accounts = await queryAll(
+      "SELECT id FROM account WHERE lower(trim(email)) = ? AND role = 'parent'",
+      email
+    );
+    if (accounts.length === 0) return { linkedAccountIds: [], linkedChildIds: [] };
+
+    const linkedAccountIds: string[] = [];
+    const linkedChildIds = new Set<string>();
+    for (const account of accounts) {
+      const accountId = String(account.id);
+      // Include the contact's own child: the account may not be linked to it
+      // yet, and that is exactly the access the issue asks for.
+      const result = await linkSiblingsByParentEmail(accountId, email, instituteId);
+      linkedAccountIds.push(accountId);
+      for (const childId of result.linkedChildIds) linkedChildIds.add(childId);
+    }
+    return { linkedAccountIds, linkedChildIds: [...linkedChildIds] };
+  } catch (err) {
+    console.error(
+      `KID-142 autoLinkSiblingsForContact failed for child ${String(input.childId)}:`,
+      err instanceof Error ? err.message : err
+    );
+    return { linkedAccountIds: [], linkedChildIds: [] };
+  }
 }
 
 // ---------- Check-in / attendance (daily loop) ----------
@@ -1030,6 +1247,24 @@ export async function threadsForAccount(accountId: string): Promise<Row[]> {
   );
 }
 
+/** KID-144: threads a parent may continue — only those whose other
+ *  participants are staff assigned to the parent's children's classrooms.
+ */
+export async function threadsForAccountScoped(accountId: string): Promise<Row[]> {
+  const threads = await threadsForAccount(accountId);
+  const staff = await classroomStaffForParent(accountId);
+  const allowedIds = new Set(staff.map((s) => String(s.id)));
+  const out: Row[] = [];
+  for (const th of threads) {
+    const participants = await threadParticipantIds(String(th.id));
+    const others = participants.filter((id) => id !== accountId);
+    if (others.length > 0 && others.every((id) => allowedIds.has(id))) {
+      out.push(th);
+    }
+  }
+  return out;
+}
+
 // KID-56: most recent private/group thread shared by a 1:1 pair, so a plain
 // 1:1 reply re-attaches to its private thread instead of orphaning.
 export async function latestPairThread(a: string, b: string): Promise<string | null> {
@@ -1616,6 +1851,24 @@ export async function centerContactAccount(instituteId: string): Promise<Row | u
     `SELECT a.id, a.email, a.full_name FROM account a
      WHERE a.role = 'owner' OR (a.role = 'admin' AND a.staff_id IS NOT NULL)
      ORDER BY a.created_at LIMIT 1`
+  );
+}
+
+/** KID-144: staff accounts linked to the rooms where this parent's children
+ *  are enrolled. Parents may message only these staff members, not every
+ *  admin in the center.
+ */
+export async function classroomStaffForParent(accountId: string): Promise<Row[]> {
+  return queryAll(
+    `SELECT DISTINCT a.id, a.email, a.full_name, s.role AS staff_role
+     FROM account a
+     JOIN staff s ON s.id = a.staff_id
+     JOIN staff_room sr ON sr.staff_id = s.id
+     JOIN child c ON c.room_id = sr.room_id
+     JOIN family_member fm ON fm.child_id = c.id
+     WHERE fm.account_id = ? AND a.role IN ('staff','carer','admin','owner')
+     ORDER BY a.full_name`,
+    accountId
   );
 }
 

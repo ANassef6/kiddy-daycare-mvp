@@ -1,0 +1,281 @@
+// KID-140 parent-account enhancements: sibling auto-link, same-email profile
+// backfill, and classroom-staff messaging scoping.
+
+import { beforeEach, describe, expect, it } from "vitest";
+import * as store from "@/lib/store";
+import { createAccount } from "@/lib/auth";
+import { queryAll, queryGet, queryRun } from "@/lib/db";
+import { seedFixture } from "../helpers";
+
+let iid: string;
+let roomA: string;
+let roomB: string;
+
+beforeEach(async () => {
+  await seedFixture();
+  iid = String((await queryGet("SELECT id FROM institute LIMIT 1"))!.id);
+  roomA = String((await queryGet("SELECT id FROM room WHERE name = 'Toddlers'"))!.id);
+  roomB = String((await queryGet("SELECT id FROM room WHERE name = 'Preschool'"))!.id);
+});
+
+describe("KID-142 sibling auto-link by parent email", () => {
+  it("links every child whose contact shares the parent's email", async () => {
+    const childA = await store.createChild({ instituteId: iid, firstName: "Becca", lastName: "Nassef", roomId: roomA });
+    const childB = await store.createChild({ instituteId: iid, firstName: "Mikael", lastName: "Nassef", roomId: roomB });
+    const sharedEmail = "nouran@example.com";
+    await store.addContact({ childId: String(childA.id), fullName: "Nouran Hisham", relationship: "parent", email: sharedEmail, isPickup: false, isEmergency: false });
+    await store.addContact({ childId: String(childB.id), fullName: "Nouran Hisham", relationship: "parent", email: sharedEmail, isPickup: false, isEmergency: false });
+
+    const parent = await createAccount({ email: sharedEmail, password: "x", fullName: "Nouran Hisham", role: "parent" });
+    await store.linkFamily(parent.id as string, String(childA.id), "parent");
+
+    const result = await store.linkSiblingsByParentEmail(parent.id as string, sharedEmail, iid, String(childA.id));
+
+    expect(result.linkedChildIds.sort()).toEqual([String(childB.id)]);
+    const family = await store.familiesForAccount(parent.id as string);
+    const linkedIds = family.map((c) => String(c.id)).sort();
+    expect(linkedIds).toContain(String(childA.id));
+    expect(linkedIds).toContain(String(childB.id));
+  });
+
+  it("ignores contacts that belong to other institutes", async () => {
+    const otherInstitute = await store.seedInstitute({ name: "Other Center" });
+    const otherRoom = await store.createRoom(otherInstitute.id as string, "Other Room", 10);
+    const otherChild = await store.createChild({ instituteId: otherInstitute.id as string, firstName: "Other", lastName: "Kid", roomId: otherRoom.id as string });
+    const sharedEmail = "shared@example.com";
+    await store.addContact({ childId: String(otherChild.id), fullName: "Shared Parent", relationship: "parent", email: sharedEmail, isPickup: false, isEmergency: false });
+
+    const childA = await store.createChild({ instituteId: iid, firstName: "Becca", lastName: "Nassef", roomId: roomA });
+    await store.addContact({ childId: String(childA.id), fullName: "Shared Parent", relationship: "parent", email: sharedEmail, isPickup: false, isEmergency: false });
+
+    const parent = await createAccount({ email: sharedEmail, password: "x", fullName: "Shared Parent", role: "parent" });
+    await store.linkFamily(parent.id as string, String(childA.id));
+
+    const result = await store.linkSiblingsByParentEmail(parent.id as string, sharedEmail, iid, String(childA.id));
+    expect(result.linkedChildIds).toEqual([]);
+  });
+
+  // The issue repro: "Create second child with same parent email; parent does
+  // not gain access to both accounts." Creating the contact is the trigger.
+  it("auto-links a parent account when a second child's contact is created", async () => {
+    const childA = await store.createChild({ instituteId: iid, firstName: "Becca", lastName: "Nassef", roomId: roomA });
+    const childB = await store.createChild({ instituteId: iid, firstName: "Mikael", lastName: "Nassef", roomId: roomB });
+    const sharedEmail = "nouran@example.com";
+
+    const parent = await createAccount({ email: sharedEmail, password: "x", fullName: "Nouran Hisham", role: "parent" });
+    await store.addContact({ childId: String(childA.id), fullName: "Nouran Hisham", relationship: "parent", email: sharedEmail, isPickup: false, isEmergency: false });
+    // Creating this second contact is what must grant the parent access.
+    await store.addContact({ childId: String(childB.id), fullName: "Nouran Hisham", relationship: "parent", email: sharedEmail, isPickup: false, isEmergency: false });
+
+    const family = await store.familiesForAccount(parent.id as string);
+    expect(family.map((c) => String(c.id)).sort()).toEqual([String(childA.id), String(childB.id)].sort());
+  });
+
+  it("matches the parent email case-insensitively and ignores surrounding whitespace", async () => {
+    const childA = await store.createChild({ instituteId: iid, firstName: "Becca", lastName: "Nassef", roomId: roomA });
+    const childB = await store.createChild({ instituteId: iid, firstName: "Mikael", lastName: "Nassef", roomId: roomB });
+    const parent = await createAccount({ email: "nouran@example.com", password: "x", fullName: "Nouran Hisham", role: "parent" });
+
+    await store.addContact({ childId: String(childA.id), fullName: "Nouran Hisham", relationship: "parent", email: "Nouran@Example.com", isPickup: false, isEmergency: false });
+    await store.addContact({ childId: String(childB.id), fullName: "Nouran Hisham", relationship: "parent", email: "  NOURAN@example.com  ", isPickup: false, isEmergency: false });
+
+    const family = await store.familiesForAccount(parent.id as string);
+    expect(family.map((c) => String(c.id)).sort()).toEqual([String(childA.id), String(childB.id)].sort());
+  });
+
+  it("re-links when an existing contact's email is edited to a parent address", async () => {
+    const childA = await store.createChild({ instituteId: iid, firstName: "Becca", lastName: "Nassef", roomId: roomA });
+    const childB = await store.createChild({ instituteId: iid, firstName: "Mikael", lastName: "Nassef", roomId: roomB });
+    const parent = await createAccount({ email: "nouran@example.com", password: "x", fullName: "Nouran Hisham", role: "parent" });
+
+    // Child A is known to the parent; child B's contact has no email yet.
+    await store.addContact({ childId: String(childA.id), fullName: "Nouran Hisham", relationship: "parent", email: "nouran@example.com", isPickup: false, isEmergency: false });
+    const contactB = await store.addContact({ childId: String(childB.id), fullName: "Unassigned Guardian", relationship: "parent", isPickup: false, isEmergency: false });
+    expect((await store.familiesForAccount(parent.id as string)).map((c) => String(c.id))).toEqual([String(childA.id)]);
+
+    // Email change on the existing contact is the edge case in the issue.
+    await store.updateContact(String(contactB.id), {
+      fullName: "Nouran Hisham",
+      relationship: "parent",
+      email: "nouran@example.com",
+      isPickup: false,
+      isEmergency: false,
+    });
+
+    const family = await store.familiesForAccount(parent.id as string);
+    expect(family.map((c) => String(c.id)).sort()).toEqual([String(childA.id), String(childB.id)].sort());
+  });
+
+  it("never gives a staff account family access as a side effect", async () => {
+    const childA = await store.createChild({ instituteId: iid, firstName: "Becca", lastName: "Nassef", roomId: roomA });
+    const childB = await store.createChild({ instituteId: iid, firstName: "Mikael", lastName: "Nassef", roomId: roomB });
+    const sharedEmail = "carer-shared@example.com";
+    const staffAccount = await createAccount({ email: sharedEmail, password: "x", fullName: "Carer", role: "staff" });
+
+    await store.addContact({ childId: String(childA.id), fullName: "Carer", relationship: "parent", email: sharedEmail, isPickup: false, isEmergency: false });
+    await store.addContact({ childId: String(childB.id), fullName: "Carer", relationship: "parent", email: sharedEmail, isPickup: false, isEmergency: false });
+
+    const rows = await queryAll("SELECT * FROM family_member WHERE account_id = ?", String(staffAccount.id));
+    expect(rows).toEqual([]);
+  });
+
+  // Idempotency: the same link applied repeatedly must not duplicate rows,
+  // which is what broke the parent's children list before the unique index.
+  it("keeps exactly one family link per account/child pair when re-run", async () => {
+    const childA = await store.createChild({ instituteId: iid, firstName: "Becca", lastName: "Nassef", roomId: roomA });
+    const childB = await store.createChild({ instituteId: iid, firstName: "Mikael", lastName: "Nassef", roomId: roomB });
+    const sharedEmail = "nouran@example.com";
+    const parent = await createAccount({ email: sharedEmail, password: "x", fullName: "Nouran Hisham", role: "parent" });
+
+    await store.addContact({ childId: String(childA.id), fullName: "Nouran Hisham", relationship: "parent", email: sharedEmail, isPickup: false, isEmergency: false });
+    await store.addContact({ childId: String(childB.id), fullName: "Nouran Hisham", relationship: "parent", email: sharedEmail, isPickup: false, isEmergency: false });
+
+    // Re-run the whole auto-link path several times, as a re-run or a
+    // duplicate invite would.
+    for (let i = 0; i < 3; i += 1) {
+      await store.linkSiblingsByParentEmail(parent.id as string, sharedEmail, iid);
+      await store.autoLinkSiblingsForContact({ childId: String(childB.id), email: sharedEmail });
+    }
+
+    const rows = await queryAll(
+      "SELECT * FROM family_member WHERE account_id = ?",
+      String(parent.id)
+    );
+    expect(rows).toHaveLength(2);
+    const family = await store.familiesForAccount(parent.id as string);
+    expect(family.map((c) => String(c.id)).sort()).toEqual([String(childA.id), String(childB.id)].sort());
+  });
+
+  it("does not create a second parent account for the same email", async () => {
+    const childA = await store.createChild({ instituteId: iid, firstName: "Becca", lastName: "Nassef", roomId: roomA });
+    const sharedEmail = "nouran@example.com";
+    await createAccount({ email: sharedEmail, password: "x", fullName: "Nouran Hisham", role: "parent" });
+
+    await store.addContact({ childId: String(childA.id), fullName: "Nouran Hisham", relationship: "parent", email: sharedEmail, isPickup: false, isEmergency: false });
+
+    const accounts = await queryAll("SELECT * FROM account WHERE lower(email) = ?", sharedEmail);
+    expect(accounts).toHaveLength(1);
+  });
+
+  it("linkFamily is idempotent for a repeated account/child pair", async () => {
+    const child = await store.createChild({ instituteId: iid, firstName: "Solo", lastName: "Child", roomId: roomA });
+    const parent = await createAccount({ email: "solo-parent@example.com", password: "x", fullName: "Solo Parent", role: "parent" });
+
+    await store.linkFamily(parent.id as string, String(child.id));
+    await store.linkFamily(parent.id as string, String(child.id));
+    await store.linkFamily(parent.id as string, String(child.id));
+
+    const rows = await queryAll("SELECT * FROM family_member WHERE account_id = ?", String(parent.id));
+    expect(rows).toHaveLength(1);
+  });
+
+  it("updates the stored role in place when a link is re-applied with a stricter role", async () => {
+    const child = await store.createChild({ instituteId: iid, firstName: "Role", lastName: "Child", roomId: roomA });
+    const parent = await createAccount({ email: "role-parent@example.com", password: "x", fullName: "Role Parent", role: "parent" });
+
+    await store.linkFamily(parent.id as string, String(child.id), "family");
+    // A stricter re-link must update the stored role rather than add a row.
+    await store.linkFamily(parent.id as string, String(child.id), "pickup");
+
+    const roles = await store.familyRolesForAccount(parent.id as string);
+    expect(roles).toEqual(["pickup"]);
+  });
+});
+
+describe("KID-143 same-email contact backfill", () => {
+  it("copies missing full name and phone from an existing same-email contact", async () => {
+    const childA = await store.createChild({ instituteId: iid, firstName: "Becca", lastName: "Nassef", roomId: roomA });
+    const childB = await store.createChild({ instituteId: iid, firstName: "Mikael", lastName: "Nassef", roomId: roomB });
+    const email = "nouran@example.com";
+    await store.addContact({ childId: String(childA.id), fullName: "Nouran Hisham", relationship: "parent", phone: "+20 100 123 4567", email, isPickup: false, isEmergency: false });
+
+    const newContact = await store.addContact({ childId: String(childB.id), fullName: "", relationship: "", phone: "", email, isPickup: false, isEmergency: false });
+
+    expect(newContact.full_name).toBe("Nouran Hisham");
+    expect(newContact.phone).toBe("+20 100 123 4567");
+    expect(newContact.relationship).toBe("parent");
+  });
+
+  it("keeps explicitly provided values over backfilled ones", async () => {
+    const childA = await store.createChild({ instituteId: iid, firstName: "Becca", lastName: "Nassef", roomId: roomA });
+    const childB = await store.createChild({ instituteId: iid, firstName: "Mikael", lastName: "Nassef", roomId: roomB });
+    const email = "nouran@example.com";
+    await store.addContact({ childId: String(childA.id), fullName: "Nouran Hisham", relationship: "parent", phone: "+20 100 123 4567", email, isPickup: false, isEmergency: false });
+
+    const newContact = await store.addContact({ childId: String(childB.id), fullName: "Nouran H.", relationship: "family", phone: "+20 100 999 9999", email, isPickup: false, isEmergency: false });
+
+    expect(newContact.full_name).toBe("Nouran H.");
+    expect(newContact.phone).toBe("+20 100 999 9999");
+    expect(newContact.relationship).toBe("family");
+  });
+
+  it("falls back to the existing account name when no contact exists yet", async () => {
+    const email = "existing-parent@example.com";
+    await createAccount({ email, password: "x", fullName: "Existing Parent", role: "parent" });
+    const child = await store.createChild({ instituteId: iid, firstName: "Becca", lastName: "Nassef", roomId: roomA });
+
+    const newContact = await store.addContact({ childId: String(child.id), fullName: "", relationship: "parent", email, isPickup: false, isEmergency: false });
+
+    expect(newContact.full_name).toBe("Existing Parent");
+  });
+});
+
+describe("KID-144 classroom staff messaging", () => {
+  it("returns only staff assigned to the parent's children's rooms", async () => {
+    const childA = await store.createChild({ instituteId: iid, firstName: "Becca", lastName: "Nassef", roomId: roomA });
+    const parent = await createAccount({ email: "parent-kid144@example.com", password: "x", fullName: "Parent KID144", role: "parent" });
+    await store.linkFamily(parent.id as string, String(childA.id));
+
+    const staffA = await store.createStaff({ instituteId: iid, fullName: "Carer A", role: "carer", roomIds: [roomA] });
+    const staffB = await store.createStaff({ instituteId: iid, fullName: "Carer B", role: "carer", roomIds: [roomB] });
+
+    const accA = await createAccount({ email: "carer-a@example.com", password: "x", fullName: "Carer A", role: "staff" });
+    const accB = await createAccount({ email: "carer-b@example.com", password: "x", fullName: "Carer B", role: "staff" });
+    await queryRun("UPDATE account SET staff_id = ? WHERE id = ?", String(staffA.id), String(accA.id));
+    await queryRun("UPDATE account SET staff_id = ? WHERE id = ?", String(staffB.id), String(accB.id));
+
+    const allowed = await store.classroomStaffForParent(parent.id as string);
+    const names = allowed.map((s) => String(s.full_name)).sort();
+    expect(names).toEqual(["Carer A"]);
+  });
+
+  it("includes staff assigned to any room when the parent has children in multiple rooms", async () => {
+    const childA = await store.createChild({ instituteId: iid, firstName: "Becca", lastName: "Nassef", roomId: roomA });
+    const childB = await store.createChild({ instituteId: iid, firstName: "Mikael", lastName: "Nassef", roomId: roomB });
+    const parent = await createAccount({ email: "parent-multi@example.com", password: "x", fullName: "Multi Room Parent", role: "parent" });
+    await store.linkFamily(parent.id as string, String(childA.id));
+    await store.linkFamily(parent.id as string, String(childB.id));
+
+    const staffA = await store.createStaff({ instituteId: iid, fullName: "Carer A", role: "carer", roomIds: [roomA] });
+    const staffB = await store.createStaff({ instituteId: iid, fullName: "Carer B", role: "carer", roomIds: [roomB] });
+
+    const accA = await createAccount({ email: "multi-a@example.com", password: "x", fullName: "Carer A", role: "staff" });
+    const accB = await createAccount({ email: "multi-b@example.com", password: "x", fullName: "Carer B", role: "staff" });
+    await queryRun("UPDATE account SET staff_id = ? WHERE id = ?", String(staffA.id), String(accA.id));
+    await queryRun("UPDATE account SET staff_id = ? WHERE id = ?", String(staffB.id), String(accB.id));
+
+    const allowed = await store.classroomStaffForParent(parent.id as string);
+    const names = allowed.map((s) => String(s.full_name)).sort();
+    expect(names).toEqual(["Carer A", "Carer B"]);
+  });
+
+  it("threadsForAccountScoped hides threads with non-classroom participants", async () => {
+    const childA = await store.createChild({ instituteId: iid, firstName: "Becca", lastName: "Nassef", roomId: roomA });
+    const parent = await createAccount({ email: "parent-threads@example.com", password: "x", fullName: "Thread Parent", role: "parent" });
+    await store.linkFamily(parent.id as string, String(childA.id));
+
+    const staffA = await store.createStaff({ instituteId: iid, fullName: "Carer A", role: "carer", roomIds: [roomA] });
+    const admin = await createAccount({ email: "admin-threads@example.com", password: "x", fullName: "Admin", role: "owner" });
+    const accA = await createAccount({ email: "thread-a@example.com", password: "x", fullName: "Carer A", role: "staff" });
+    await queryRun("UPDATE account SET staff_id = ? WHERE id = ?", String(staffA.id), String(accA.id));
+
+    const allowedThread = await store.createMessageThread({ instituteId: iid, isGroup: false, createdBy: accA.id as string, participantIds: [parent.id as string] });
+    await store.sendMessage({ instituteId: iid, senderAccountId: accA.id as string, recipientAccountId: parent.id as string, body: "hi", threadId: String(allowedThread.id) });
+
+    const adminThread = await store.createMessageThread({ instituteId: iid, isGroup: false, createdBy: admin.id as string, participantIds: [parent.id as string] });
+    await store.sendMessage({ instituteId: iid, senderAccountId: admin.id as string, recipientAccountId: parent.id as string, body: "admin", threadId: String(adminThread.id) });
+
+    const visible = await store.threadsForAccountScoped(parent.id as string);
+    expect(visible.map((t) => String(t.id))).toEqual([String(allowedThread.id)]);
+  });
+});

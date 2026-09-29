@@ -25,6 +25,7 @@ import {
 import {
   getInviteByCode,
   linkFamily,
+  linkSiblingsByParentEmail,
   checkChildInOut,
   upsertDailyReport,
   createNewsfeedPost,
@@ -358,6 +359,19 @@ export async function registerAction(formData: FormData) {
         ? String((invite as Record<string, unknown>).role)
         : "parent";
       await linkFamily(account.id, String(invite.child_id), inviteRole);
+    }
+    // KID-142: the same email on other children means siblings — grant access
+    // automatically without requiring a separate invite per child.
+    step = "linkSiblings";
+    const instituteId = String(invite.institute_id ?? "");
+    if (instituteId) {
+      try {
+        await linkSiblingsByParentEmail(account.id, email, instituteId, invite.child_id ? String(invite.child_id) : null);
+      } catch (siblingErr) {
+        // Sibling auto-link must never break a successful activation; the
+        // parent can be linked manually if this ever fails.
+        console.error(`KID-142 register: sibling auto-link failed for ${email}:`, siblingErr instanceof Error ? siblingErr.message : siblingErr);
+      }
     }
     step = "consumeInvite";
     await queryRun("UPDATE invite SET status = 'accepted' WHERE id = ?", invite.id);
@@ -917,6 +931,44 @@ export async function addContactAction(formData: FormData) {
     isEmergency: formData.get("isEmergency") === "on",
   });
   redirect(`/portal/children/${childId}`);
+}
+
+/** KID-142: edit an existing contact. The store layer re-runs the sibling
+ *  auto-link after the write, so correcting a parent's email here immediately
+ *  grants that account access to every child sharing the address.
+ *  Admin-only, and scoped to the caller's classrooms.
+ */
+export async function updateContactAction(formData: FormData) {
+  requireAdmin();
+  const me = authAccount();
+  const contactId = String(formData.get("contactId") ?? "").trim();
+  if (!contactId) redirect("/portal/children?error=contact");
+
+  const childId = String(formData.get("childId") ?? "").trim();
+  if (childId) await assertChildInScope(childId, me);
+
+  // KID-112: relationship is still a strict 4-option enum on edit.
+  const relationship = String(formData.get("relationship") ?? "").trim();
+  const { isContactRelationship } = await import("@/lib/contact-relationship");
+  if (!isContactRelationship(relationship)) {
+    redirect(`/portal/children/${childId}?error=relationship`);
+  }
+
+  const { updateContact } = await import("@/lib/store");
+  const existing = await queryGet("SELECT child_id FROM contact WHERE id = ?", contactId);
+  if (!existing) redirect(`/portal/children/${childId}?error=contact`);
+  // Authorize against the contact's real child, not a caller-supplied one.
+  await assertChildInScope(String(existing.child_id), me);
+
+  await updateContact(contactId, {
+    fullName: String(formData.get("fullName") ?? "").trim(),
+    relationship,
+    phone: String(formData.get("phone") ?? ""),
+    email: String(formData.get("email") ?? "").trim(),
+    isPickup: formData.get("isPickup") === "on",
+    isEmergency: formData.get("isEmergency") === "on",
+  });
+  redirect(`/portal/children/${String(existing.child_id)}`);
 }
 
 export async function inviteParentAction(formData: FormData) {
@@ -1630,7 +1682,17 @@ export async function sendParentMessageAction(formData: FormData) {
   const threadId = String(formData.get("threadId") ?? "");
   await ensureSchema();
   const instituteId = await firstInstituteId();
-  if (recipient && body && instituteId) {
+  if (!instituteId) redirect("/child/messages");
+
+  // KID-144: parents may only message staff assigned to their children's
+  // classrooms. Compute the allowed recipient set once and enforce it.
+  let allowedIds: Set<string> | null = null;
+  if (me.role === "parent") {
+    const { classroomStaffForParent } = await import("@/lib/store");
+    allowedIds = new Set((await classroomStaffForParent(me.accountId)).map((s) => String(s.id)));
+  }
+
+  if (recipient && body) {
     const { latestPairThread, threadForViewer, threadParticipantIds } = await import("@/lib/store");
     if (threadId) {
       // Reply inside a thread: fan out to every other participant so group
@@ -1638,13 +1700,19 @@ export async function sendParentMessageAction(formData: FormData) {
       const thread = await threadForViewer(threadId, me.accountId);
       if (thread) {
         const others = (await threadParticipantIds(threadId)).filter((pid) => pid !== me.accountId);
+        // KID-144: block replies to threads that include non-classroom staff.
+        if (allowedIds && others.some((id) => !allowedIds.has(id))) {
+          redirect("/child/messages?error=recipient");
+        }
         for (const rid of others) {
           await sendMessage({ instituteId, senderAccountId: me.accountId, recipientAccountId: rid, body, threadId });
         }
       }
-    } else {
+    } else if (!allowedIds || allowedIds.has(recipient)) {
       const tid = await latestPairThread(me.accountId, recipient);
       await sendMessage({ instituteId, senderAccountId: me.accountId, recipientAccountId: recipient, body, threadId: tid });
+    } else {
+      redirect("/child/messages?error=recipient");
     }
   }
   redirect(threadId ? `/child/messages?thread=${threadId}` : "/child/messages");
