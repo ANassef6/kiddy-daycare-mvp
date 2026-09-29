@@ -652,5 +652,41 @@ export function sqliteSchema(db: any): void {
       ) WHERE rn = 1
     )`);
     db.exec("CREATE UNIQUE INDEX IF NOT EXISTS uq_family_member_account_child ON family_member (account_id, child_id)");
+    // KID-146: mirror of supabase/migrations/0018_sibling_family_link_backfill.sql.
+    // Contacts that predate the KID-142 auto-link have no family_member row, and
+    // familiesForAccount() reads family_member alone — so the parent never sees
+    // those children. Create the missing links. Insert-only (existing rows keep
+    // their role) and idempotent via the 0017 unique index, which must exist
+    // before this runs. The id expression is the SQLite stand-in for Postgres
+    // md5(...): lower(hex(randomblob(16))).
+    db.exec(`INSERT INTO family_member (id, account_id, child_id, role)
+      SELECT lower(hex(randomblob(16))), ranked.account_id, ranked.child_id, ranked.role
+      FROM (
+        SELECT matched.account_id, matched.child_id, matched.role,
+          ROW_NUMBER() OVER (
+            PARTITION BY matched.account_id, matched.child_id
+            ORDER BY CASE matched.role
+              WHEN 'parent' THEN 0
+              WHEN 'family' THEN 1
+              WHEN 'pickup' THEN 2
+              ELSE 3
+            END, matched.role
+          ) AS rn
+        FROM (
+          SELECT a.id AS account_id, c.id AS child_id,
+            CASE
+              WHEN lower(trim(co.relationship)) IN ('parent', 'family', 'pickup', 'no_access')
+                THEN lower(trim(co.relationship))
+              ELSE 'parent'
+            END AS role
+          FROM contact co
+          JOIN child c ON c.id = co.child_id
+          JOIN account a ON a.role = 'parent'
+            AND lower(trim(a.email)) = lower(trim(co.email))
+          WHERE co.email IS NOT NULL AND trim(co.email) <> ''
+        ) matched
+      ) ranked
+      WHERE ranked.rn = 1
+      ON CONFLICT (account_id, child_id) DO NOTHING`);
   } catch {}
 }

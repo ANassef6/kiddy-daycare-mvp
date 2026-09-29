@@ -40,6 +40,23 @@ describe("splitStatements", () => {
     expect(parts[4]).toContain("DO $$");
   });
 
+  it("splits migration 0018 into the precondition guard and the backfill", () => {
+    const file = path.join(process.cwd(), "supabase", "migrations", "0018_sibling_family_link_backfill.sql");
+    const parts = splitStatements(fs.readFileSync(file, "utf8"));
+    // Precondition DO $$ block, then the single INSERT..SELECT backfill. The
+    // backfill must stay one statement so a re-run is atomic.
+    expect(parts).toHaveLength(2);
+    expect(parts[0]).toContain("DO $$");
+    expect(parts[0]).toContain("RAISE EXCEPTION");
+    expect(parts[1]).toMatch(/^INSERT INTO family_member/i);
+    expect(parts[1]).toContain("ON CONFLICT (account_id, child_id) DO NOTHING");
+    // The DO block's inner `END IF;` and `END` must not leak out as fragments.
+    for (const part of parts) {
+      expect(part).not.toBe("END IF");
+      expect(part).not.toMatch(/^END\b/i);
+    }
+  });
+
   it("splits every migration file without bare fragments", () => {
     const dir = path.join(process.cwd(), "supabase", "migrations");
     for (const file of fs.readdirSync(dir).filter((f) => f.endsWith(".sql")).sort()) {

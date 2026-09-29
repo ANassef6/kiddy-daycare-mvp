@@ -1,6 +1,6 @@
 # Kiddy — contact submissions & account access (Round 5)
 
-_Last updated 2026-09-17 (KID-46, founder feedback batch #2)._
+_Last updated 2026-09-29 (KID-146, family-link backfill)._
 
 ## Where demo / inquiry submissions go
 
@@ -159,4 +159,97 @@ as submitted.
 
 Matching is not scoped to a single institute: the address identifies the person,
 and a parent with children at two centers gets one consistent profile.
+
+## What creates a family link
+
+Every `/child/*` page reads the parent's children from **`family_member` only**
+(`familiesForAccount`, `lib/store.ts`) — never from `contact`. A row is created
+by exactly four things, and nothing else:
+
+| # | Trigger                                             | Code                                                | Role used |
+| - | --------------------------------------------------- | --------------------------------------------------- | --------- |
+| 1 | A **parent invite is accepted** at `/register`      | `registerAction` → `linkFamily` (`lib/actions.ts`)  | The **invite's** relationship |
+| 2 | A **contact is created** on a child                 | `addContact` → `autoLinkSiblingsForContact`         | Each **contact's** relationship |
+| 3 | A **contact is edited** (including an email change) | `updateContact` → `autoLinkSiblingsForContact`      | Each **contact's** relationship |
+| 4 | The **KID-146 backfill migration**                  | `0018_sibling_family_link_backfill.sql`             | Each **contact's** relationship |
+
+Triggers 2 and 3 grant access to **every child in the institute carrying the
+same parent email**, not just the child being edited — that is the sibling
+auto-link from KID-142. Trigger 1 covers only the invited child.
+
+`linkFamily` is an upsert on `(account_id, child_id)`, so all four are
+idempotent — running one repeatedly keeps exactly one row per pair
+(`0017_family_member_unique.sql`).
+
+### The KID-146 backfill
+
+KID-142 added triggers 2 and 3 but only for **future** writes. A child whose
+contact was entered before that change has no `family_member` row, so the parent
+never saw them and had no way to fix it short of re-typing the data.
+
+Migration `0018_sibling_family_link_backfill.sql` reconciles that existing data:
+for every (parent account, child) pair where a contact on that child carries the
+account's email, the missing row is created. Properties:
+
+- **Insert-only.** An existing `family_member` row is never updated, so a role
+  an admin set deliberately (a downgrade, or `no_access`) survives.
+- **Idempotent and re-runnable.** `ON CONFLICT (account_id, child_id)`, which
+  requires the `0017` unique index. Filename ordering applies `0017` first, and
+  a `DO $$` guard raises a named error instead of an opaque `42P10` if the index
+  is somehow missing.
+- **Role** = the contact's `relationship`, falling back to `parent` for anything
+  outside the KID-112 enum — the same "never lock a real parent out on bad data"
+  default as `normalizeLegacyRelationship`.
+- **Case-insensitive, trimmed** on both sides, via the shared
+  `normalizeParentEmail` key.
+- **Only `role = 'parent'` accounts** are linked; staff/admin accounts never gain
+  family access as a side effect.
+- **Cross-centre**: `account` is not institute-scoped in the schema, so the
+  *child* supplies the institute. A child is linked only when **its own** contact
+  carries the address — a same-email contact at one centre can never link an
+  unrelated child at another. A parent genuinely enrolled at two centres is
+  linked to both, which is the intended "one profile" behaviour.
+- **Withdrawn children are linked but stay invisible** — `familiesForAccount`
+  filters `c.active = 1`, so access returns without a gap if a child is
+  reactivated.
+
+The local SQLite fallback mirrors it in `lib/sqlite-schema.ts`, so the behaviour
+is exercised by `tests/unit/sibling-family-link-backfill.test.ts` on every run.
+
+## How database migrations are applied
+
+**Answer: automatically, but lazily — deploying the code does not by itself
+apply a new migration, and no manual `psql` step is required.**
+
+- `ensureSchema()` (`lib/db.ts`) is the single runner. In Postgres mode it calls
+  `ensurePgSchema()`, which creates a `schema_migrations` ledger table, reads the
+  files already recorded, applies every `supabase/migrations/*.sql` file **not**
+  in the ledger in filename order, then records each one. Warm requests
+  short-circuit on a module-level flag.
+- **There is no boot hook** — the project has no `instrumentation.ts`, and no
+  layout or page calls `ensureSchema()`. It is called from the server actions in
+  `lib/actions.ts` (the portal writes), from `lib/curriculum.ts`, and from
+  `npm run db:init` (`lib/seed.ts`).
+- Consequence: after a deploy, `0018` applies itself on the **first request that
+  runs one of those actions**. Parent-facing reads (`familiesForAccount` on
+  `/child/*`) do **not** trigger it, so a deploy that only ever serves page
+  views would leave the backfill pending.
+
+**The exact step to make it deterministic** — run this once against the deploy
+environment, right after deploying, instead of waiting for an organic write:
+
+```bash
+# with the deploy env's KIDDY_DATABASE_URL set to the Supabase pooler URL
+npm run db:init
+```
+
+`db:init` calls `ensureSchema()` (which applies any pending migration file) and
+then re-seeds the demo daycare, which is harmless because `seedDemo` is
+idempotent. If you would rather not seed, any single portal write action does
+the same job.
+
+The Postgres path was verified end-to-end against a real PostgreSQL 18 server:
+the full `0001` → `0018` chain applies cleanly through the same
+`splitStatements` splitter `pgExec` uses, `0018` is idempotent across repeated
+applications, and the precondition guard raises when `0017` has not been applied.
 
