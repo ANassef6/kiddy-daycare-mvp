@@ -659,6 +659,15 @@ export function sqliteSchema(db: any): void {
     // their role) and idempotent via the 0017 unique index, which must exist
     // before this runs. The id expression is the SQLite stand-in for Postgres
     // md5(...): lower(hex(randomblob(16))).
+    //
+    // KID-149: the `EXISTS` below is the institute boundary. `account` has no
+    // institute column, so an account's institutes are derived from two
+    // first-class sources — the invite rows addressed to it (registerAction
+    // will not create a parent account without an invite code, and that row
+    // survives registration) and the family_member links it already holds. A
+    // same-email contact at a centre the account has no association with gets no
+    // link. An account with neither source gets no links at all, which is the
+    // documented zero-link edge case. See the migration header for the full rule.
     db.exec(`INSERT INTO family_member (id, account_id, child_id, role)
       SELECT lower(hex(randomblob(16))), ranked.account_id, ranked.child_id, ranked.role
       FROM (
@@ -684,6 +693,19 @@ export function sqliteSchema(db: any): void {
           JOIN account a ON a.role = 'parent'
             AND lower(trim(a.email)) = lower(trim(co.email))
           WHERE co.email IS NOT NULL AND trim(co.email) <> ''
+            AND EXISTS (
+              SELECT 1 FROM (
+                SELECT c2.institute_id
+                FROM family_member fm
+                JOIN child c2 ON c2.id = fm.child_id
+                WHERE fm.account_id = a.id
+                UNION
+                SELECT i.institute_id
+                FROM invite i
+                WHERE lower(trim(i.email)) = lower(trim(a.email))
+              ) owned
+              WHERE owned.institute_id = c.institute_id
+            )
         ) matched
       ) ranked
       WHERE ranked.rn = 1

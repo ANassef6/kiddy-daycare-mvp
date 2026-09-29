@@ -158,7 +158,9 @@ as submitted.
   edit can never copy a record into itself.
 
 Matching is not scoped to a single institute: the address identifies the person,
-and a parent with children at two centers gets one consistent profile.
+and a parent with children at two centers gets one consistent profile. (That is
+about *profile* data — name, phone, relationship — not about access. Access is
+gated by the tenant rule in "Which institutes a link may cross" below.)
 
 ## What creates a family link
 
@@ -189,7 +191,8 @@ never saw them and had no way to fix it short of re-typing the data.
 
 Migration `0018_sibling_family_link_backfill.sql` reconciles that existing data:
 for every (parent account, child) pair where a contact on that child carries the
-account's email, the missing row is created. Properties:
+account's email **and the child sits at an institute the account already belongs
+to**, the missing row is created. Properties:
 
 - **Insert-only.** An existing `family_member` row is never updated, so a role
   an admin set deliberately (a downgrade, or `no_access`) survives.
@@ -204,17 +207,53 @@ account's email, the missing row is created. Properties:
   `normalizeParentEmail` key.
 - **Only `role = 'parent'` accounts** are linked; staff/admin accounts never gain
   family access as a side effect.
-- **Cross-centre**: `account` is not institute-scoped in the schema, so the
-  *child* supplies the institute. A child is linked only when **its own** contact
-  carries the address — a same-email contact at one centre can never link an
-  unrelated child at another. A parent genuinely enrolled at two centres is
-  linked to both, which is the intended "one profile" behaviour.
+- **Cross-centre**: `account` carries no institute column, so "the institute this
+  account belongs to" is derived, never guessed from the address — see the next
+  section. A child is linked only when its **own** contact carries the address
+  *and* its centre is in that derived set.
 - **Withdrawn children are linked but stay invisible** — `familiesForAccount`
   filters `c.active = 1`, so access returns without a gap if a child is
   reactivated.
 
 The local SQLite fallback mirrors it in `lib/sqlite-schema.ts`, so the behaviour
 is exercised by `tests/unit/sibling-family-link-backfill.test.ts` on every run.
+
+### Which institutes a link may cross (KID-149)
+
+`account` has no `institute_id`, so the institutes an account belongs to are
+**derived** from first-class records — never from a matching email address:
+
+| Source | Why it counts |
+| ------ | ------------- |
+| `invite` rows addressed to the account's email | `registerAction` will not create a parent account without an invite code, and the row survives registration with its `institute_id` intact. It is the centre's own record of "this address is a parent here". Status is not filtered: the consumed invite is the one that matters, and a pending invite says the same thing. |
+| `family_member` links the account already holds | Access already granted is legitimate by definition, and it anchors parents whose children were enrolled before the invite flow existed. |
+
+A `contact` row is deliberately **not** evidence. A contact can be typed at any
+centre for any address, so inferring tenancy from one is the defect itself: the
+first version of migration `0018` did exactly that and linked a parent to every
+same-email child at every centre. `linkSiblingsByParentEmail` was
+institute-scoped in name only — its `instituteId` argument comes from the
+*contact's own child*, so it never asked which centres the account belonged to.
+
+The same rule now governs both paths, so a link the runtime refuses is a link
+the backfill also refuses:
+
+- **Runtime** — `instituteIdsForAccount` (`lib/store.ts`) and the gate in
+  `linkSiblingsByParentEmail`.
+- **Backfill** — the `EXISTS` predicate in
+  `0018_sibling_family_link_backfill.sql`, and its SQLite mirror.
+
+Two consequences worth stating:
+
+- **A genuinely multi-centre parent is still linked at every centre they are on
+  file at.** The derived set is a union, not a single home centre, so enrolling
+  a second child at a second centre works — provided the daycare issued an
+  invite there or a link already exists. The outcome is evaluated per child, so
+  it never depends on row order.
+- **The zero-link case.** An account with neither source belongs to no centre
+  and gets no links, from the backfill or the runtime. That is a conservative
+  miss, not a lockout: the daycare issuing an invite, or a family link being
+  made for that account, resolves it immediately.
 
 ## How database migrations are applied
 
