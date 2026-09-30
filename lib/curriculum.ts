@@ -64,12 +64,23 @@ export type CurriculumInput = {
 
 // Derive the child's current age band ("2-3y".."5-6y") from date of birth.
 // Children below nursery age clamp to the first band, older children to KG2.
+//
+// A band is entered on the child's birthday, so the age is whole calendar
+// years, not elapsed days against a 365.25-day average. Averaging the year
+// length puts a child who turns 5 *today* in the 4-5y band whenever the
+// trailing 5-year window contains one leap day (1826 days is 0.24 days short of
+// 5 x 365.25): the floor lands on 4 and the child is shown a year-younger
+// curriculum cohort, on the one day the cohort is supposed to change. UTC
+// components are used on both sides so the result does not depend on the
+// server's timezone.
 export function ageGroupForDob(dob: string | null | undefined): string {
   if (!dob) return "";
   const born = new Date(dob);
   const now = new Date();
   if (Number.isNaN(born.getTime()) || born > now) return "";
-  const years = Math.floor((now.getTime() - born.getTime()) / (365.25 * 24 * 3600 * 1000));
+  let years = now.getUTCFullYear() - born.getUTCFullYear();
+  const months = now.getUTCMonth() - born.getUTCMonth();
+  if (months < 0 || (months === 0 && now.getUTCDate() < born.getUTCDate())) years -= 1;
   if (years >= 5) return "5-6y";
   if (years >= 4) return "4-5y";
   if (years >= 3) return "3-4y";

@@ -3,7 +3,7 @@
 // and the point → age group → milestone observation cascade, all against the
 // isolated SQLite mirror.
 
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as store from "@/lib/store";
 import {
   AGE_GROUPS,
@@ -24,11 +24,54 @@ beforeEach(async () => {
   await seedFixture();
 });
 
-function dobYearsAgo(years: number): string {
-  const d = new Date();
-  d.setFullYear(d.getFullYear() - years);
+afterEach(() => {
+  vi.useRealTimers();
+});
+
+/** The DOB of a child who turns `years` old on `today`. */
+function dobTurningOn(today: string, years: number): string {
+  const d = new Date(`${today}T12:00:00.000Z`);
+  d.setUTCFullYear(d.getUTCFullYear() - years);
   return d.toISOString().slice(0, 10);
 }
+
+/** `iso` shifted by whole days. Calendar-safe: never assumes a year is 365 days. */
+function dayOffset(iso: string, days: number): string {
+  const d = new Date(`${iso}T12:00:00.000Z`);
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+
+// Runs `fn` with "now" pinned to `today`, so an age assertion depends on the
+// band rules and not on the day the suite happens to run. The clock time is
+// part of the contract, not decoration: a child who turns 5 *today* is 5 years
+// old at every hour of that day, so the band must not change with the time of
+// day either.
+function atTime(today: string, fn: () => void, time = "12:00:00.000Z"): void {
+  vi.useFakeTimers();
+  vi.setSystemTime(new Date(`${today}T${time}`));
+  try {
+    fn();
+  } finally {
+    vi.useRealTimers();
+  }
+}
+
+/** Every hour boundary a request can land on, so no run hides a time-of-day bug. */
+const CLOCK_TIMES = [
+  "00:00:00.000Z",
+  "00:00:00.001Z",
+  "06:30:00.000Z",
+  "12:00:00.000Z",
+  "18:45:00.000Z",
+  "23:59:59.999Z"
+];
+
+const BOUNDARIES: [years: number, younger: string, older: string][] = [
+  [3, "2-3y", "3-4y"],
+  [4, "3-4y", "4-5y"],
+  [5, "4-5y", "5-6y"]
+];
 
 describe("age-group derivation", () => {
   it("AGE_GROUPS covers the Egyptian KG bands", () => {
@@ -36,11 +79,73 @@ describe("age-group derivation", () => {
   });
 
   it("maps a date of birth to the right age band", () => {
-    expect(ageGroupForDob(dobYearsAgo(5))).toBe("5-6y");
-    expect(ageGroupForDob(dobYearsAgo(4))).toBe("4-5y");
-    expect(ageGroupForDob(dobYearsAgo(3))).toBe("3-4y");
-    expect(ageGroupForDob(dobYearsAgo(2))).toBe("2-3y");
-    expect(ageGroupForDob(dobYearsAgo(1))).toBe("2-3y");
+    // 2026-09-30 is the day the old 365.25-day arithmetic put a 5-year-old in
+    // the 4-5y band, so the cases are pinned to it rather than to "today".
+    atTime("2026-09-30", () => {
+      expect(ageGroupForDob("2021-09-30")).toBe("5-6y");
+      expect(ageGroupForDob("2022-09-30")).toBe("4-5y");
+      expect(ageGroupForDob("2023-09-30")).toBe("3-4y");
+      expect(ageGroupForDob("2024-09-30")).toBe("2-3y");
+      expect(ageGroupForDob("2025-09-30")).toBe("2-3y");
+    });
+  });
+
+  it("moves a child into the next band on their birthday, not the day after", () => {
+    // With "today" pinned, a child turns N on the day their Nth birthday
+    // arrives, so the newest child in the older band was born one day before
+    // the oldest child in the younger band. That one-day gap is the property:
+    // it is what a 365.25-day average cannot reproduce.
+    atTime("2026-09-30", () => {
+      for (const [years, younger, older] of BOUNDARIES) {
+        const boundary = dobTurningOn("2026-09-30", years);
+        expect(ageGroupForDob(dayOffset(boundary, -1)), `born ${dayOffset(boundary, -1)}`).toBe(older);
+        expect(ageGroupForDob(boundary), `born ${boundary}`).toBe(older);
+        expect(ageGroupForDob(dayOffset(boundary, 1)), `born ${dayOffset(boundary, 1)}`).toBe(younger);
+      }
+    });
+    for (const time of CLOCK_TIMES) {
+      atTime(
+        "2026-09-30",
+        () => {
+          for (const [years, younger, older] of BOUNDARIES) {
+            const boundary = dobTurningOn("2026-09-30", years);
+            expect(ageGroupForDob(boundary), `${time} born ${boundary}`).toBe(older);
+            expect(ageGroupForDob(dayOffset(boundary, 1)), `${time} born ${dayOffset(boundary, 1)}`).toBe(younger);
+          }
+        },
+        time
+      );
+    }
+  });
+
+  it("holds the band boundary on every calendar date, leap years included", () => {
+    // The old arithmetic divided elapsed days by 365.25, so the answer depended
+    // on how many Feb 29s fell in the child's trailing N-year window: a 5-year
+    // window holding one leap day is 1826 days, which is 0.24 days short of
+    // 5 x 365.25, and the floor put the child in 4-5y on their own birthday.
+    // Anchoring on March 1 across a leap year and a non-leap year, and sweeping
+    // 45 days either side of every boundary, pins the whole range.
+    for (const today of ["2024-03-01", "2025-03-01", "2026-03-01"]) {
+      atTime(today, () => {
+        for (const [years, younger, older] of BOUNDARIES) {
+          const boundary = dobTurningOn(today, years);
+          for (let offset = -45; offset <= 45; offset++) {
+            const dob = dayOffset(boundary, offset);
+            expect(ageGroupForDob(dob), `${today}: dob ${dob} (${offset} vs ${boundary})`).toBe(
+              offset <= 0 ? older : younger
+            );
+          }
+        }
+      });
+    }
+  });
+
+  it("keeps a child under 3 in the first band and clamps an older one to KG2", () => {
+    atTime("2026-09-30", () => {
+      expect(ageGroupForDob("2026-09-29")).toBe("2-3y"); // 1 day old
+      expect(ageGroupForDob(dobTurningOn("2026-09-30", 6))).toBe("5-6y");
+      expect(ageGroupForDob(dobTurningOn("2026-09-30", 11))).toBe("5-6y");
+    });
   });
 
   it("returns empty for missing, invalid, or future dates", () => {
@@ -48,6 +153,13 @@ describe("age-group derivation", () => {
     expect(ageGroupForDob("")).toBe("");
     expect(ageGroupForDob("not-a-date")).toBe("");
     expect(ageGroupForDob("2999-01-01")).toBe("");
+  });
+
+  it("returns empty for a child born tomorrow but not for one born today", () => {
+    atTime("2026-09-30", () => {
+      expect(ageGroupForDob("2026-09-30")).toBe("2-3y");
+      expect(ageGroupForDob("2026-10-01")).toBe("");
+    });
   });
 });
 
