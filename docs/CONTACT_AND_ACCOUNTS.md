@@ -282,6 +282,26 @@ fix a parent is waiting on, so the repair is written to preserve it rather than
 re-derive it, and both the SQLite mirror and
 `tests/unit/sibling-family-link-backfill.test.ts` assert it survives row for row.
 
+### Measuring this instead of assuming it (KID-152)
+
+`crossInstituteFamilyMemberRows()` (`lib/store.ts`) is the read-only check the
+deploy gate runs. It calls no `ensureSchema()` and writes nothing, so it is safe
+against production. Two properties make its number worth acting on:
+
+- **It excludes the row under test from the account's own evidence.** A leaked row
+  *is* a `family_member` row, so a check that counted every link as justification
+  would let a leak justify itself and report `0` on a database that is leaking.
+- **It reports `has_other_justification` per row**, the same condition the
+  `0019` delete requires. Rows reported with `false` are the ambiguous ones — a
+  legitimate lone link whose account has no invite and no other child, from
+  before the invite flow existed. Those are for a human to look at, not for a
+  sweep to remove.
+
+QA's note that "production Cody measured 0" is not sufficient on its own: with a
+single institute a cross-tenant grant is not expressible, so `0` is what a broken
+measurement returns too. The gate should read this function's output, and
+separately record `SELECT count(DISTINCT institute_id) FROM institute`.
+
 ## How database migrations are applied
 
 **Answer: automatically, but lazily — deploying the code does not by itself

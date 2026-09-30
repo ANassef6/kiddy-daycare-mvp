@@ -63,6 +63,14 @@ describe("KID-142 sibling auto-link by parent email", () => {
     const sharedEmail = "nouran@example.com";
 
     const parent = await createAccount({ email: sharedEmail, password: "x", fullName: "Nouran Hisham", role: "parent" });
+    // KID-152: the account is on file at this centre. `registerAction` is the
+    // only way a parent account comes into existence and it refuses a
+    // registration with no valid invite code, so the invite the daycare issued
+    // at enrolment — which registration leaves in place — is what tenancy
+    // evidence looks like in production. The auto-link now requires it; see
+    // "gives an account with no tenancy evidence no links" below for the case
+    // this rule deliberately refuses.
+    await store.createInvite(iid, String(childA.id), sharedEmail, "SUNSHINE-142-A", "parent");
     await store.addContact({ childId: String(childA.id), fullName: "Nouran Hisham", relationship: "parent", email: sharedEmail, isPickup: false, isEmergency: false });
     // Creating this second contact is what must grant the parent access.
     await store.addContact({ childId: String(childB.id), fullName: "Nouran Hisham", relationship: "parent", email: sharedEmail, isPickup: false, isEmergency: false });
@@ -104,6 +112,8 @@ describe("KID-142 sibling auto-link by parent email", () => {
     const childA = await store.createChild({ instituteId: iid, firstName: "Becca", lastName: "Nassef", roomId: roomA });
     const childB = await store.createChild({ instituteId: iid, firstName: "Mikael", lastName: "Nassef", roomId: roomB });
     const parent = await createAccount({ email: "nouran@example.com", password: "x", fullName: "Nouran Hisham", role: "parent" });
+    // KID-152: tenancy evidence, as every real parent has (see the note above).
+    await store.createInvite(iid, String(childA.id), "nouran@example.com", "SUNSHINE-142-B", "parent");
 
     await store.addContact({ childId: String(childA.id), fullName: "Nouran Hisham", relationship: "parent", email: "Nouran@Example.com", isPickup: false, isEmergency: false });
     await store.addContact({ childId: String(childB.id), fullName: "Nouran Hisham", relationship: "parent", email: "  NOURAN@example.com  ", isPickup: false, isEmergency: false });
@@ -116,6 +126,8 @@ describe("KID-142 sibling auto-link by parent email", () => {
     const childA = await store.createChild({ instituteId: iid, firstName: "Becca", lastName: "Nassef", roomId: roomA });
     const childB = await store.createChild({ instituteId: iid, firstName: "Mikael", lastName: "Nassef", roomId: roomB });
     const parent = await createAccount({ email: "nouran@example.com", password: "x", fullName: "Nouran Hisham", role: "parent" });
+    // KID-152: tenancy evidence, as every real parent has (see the note above).
+    await store.createInvite(iid, String(childA.id), "nouran@example.com", "SUNSHINE-142-C", "parent");
 
     // Child A is known to the parent; child B's contact has no email yet.
     await store.addContact({ childId: String(childA.id), fullName: "Nouran Hisham", relationship: "parent", email: "nouran@example.com", isPickup: false, isEmergency: false });
@@ -155,6 +167,8 @@ describe("KID-142 sibling auto-link by parent email", () => {
     const childB = await store.createChild({ instituteId: iid, firstName: "Mikael", lastName: "Nassef", roomId: roomB });
     const sharedEmail = "nouran@example.com";
     const parent = await createAccount({ email: sharedEmail, password: "x", fullName: "Nouran Hisham", role: "parent" });
+    // KID-152: tenancy evidence, as every real parent has (see the note above).
+    await store.createInvite(iid, String(childA.id), sharedEmail, "SUNSHINE-142-D", "parent");
 
     await store.addContact({ childId: String(childA.id), fullName: "Nouran Hisham", relationship: "parent", email: sharedEmail, isPickup: false, isEmergency: false });
     await store.addContact({ childId: String(childB.id), fullName: "Nouran Hisham", relationship: "parent", email: sharedEmail, isPickup: false, isEmergency: false });
@@ -184,6 +198,99 @@ describe("KID-142 sibling auto-link by parent email", () => {
 
     const accounts = await queryAll("SELECT * FROM account WHERE lower(email) = ?", sharedEmail);
     expect(accounts).toHaveLength(1);
+  });
+
+  // KID-152, the leak itself. `linkSiblingsByParentEmail` used to filter
+  // candidates on `WHERE c.institute_id = ?` and nothing else, and both callers
+  // derive that value from the contact's own child — so the predicate was
+  // trivially satisfied: it confirmed the child sits at the same centre as the
+  // contact being added, which says nothing about which centres the account
+  // belongs to. One addContact at a second centre was enough to hand a parent at
+  // the first centre a child roster at the second. No migration involved.
+  it("refuses a same-email contact at a centre the account is not on file at", async () => {
+    const otherInstitute = await store.seedInstitute({ name: "Other Center" });
+    const otherRoom = await store.createRoom(otherInstitute.id as string, "Other Room", 10);
+    const sharedEmail = "cross-tenant@example.com";
+
+    const childA = await store.createChild({ instituteId: iid, firstName: "Becca", lastName: "Nassef", roomId: roomA });
+    await store.addContact({ childId: String(childA.id), fullName: "Nouran Hisham", relationship: "parent", email: sharedEmail, isPickup: false, isEmergency: false });
+    const parent = await createAccount({ email: sharedEmail, password: "x", fullName: "Nouran Hisham", role: "parent" });
+    // The only centre this account is on file at: the invite the daycare issued
+    // at enrolment plus the family link registration created from it.
+    await store.createInvite(iid, String(childA.id), sharedEmail, "SUNSHINE-152-A", "parent");
+    await store.linkFamily(parent.id as string, String(childA.id), "parent");
+
+    // A different centre, different staff, the same address.
+    const foreignChild = await store.createChild({ instituteId: otherInstitute.id as string, firstName: "Foreign", lastName: "Child", roomId: otherRoom.id as string });
+
+    // One ordinary contact write there. No migration, no backfill.
+    await store.addContact({ childId: String(foreignChild.id), fullName: "Nouran Hisham", relationship: "parent", email: sharedEmail, isPickup: false, isEmergency: false });
+
+    const links = await queryAll("SELECT child_id FROM family_member WHERE account_id = ?", String(parent.id));
+    expect(links.map((r) => String(r.child_id))).toEqual([String(childA.id)]);
+    expect((await store.familiesForAccount(parent.id as string)).map((c) => String(c.id))).toEqual([String(childA.id)]);
+    // The deploy-gate check QA asked for reads the same rows: none exist.
+    expect(await store.crossInstituteFamilyMemberRows()).toEqual([]);
+  });
+
+  // The other half of the same rule, so the fix cannot be over-applied into
+  // "one centre per address": tenancy follows the account's own records, so a
+  // guardian genuinely enrolled at two centres is linked at both.
+  it("links at every centre the account is on file at, and only those", async () => {
+    const otherInstitute = await store.seedInstitute({ name: "Other Center" });
+    const otherRoom = await store.createRoom(otherInstitute.id as string, "Other Room", 10);
+    const thirdInstitute = await store.seedInstitute({ name: "Third Center" });
+    const thirdRoom = await store.createRoom(thirdInstitute.id as string, "Third Room", 10);
+    const sharedEmail = "both-sites@example.com";
+
+    const childA = await store.createChild({ instituteId: iid, firstName: "Becca", lastName: "Nassef", roomId: roomA });
+    const childB = await store.createChild({ instituteId: otherInstitute.id as string, firstName: "Mikael", lastName: "Nassef", roomId: otherRoom.id as string });
+    const thirdChild = await store.createChild({ instituteId: thirdInstitute.id as string, firstName: "Noor", lastName: "Nassef", roomId: thirdRoom.id as string });
+    // Same centre as the account, but this child's own contact does not carry
+    // the address, so the sibling match never considers it.
+    const strangerChild = await store.createChild({ instituteId: iid, firstName: "Salma", lastName: "Nassef", roomId: roomB });
+
+    const parent = await createAccount({ email: sharedEmail, password: "x", fullName: "Two Sites", role: "parent" });
+    // On file at two centres: the daycare issued an invite at each.
+    await store.createInvite(iid, String(childA.id), sharedEmail, "SUNSHINE-152-B", "parent");
+    await store.createInvite(otherInstitute.id as string, String(childB.id), sharedEmail, "SUNSHINE-152-C", "parent");
+
+    await store.addContact({ childId: String(childA.id), fullName: "Nouran Hisham", relationship: "parent", email: sharedEmail, isPickup: false, isEmergency: false });
+    await store.addContact({ childId: String(childB.id), fullName: "Nouran Hisham", relationship: "parent", email: sharedEmail, isPickup: false, isEmergency: false });
+    // A third centre the account has no association with: refused.
+    await store.addContact({ childId: String(thirdChild.id), fullName: "Nouran Hisham", relationship: "parent", email: sharedEmail, isPickup: false, isEmergency: false });
+    await store.addContact({ childId: String(strangerChild.id), fullName: "Someone Else", relationship: "parent", isPickup: false, isEmergency: false });
+
+    expect((await store.familiesForAccount(parent.id as string)).map((c) => String(c.id)).sort()).toEqual(
+      [String(childA.id), String(childB.id)].sort()
+    );
+    expect(await store.crossInstituteFamilyMemberRows()).toEqual([]);
+  });
+
+  // The zero-link edge case, stated rather than left undefined. An address with
+  // no invite and no link is a shape `registerAction` cannot produce, but the
+  // schema allows one to exist (a shared, generic or mistyped address reaching
+  // the account table some other way). It belongs to no centre, so no contact
+  // write may hand it a child — inferring tenancy from a matching address is the
+  // defect. It recovers the moment the daycare puts it on file the way it does
+  // for every real parent.
+  it("gives an account with no tenancy evidence no links, and starts linking once the daycare puts it on file", async () => {
+    const sharedEmail = "no-evidence@example.com";
+    const childA = await store.createChild({ instituteId: iid, firstName: "Becca", lastName: "Nassef", roomId: roomA });
+    const childB = await store.createChild({ instituteId: iid, firstName: "Mikael", lastName: "Nassef", roomId: roomB });
+    const parent = await createAccount({ email: sharedEmail, password: "x", fullName: "No Evidence", role: "parent" });
+
+    await store.addContact({ childId: String(childA.id), fullName: "Nouran Hisham", relationship: "parent", email: sharedEmail, isPickup: false, isEmergency: false });
+    expect((await store.familiesForAccount(parent.id as string)).map((c) => String(c.id))).toEqual([]);
+
+    // On file with an invite, as enrolment does. The ordinary contact path
+    // works from here on, and links the earlier contact's child too.
+    await store.createInvite(iid, String(childA.id), sharedEmail, "SUNSHINE-152-D", "parent");
+    await store.addContact({ childId: String(childB.id), fullName: "Nouran Hisham", relationship: "parent", email: sharedEmail, isPickup: false, isEmergency: false });
+
+    expect((await store.familiesForAccount(parent.id as string)).map((c) => String(c.id)).sort()).toEqual(
+      [String(childA.id), String(childB.id)].sort()
+    );
   });
 
   it("linkFamily is idempotent for a repeated account/child pair", async () => {

@@ -559,12 +559,149 @@ export async function familiesForAccount(accountId: string): Promise<Row[]> {
   );
 }
 
+/** KID-152: the institutes an account belongs to.
+ *
+ *  `account` has no `institute_id` column — a parent may have children at more
+ *  than one centre — so "the centre this account belongs to" has to be derived
+ *  from first-class records. This is the single runtime definition of that
+ *  derivation, and it is the same rule migration
+ *  0018/0019_sibling_family_link_backfill* implements, so a link the backfill
+ *  refuses is refused here too:
+ *
+ *    1. Invite rows addressed to the account's email. `registerAction` refuses
+ *       to create a parent account without a valid invite code, and that row
+ *       survives registration with its `institute_id` intact (registration only
+ *       flips `status` to 'accepted'). So for every parent the daycare itself
+ *       onboarded, the invite is that centre's own record of "this address is a
+ *       parent here". Invite status is deliberately not filtered: the consumed
+ *       invite is precisely the one that matters, and a pending invite is the
+ *       daycare saying the same thing before the parent accepted.
+ *    2. `family_member` links the account already holds. Access already granted
+ *       is legitimate by definition, and it is what anchors a parent whose
+ *       children were enrolled before the invite flow existed.
+ *
+ *  Nothing else counts. In particular a `contact` row does NOT: a contact can be
+ *  typed at any centre for any address, so inferring tenancy from one is exactly
+ *  the KID-152 defect. A contact is the *subject* of the link, never its
+ *  evidence.
+ *
+ *  An account with neither source belongs to no centre and gets no links. That
+ *  is deliberate and recoverable: the account starts linking the moment the
+ *  daycare issues an invite or a family link is made for it, and both are the
+ *  daycare's own action rather than a guess made from an email address.
+ */
+export async function instituteIdsForAccount(accountId: string): Promise<string[]> {
+  const rows = await queryAll(
+    `SELECT institute_id FROM (
+       SELECT c.institute_id AS institute_id
+       FROM family_member fm
+       JOIN child c ON c.id = fm.child_id
+       WHERE fm.account_id = ?
+       UNION
+       SELECT i.institute_id AS institute_id
+       FROM account a
+       JOIN invite i ON lower(trim(i.email)) = lower(trim(a.email))
+       WHERE a.id = ?
+     ) owned
+     WHERE institute_id IS NOT NULL`,
+    accountId,
+    accountId
+  );
+  return rows.map((r) => String(r.institute_id));
+}
+
+/** KID-152: read-only tenant check for the deploy gate — the measurement QA
+ *  asked for instead of an assumption about whether existing cross-institute
+ *  rows need a cleanup migration.
+ *
+ *  A row is reported when the account has no tenancy evidence at the child's
+ *  institute **other than that row itself**. Two details make the measurement
+ *  trustworthy:
+ *
+ *  - The account's *own* other links are excluded from its evidence
+ *    (`fm2.id <> fm.id`). Including them would make the check self-referential:
+ *    a leaked row is itself a `family_member` row, so a leaked account would
+ *    justify its own leak and the count would read 0 on a database that is
+ *    leaking. A measurement that cannot see the defect is worse than none.
+ *  - `has_other_justification` reports whether the account is evidenced
+ *    *anywhere* else — another link, or any invite addressed to it. This is the
+ *    guard the repair DELETE needs: a row is safe to remove only when the
+ *    account has some other justification, so a legitimate lone link (a parent
+ *    enrolled before the invite flow, one child, no invite) is never deleted as
+ *    a false positive. Those rows still appear here, flagged
+ *    `has_other_justification: false`, because the gate should see them and
+ *    decide, not have them silently excluded.
+ *
+ *  Never writes. `ensureSchema()` is not called, so this is safe to run against
+ *  production: it must not trigger a migration.
+ */
+export async function crossInstituteFamilyMemberRows(): Promise<
+  {
+    family_member_id: string;
+    account_id: string;
+    child_id: string;
+    institute_id: string;
+    email: string;
+    has_other_justification: boolean;
+  }[]
+> {
+  const rows = await queryAll(
+    `SELECT fm.id AS family_member_id, fm.account_id AS account_id, fm.child_id AS child_id,
+            c.institute_id AS institute_id, a.email AS email,
+            CASE WHEN (
+              EXISTS (SELECT 1 FROM family_member fm3
+                      WHERE fm3.account_id = fm.account_id AND fm3.id <> fm.id)
+              OR EXISTS (SELECT 1 FROM account a3
+                         JOIN invite i3 ON lower(trim(i3.email)) = lower(trim(a3.email))
+                         WHERE a3.id = fm.account_id)
+            ) THEN 1 ELSE 0 END AS has_other_justification
+     FROM family_member fm
+     JOIN child c ON c.id = fm.child_id
+     JOIN account a ON a.id = fm.account_id
+     WHERE NOT EXISTS (
+       SELECT 1 FROM (
+         SELECT c2.institute_id AS institute_id
+         FROM family_member fm2
+         JOIN child c2 ON c2.id = fm2.child_id
+         WHERE fm2.account_id = fm.account_id AND fm2.id <> fm.id
+         UNION
+         SELECT i.institute_id AS institute_id
+         FROM account a2
+         JOIN invite i ON lower(trim(i.email)) = lower(trim(a2.email))
+         WHERE a2.id = fm.account_id
+       ) owned
+       WHERE owned.institute_id = c.institute_id
+     )
+     ORDER BY c.institute_id, a.email`
+  );
+  return rows.map((r) => ({
+    family_member_id: String(r.family_member_id),
+    account_id: String(r.account_id),
+    child_id: String(r.child_id),
+    institute_id: String(r.institute_id),
+    email: String(r.email ?? ""),
+    has_other_justification: Number(r.has_other_justification) === 1
+  }));
+}
+
 /** KID-142: grant a parent account access to every child in the same institute
  *  whose contact record shares that email address. Uses the contact
  *  relationship as the family-link access role (KID-112). Idempotent:
  *  linkFamily upserts on (account_id, child_id), so re-running this is safe.
  *
  *  Email matching is case-insensitive and trimmed on both sides.
+ *
+ *  KID-152: `instituteId` narrows the search but does not authorise it. Before
+ *  this fix the only institute predicate was `WHERE c.institute_id = ?`, and the
+ *  caller derives that value from the *contact's own child*
+ *  (`autoLinkSiblingsForContact`) — so the check was trivially satisfied: it
+ *  confirmed the child sits at the same centre as the contact being added, which
+ *  says nothing about which centres the account belongs to. One `addContact` at
+ *  a second centre therefore handed a parent at centre A access to centre B's
+ *  child. The tenant boundary is now the account's own institute set
+ *  (`instituteIdsForAccount`), and a child at a centre the account has no
+ *  association with is never a candidate. A genuinely multi-centre account is
+ *  still linked at each centre it is on file at.
  */
 export async function linkSiblingsByParentEmail(
   accountId: string,
@@ -575,6 +712,16 @@ export async function linkSiblingsByParentEmail(
   const { isContactRelationship, parseContactRelationship } = await import("./contact-relationship");
   const normalizedEmail = normalizeParentEmail(email);
   if (!normalizedEmail || !instituteId) return { linkedChildIds: [] };
+
+  // KID-152: the tenant gate. Refuse before touching a single child rather than
+  // filtering afterwards, so no code path can link a cross-institute child.
+  const ownedInstituteIds = await instituteIdsForAccount(accountId);
+  if (!ownedInstituteIds.includes(instituteId)) {
+    console.warn(
+      `KID-152 linkSiblingsByParentEmail: account ${accountId} has no association with institute ${instituteId} — sibling auto-link refused`
+    );
+    return { linkedChildIds: [] };
+  }
 
   const rows = await queryAll(
     `SELECT DISTINCT c.id AS child_id, co.relationship
@@ -611,9 +758,17 @@ export function normalizeParentEmail(email: unknown): string {
  *  child in the institute carrying the same parent email — this is the
  *  "create a second child with the same parent email" path from the issue.
  *
- *  Returns the accounts linked and the children they gained, so callers can
- *  log/report the outcome. Never throws: a failed auto-link must not roll
- *  back the contact write the staff member just made.
+ *  KID-152: the institute below is the *contact's* centre, so it is a narrowing
+ *  scope only. `linkSiblingsByParentEmail` gates the grant on the account's own
+ *  institute set, which is what keeps a contact typed at one centre from linking
+ *  a parent who belongs to another. Resolving the account by email here is safe
+ *  precisely because the tenant decision is made downstream, not here.
+ *
+ *  Returns the accounts that gained a child and the children they gained, so
+ *  callers can log/report the outcome. An account that matched by email but was
+ *  refused at the tenant boundary is not reported as linked. Never throws: a
+ *  failed auto-link must not roll back the contact write the staff member just
+ *  made.
  */
 export async function autoLinkSiblingsForContact(input: {
   childId: string;
@@ -648,6 +803,7 @@ export async function autoLinkSiblingsForContact(input: {
       // Include the contact's own child: the account may not be linked to it
       // yet, and that is exactly the access the issue asks for.
       const result = await linkSiblingsByParentEmail(accountId, email, instituteId);
+      if (result.linkedChildIds.length === 0) continue;
       linkedAccountIds.push(accountId);
       for (const childId of result.linkedChildIds) linkedChildIds.add(childId);
     }
