@@ -463,3 +463,172 @@ describe("KID-146 backfill of pre-existing same-email sibling links", () => {
     expect(await familyRows(parent.id as string)).toHaveLength(2);
   });
 });
+
+// ---------------------------------------------------------------------------
+// KID-149: the repair half, for a database on which the unscoped 0018 ran.
+//
+// 0018 is skipped by filename once it is in the ledger, so editing it cannot
+// undo what it already wrote — that is what 0019 is for. These tests reproduce
+// the post-0018 state by writing the rows that version actually wrote (a 32-char
+// lowercase hex id, the md5(...) expression 0018 mints and nothing else in the
+// codebase does) and then re-running the schema, which is how the SQLite path
+// applies migrations: ensureSchema() re-runs sqliteSchema() on every process
+// start, so the repair runs again and is expected to be idempotent.
+// ---------------------------------------------------------------------------
+
+/** A row as the unscoped 0018 wrote it: hex id, taken from the same address at
+ *  a centre the account has no association with. */
+async function badRow(opts: { accountId: string; childId: string; role?: string }): Promise<string> {
+  const id = Array.from({ length: 32 }, () => "0123456789abcdef"[Math.floor(Math.random() * 16)]).join("");
+  await queryRun(
+    `INSERT INTO family_member (id, account_id, child_id, role, created_at) VALUES (?, ?, ?, ?, ?)`,
+    id,
+    opts.accountId,
+    opts.childId,
+    opts.role ?? "parent",
+    LEGACY_AT
+  );
+  return id;
+}
+
+/** A row as the *application* wrote it: uid() always contains a hyphen, so it is
+ *  never in the repair's scope however it looks. */
+async function appRow(opts: { accountId: string; childId: string; role?: string }): Promise<string> {
+  const id = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+  await queryRun(
+    `INSERT INTO family_member (id, account_id, child_id, role, created_at) VALUES (?, ?, ?, ?, ?)`,
+    id,
+    opts.accountId,
+    opts.childId,
+    opts.role ?? "parent",
+    LEGACY_AT
+  );
+  return id;
+}
+
+async function anyRow(accountId: string, childId: string): Promise<{ id: string; role: string } | undefined> {
+  return queryGet("SELECT id, role FROM family_member WHERE account_id = ? AND child_id = ?", accountId, childId) as any;
+}
+
+describe("KID-149 repair of the unscoped 0018 on an already-applied database", () => {
+  it("removes the cross-institute grant and keeps the in-institute link, row for row", async () => {
+    const other = await secondInstitute();
+    const home = await child(iid, roomA, "Becca", "Nassef");
+    const foreign = await child(other.id, other.roomId, "Mikael", "Nassef");
+    const sharedEmail = "repair-shared@example.com";
+    const parent = await parentViaInvite({ email: sharedEmail, instituteId: iid, childId: String(home.id) });
+
+    // What the unscoped 0018 wrote: both children, linked to the same address.
+    await legacyContact({ childId: String(home.id), email: sharedEmail });
+    await legacyContact({ childId: String(foreign.id), email: sharedEmail });
+    const goodId = await badRow({ accountId: parent.id as string, childId: String(home.id) });
+    const badId = await badRow({ accountId: parent.id as string, childId: String(foreign.id) });
+
+    await ensureSchema(); // the repair runs, exactly as it would on a restart
+
+    expect(await anyRow(parent.id as string, String(foreign.id))).toBeUndefined();
+    const kept = await anyRow(parent.id as string, String(home.id));
+    // The sibling fix the board user is waiting on survives untouched: not
+    // re-pointed, not re-created under a new id, not re-roled.
+    expect(kept?.id).toBe(goodId);
+    expect(kept?.role).toBe("parent");
+    expect(badId).not.toBe(goodId);
+  });
+
+  it("never touches a link the application made, even one that looks the same", async () => {
+    const other = await secondInstitute();
+    const foreign = await child(other.id, other.roomId, "Mikael", "Nassef");
+    const sharedEmail = "app-row@example.com";
+    // This parent is a real parent at the first centre, invited there, and holds
+    // a link at the second — so the row is legitimate and must survive.
+    const home = await child(iid, roomA, "Becca", "Nassef");
+    const parent = await parentViaInvite({ email: sharedEmail, instituteId: iid, childId: String(home.id) });
+    await legacyContact({ childId: String(home.id), email: sharedEmail });
+    await legacyContact({ childId: String(foreign.id), email: sharedEmail });
+    await appRow({ accountId: parent.id as string, childId: String(home.id) });
+    const keepId = await appRow({ accountId: parent.id as string, childId: String(foreign.id) });
+
+    await ensureSchema();
+
+    expect((await anyRow(parent.id as string, String(foreign.id)))?.id).toBe(keepId);
+    expect(await anyRow(parent.id as string, String(home.id))).toBeDefined();
+  });
+
+  it("does not let two bad rows at one centre justify each other", async () => {
+    const other = await secondInstitute();
+    const home = await child(iid, roomA, "Becca", "Nassef");
+    const foreignA = await child(other.id, other.roomId, "Mikael", "Nassef");
+    const foreignB = await child(other.id, other.roomId, "Ida", "Nassef");
+    const sharedEmail = "pair@example.com";
+    const parent = await parentViaInvite({ email: sharedEmail, instituteId: iid, childId: String(home.id) });
+
+    for (const c of [home, foreignA, foreignB]) await legacyContact({ childId: String(c.id), email: sharedEmail });
+    await badRow({ accountId: parent.id as string, childId: String(home.id) });
+    // Two children at the *same* other centre, both granted by the unscoped
+    // 0018. Neither is evidence the account belongs there.
+    await badRow({ accountId: parent.id as string, childId: String(foreignA.id) });
+    await badRow({ accountId: parent.id as string, childId: String(foreignB.id) });
+    expect(await familyRows(parent.id as string)).toHaveLength(3);
+
+    await ensureSchema();
+
+    expect((await familyRows(parent.id as string)).map((r) => r.child_id)).toEqual([String(home.id)]);
+  });
+
+  it("keeps a parent who is on file at both centres linked at both", async () => {
+    const other = await secondInstitute();
+    const home = await child(iid, roomA, "Becca", "Nassef");
+    const foreign = await child(other.id, other.roomId, "Mikael", "Nassef");
+    const sharedEmail = "two-centres@example.com";
+    const parent = await parentViaInvite({ email: sharedEmail, instituteId: iid, childId: String(home.id) });
+    // A second invite at the other centre is first-class evidence there, so the
+    // link 0018 wrote there is legitimate after all. The invite row is the whole
+    // point: the same address, enrolled again elsewhere.
+    await store.createInvite(other.id, String(foreign.id), sharedEmail, `code-${Math.random().toString(36).slice(2, 10)}`, "parent");
+    await legacyContact({ childId: String(home.id), email: sharedEmail });
+    await legacyContact({ childId: String(foreign.id), email: sharedEmail });
+    await badRow({ accountId: parent.id as string, childId: String(home.id) });
+    await badRow({ accountId: parent.id as string, childId: String(foreign.id) });
+
+    await ensureSchema();
+
+    expect((await familyRows(parent.id as string)).map((r) => r.child_id).sort()).toEqual(
+      [String(home.id), String(foreign.id)].sort()
+    );
+  });
+
+  it("leaves a contact with no address alone", async () => {
+    const other = await secondInstitute();
+    const home = await child(iid, roomA, "Becca", "Nassef");
+    const foreign = await child(other.id, other.roomId, "Mikael", "Nassef");
+    const sharedEmail = "blank-contact@example.com";
+    const parent = await parentViaInvite({ email: sharedEmail, instituteId: iid, childId: String(home.id) });
+    await legacyContact({ childId: String(home.id), email: sharedEmail });
+    await legacyContact({ childId: String(foreign.id), email: null });
+
+    await ensureSchema();
+
+    const family = await store.familiesForAccount(parent.id as string);
+    expect(family.map((c) => String(c.id))).toEqual([String(home.id)]);
+  });
+
+  it("is idempotent: running the repair twice changes nothing", async () => {
+    const other = await secondInstitute();
+    const home = await child(iid, roomA, "Becca", "Nassef");
+    const foreign = await child(other.id, other.roomId, "Mikael", "Nassef");
+    const sharedEmail = "twice@example.com";
+    const parent = await parentViaInvite({ email: sharedEmail, instituteId: iid, childId: String(home.id) });
+    await legacyContact({ childId: String(home.id), email: sharedEmail });
+    await legacyContact({ childId: String(foreign.id), email: sharedEmail });
+    await badRow({ accountId: parent.id as string, childId: String(home.id) });
+    await badRow({ accountId: parent.id as string, childId: String(foreign.id) });
+
+    await ensureSchema();
+    const once = await familyRows(parent.id as string);
+    await ensureSchema();
+    await ensureSchema();
+
+    expect(await familyRows(parent.id as string)).toEqual(once);
+    expect(once.map((r) => r.child_id)).toEqual([String(home.id)]);
+  });
+});

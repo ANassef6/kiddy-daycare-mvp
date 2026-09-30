@@ -652,6 +652,51 @@ export function sqliteSchema(db: any): void {
       ) WHERE rn = 1
     )`);
     db.exec("CREATE UNIQUE INDEX IF NOT EXISTS uq_family_member_account_child ON family_member (account_id, child_id)");
+    // KID-149: mirror of supabase/migrations/0019_institute_scope_repair.sql.
+    // Repairs a database on which the *unscoped* 0018 already ran. That version
+    // is skipped once it is in the ledger, so its cross-tenant rows can only be
+    // removed by a later file.
+    //
+    // Eligibility is the same id test the migration uses. 0018 is the only
+    // writer that mints a family_member id as 32 lowercase hex characters, and
+    // every application write goes through uid(), which always contains a
+    // hyphen — so a hyphenated row is never a candidate however it looks. Only
+    // rows the unscoped backfill could have written are therefore in scope, and
+    // a link the application made is never at risk.
+    //
+    // A candidate goes only when the account is not on file at that child's
+    // centre by either first-class source: no invite addressed to it there, and
+    // no link it holds there that this repair did not itself create. The second
+    // condition is what stops a pair of bad rows at one centre from vindicating
+    // each other. Not-found is correct: on a database where 0018 never applied
+    // there is nothing to delete and this is a no-op.
+    db.exec(`DELETE FROM family_member
+      WHERE length(family_member.id) = 32
+        AND family_member.id = lower(family_member.id)
+        AND instr(family_member.id, '-') = 0
+        AND EXISTS (
+          SELECT 1 FROM contact co
+          JOIN child c ON c.id = co.child_id
+          JOIN account a ON a.id = family_member.account_id
+          WHERE co.child_id = c.id
+            AND co.email IS NOT NULL AND trim(co.email) <> ''
+            AND lower(trim(co.email)) = lower(trim(a.email))
+        )
+        AND NOT EXISTS (
+          SELECT 1 FROM invite i
+          JOIN account a ON a.id = family_member.account_id
+          JOIN child c ON c.id = family_member.child_id
+          WHERE lower(trim(i.email)) = lower(trim(a.email))
+            AND i.institute_id = c.institute_id
+        )
+        AND NOT EXISTS (
+          SELECT 1 FROM family_member fm2
+          JOIN child c2 ON c2.id = fm2.child_id
+          JOIN child c3 ON c3.id = family_member.child_id
+          WHERE fm2.account_id = family_member.account_id
+            AND c2.institute_id = c3.institute_id
+            AND NOT (length(fm2.id) = 32 AND fm2.id = lower(fm2.id) AND instr(fm2.id, '-') = 0)
+        )`);
     // KID-146: mirror of supabase/migrations/0018_sibling_family_link_backfill.sql.
     // Contacts that predate the KID-142 auto-link have no family_member row, and
     // familiesForAccount() reads family_member alone — so the parent never sees

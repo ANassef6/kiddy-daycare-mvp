@@ -255,6 +255,33 @@ Two consequences worth stating:
   miss, not a lockout: the daycare issuing an invite, or a family link being
   made for that account, resolves it immediately.
 
+### The repair half: `0019_institute_scope_repair.sql`
+
+A migration is skipped by filename once it is in the ledger, so fixing `0018`
+cannot undo what a database that already applied it wrote. Two files therefore
+ship, and both run: `0018` corrected in place, for every database that has not
+applied it, and `0019` for the one that has.
+
+`0019` deletes the cross-institute rows the unscoped `0018` wrote, then re-runs
+the corrected backfill. Two properties make the delete safe rather than
+sweeping:
+
+- **Only rows the bad `0018` could have written are eligible.** `0018` is the
+  only writer of a `family_member` id as `md5(...)` — 32 lowercase hex — while
+  every application write goes through `uid()`, which always contains a hyphen.
+  A hyphenated id is therefore never a candidate, so no link the app made is ever
+  at risk, however it looks.
+- **A row goes only when the account is not on file at that centre** by either
+  first-class source above. Requiring a *non-migration* link for that test is
+  what stops a pair of bad rows at one centre from vindicating each other: they
+  are both migration-created, so neither counts as evidence, and both go.
+
+The in-institute link `0018` legitimately created is left exactly as it was — not
+re-pointed, not re-created under a new id, not re-roled. That row is the sibling
+fix a parent is waiting on, so the repair is written to preserve it rather than
+re-derive it, and both the SQLite mirror and
+`tests/unit/sibling-family-link-backfill.test.ts` assert it survives row for row.
+
 ## How database migrations are applied
 
 **Answer: automatically, but lazily — deploying the code does not by itself
