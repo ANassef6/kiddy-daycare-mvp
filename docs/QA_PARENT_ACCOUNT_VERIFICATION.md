@@ -18,6 +18,12 @@ investigation. All criteria are observable from a browser or an HTTP response.
   and the KID-146 backfill. The build id or commit sha is recorded on KID-147.
 - **P4** A parent login exists for QA to use. If the board user must supply the password,
   the deploy owner states so on KID-147 before this pass starts.
+- **P5** A **staff or admin** login for the QA fixture's centre exists for QA to use. Added
+  after the KID-151 handoff. C1 can only be observed as a *transition* if something re-links
+  the sibling during the pass, and the only writer that runs outside a migration is
+  `autoLinkSiblingsForContact`, which fires on a staff contact save and is not reachable
+  from a parent session. A parent credential alone cannot produce a non-vacuous C1, so the
+  parent and staff logins are two separate requirements, not one.
 
 N/A for QA: P1 to P3 are deploy evidence, checked by reading KID-147, not by re-testing here.
 
@@ -92,3 +98,63 @@ cannot return silently between deploys:
 
 On the code as of `9754d71` this test fails with the second child missing, which is the
 reported symptom. It is the exact regression this pass must show as fixed in production.
+
+## Running C1 so it cannot pass vacuously
+
+Added after KID-151 and KID-150. C1 says "both children appear"; it does not say *why* they
+appear, and the reason is the whole test.
+
+**The trap.** The KID-151 fixture was deliberately left in the pre-fix state — both contact
+rows present, the sibling `family_member` link deleted — so the pass would exercise the real
+reconcile path. Migration `0019` then applied on production at `2026-09-30T00:57:13Z`, and its
+step 2 is the corrected sibling backfill. For that account the backfill matched, so it
+re-created the link the fixture had deleted. The fixture reconciled with no human step. A C1
+observation taken after that moment is a pass on data the migration wrote, which is the same
+"green build, unapplied change" error this whole issue line exists to catch, in the other
+direction.
+
+**Two engines, two meanings of `ensureSchema()`.** On production the repair cannot re-run from
+a page load: `ensurePgSchema()` skips every file already in `schema_migrations`
+(`lib/db.ts`). The SQLite test mirror re-runs every migration body on every call
+(`lib/sqlite-schema.ts`). So a reset fixture is **stable on production** and **unstable
+locally**. Never reason about post-`0019` production behaviour through a local `ensureSchema()`.
+
+**Run order.** Each step is a checkpoint; record the child count at every one, because the
+value of the whole pass is the sequence, not the final frame.
+
+1. **Reset.** `DELETE FROM family_member WHERE account_id = '<qa account>' AND child_id = '<sibling child>'`
+   (single row). Record the affected `family_member.id` before deleting it.
+2. **A0 — precondition, parent view.** Parent signs in, `/child` loads. Record the child count:
+   it **must be 1**. If it is 2, the reset did not hold or something re-linked it, and C1 is
+   void — stop and say so rather than continuing.
+3. **A1 — the page load must not self-heal.** Reload `/child` in the same session, then a
+   fresh session. Still **1**. This is the negative control for the whole pass: it proves the
+   production ledger is doing its job and that nothing about visiting the page grants the
+   sibling. Without A1, a later "2" is indistinguishable from a migration side effect.
+4. **A2 — trigger the runtime path.** As **staff** (P5), open the sibling child and re-save its
+   contact with the parent address (a no-op edit that fires `autoLinkSiblingsForContact`). Do
+   not use `addContact` on a new child here — that would add a card and make C1's card count
+   ambiguous.
+5. **A3 — observe.** Parent reloads `/child`. Record: **2** cards, each name exactly once
+   (C2), correct name and classroom on each.
+6. **A4 — no drift.** Reload again in a fresh session. Still 2, identical list (C3).
+7. **A5 — no widening.** Record `crossInstituteFamilyMemberRows()` for the account (empty) and
+   `SELECT count(DISTINCT institute_id) FROM institute`. Use the shipped function, never a
+   hand-written cross-institute count: on a single-institute database a hand-written count
+   reads 0 for a reason that would also hide a live leak, so it carries no information.
+
+**What makes C1 a pass.** The sequence `1 → 1 → 1 → 2`, where the only action between the third
+`1` and the `2` is a staff contact save. A bare `2` at any point, with no recorded `1` before
+it, is a **vacuous pass** and must be reported as unverified — not as pass.
+
+**If the reset is declined or a second institute is not permitted.** Fall back to the additive
+route: staff add a *third* child at the same centre with the parent address on its contact.
+That needs no destructive write, and the transition `2 → 3` is just as observable. Never
+re-seed the expected result.
+
+**Data-layer pin.** `tests/unit/kid148-fixture-reconcile.test.ts` holds the same contract with
+no browser: the reset state is observable, the repair body re-asserts a deleted link, the staff
+contact path is what restores it, a second save does not duplicate, blank and null addresses
+grant nothing, and the local mirror's re-run behaviour is recorded as the harness asymmetry it
+is. It is mutation-checked — a no-op reset fails five of its six cases and an over-tightened
+tenant gate fails the three runtime cases — so it cannot pass by being blind.
