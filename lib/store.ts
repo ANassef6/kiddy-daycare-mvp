@@ -2090,14 +2090,12 @@ export async function conversationsForAccount(accountId: string): Promise<Row[]>
 }
 
 // ---- Live chat / messaging helpers ----
-export async function centerContactAccount(instituteId: string): Promise<Row | undefined> {
-  // MVP live-chat: parents talk to the daycare's owner/admin account.
-  return queryGet(
-    `SELECT a.id, a.email, a.full_name FROM account a
-     WHERE a.role = 'owner' OR (a.role = 'admin' AND a.staff_id IS NOT NULL)
-     ORDER BY a.created_at LIMIT 1`
-  );
-}
+// KID-169: `centerContactAccount(instituteId)` is deleted. It accepted an
+// instituteId and never used it, so it returned the globally oldest owner/admin
+// account in the deployment — a cross-tenant name disclosure to any parent — and
+// with no room predicate it offered accounts `sendParentMessageAction` refuses.
+// Parent recipients come from `classroomStaffForParent` via
+// `lib/parent-messaging.ts`, which page and action share.
 
 /** KID-144: staff accounts linked to the rooms where this parent's children
  *  are enrolled. Parents may message only these staff members, not every

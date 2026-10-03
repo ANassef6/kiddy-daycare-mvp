@@ -213,6 +213,7 @@ export const en = {
     selectedParent: "(selected parent)",
     noneSelected: "(none selected)",
     chatWithDaycare: "Chat with {name}",
+    chatWithDaycareTitle: "Chat with your daycare",
     noMessagesSayHello: "No messages yet — say hello to your daycare.",
     yourThreads: "Your threads",
     backToDaycareChat: "Back to daycare chat",
@@ -220,7 +221,14 @@ export const en = {
     titleUnread: "Messages ({count} unread)",
     noParentsInClassroomsShort: "No parents in your classrooms.",
     closeComposer: "Close composer",
-    noDaycareContact: "No daycare contact account configured yet.",
+    // KID-169: no staff assigned to the child's classroom, and a send the
+    // server refused. Both were silent before; the parent saw a page that
+    // looked identical before and after the failure.
+    noClassroomStaff:
+      "No staff are available to message yet. Your daycare has not assigned a teacher to your child's classroom — ask the front desk who you should speak to.",
+    sendFailedRecipient:
+      "Your message was not sent. You can only message staff assigned to your child's classroom. Pick a recipient below and try again.",
+    sendFailedGeneric: "Your message was not sent. Check the details and try again.",
   },
   learning: {
     development: "Learning & development",
@@ -658,6 +666,7 @@ export const ar = {
     selectedParent: "(ولي أمر محدد)",
     noneSelected: "(لم يتم التحديد)",
     chatWithDaycare: "الدردشة مع {name}",
+    chatWithDaycareTitle: "الدردشة مع الحضّانة",
     noMessagesSayHello: "لا توجد رسائل بعد — سلّم على الحضّانة.",
     yourThreads: "محادثاتك",
     backToDaycareChat: "رجوع إلى دردشة الحضّانة",
@@ -666,7 +675,11 @@ export const ar = {
     titleUnread: "الرسائل ({count} غير مقروءة)",
     noParentsInClassroomsShort: "لا يوجد أولياء أمور في فصولك.",
     closeComposer: "إغلاق نافذة الإنشاء",
-    noDaycareContact: "لم يتم إعداد حساب التواصل مع الحضّانة بعد.",
+    noClassroomStaff:
+      "لا يوجد موظف متاح للمراسلة بعد. لم تُعيّن الحضّانة معلّمًا لفصل طفلك — اسأل الاستقبال عمّن يمكنك التحدث إليه.",
+    sendFailedRecipient:
+      "لم تُرسل رسالتك. يمكنك مراسلة الموظفين المعيّنين في فصل طفلك فقط. اختر مستلمًا بالأسفل وحاول مرة أخرى.",
+    sendFailedGeneric: "لم تُرسل رسالتك. راجع التفاصيل وحاول مرة أخرى.",
   },
   learning: {
     development: "التعلّم والتطوّر",

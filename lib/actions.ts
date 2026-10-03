@@ -1684,12 +1684,14 @@ export async function sendParentMessageAction(formData: FormData) {
   const instituteId = await firstInstituteId();
   if (!instituteId) redirect("/child/messages");
 
-  // KID-144: parents may only message staff assigned to their children's
-  // classrooms. Compute the allowed recipient set once and enforce it.
+  // KID-144/KID-169: parents may only message staff assigned to their children's
+  // classrooms. The allowed set comes from lib/parent-messaging.ts, the same
+  // module the /child/messages page renders its recipient list from, so the
+  // offered recipients and the accepted recipients cannot drift apart.
   let allowedIds: Set<string> | null = null;
   if (me.role === "parent") {
-    const { classroomStaffForParent } = await import("@/lib/store");
-    allowedIds = new Set((await classroomStaffForParent(me.accountId)).map((s) => String(s.id)));
+    const { parentRecipientIds } = await import("@/lib/parent-messaging");
+    allowedIds = await parentRecipientIds(me.accountId);
   }
 
   if (recipient && body) {
