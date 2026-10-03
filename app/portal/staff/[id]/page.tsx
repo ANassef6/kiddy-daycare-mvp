@@ -5,7 +5,7 @@ import { staffIdForAccount } from "@/lib/auth";
 import { isAdminRole } from "@/lib/role";
 import { listStaff, staffRooms, listStaffSchedules, staffStatusLog, staffActivity, listRooms } from "@/lib/store";
 import { queryAll } from "@/lib/db";
-import { uploadPhotoAction, updateStaffInfoAction } from "@/lib/actions";
+import { uploadPhotoAction, updateStaffInfoAction, linkStaffLoginAction } from "@/lib/actions";
 import Avatar from "@/components/Avatar";
 import ResendActivationButton from "@/components/ResendActivationButton";
 import { cap } from "@/lib/helpers";
@@ -24,7 +24,7 @@ const STATUS_KIND_LABEL: Record<string, string> = {
   child_sick: "Child sick",
 };
 
-export default async function StaffProfilePage({ params, searchParams }: { params: { id: string }; searchParams?: { edit?: string } }) {
+export default async function StaffProfilePage({ params, searchParams }: { params: { id: string }; searchParams?: { edit?: string; linked?: string; existing?: string; error?: string } }) {
   const session = requireSession();
   const { listInstitutes } = await import("@/lib/store");
   const institutes = await listInstitutes();
@@ -51,12 +51,24 @@ export default async function StaffProfilePage({ params, searchParams }: { param
     staffActivity(staff.id),
   ]);
   const email = staff.email ?? (logins[0] as any)?.email as string | undefined;
+  // KID-171 (D2): `logins` is the account→staff link. No entry means this staff
+  // record is invisible to `classroomStaffForParent`, so no parent in their
+  // classrooms can message them at all.
+  const hasLogin = logins.length > 0;
   // KID-113: show "Resend activation" next to the role only while the linked
   // login account is still unconfirmed.
   const staffUnactivated = email != null && Number((logins[0] as any)?.email_confirmed) === 0;
 
   const tabs = [
-    { id: "profile", label: "Profile", node: profileTab(staff, rooms, email, statusLog, activity, searchParams?.edit) },
+    {
+      id: "profile",
+      label: "Profile",
+      node: profileTab(staff, rooms, email, statusLog, activity, searchParams?.edit, hasLogin, {
+        linked: searchParams?.linked,
+        existing: searchParams?.existing,
+        error: searchParams?.error,
+      }),
+    },
     { id: "calendar", label: "Calendar", node: calendarTab(schedules) },
   ];
 
@@ -107,7 +119,27 @@ function statusCard(staff: any) {
   );
 }
 
-function profileTab(staff: any, rooms: any[], email: string | undefined, statusLog: any[], activity: any, editing: string | undefined) {
+// KID-171 (D2): every refusal `linkStaffLoginAction` can make, said in words.
+// The action only ever redirects, so without this the admin saw the same page
+// back with no idea why.
+const LINK_ERRORS: Record<string, string> = {
+  email: "Enter a valid email address for the new login.",
+  password: "Set a password of at least 8 characters.",
+  belongs: "That email already belongs to a different staff member. Use the email on their own profile.",
+  notfound: "That staff record is not in this centre.",
+  link: "The staff record could not be read. Try again.",
+};
+
+function profileTab(
+  staff: any,
+  rooms: any[],
+  email: string | undefined,
+  statusLog: any[],
+  activity: any,
+  editing: string | undefined,
+  hasLogin: boolean,
+  loginFeedback: { linked?: string; existing?: string; error?: string }
+) {
   const infoRows: [string, any][] = [
     ["Full name", staff.full_name],
     ["Role", staff.role ? cap(staff.role) : "—"],
@@ -119,9 +151,45 @@ function profileTab(staff: any, rooms: any[], email: string | undefined, statusL
     ["Last date", staff.last_date ? new Date(staff.last_date).toDateString() : "—"],
   ];
   const openEdit = editing === "status" || editing === "info";
+  const linkError = loginFeedback.error ? LINK_ERRORS[loginFeedback.error] ?? LINK_ERRORS.link : null;
   return (
     <div>
       {statusCard(staff)}
+
+      {/* KID-171 (D2): a staff record with no login cannot be messaged by any
+          parent in its classrooms, and there was no way to fix that from the UI
+          — `addStaffAction` only creates new staff records. */}
+      {!hasLogin ? (
+        <div className="card mb-4">
+          <h3 className="subtitle">Portal login</h3>
+          <p className="muted small">
+            This staff member has no sign-in. Parents in their assigned classrooms cannot message them
+            until a login is linked to this record.
+          </p>
+          {loginFeedback.linked ? (
+            <p className="small" role="status" style={{ color: "#047857" }}>
+              {loginFeedback.existing
+                ? "That email already had an account — it is now linked to this staff record."
+                : "Login created and linked. Share the email and password with them."}
+            </p>
+          ) : null}
+          {linkError ? (
+            <p className="form-error small" role="alert" data-testid="staff-link-error">
+              {linkError}
+            </p>
+          ) : null}
+          <form action={linkStaffLoginAction} className="row" style={{ gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+            <input type="hidden" name="staffId" value={String(staff.id)} />
+            <input className="input" name="email" type="email" placeholder="Login email" defaultValue={email ?? ""} required />
+            <input className="input" name="password" type="password" placeholder="Password (min 8 characters)" required />
+            <button className="btn btn-primary small" type="submit">Create login</button>
+          </form>
+          <p className="small muted">
+            If this email already has an account, it is linked to this staff record and the password box
+            is ignored.
+          </p>
+        </div>
+      ) : null}
 
       <div className="card mb-4">
         <div className="row" style={{ justifyContent: "space-between", alignItems: "center" }}>

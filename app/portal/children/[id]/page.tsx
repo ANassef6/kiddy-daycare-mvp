@@ -25,10 +25,8 @@ import {
   acknowledgeIncidentAction,
 } from "@/lib/actions";
 import Avatar from "@/components/Avatar";
-import ResendActivationButton from "@/components/ResendActivationButton";
-import ResendInviteButton from "@/components/ResendInviteButton";
-import SendInviteButton from "@/components/SendInviteButton";
-import { isValidInviteEmail } from "@/lib/invite-email";
+import ContactInviteActions from "@/components/ContactInviteActions";
+import { contactInviteState } from "@/lib/contact-invite-state";
 import RelationshipSelect from "@/components/RelationshipSelect";
 import MediaDownloadAll from "@/components/MediaDownloadAll";
 import { getBranding } from "@/lib/theme";
@@ -416,17 +414,19 @@ function contactsTab(child: any, contacts: any[], dict: any, activation?: Map<st
         <h3 className="subtitle">{t("profile.pickupAndFamilyContacts")}</h3>
         {contacts.length === 0 ? <p className="muted small">{t("profile.noneContact")}</p> : null}
         {contacts.map((c: any) => {
-          const showActivation = showResendForContact(c, activation);
-          const inviteId = showActivation ? null : pendingInviteIdForContact(c, pendingInvites);
-          // No login and no pending invite: one-click send that creates the
-          // invite and emails it without leaving the page. The button
-          // confirms inline; failures name the cause (e.g. mail provider).
+          // KID-171 (D1): one resolver decides the state from account presence
+          // and confirmation. The old inline test (`!showActivation &&
+          // !inviteId && validEmail`) could not tell "no account" from "account
+          // confirmed", so an activated parent fell through to "Send invite".
           const email = String(c?.email ?? "").trim();
-          const canSendInvite =
-            !showActivation && !inviteId && isValidInviteEmail(email);
+          const state = contactInviteState({
+            email,
+            account: activation?.get(email.toLowerCase()),
+            pendingInviteId: pendingInviteIdForContact(c, pendingInvites),
+          });
           return (
           <div className="list-item" key={c.id}>
-            <div className="small"><strong>{c.full_name}</strong> ({contactRoleLabel(c.relationship)})<br /><span className="muted">{c.phone}</span>{c.email ? <><br /><span className="muted">{c.email}</span></> : null}{showActivation ? <><br /><ResendActivationButton email={String(c.email)} /></> : inviteId ? <><br /><ResendInviteButton inviteId={inviteId} /></> : canSendInvite ? <><br /><SendInviteButton childId={String(child.id)} email={email.toLowerCase()} relationship={String(c.relationship ?? "parent")} /></> : null}</div>
+            <div className="small"><strong>{c.full_name}</strong> ({contactRoleLabel(c.relationship)})<br /><span className="muted">{c.phone}</span>{c.email ? <><br /><span className="muted">{c.email}</span></> : null}<ContactInviteActions state={state} childId={String(child.id)} relationship={String(c.relationship ?? "parent")} activatedLabel={t("profile.contactActivated")} /></div>
             <div>{c.is_pickup && <span className="badge">{t("child.pickup")}</span>}{c.is_emergency && <span className="badge badge-red">{t("child.emergency")}</span>}</div>
           </div>
           );
@@ -612,22 +612,10 @@ function contactRoleLabel(relationship: unknown): string {
   return labels[key] ?? (raw || "—");
 }
 
-// KID-113: resend affordance only for contacts whose login account exists
-// and is still unconfirmed. Contacts without an account (no login yet) and
-// activated accounts show nothing.
-function showResendForContact(
-  contact: any,
-  activation?: Map<string, { email: string; unactivated: boolean }>
-): boolean {
-  const email = String(contact?.email ?? "").trim().toLowerCase();
-  if (!email || !activation) return false;
-  return activation.get(email)?.unactivated === true;
-}
-
-// KID-115: invite-resend affordance for contacts with a pending invite but no
-// unactivated login account (the GoTrue button above correctly stays hidden
-// for them). Returns the pending invite id, or null when there is nothing to
-// resend (no email, or no pending invite — admin uses "Invite a parent").
+// KID-115: pending-invite lookup for a contact's email. Returns the invite id
+// or null. Whether that invite is worth an affordance is
+// `contactInviteState`'s call, not this one's — an activated account outranks a
+// leftover invite row.
 function pendingInviteIdForContact(
   contact: any,
   pendingInvites?: Map<string, any>

@@ -43,3 +43,22 @@ export function pickRecipient(recipients: Row[], requestedId?: string | null): R
   if (!wanted) return recipients[0];
   return recipients.find((r) => String(r.id) === wanted) ?? recipients[0];
 }
+
+/**
+ * KID-171 (D3): the unread total a parent can actually act on.
+ *
+ * `unreadCountForAccount` counts every unread message addressed to the account,
+ * with no participant scoping, while `threadsForAccountScoped` drops any thread
+ * whose other participants are not classroom-assigned staff. KID-169 wired the
+ * /child/messages page to the scoped list and left the counter unscoped, so the
+ * only thread a parent may not see was the only one that could light their
+ * badge: the page read "Messages (1 unread)" above an empty list, and no click
+ * anywhere could ever open or clear it.
+ *
+ * The badge is therefore summed from the threads the page actually lists, so the
+ * number and the list cannot disagree. `threadsForAccount` already returns a
+ * per-thread `unread_count`, so this costs no extra query.
+ */
+export function sumVisibleUnread(threads: Row[]): number {
+  return threads.reduce((total, thread) => total + (Number(thread.unread_count ?? 0) || 0), 0);
+}

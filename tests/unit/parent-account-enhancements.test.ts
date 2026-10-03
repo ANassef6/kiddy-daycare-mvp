@@ -483,7 +483,11 @@ describe("KID-144 classroom staff messaging", () => {
 
     const allowed = await store.classroomStaffForParent(parent.id as string);
     const names = allowed.map((s) => String(s.full_name)).sort();
-    expect(names).toEqual(["Carer A"]);
+    // KID-171 (D2): the seeded centre now links its owner login to the Maria
+    // Lopez staff record, which is assigned to this room, so she is a legitimate
+    // recipient. Carer B (Preschool only) is still excluded — that is the
+    // assertion this test exists for.
+    expect(names).toEqual(["Carer A", "Maria Lopez"]);
   });
 
   it("includes staff assigned to any room when the parent has children in multiple rooms", async () => {
@@ -503,7 +507,9 @@ describe("KID-144 classroom staff messaging", () => {
 
     const allowed = await store.classroomStaffForParent(parent.id as string);
     const names = allowed.map((s) => String(s.full_name)).sort();
-    expect(names).toEqual(["Carer A", "Carer B"]);
+    // KID-171 (D2): staff assigned to *either* room come back, and the seeded
+    // centre owner — whose staff record is assigned to both — with them.
+    expect(names).toEqual(["Carer A", "Carer B", "Maria Lopez"]);
   });
 
   it("threadsForAccountScoped hides threads with non-classroom participants", async () => {

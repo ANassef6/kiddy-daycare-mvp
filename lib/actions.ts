@@ -855,6 +855,85 @@ export async function addStaffAction(formData: FormData) {
   redirect(`/portal/staff?added=1&email=${encodeURIComponent(email)}`);
 }
 
+// KID-171 (D2): give a staff record that already exists a portal login.
+//
+// `addStaffAction` can only ever create a *new* staff record, so a centre whose
+// staff were added without an email had no way to reach parent→daycare messaging
+// from the UI. `classroomStaffForParent` needs account → staff → staff_room, so a
+// staff row with no login is invisible to every parent, and the only repair was a
+// direct database write. Production 2026-10-03: every staff row on /portal/staff
+// read "No login yet", so parent→daycare messaging was unavailable deployment-wide.
+//
+// This links a login to the existing staff record instead of duplicating the
+// person. Classrooms stay where they are — the staff profile's existing editor
+// owns room assignment. The password is required rather than generated, so no
+// credential ever travels back through a redirect URL.
+export async function linkStaffLoginAction(formData: FormData) {
+  requireAdmin();
+  await ensureSchema();
+  const instituteId = await firstInstituteId();
+  const staffId = String(formData.get("staffId") ?? "").trim();
+  const email = String(formData.get("email") ?? "").trim().toLowerCase();
+  const passwordInput = String(formData.get("password") ?? "").trim();
+  const back = staffId ? `/portal/staff/${staffId}` : "/portal/staff";
+
+  if (!staffId || !instituteId) redirect(`/portal/staff?error=link`);
+  if (!isValidInviteEmail(email)) redirect(`${back}?error=email`);
+
+  // Authorize the resource, not just the role: the staff record must belong to
+  // this institute, so a forged id from another centre cannot be linked.
+  const staff = await queryGet("SELECT id, full_name FROM staff WHERE id = ? AND institute_id = ?", staffId, String(instituteId));
+  if (!staff) redirect(`${back}?error=notfound`);
+
+  const existing = await findAccountByEmail(email);
+  if (existing) {
+    // `findAccountByEmail` selects without `staff_id`, so read the link
+    // explicitly — reading it off that row would silently pass every check and
+    // let this action re-point an account that belongs to another staff record.
+    const linked = await queryGet("SELECT staff_id FROM account WHERE id = ?", String(existing.id));
+    // Never move a person's access between staff records: if this email already
+    // belongs to a different staff member, say so instead of hijacking it.
+    if (linked?.staff_id && String(linked.staff_id) !== staffId) {
+      redirect(`${back}?error=belongs`);
+    }
+    if (String(linked?.staff_id ?? "") !== staffId) {
+      await queryRun("UPDATE account SET staff_id = ? WHERE id = ?", staffId, String(existing.id));
+    }
+    await queryRun("UPDATE staff SET email = ? WHERE id = ?", email, staffId);
+    redirect(`${back}?linked=1&existing=1`);
+  }
+
+  const password = passwordInput;
+  if (password.length < 8) redirect(`${back}?error=password`);
+  const account = await createAccount({
+    email,
+    password,
+    fullName: String(staff.full_name ?? ""),
+    role: "staff",
+  });
+  await queryRun("UPDATE account SET staff_id = ? WHERE id = ?", staffId, String(account.id));
+  await queryRun("UPDATE staff SET email = ? WHERE id = ?", email, staffId);
+  // Best-effort GoTrue identity, same channel as addStaffAction, so the
+  // reset-password email flow works later. A failure must not roll back the
+  // app-side account — log it loudly instead.
+  if (supabaseConfigured()) {
+    try {
+      await getSupabase().auth.signUp({
+        email,
+        password,
+        options: { emailRedirectTo: `${publicOrigin(requestOrigin())}/auth/confirm` },
+      });
+    } catch (err) {
+      console.error(
+        `KID-171 linkStaffLogin: GoTrue signUp failed for staff ${email}:`,
+        err instanceof Error ? err.message : err
+      );
+    }
+  }
+
+  redirect(`${back}?linked=1`);
+}
+
 function genTempPassword(): string {
   const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789";
   let out = "";

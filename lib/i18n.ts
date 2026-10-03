@@ -418,6 +418,11 @@ export const en = {
     female: "Female",
     saveChanges: "Save changes",
     pickupAndFamilyContacts: "Pickup & family contacts",
+    // KID-171 (D1): an explicit state for a contact whose login account is
+    // confirmed. Before this the state was implied by which button was missing,
+    // and "no button" also covered "no account" — so an active parent read as
+    // not yet invited.
+    contactActivated: "Activated — has their own login",
     noneContact: "None.",
     addContact: "Add contact",
     relationship: "Relationship",
@@ -869,6 +874,7 @@ export const ar = {
     female: "أنثى",
     saveChanges: "حفظ التغييرات",
     pickupAndFamilyContacts: "الاستلام وجهات اتصال العائلة",
+    contactActivated: "مُفعّل — لديه حساب دخول خاص به",
     noneContact: "لا يوجد.",
     addContact: "إضافة جهة اتصال",
     relationship: "صلة القرابة",

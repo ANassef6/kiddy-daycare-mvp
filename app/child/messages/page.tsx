@@ -7,10 +7,9 @@ import {
   threadParticipantIds,
   markThreadRead,
   markRead,
-  unreadCountForAccount,
   conversation,
 } from "@/lib/store";
-import { parentMessageRecipients, pickRecipient } from "@/lib/parent-messaging";
+import { parentMessageRecipients, pickRecipient, sumVisibleUnread } from "@/lib/parent-messaging";
 import { getAccount } from "@/lib/auth";
 import { firstInstituteId, fmtTime } from "@/lib/helpers";
 import { sendParentMessageAction } from "@/lib/actions";
@@ -48,10 +47,12 @@ export default async function ParentMessagesPage({
         : "";
 
   const me = await getAccount(session.accountId);
-  const [threads, totalUnread] = await Promise.all([
-    threadsForAccountScoped(session.accountId),
-    unreadCountForAccount(session.accountId),
-  ]);
+  // KID-171 (D3): the badge counts unread messages in the threads this page
+  // lists. It used to come from the unscoped `unreadCountForAccount`, so a
+  // thread the scoped list drops (a participant who is not classroom-assigned
+  // staff) lit a badge that no click could open or clear.
+  const threads = await threadsForAccountScoped(session.accountId);
+  const totalUnread = sumVisibleUnread(threads);
 
   const threadId = searchParams.thread;
   let thread: any = null;

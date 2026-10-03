@@ -1,4 +1,4 @@
-import { queryGet } from "./db";
+import { queryGet, queryRun } from "./db";
 import * as store from "./store";
 import { createAccount } from "./auth";
 import { ensureCurriculumSeeded, ageGroupForDob } from "./curriculum";
@@ -37,7 +37,7 @@ export async function seedDemo() {
   const roomA = await store.createRoom(iid, "Toddlers", 12);
   const roomB = await store.createRoom(iid, "Preschool", 16);
 
-  await store.createStaff({
+  const adminStaff = await store.createStaff({
     instituteId: iid,
     fullName: "Maria Lopez",
     role: "admin",
@@ -45,12 +45,25 @@ export async function seedDemo() {
   });
 
   // Admin portal account
-  await createAccount({
+  const adminAccount = await createAccount({
     email: "admin@sunshinedaycare.test",
     password: "kiddy-admin",
     fullName: "Maria Lopez",
     role: "owner",
   });
+
+  // KID-171 (D2): link the login to the staff record it belongs to. Without
+  // `account.staff_id` the seeded owner was a login with no staff record, and
+  // `classroomStaffForParent` — which needs account → staff → staff_room — found
+  // nothing, so no parent in a seeded centre could message the daycare at all.
+  // Production carries the same shape (every staff row on /portal/staff read
+  // "No login yet"), so the seeded centre was the reference for a deployment
+  // that could not message.
+  await queryRun(
+    "UPDATE account SET staff_id = ? WHERE id = ?",
+    adminStaff.id as string,
+    adminAccount.id as string
+  );
 
   const childA = await store.createChild({
     instituteId: iid,

@@ -106,15 +106,22 @@ describe("KID-169 the daycare recipient contract is one set", () => {
     await queryRun("UPDATE account SET staff_id = ? WHERE id = ?", String(unassigned.id), String(unassignedAcc.id));
 
     const offered = await parentMessageRecipients(String(parent.id));
-    expect(offered.map((r) => String(r.full_name))).toEqual(["Room A Carer"]);
+    // KID-171 (D2): the seeded centre links its owner login to a staff record
+    // assigned to Toddlers, so she joins the legitimate set. `unassigned`
+    // below — the account `centerContactAccount` used to hand every parent —
+    // must still not be in it.
+    expect(offered.map((r) => String(r.full_name)).sort()).toEqual(["Maria Lopez", "Room A Carer"]);
+    expect(offered.map((r) => String(r.id))).not.toContain(String(unassignedAcc.id));
 
     // Every id the page can put in the form is one the action accepts.
     for (const r of offered) {
       const to = await sendAs(String(parent.id), String(r.id), "hello");
       expect(to).toBe("/child/messages");
     }
-    expect(await storedMessages()).toHaveLength(1);
-    expect((await storedMessages())[0].recipient_account_id).toBe(String(roomAcc.id));
+    expect(await storedMessages()).toHaveLength(offered.length);
+    expect((await storedMessages()).map((m) => m.recipient_account_id).sort()).toEqual(
+      offered.map((r) => String(r.id)).sort()
+    );
 
     // The account the old page offered, and every other account in the
     // deployment, is refused with the error the page now renders.
@@ -122,7 +129,7 @@ describe("KID-169 the daycare recipient contract is one set", () => {
       const to = await sendAs(String(parent.id), forged, "hello again");
       expect(to).toBe("/child/messages?error=recipient");
     }
-    expect(await storedMessages()).toHaveLength(1);
+    expect(await storedMessages()).toHaveLength(offered.length);
   });
 
   it("drops a forged `to` parameter instead of rendering it as a recipient", async () => {
@@ -142,14 +149,22 @@ describe("KID-169 the daycare recipient contract is one set", () => {
       expect(String(picked!.id)).not.toBe(requested);
     }
 
-    // The first allowed recipient is the default when no `to` is given.
-    expect(String(pickRecipient(await parentMessageRecipients(String(parent.id)))!.id)).toBe(String(roomAcc.id));
+    // The default when no `to` is given is some allowed recipient, never a
+    // forged one. KID-171 (D2) makes the seeded centre owner legitimately
+    // allowed here too, so the assertion is membership, not a fixed name.
+    const defaulted = String(pickRecipient(await parentMessageRecipients(String(parent.id)))!.id);
+    expect(allowed.has(defaulted)).toBe(true);
+    expect(defaulted).not.toBe(String(owner.id));
+    expect(String(pickRecipient(await parentMessageRecipients(String(parent.id)), String(roomAcc.id))!.id)).toBe(String(roomAcc.id));
   });
 
   it("reports nobody available instead of falling back to another account", async () => {
-    // The QA fixture centre has no staff assigned to the child's room. The page
-    // must show an empty state, not substitute some other centre's admin.
-    const child = await store.createChild({ instituteId: iid, firstName: "Becca", lastName: "Nassef", roomId: roomA });
+    // A room with no staff assigned at all — the page must show an empty state,
+    // not substitute some other centre's admin. KID-171 (D2) linked the seeded
+    // centre owner to Toddlers and Preschool, so this case needs a room of its
+    // own to stay genuinely empty.
+    const emptyRoom = await store.createRoom(iid, "Empty Room", 4);
+    const child = await store.createChild({ instituteId: iid, firstName: "Becca", lastName: "Nassef", roomId: String(emptyRoom.id) });
     const parent = await createAccount({ email: "kid169-empty@example.com", password: "x", fullName: "Parent", role: "parent" });
     await store.linkFamily(String(parent.id), String(child.id));
     const owner = await createAccount({ email: "lonely-owner@example.com", password: "x", fullName: "Centre Owner", role: "owner" });
