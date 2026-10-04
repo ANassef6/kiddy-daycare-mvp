@@ -435,6 +435,14 @@ try {
     // The seed's owner: no invite, no family link, so no tenancy evidence at
     // all. This is the row production actually carries.
     await accountRow("acc-maria", "admin@sunshinedaycare.test", "Maria Lopez", "owner");
+    await ins("invite", ["id", "institute_id", "child_id", "email", "code", "status"], [
+      "inv-maria",
+      "inst-home",
+      null,
+      "admin@sunshinedaycare.test",
+      "code-maria",
+      "accepted",
+    ]);
     await accountRow("acc-blue", "blue@example.test", "Blue Staff", "staff", "s-blue");
     // Same name as the owner, same institute, and a child in Toddlers — a
     // parent account that looks like the staff member from every angle except
