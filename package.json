@@ -9,6 +9,8 @@
     "start": "next start",
     "lint": "next lint",
     "db:init": "tsx lib/seed.ts",
+    "db:verify-migrations": "node supabase/verify-migrations.mjs",
+    "db:mutation-check-0020": "python3 supabase/mutation-check-0020.py",
     "test": "vitest run"
   },
   "dependencies": {
@@ -20,6 +22,7 @@
     "react-dom": "^18.3.1"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "^0.3.16",
     "@types/better-sqlite3": "^7.6.13",
     "@types/node": "20.19.43",
     "@types/pg": "^8.23.1",

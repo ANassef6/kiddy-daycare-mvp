@@ -119,6 +119,14 @@ a page load: `ensurePgSchema()` skips every file already in `schema_migrations`
 (`lib/sqlite-schema.ts`). So a reset fixture is **stable on production** and **unstable
 locally**. Never reason about post-`0019` production behaviour through a local `ensureSchema()`.
 
+**That is about a file already in the ledger. A file that is *not* in the ledger goes the other
+way** — `app/child/layout.tsx` and `app/portal/layout.tsx` each `await ensureSchema()`, so a newly
+deployed migration applies itself on the first authenticated request, with no deploy step and no
+staff action. Do not read "page loads cannot re-run migrations" as "a deploy is inert." See
+"How database migrations are applied" in `docs/CONTACT_AND_ACCOUNTS.md` for the full runner
+properties, and note that its `try/catch` call sites mean a migration that throws still renders a
+normal page.
+
 **Run order.** Each step is a checkpoint; record the child count at every one, because the
 value of the whole pass is the sequence, not the final frame.
 
@@ -137,6 +145,12 @@ value of the whole pass is the sequence, not the final frame.
    ambiguous.
 5. **A3 — observe.** Parent reloads `/child`. Record: **2** cards, each name exactly once
    (C2), correct name and classroom on each.
+   - **Record the relationship role on each card too**, not only the count. A count of 2 with
+     one link downgraded to `pickup` or `no_access` satisfies C1 and C2 as written. See
+     [KID-160](/KID/issues/KID-160): `linkSiblingsByParentEmail` writes the role of whichever
+     same-address contact the engine returns last, with no precedence, so a second contact
+     with a weaker relationship can overwrite a `parent` role. Until that is fixed, a green
+     C1/C2 here does not prove the parent holds `parent` access to both children.
 6. **A4 — no drift.** Reload again in a fresh session. Still 2, identical list (C3).
 7. **A5 — no widening.** Record `crossInstituteFamilyMemberRows()` for the account (empty) and
    `SELECT count(DISTINCT institute_id) FROM institute`. Use the shipped function, never a
@@ -158,3 +172,47 @@ contact path is what restores it, a second save does not duplicate, blank and nu
 grant nothing, and the local mirror's re-run behaviour is recorded as the harness asymmetry it
 is. It is mutation-checked — a no-op reset fails five of its six cases and an over-tightened
 tenant gate fails the three runtime cases — so it cannot pass by being blind.
+
+## Identifying the deployed commit (added after the 2026-10-03 KID-172 pass)
+
+P3 says the deployed build must correspond to a commit. On this project there is **no build id or
+commit sha on any page**, so "check the build id" is not executable as written. It was resolved by
+finding a string that only the candidate commit's own code can render.
+
+**Two markers that look valid and are not. Do not use either.**
+
+- **Chunk hashes.** Measured on 2026-10-03: production served
+  `app/login/page-5f83c66d7f3b0a23.js`; the local pre-`2fd0129` `.next` held
+  `page-88c0fd7120ebf3b4.js`; a fresh local `next build` of `2fd0129` produced
+  `page-2f3b2f9cb5a68639.js`. Three builds, three hashes. Vercel inlines per-build server-action
+  ids into the client chunk graph, so the hash moves even when the source does not. **A chunk
+  hash is not deploy evidence here.**
+- **`No login yet`.** Present at `13f3ae8:app/portal/staff/page.tsx:138`, which predates
+  `2fd0129`. It is pre-existing copy, not new code, so its presence proves nothing about the
+  deploy.
+
+**A marker that works.** `2fd0129` renders a **Portal login** card on `/portal/staff/<id>` when
+`!hasLogin`, and `hasLogin` is `SELECT ... FROM account WHERE staff_id = ?`
+(`app/portal/staff/[id]/page.tsx:49,57,162`). No earlier commit can render that heading, and it
+reads the `account -> staff` link directly rather than through a proxy.
+
+**Check every row, not one.** A marker seen on a single record proves nothing if it is a
+constant. Observed 2026-10-03 across all four staff records: card **present** on 2/2 records whose
+list row reads `No login yet`, **absent** on 2/2 records that show an email. A marker that is
+present everywhere is as useless as one that is present nowhere.
+
+## Reading the portal UI for the D2 repair
+
+The family contacts panel and the staff profile are both reachable only by clicking. Two traps,
+both of which make a pass silently vacuous:
+
+- **The contacts panel is behind a client-side tab.** `ChildProfileTabs` renders the active panel
+  in a plain `div` — there is **no `role="tabpanel"`** — so an `innerText` of the page, or a
+  locator for `[role="tabpanel"]`, reads the default tab and reports zero contacts. Click each
+  tab, then read the tablist's following sibling.
+- **Reachability is per child, not per centre.** `classroomStaffForParent` needs
+  `child.room_id = staff_room.room_id`, so a staff member who *is* reachable may still not serve
+  the children under test. On 2026-10-03 `bluestaff` had both a login and a classroom, and the QA
+  parent still saw no recipient, because that classroom was `manual test` while Kian and Lina were
+  in `Toddlers`. Always record each child's room next to each staff member's rooms, or "this
+  staff member is fine" will be the wrong conclusion.

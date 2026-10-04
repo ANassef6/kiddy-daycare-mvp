@@ -755,5 +755,33 @@ export function sqliteSchema(db: any): void {
       ) ranked
       WHERE ranked.rn = 1
       ON CONFLICT (account_id, child_id) DO NOTHING`);
-  } catch {}
+    } catch {}
+    // KID-173: mirror of supabase/migrations/0020_staff_login_link.sql.
+    try {
+      db.exec(`UPDATE account
+        SET staff_id = (
+          SELECT s.id
+          FROM staff s
+          WHERE s.institute_id IS NOT NULL
+            AND lower(trim(s.full_name)) = lower(trim(account.full_name))
+            AND NOT EXISTS (SELECT 1 FROM account a2 WHERE a2.staff_id = s.id)
+            AND (
+              EXISTS (
+                SELECT 1 FROM (
+                  SELECT c2.institute_id FROM family_member fm JOIN child c2 ON c2.id = fm.child_id WHERE fm.account_id = account.id
+                  UNION
+                  SELECT i.institute_id FROM invite i WHERE lower(trim(i.email)) = lower(trim(account.email))
+                ) owned
+                WHERE owned.institute_id = s.institute_id
+              )
+              OR (
+                (SELECT COUNT(*) FROM institute) = 1
+                AND s.institute_id = (SELECT id FROM institute LIMIT 1)
+              )
+            )
+          ORDER BY s.created_at ASC, s.id ASC
+          LIMIT 1
+        )
+        WHERE staff_id IS NULL AND role <> 'parent'`);
+    } catch {}
 }

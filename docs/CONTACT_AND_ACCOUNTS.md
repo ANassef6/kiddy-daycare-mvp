@@ -302,37 +302,111 @@ single institute a cross-tenant grant is not expressible, so `0` is what a broke
 measurement returns too. The gate should read this function's output, and
 separately record `SELECT count(DISTINCT institute_id) FROM institute`.
 
+#### The six `false` rows on production: reviewed, and standing answer (KID-153)
+
+The gate reports 6 rows on production, all `has_other_justification: false`, all at
+the one institute, all to the same child. They were reviewed account by account and
+**all 6 are left in place.** They are probe residue, not a legitimate lone link, and
+that is precisely why none of them is deleted.
+
+| account email | `full_name` | invites | contacts | `auth_user_id` |
+| --- | --- | --- | --- | --- |
+| `final.1788662956@test.example` | Reg2 Parent | 0 | 0 | null |
+| `inv2.1788662736@test.example` | Reg2 Parent | 0 | 0 | null |
+| `mom.kida.1788655924@gmail.com` | Live Parent | 0 | 0 | null |
+| `probe.1788659057592@example.test` | Probe Parent | 0 | 0 | null |
+| `probe.1788660828707@example.test` | Probe Parent | 0 | 0 | null |
+| `probe.1788662901430@example.test` | Probe Parent | 0 | 0 | null |
+
+`full_name` is a test label in all six, and each local part is a `Date.now()` epoch
+that decodes to within seconds of that account's own `created_at` — the same
+generator shape as the `kid13*` fixtures. **Zero invites is the decisive column:** a
+`role=parent` account can only be created by `registerAction`, which requires a
+still-pending invite code, or by `lib/seed.ts` (`parent@example.test`). The staff
+path creates `role: "staff"` and the system path is `system@kiddy.local`. A
+`role=parent` account with no invite was therefore not made by the application.
+
+**Why they are still not deleted.** `0019`'s eligibility test cannot reach them —
+all 6 ids are hyphenated `uid()` links, so 0 of 6 match `^[0-9a-f]{32}$`. Removing
+them would mean inventing a *new* eligibility rule, which is the widening of blast
+radius the 32-hex test exists to prevent. And it would buy nothing: no invite, no
+contact, no `auth_user_id`, and a password only a script knows means no human can
+reach these accounts today, so the link is not the thing standing between anyone and
+Ella Nguyen. Meanwhile a wrong delete is irreversible and is exactly the lockout this
+migration line exists to prevent.
+
+These 6 are also not a new class. Production carries ~25 synthetic fixture accounts;
+16 of them (`kid13*`) hold no family link and have never been flagged. The 6 are just
+the subset that happens to hold a link. **If the fixtures are ever purged, purge the
+whole account — enumerated ids, human-confirmed, as its own change.** Deleting links
+while leaving the accounts behind would quieten the gate without removing the residue.
+
+So a future gate run that sees these same 6 rows has an answer already: expected,
+reviewed, and not a repair. Anything *new* in that list still needs the per-account
+look.
+
 ## How database migrations are applied
 
-**Answer: automatically, but lazily — deploying the code does not by itself
-apply a new migration, and no manual `psql` step is required.**
+**Answer: automatically, and a deploy is sufficient — but the application is still
+lazy, on the first request after that deploy. No manual `psql` step is required.**
 
 - `ensureSchema()` (`lib/db.ts`) is the single runner. In Postgres mode it calls
   `ensurePgSchema()`, which creates a `schema_migrations` ledger table, reads the
   files already recorded, applies every `supabase/migrations/*.sql` file **not**
   in the ledger in filename order, then records each one. Warm requests
   short-circuit on a module-level flag.
-- **There is no boot hook** — the project has no `instrumentation.ts`, and no
-  layout or page calls `ensureSchema()`. It is called from the server actions in
-  `lib/actions.ts` (the portal writes), from `lib/curriculum.ts`, and from
-  `npm run db:init` (`lib/seed.ts`).
-- Consequence: after a deploy, `0018` applies itself on the **first request that
-  runs one of those actions**. Parent-facing reads (`familiesForAccount` on
-  `/child/*`) do **not** trigger it, so a deploy that only ever serves page
-  views would leave the backfill pending.
+- **Both authenticated roots apply pending migrations.** `app/child/layout.tsx`
+  and `app/portal/layout.tsx` each `await ensureSchema()` inside a `try/catch`
+  that only `console.error`s. KID-147 added both, with the intent recorded in
+  `app/portal/layout.tsx`: *"Both authenticated roots now apply them, which makes
+  a deploy sufficient instead of merely necessary."* `ensureSchema()` is also
+  called from the server actions in `lib/actions.ts` (the portal writes), from
+  `lib/curriculum.ts`, and from `npm run db:init` (`lib/seed.ts`). There is
+  still no boot hook — the project has no `instrumentation.ts` — but the layout
+  call is what a real request hits first.
+- Consequence: after a deploy, a new migration applies itself on the **first
+  request to any `/child/*` or `/portal/*` page**. One signed-in parent loading
+  `/child` is enough. What you must **not** conclude is that the deploy left the
+  migration pending, or that you have a window in which it has not yet run.
 
-**The exact step to make it deterministic** — run this once against the deploy
-environment, right after deploying, instead of waiting for an organic write:
+**Do not follow a `db:init` step after a migration-only deploy.** It is not needed —
+the first page request applies the file. And it is not free: `db:init` also
+re-seeds the demo daycare, so running it can rewrite rows a migration just
+repaired, which makes any before/after row count you were about to report
+meaningless. Read the ledger instead:
 
-```bash
-# with the deploy env's KIDDY_DATABASE_URL set to the Supabase pooler URL
-npm run db:init
+```sql
+SELECT file, applied_at FROM schema_migrations ORDER BY file DESC LIMIT 5;
 ```
 
-`db:init` calls `ensureSchema()` (which applies any pending migration file) and
-then re-seeds the demo daycare, which is harmless because `seedDemo` is
-idempotent. If you would rather not seed, any single portal write action does
-the same job.
+The UI cannot stand in for this. Both `ensureSchema()` call sites swallow the
+error, so a migration that throws partway through still renders a normal page and
+the failure is invisible to the person looking at it.
+
+#### Three properties every migration file must satisfy because of how the runner is written
+
+These are properties of `ensurePgSchema()` (`lib/db.ts`), not of any one file, so
+they apply to every migration from here on:
+
+1. **No transaction wraps a file.** `pgExec()` splits the file and issues each
+   statement with its own `pool.query`, so each autocommits. If statement 3 of 5
+   fails, statements 1-2 are already committed and the file is *not* recorded —
+   the next request re-runs it from the top.
+2. **The ledger write happens after the file has run**, not before. Two cold
+   starts can both read the ledger, both see the file missing, and both execute
+   it. On a serverless platform with warm pools, that is not exotic.
+3. **Therefore idempotency is mandatory, not tidiness.** The end state must be the
+   same whether the file runs once, runs again after a partial failure, or runs
+   twice concurrently. In practice this means an `UPDATE` that assigns the same
+   value, not an `INSERT`, and not a `LIMIT 1` over rows that may tie — two
+   concurrent runs picking different rows from an unordered tie is the one
+   failure mode that survives property-by-property review.
+
+The SQLite test mirror (`lib/sqlite-schema.ts`) is hand-maintained TypeScript with
+one `db.exec()` twin per migration file, and it has no ledger at all: it re-runs
+every statement on every `ensureSchema()` call. So a migration added only to
+`supabase/migrations/` is invisible to the SQLite tests, and property 3 above is
+the property the mirror cannot exercise.
 
 The Postgres path was verified end-to-end against a real PostgreSQL 18 server:
 the full `0001` → `0018` chain applies cleanly through the same
