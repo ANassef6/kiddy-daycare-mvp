@@ -1,0 +1,55 @@
+{
+  "base": "https://kiddy-one.vercel.app",
+  "body": "KID-173 D2 check 2026-10-05T18-16-51-135Z",
+  "checks": [
+    {
+      "name": "P1 parent signs in with the published demo login",
+      "pass": true,
+      "detail": "https://kiddy-one.vercel.app/child"
+    },
+    {
+      "name": "P2 /child/messages renders a recipient control (not the no-staff empty state)",
+      "pass": true,
+      "detail": "noStaff=0 options=[\"Maria Lopez\"]"
+    },
+    {
+      "name": "P3 Maria Lopez appears as a recipient for this parent",
+      "pass": true,
+      "detail": "[\"Maria Lopez\"]"
+    },
+    {
+      "name": "P4 send is accepted (no recipient-refusal banner)",
+      "pass": true,
+      "detail": "url=https://kiddy-one.vercel.app/child/messages err=none"
+    },
+    {
+      "name": "P5 the sent message is stored and visible to the parent after reload",
+      "pass": true,
+      "detail": "body visible after reload :: KID-173 D2 check 2026-10-05T18-16-51-135Z"
+    },
+    {
+      "name": "S1 owner signs in",
+      "pass": true,
+      "detail": "https://kiddy-one.vercel.app/portal/dashboard"
+    },
+    {
+      "name": "S2 the owner receives the parent message",
+      "pass": true,
+      "detail": "message body present on /portal/messages"
+    },
+    {
+      "name": "S3 Maria Lopez's staff row shows the linked login",
+      "pass": true,
+      "detail": "trois4ever+bluestaff@gmail.com ; admin@sunshinedaycare.test ; staff.round5.1165531@kiddy-test.eg"
+    },
+    {
+      "name": "S4 staff rows still reading 'No login yet' (informational)",
+      "pass": false,
+      "detail": "1: No login yet"
+    }
+  ],
+  "consoleErrors": [
+    "[parent] Failed to load resource: the server responded with a status of 404 ()"
+  ],
+  "badResponses": []
+}

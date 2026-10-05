@@ -10,7 +10,6 @@
     "lint": "next lint",
     "db:init": "tsx lib/seed.ts",
     "db:verify-migrations": "node supabase/verify-migrations.mjs",
-    "db:mutation-check-0020": "python3 supabase/mutation-check-0020.py",
     "test": "vitest run"
   },
   "dependencies": {
