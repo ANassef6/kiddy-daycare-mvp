@@ -1,0 +1,46 @@
+{
+  "stamp": "2026-10-05T18:26:07.926Z",
+  "body": "Mika independent D2 recheck 2026-10-05T18:26:07.926Z",
+  "results": [
+    {
+      "name": "parent sign-in",
+      "pass": true,
+      "detail": "/child"
+    },
+    {
+      "name": "G1 /child renders a sibling list (recorded, not assumed)",
+      "pass": true,
+      "detail": "Kian x0, Lina x0; rendered=[\"News feed\",\"Events\",\"Learning\",\"Parent drive\",\"Surveys\",\"Consents\",\"Chat\",\"Support\",\"Settings\",\"Ella Nguyen\",\"Leo Nguyen\"]"
+    },
+    {
+      "name": "G2 /child/messages offers a recipient",
+      "pass": true,
+      "detail": "options=[\"Maria Lopez\"]"
+    },
+    {
+      "name": "G3b no messages-error element rendered",
+      "pass": true,
+      "detail": "absent"
+    },
+    {
+      "name": "G3 send accepted (no refusal banner)",
+      "pass": true,
+      "detail": "submitted"
+    },
+    {
+      "name": "G4 message visible to parent after full reload",
+      "pass": true,
+      "detail": "body present=true"
+    },
+    {
+      "name": "owner sign-in",
+      "pass": true,
+      "detail": "/portal/dashboard"
+    },
+    {
+      "name": "G5 owner receives the message (both ends)",
+      "pass": true,
+      "detail": "received=true"
+    }
+  ]
+}
