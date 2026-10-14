@@ -6,8 +6,14 @@ export type Tab = { id: string; label: string; node: ReactNode };
 
 // KID-53 #2: child profile tabbed layout. Tabs switch client-side without
 // reloading; active tab is underlined with the brand accent.
-export default function ChildProfileTabs({ tabs }: { tabs: Tab[] }) {
-  const [active, setActive] = useState(tabs[0]?.id ?? "");
+// KID-180: `initialTab` (validated server-side) lets an action land the staff
+// member back on the tab they submitted from — e.g. the family tab after
+// Add contact — instead of always reopening on the first tab.
+export default function ChildProfileTabs({ tabs, initialTab }: { tabs: Tab[]; initialTab?: string }) {
+  const [active, setActive] = useState(() => {
+    const requested = initialTab?.trim();
+    return requested && tabs.some((t) => t.id === requested) ? requested : tabs[0]?.id ?? "";
+  });
   const current = tabs.find((t) => t.id === active) ?? tabs[0];
   return (
     <div>

@@ -40,7 +40,7 @@ export default async function PortalNewsfeedPage() {
           <div className="col field" style={{ flex: 1.5 }}>
             <label className="label">Recipients</label>
             <RecipientsPicker
-              children={children.map((c: any) => ({ id: String(c.id), first_name: String(c.first_name), last_name: String(c.last_name), room_id: c.room_id ? String(c.room_id) : null, room_name: c.room_name ? String(c.room_name) : null }))}
+              childOptions={children.map((c: any) => ({ id: String(c.id), first_name: String(c.first_name), last_name: String(c.last_name), room_id: c.room_id ? String(c.room_id) : null, room_name: c.room_name ? String(c.room_name) : null }))}
               rooms={rooms.map((r) => ({ id: String(r.id), name: String(r.name) }))}
               role={session.role}
               assignedRoomIds={assignedRoomIds}

@@ -17,7 +17,7 @@ const PROGRESS_LEVELS = ["Emerging", "Developing", "Secure"] as const;
 // "Add curriculum goals" picker (areas left, age bands, single goal radio +
 // progress level, Cancel/Add selected). Fully localized (en/ar).
 export default function ObservationModal({
-  children,
+  childChoices,
   areas,
   byName,
   defaultChildId,
@@ -27,7 +27,7 @@ export default function ObservationModal({
   locale,
   dict,
 }: {
-  children: Child[];
+  childChoices: Child[];
   areas: Area[];
   byName: string;
   defaultChildId?: string;
@@ -38,7 +38,7 @@ export default function ObservationModal({
   dict: Dict;
 }) {
   const t = (key: string, vars?: Record<string, string | number>) => tr(dict, key, vars);
-  const [childId, setChildId] = useState(defaultChildId ?? children[0]?.id ?? "");
+  const [childId, setChildId] = useState(defaultChildId ?? childChoices[0]?.id ?? "");
   const [ageGroup, setAgeGroup] = useState(defaultAgeGroup ?? "");
   const [areaId, setAreaId] = useState(areas[0]?.id ?? "");
   const [observation, setObservation] = useState("");
@@ -112,7 +112,7 @@ export default function ObservationModal({
             <div className="col field">
               <label className="label">{t("learning.to")}</label>
               <select className="select" name="childId" value={childId} onChange={(e) => setChildId(e.target.value)} required>
-                {children.map((c) => (
+                {childChoices.map((c) => (
                   <option key={c.id} value={c.id}>
                     {c.first_name} {c.last_name}
                   </option>
@@ -235,7 +235,7 @@ export default function ObservationModal({
             </div>
             {selectedGoal && ageGroup && (
               <div className="mt-3">
-                <div className="label">{t("learning.ageBandPrompt", { band: ageGroup, name: children.find((c) => c.id === childId)?.first_name ?? t("learning.theChild") })}</div>
+                <div className="label">{t("learning.ageBandPrompt", { band: ageGroup, name: childChoices.find((c) => c.id === childId)?.first_name ?? t("learning.theChild") })}</div>
                 <div className="row" style={{ gap: 6, marginTop: 6 }}>
                   {PROGRESS_LEVELS.map((level) => (
                     <button

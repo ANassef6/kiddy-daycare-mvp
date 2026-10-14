@@ -12,7 +12,7 @@ export type PickerChild = {
 export type PickerRoom = { id: string; name: string };
 
 type Props = {
-  children: PickerChild[];
+  childOptions: PickerChild[];
   rooms: PickerRoom[];
   role: string;
   assignedRoomIds: string[];
@@ -28,7 +28,7 @@ type Props = {
 // a child clears the channel and vice versa, so a post goes to exactly one
 // target.
 export default function RecipientsPicker({
-  children: kids,
+  childOptions: kids,
   rooms,
   role,
   assignedRoomIds,

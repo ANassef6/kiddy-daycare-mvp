@@ -46,7 +46,15 @@ const DIAPERS = ["wet", "soiled", "dry"] as const;
 const SLEEP_VALUES = ["fellAsleep", "wokeUp"] as const;
 const SICK_VALUES = ["yes", "no"] as const;
 
-export default async function PortalChildPage({ params }: { params: { id: string } }) {
+export default async function PortalChildPage({
+  params,
+  searchParams,
+}: {
+  params: { id: string };
+  // KID-180: the Add-contact action lands back here with the family tab +
+  // the invite outcome, so the view the staff was working in survives submit.
+  searchParams: { tab?: string; error?: string; invite?: string; email?: string; activationUrl?: string; inviteDetail?: string };
+}) {
   const session = requireSession();
   const { locale, dict } = await i18nForAccount(session.accountId);
   const t = (key: string, vars?: Record<string, string | number>) => tr(dict, key, vars);
@@ -160,8 +168,80 @@ export default async function PortalChildPage({ params }: { params: { id: string
     },
   ];
 
+  // KID-180: only a tab id the profile actually offers may be preselected —
+  // anything else falls back to the default first tab.
+  const requestedTab = String(searchParams.tab ?? "").trim();
+  const initialTab = tabs.some((t) => t.id === requestedTab) ? requestedTab : undefined;
+  // KID-180: invite outcome of the Add-contact auto-send (and future paths).
+  const inviteStatus = String(searchParams.invite ?? "").trim();
+  const inviteEmail = String(searchParams.email ?? "").trim();
+  const inviteActivationUrl = String(searchParams.activationUrl ?? "").trim();
+  const inviteDetail = String(searchParams.inviteDetail ?? "").trim();
+  const relationshipError = searchParams.error === "relationship";
+
   return (
     <div>
+      {relationshipError && (
+        <div
+          role="alert"
+          className="card mt-3"
+          style={{ borderLeft: "4px solid #b91c1c" }}
+        >
+          <p className="small" style={{ margin: 0 }}>
+            {t("profile.contactRelationshipInvalid")}
+          </p>
+        </div>
+      )}
+      {inviteStatus && (
+        <div
+          role="status"
+          className="card mt-3"
+          style={{
+            borderLeft: `4px solid ${
+              inviteStatus === "sent" || inviteStatus === "activated"
+                ? "#047857"
+                : inviteStatus === "pending"
+                  ? "#b45309"
+                  : "#b91c1c"
+            }`,
+          }}
+        >
+          {inviteStatus === "sent" && (
+            <p className="small" style={{ margin: 0 }}>
+              {t("profile.contactInviteBannerSent", { email: inviteEmail })}
+            </p>
+          )}
+          {inviteStatus === "activated" && (
+            <p className="small" style={{ margin: 0 }}>
+              {t("profile.contactInviteBannerActivated", { email: inviteEmail })}
+            </p>
+          )}
+          {inviteStatus === "pending" && (
+            <div className="small">
+              <p style={{ margin: "0 0 8px" }}>
+                {t("profile.contactInviteBannerPending", { email: inviteEmail })}
+              </p>
+              {inviteActivationUrl && (
+                <p style={{ margin: "0 0 8px", overflowWrap: "anywhere" }}>
+                  <a href={inviteActivationUrl}>{inviteActivationUrl}</a>
+                </p>
+              )}
+              {inviteDetail && <p className="muted" style={{ margin: 0 }}>{inviteDetail}</p>}
+            </div>
+          )}
+          {inviteStatus !== "sent" && inviteStatus !== "pending" && inviteStatus !== "activated" && (
+            <div className="small">
+              <p style={{ margin: "0 0 8px" }}>{t("profile.contactInviteBannerFailed")}</p>
+              {inviteActivationUrl && (
+                <p style={{ margin: "0 0 8px", overflowWrap: "anywhere" }}>
+                  <a href={inviteActivationUrl}>{inviteActivationUrl}</a>
+                </p>
+              )}
+              {inviteDetail && <p className="muted" style={{ margin: 0 }}>{inviteDetail}</p>}
+            </div>
+          )}
+        </div>
+      )}
       <Link className="small muted" href="/portal/children">← {t("profile.backToChildren")}</Link>
       <div className="row" style={{ alignItems: "center", gap: 14, marginTop: 8 }}>
         <Avatar src={child.photo_url} name={`${child.first_name} ${child.last_name}`} size={56} color={branding.primaryColor} />
@@ -182,7 +262,7 @@ export default async function PortalChildPage({ params }: { params: { id: string
         <Link href={`/portal/children/${child.id}/development`} className="btn btn-ghost" style={{ fontSize: 13 }}>{t("profile.development")}</Link>
       </div>
       <div style={{ marginTop: 18 }}>
-        <ChildProfileTabs tabs={tabs} />
+        <ChildProfileTabs tabs={tabs} initialTab={initialTab} />
       </div>
     </div>
   );
@@ -548,7 +628,7 @@ function learningTab(child: any, areas: any[], observations: any[], byName: stri
         <h3 className="subtitle">{t("profile.logObservation")}</h3>
         <p className="small muted">{t("profile.learningHint")}</p>
         <ObservationModalTrigger
-          children={[child]}
+          childChoices={[child]}
           areas={areas}
           byName={byName}
           defaultChildId={String(child.id)}

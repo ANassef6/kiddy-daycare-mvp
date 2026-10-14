@@ -6,7 +6,7 @@ import type { Locale, Dict } from "@/lib/i18n";
 import { tr } from "@/lib/i18n";
 
 type Props = {
-  children: any[];
+  childChoices: any[];
   areas: any[];
   byName: string;
   defaultChildId?: string;
@@ -17,7 +17,7 @@ type Props = {
 };
 
 export default function ObservationModalTrigger({
-  children,
+  childChoices,
   areas,
   byName,
   defaultChildId,
@@ -33,7 +33,7 @@ export default function ObservationModalTrigger({
         {trigger ?? <button type="button" className="btn btn-primary small">{tr(dict, "learning.newObservation")}</button>}
       </span>
       <ObservationModal
-        children={children}
+        childChoices={childChoices}
         areas={areas}
         byName={byName}
         defaultChildId={defaultChildId}

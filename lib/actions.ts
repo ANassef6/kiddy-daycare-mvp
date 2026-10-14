@@ -68,6 +68,7 @@ import type { WorkingWeek } from "@/lib/working-hours";
 import { supabaseConfigured, getSupabase, isGoTrueAlreadyRegisteredError, isGoTrueServerError } from "@/lib/supabase";
 import { activationStepError } from "@/lib/activation";
 import { requestOrigin, publicOrigin } from "@/lib/url";
+import { sendContactInvite, contactNameForInvite } from "@/lib/contact-invite";
 import { isAdminRole } from "@/lib/role";
 import {
   buildParentInviteEmail,
@@ -513,27 +514,8 @@ async function firstInstituteId(): Promise<string> {
   return String(row?.id ?? "");
 }
 
-// KID-115: the contact's display name for activation-form prefill, so invited
-// parents don't retype details the daycare already has. Never throws —
-// prefill is best-effort and must not break sending.
-async function contactNameForInvite(
-  childId: string | null,
-  email: string
-): Promise<string | undefined> {
-  try {
-    if (!childId) return undefined;
-    const row = await queryGet(
-      "SELECT full_name FROM contact WHERE child_id = ? AND lower(email) = lower(?) LIMIT 1",
-      childId,
-      email
-    );
-    const name = String(row?.full_name ?? "").trim().slice(0, 120);
-    return name || undefined;
-  } catch (err) {
-    console.error(`KID-115 contactNameForInvite failed for ${email}:`, err);
-    return undefined;
-  }
-}
+// KID-180: the invite decision tree lives in lib/contact-invite.ts so the
+// Add-contact auto-send and the Send-invite button share one delivery path.
 
 // KID-103: verifies a child belongs to the current account's assigned
 // classrooms. Owners/admins always pass; out-of-scope direct-action attempts
@@ -998,18 +980,44 @@ export async function addContactAction(formData: FormData) {
   const relationship = String(formData.get("relationship") ?? "").trim();
   const { isContactRelationship } = await import("@/lib/contact-relationship");
   if (!isContactRelationship(relationship)) {
-    redirect(`/portal/children/${childId}?error=relationship`);
+    // Stay on the family tab so the rejected form stays in front of the staff
+    // member instead of a bare drop back to the first tab (KID-180).
+    redirect(`/portal/children/${childId}?tab=family&error=relationship`);
   }
+  const email = String(formData.get("email") ?? "").trim();
   await addContact({
     childId,
     fullName: String(formData.get("fullName") ?? ""),
     relationship,
     phone: String(formData.get("phone") ?? ""),
-    email: String(formData.get("email") ?? ""),
+    email,
     isPickup: formData.get("isPickup") === "on",
     isEmergency: formData.get("isEmergency") === "on",
   });
-  redirect(`/portal/children/${childId}`);
+  // KID-180: adding a contact is adding a person the daycare must reach out
+  // to, so an email-bearing contact invites its parent in the same action —
+  // no separate "Send invite" click that history shows gets forgotten.
+  // Invite sending stays admin-only, like every other invite surface: a
+  // carer adding a pickup/emergency contact just saves the contact.
+  const params = new URLSearchParams({ tab: "family" });
+  if (email && isAdminRole(me.role)) {
+    const outcome = await sendContactInvite({
+      childId,
+      email,
+      relationship,
+      adminAccountId: me.accountId,
+      logTag: "KID-180 add contact",
+    });
+    params.set("email", email.toLowerCase());
+    if (outcome.status !== "skipped") params.set("invite", outcome.status);
+    if (outcome.status === "pending" || outcome.status === "failed") {
+      params.set("inviteDetail", outcome.detail);
+      if (outcome.activationUrl) params.set("activationUrl", outcome.activationUrl);
+    }
+  }
+  // Land back on this child's family tab with the invite outcome, instead of
+  // a bare redirect that reads as if the whole entry was lost.
+  redirect(`/portal/children/${childId}?${params.toString()}`);
 }
 
 /** KID-142: edit an existing contact. The store layer re-runs the sibling
@@ -1208,8 +1216,6 @@ export async function sendInviteForContactAction(formData: FormData) {
   await ensureSchema();
   const me = authAccount();
   if (!isAdminRole(me.role)) return { error: "Only admins can send invites." };
-  const instituteId = await firstInstituteId();
-  if (!instituteId) return { error: "No center configured yet." };
   const childId = String(formData.get("childId") ?? "").trim();
   if (!childId) return { error: "Missing child." };
   await assertChildInScope(childId, me);
@@ -1219,74 +1225,30 @@ export async function sendInviteForContactAction(formData: FormData) {
   // blocking real parents. Legacy values map to the canonical role.
   const { normalizeLegacyRelationship } = await import("@/lib/contact-relationship");
   const relationship = normalizeLegacyRelationship(String(formData.get("relationship") ?? "parent"));
-  if (!isValidInviteEmail(email)) return { error: "Enter a valid email address." };
 
-  const {
-    generateInviteCode,
-    sendParentInviteEmail,
-    getPendingInvitesByEmail,
-    buildParentInviteEmail,
-  } = await import("@/lib/invite-email");
-  // Reuse an existing pending invite instead of stacking duplicates.
-  const existing = await getPendingInvitesByEmail(email);
-  // KID-119: parent devices fetch this link, so use the public host.
-  const origin = publicOrigin(requestOrigin());
-  if (existing.length > 0) {
-    const parentName = await contactNameForInvite(childId, email);
-    const result = await sendParentInviteEmail(existing[0], {
-      origin,
-      isResend: true,
-      prefill: { email, name: parentName },
-    });
-    const { logResendAttempt } = await import("@/lib/activation");
-    await logResendAttempt({
-      targetEmail: email,
-      adminAccountId: me.accountId,
-      channel: result.status === "sent" ? "supabase-admin-invite" : "invite",
-      status: result.status === "sent" ? "sent" : "failed",
-      detail: `contact send reused invite ${String(existing[0].id)}: ${result.detail}`,
-    });
-    if (result.status === "sent") return { ok: true as const };
+  // KID-180: delivery is decided in one shared place — same resend-or-create
+  // logic, same account-existence guard (KID-135) — as the Add-contact
+  // auto-send. Only the result presentation (inline button feedback) differs.
+  const outcome = await sendContactInvite({
+    childId,
+    email,
+    relationship,
+    adminAccountId: me.accountId,
+    logTag: "KID-115 contact send",
+  });
+  if (outcome.status === "sent" || outcome.status === "activated") return { ok: true as const };
+  if (outcome.status === "pending") {
     return {
-      error: result.activationUrl
-        ? `${result.detail} Manual link: ${result.activationUrl}`
-        : result.detail,
+      error: outcome.activationUrl
+        ? `Invite saved but no mail provider is configured. Manual link: ${outcome.activationUrl}`
+        : outcome.detail,
     };
   }
-
-  let code = "";
-  for (let i = 0; i < 5 && !code; i++) {
-    const candidate = generateInviteCode();
-    if (!(await getInviteByCode(candidate))) code = candidate;
-  }
-  if (!code) return { error: "Could not create an invite code. Try again." };
-  try {
-    await createInvite(instituteId, childId, email, code, relationship);
-  } catch (err) {
-    console.error(`KID-115 contact send: createInvite failed for ${email}:`, err);
-    return { error: err instanceof Error ? err.message : "Could not create the invite." };
-  }
-  const created = await getInviteByCode(code);
-  const parentName = await contactNameForInvite(childId, email);
-  const preview = buildParentInviteEmail({ parentEmail: email, code, parentName, origin: origin || "(unknown origin)" });
-  console.log(`KID-115 contact send: invite created for ${email} (code ${code}):\n${preview.text}`);
-  const result = created
-    ? await sendParentInviteEmail(created, { origin, prefill: { email, name: parentName } })
-    : { status: "failed" as const, detail: "invite row not found after create" };
-  const { logResendAttempt } = await import("@/lib/activation");
-  await logResendAttempt({
-    targetEmail: email,
-    adminAccountId: me.accountId,
-    channel: result.status === "sent" ? "supabase-admin-invite" : "invite",
-    status: result.status === "sent" ? "sent" : "failed",
-    detail: `contact send, invite ${created ? String(created.id) : "?"}: ${result.detail}`,
-  });
-  if (result.status === "sent") return { ok: true as const };
+  if (outcome.status === "skipped") return { error: outcome.detail };
   return {
-    error:
-      result.status === "pending" && result.activationUrl
-        ? `Invite saved but no mail provider is configured. Manual link: ${result.activationUrl}`
-        : result.detail,
+    error: outcome.activationUrl
+      ? `${outcome.detail} Manual link: ${outcome.activationUrl}`
+      : outcome.detail,
   };
 }
 

@@ -53,7 +53,7 @@ export default async function ForCentersPage() {
             <p className="hero-eyebrow">For centers</p>
             <h1 className="page-title">Run the day from one place</h1>
             <p className="subtitle">
-              Attendance, daily care, the newsfeed, and your families' trust — in a
+              Attendance, daily care, the newsfeed, and your families&apos; trust — in a
               clean portal that reflects your own branding.
             </p>
             <div className="row mt-3">

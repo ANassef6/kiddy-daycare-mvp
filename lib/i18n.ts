@@ -425,6 +425,16 @@ export const en = {
     contactActivated: "Activated — has their own login",
     noneContact: "None.",
     addContact: "Add contact",
+    // KID-180: Add-contact outcome banner on the child profile's family tab.
+    contactInviteBannerSent:
+      "Contact saved. Activation email sent to {email} — it should arrive within 2 minutes (check spam too).",
+    contactInviteBannerActivated:
+      "Contact saved. {email} already has an account, so no new invite was sent.",
+    contactInviteBannerPending:
+      "Contact saved. Invite saved for {email}, but no mail provider is configured so no email was sent. Forward the activation link manually:",
+    contactInviteBannerFailed:
+      "Contact saved, but the invite was not sent. The contact is safe — fix the details and send the invite from the contacts tab.",
+    contactRelationshipInvalid: "Relationship must be one of: Parent, Family, Pickup, No access.",
     relationship: "Relationship",
     authorizedPickup: "Authorized pickup",
     emergencyContact: "Emergency contact",
@@ -877,6 +887,15 @@ export const ar = {
     contactActivated: "مُفعّل — لديه حساب دخول خاص به",
     noneContact: "لا يوجد.",
     addContact: "إضافة جهة اتصال",
+    contactInviteBannerSent:
+      "تم حفظ جهة الاتصال. أُرسل بريد التفعيل إلى {email} — سيصل خلال دقيقتين (تحقق من مجلد الرسائل غير المرغوبة أيضًا).",
+    contactInviteBannerActivated:
+      "تم حفظ جهة الاتصال. {email} لديه حساب بالفعل، لذلك لم تُرسل دعوة جديدة.",
+    contactInviteBannerPending:
+      "تم حفظ جهة الاتصال. حُفظت الدعوة لـ {email}، لكن لا مزود بريد مضبوط فلم يُرسل أي بريد. أعد تمرير رابط التفعيل يدويًا:",
+    contactInviteBannerFailed:
+      "تم حفظ جهة الاتصال، لكن لم تُرسل الدعوة. جهة الاتصال محفوظة — صحّح البيانات وأرسل الدعوة من صف جهات الاتصال.",
+    contactRelationshipInvalid: "صلة القرابة يجب أن تكون واحدة من: أحد الوالدين، العائلة، الاستلام، بدون وصول.",
     relationship: "صلة القرابة",
     authorizedPickup: "مصرّح له بالاستلام",
     emergencyContact: "جهة اتصال للطوارئ",

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { loginAction } from "@/lib/actions";
 
@@ -9,15 +9,21 @@ export default function LoginPage() {
   const [confirmed, setConfirmed] = useState(false);
   const [brand, setBrand] = useState<{ name: string; logoUrl: string | null; primaryColor: string } | null>(null);
 
-  // Fetch branding on mount and read query params
-  if (typeof window !== "undefined" && !brand) {
-    fetch("/api/branding")
-      .then((r) => r.json())
-      .then(setBrand)
-      .catch(() => {});
+  // Fetch branding on mount and read query params (never during render)
+  useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     if (params.get("confirmed") === "1") setConfirmed(true);
-  }
+    let cancelled = false;
+    fetch("/api/branding")
+      .then((r) => r.json())
+      .then((data) => {
+        if (!cancelled) setBrand(data);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   return (
     <div className="container" style={{ maxWidth: 420, paddingTop: 80 }}>
