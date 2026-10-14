@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { SITE_BRAND } from "@/lib/site";
+import { en, tr } from "@/lib/i18n";
 
 export type SiteHeaderProps = {
   active?: string;
@@ -34,7 +35,7 @@ export default function SiteHeader({ active }: SiteHeaderProps) {
             </Link>
           ))}
           <Link href="/login" className="site-nav-signin">
-            Staff sign in
+            {tr(en, "nav.portal")}
           </Link>
           <Link href="/contact" className="btn btn-primary site-nav-cta">
             Book a demo

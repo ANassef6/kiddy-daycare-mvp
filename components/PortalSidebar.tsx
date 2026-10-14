@@ -9,10 +9,12 @@ import { isAdminRole } from "@/lib/role";
 export type NavItem = { label: string; href: string };
 export type NavGroup = { label: string; href: string; items: NavItem[] };
 
-// Confirmed menu tree (founder, 2026-09-13): five top-level menus plus a
-// separate Settings (gear) for center configuration. Every sub-item maps to a
-// real route — nothing here may be a dead link. Labels come from the active
-// locale dictionary (KID-57).
+// Confirmed menu tree (founder, 2026-09-13): five top-level menus. Every
+// sub-item maps to a real route — nothing here may be a dead link. Labels come
+// from the active locale dictionary (KID-57).
+// KID-179: the sidebar Settings (gear) group is gone. Account settings
+// (/portal/account) and center settings (/portal/settings) live in the
+// top-right user menu (app/portal/layout.tsx), and Rooms now sits in Tools.
 export function portalNav(dict: Dict, role?: string): NavGroup[] {
   const t = (key: string) => tr(dict, key);
   const groups: NavGroup[] = [
@@ -56,6 +58,8 @@ export function portalNav(dict: Dict, role?: string): NavGroup[] {
 
   // KID-105 #14: the Tools menu exposes center-wide admin surfaces (staff
   // accounts, all children, finance, etc.). Keep it visible only to admins.
+  // KID-179 item 4: Rooms joins the Tools group. The Rooms page itself stays
+  // scoped to the staff member's assigned classrooms (KID-105 #16, unchanged).
   if (isAdminRole(role ?? "")) {
     groups.push({
       label: t("nav.tools"),
@@ -69,32 +73,12 @@ export function portalNav(dict: Dict, role?: string): NavGroup[] {
         { label: t("nav.performance"), href: "/portal/performance" },
         { label: t("nav.finance"), href: "/portal/finance" },
         { label: t("nav.supplies"), href: "/portal/supplies" },
+        { label: t("nav.rooms"), href: "/portal/rooms" },
       ],
     });
   }
 
   return groups;
-}
-
-// Settings (center configuration) lives behind its own gear icon, separate from
-// the top-level menus. KID-107: account settings is reachable for all portal
-// users; center details remain admin-only.
-export function portalSettingsNav(dict: Dict, role?: string): NavGroup {
-  const t = (key: string) => tr(dict, key);
-  const items: NavItem[] = [];
-  items.push({ label: t("nav.account"), href: "/portal/account" });
-  // KID-105 #15: Center details is admin-only.
-  if (isAdminRole(role ?? "")) {
-    items.push({ label: t("nav.centerDetails"), href: "/portal/settings" });
-  }
-  // KID-105 #16: Rooms remain reachable, but the Rooms page itself is scoped
-  // to the staff member's assigned classrooms.
-  items.push({ label: t("nav.rooms"), href: "/portal/rooms" });
-  return {
-    label: t("nav.settings"),
-    href: "/portal/settings",
-    items,
-  };
 }
 
 function matches(pathname: string, href: string): boolean {
@@ -111,46 +95,7 @@ function activeIn(items: NavItem[], pathname: string): string {
   return hit.sort((a, b) => b.href.length - a.href.length)[0].href;
 }
 
-function PortalSettingsNav({ pathname, dict, role }: { pathname: string; dict: Dict; role?: string }) {
-  const [open, setOpen] = useState(false);
-  const group = portalSettingsNav(dict, role);
-  const activeHref = activeIn(group.items, pathname);
-  const expanded = open || !!activeHref;
-  const t = (key: string) => tr(dict, key);
-
-  return (
-    <div className="portal-nav-settings">
-      <button
-        type="button"
-        className={`portal-nav-settings-toggle${activeHref ? " active" : ""}`}
-        aria-label={t("nav.settings")}
-        aria-expanded={expanded}
-        onClick={() => setOpen((prev) => !prev)}
-      >
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-          <circle cx="12" cy="12" r="3" />
-          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
-        </svg>
-      </button>
-      {expanded && (
-        <div className="portal-nav-sub">
-          {group.items.map((item) => (
-            <Link
-              key={`${item.href}-${item.label}`}
-              href={item.href}
-              className={`portal-nav-sub-link${item.href === activeHref ? " active" : ""}`}
-              aria-current={item.href === activeHref ? "page" : undefined}
-            >
-              {item.label}
-            </Link>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
-function PortalSidebarNav({ groups, dict, role }: { groups: NavGroup[]; dict: Dict; role?: string }) {
+function PortalSidebarNav({ groups, dict }: { groups: NavGroup[]; dict: Dict }) {
   const pathname = usePathname();
   const [open, setOpen] = useState<Record<string, boolean>>({});
   const t = (key: string) => tr(dict, key);
@@ -213,7 +158,6 @@ function PortalSidebarNav({ groups, dict, role }: { groups: NavGroup[]; dict: Di
           );
         })}
       </div>
-      <PortalSettingsNav pathname={pathname} dict={dict} role={role} />
     </>
   );
 }
@@ -243,7 +187,7 @@ export default function PortalSidebar({
         <span className="brand">{brandName}</span>
       </Link>
       <div className="mt-4 d-flex-col">
-        <PortalSidebarNav groups={groups} dict={dict} role={role} />
+        <PortalSidebarNav groups={groups} dict={dict} />
         <a href="/api/logout" className="small muted mt-3" style={{ display: "inline-block" }}>
           {t("nav.signOut")}
         </a>

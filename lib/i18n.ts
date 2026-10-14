@@ -98,6 +98,7 @@ export const en = {
     expand: "Expand",
     childrenConsents: "Consents",
     account: "Account",
+    portal: "Portal",
   },
   topbar: {
     messages: "Messages",
@@ -412,6 +413,7 @@ export const en = {
     lastDate: "Last date",
     lastDateHint: "When the last date is reached this child is withdrawn and their parent's access is removed.",
     editDetails: "Edit details",
+    editContact: "Edit contact",
     firstName: "First name",
     lastName: "Last name",
     male: "Male",
@@ -566,6 +568,7 @@ export const ar = {
     expand: "توسيع",
     childrenConsents: "الموافقات",
     account: "الحساب",
+    portal: "البوابة",
   },
   topbar: {
     messages: "الرسائل",
@@ -878,6 +881,7 @@ export const ar = {
     lastDate: "تاريخ الانتهاء",
     lastDateHint: "عند الوصول إلى تاريخ الانتهاء يُنسحب الطفل ويُرفض ولي أمره الدخول.",
     editDetails: "تعديل التفاصيل",
+    editContact: "تعديل جهة الاتصال",
     firstName: "الاسم الأول",
     lastName: "اسم العائلة",
     male: "ذكر",
