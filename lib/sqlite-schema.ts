@@ -236,6 +236,8 @@ export function sqliteSchema(db: any): void {
     title TEXT,
     is_group INTEGER NOT NULL DEFAULT 0,
     created_by_account_id TEXT REFERENCES account(id),
+    attachment_url TEXT,
+    attachment_name TEXT,
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
   );
 
@@ -593,6 +595,18 @@ export function sqliteSchema(db: any): void {
     const msgCols = db.prepare("PRAGMA table_info(message)").all() as { name: string }[];
     if (!msgCols.some((c) => c.name === "thread_id")) {
       db.exec("ALTER TABLE message ADD COLUMN thread_id TEXT");
+    }
+  } catch {}
+  // KID-182: mirror of supabase/migrations/0021_message_thread_attachment.sql.
+  // Composer attachments live on the thread; columns are added for databases
+  // created before the migration and stay absent otherwise.
+  try {
+    const threadCols = db.prepare("PRAGMA table_info(message_thread)").all() as { name: string }[];
+    if (threadCols.length > 0 && !threadCols.some((c) => c.name === "attachment_url")) {
+      db.exec("ALTER TABLE message_thread ADD COLUMN attachment_url TEXT");
+    }
+    if (threadCols.length > 0 && !threadCols.some((c) => c.name === "attachment_name")) {
+      db.exec("ALTER TABLE message_thread ADD COLUMN attachment_name TEXT");
     }
   } catch {}
   // KID-112: invite carries the relationship role; legacy free-text

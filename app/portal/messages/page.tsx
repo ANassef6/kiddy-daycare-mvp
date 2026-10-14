@@ -24,7 +24,7 @@ export const dynamic = "force-dynamic";
 export default async function PortalMessagesPage({
   searchParams,
 }: {
-  searchParams: { with?: string; thread?: string; compose?: string; unread?: string };
+  searchParams: { with?: string; thread?: string; compose?: string; unread?: string; q?: string; error?: string };
 }) {
   const session = requireSession();
   const { dict } = await i18nForAccount(session.accountId);
@@ -64,8 +64,18 @@ export default async function PortalMessagesPage({
   if (!threadId && withId) await markRead(withId, session.accountId);
 
   const other = parents.find((p: any) => p.id === withId);
-  const visibleConversations = onlyUnread ? conversations.filter((c: any) => Number(c.unread_count ?? 0) > 0) : conversations;
-  const visibleThreads = onlyUnread ? threads.filter((t: any) => Number(t.unread_count ?? 0) > 0) : threads;
+  const searchQuery = (searchParams.q ?? "").trim().toLowerCase();
+  // KID-182: search filters both threads and live 1:1s by participant name,
+  // title and last message. The quick-link "start with a parent" strip is
+  // gone — the left column lists real threads and 1:1s only, reachable via
+  // search and the composer.
+  const matchesSearch = (text: string) => !searchQuery || text.toLowerCase().includes(searchQuery);
+  const visibleConversations = (onlyUnread ? conversations.filter((c: any) => Number(c.unread_count ?? 0) > 0) : conversations).filter(
+    (c: any) => matchesSearch(String(c.other_name ?? "")) || matchesSearch(String(c.last_message ?? ""))
+  );
+  const visibleThreads = (onlyUnread ? threads.filter((t: any) => Number(t.unread_count ?? 0) > 0) : threads).filter(
+    (th: any) => matchesSearch(String(th.thread_title ?? th.title ?? "")) || matchesSearch(String(th.last_message ?? ""))
+  );
 
   return (
     <div>
@@ -87,11 +97,28 @@ export default async function PortalMessagesPage({
       </div>
       <div className="subtitle">{t("messages.subtitle")}</div>
 
+      {(searchParams.error === "norecipients" || searchParams.error === "attachment") && (
+        <p className="badge badge-red" style={{ marginBottom: 12 }}>
+          {searchParams.error === "attachment" ? t("messages.errorAttachment") : t("messages.errorNorecipients")}
+        </p>
+      )}
+
       <div className="grid" style={{ gridTemplateColumns: "280px 1fr" }}>
         <div className="card">
           <h4 className="subtitle">{t("messages.conversations")}{totalUnread > 0 ? ` · ${t("messages.unreadCount", { count: totalUnread })}` : ""}</h4>
+          <form method="get" action="/portal/messages" style={{ margin: "0 0 10px" }}>
+            <input
+              className="input"
+              type="search"
+              name="q"
+              defaultValue={searchParams.q ?? ""}
+              placeholder={t("messages.searchConversations")}
+              aria-label={t("messages.searchConversations")}
+            />
+            {onlyUnread && <input type="hidden" name="unread" value="1" />}
+          </form>
           {visibleThreads.length === 0 && visibleConversations.length === 0 && (
-            <p className="muted small">{onlyUnread ? t("messages.noUnread") : t("messages.noChatsYet")}</p>
+            <p className="muted small">{searchQuery ? t("messages.noSearchResults") : onlyUnread ? t("messages.noUnread") : t("messages.noChatsYet")}</p>
           )}
           {visibleThreads.map((th: any) => {
             const unread = Number(th.unread_count ?? 0);
@@ -132,17 +159,6 @@ export default async function PortalMessagesPage({
               </div>
             );
           })}
-          <div className="mt-3">
-            <label className="label">{t("messages.startWithParent")}</label>
-            <div className="row" style={{ gap: 6 }}>
-              {parents.slice(0, 8).map((p: any) => (
-                <Link key={p.id} className="btn btn-ghost small" href={`/portal/messages?with=${p.id}`}>
-                  {p.full_name}
-                </Link>
-              ))}
-              {parents.length === 0 && <span className="muted small">{t("messages.noParentsInClassrooms")}</span>}
-            </div>
-          </div>
         </div>
 
         <div className="card">
@@ -154,15 +170,25 @@ export default async function PortalMessagesPage({
               </div>
               <div className="field">
                 <label className="label">{t("messages.to")}</label>
-                <div className="card mt-1" style={{ maxHeight: 260, overflowY: "auto" }}>
+                <div className="card mt-1" style={{ maxHeight: 300, overflowY: "auto" }}>
                   {channels.length > 0 && (
                     <>
-                      <div className="label">{t("messages.channels")}</div>
+                      <div className="label">{t("messages.classroomChannels")}</div>
                       {channels.map((ch: any) => (
-                        <label key={ch.id} className="row small" style={{ gap: 8, alignItems: "center", padding: "4px 0" }}>
-                          <input type="checkbox" name="channels" value={String(ch.id)} />
-                          <span>🏫 {ch.name} ({t("messages.wholeClass", { count: ch.parent_count })})</span>
-                        </label>
+                        <div key={ch.id} className="row small" style={{ gap: 8, alignItems: "center", padding: "4px 0", flexWrap: "wrap" }}>
+                          <label style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                            <input type="checkbox" name="channels" value={String(ch.id)} />
+                            <strong>🏫 {ch.name}</strong>
+                          </label>
+                          <span className="muted small">
+                            {t("messages.audienceCounts", { parents: Number(ch.parent_count ?? 0), staff: Number(ch.staff_count ?? 0) })}
+                          </span>
+                          <select className="input small" name={`audience:${ch.id}`} defaultValue="whole" aria-label={t("messages.audience")}>
+                            <option value="whole">{t("messages.audWhole")}</option>
+                            <option value="children">{t("messages.audChildren")}</option>
+                            <option value="staff">{t("messages.audStaff")}</option>
+                          </select>
+                        </div>
                       ))}
                     </>
                   )}
@@ -175,6 +201,10 @@ export default async function PortalMessagesPage({
                     </label>
                   ))}
                 </div>
+              </div>
+              <div className="field mt-2">
+                <label className="label">{t("messages.attachment")}</label>
+                <input className="input" type="file" name="attachment" accept="*/*" />
               </div>
               <label className="row small mt-2" style={{ gap: 8, alignItems: "center" }}>
                 <input type="checkbox" name="groupMode" /> <strong>{t("messages.groupMessage")}</strong>
@@ -194,6 +224,13 @@ export default async function PortalMessagesPage({
               <p className="muted small">
                 {(thread.participant_ids as string[] ?? []).map((pid: string) => threadNames[pid] ?? pid).join(", ")}
               </p>
+              {thread.attachment_url && (
+                <p className="small mt-1">
+                  <a href={String(thread.attachment_url)} download={String(thread.attachment_name ?? "")}>
+                    📎 {thread.attachment_name ?? t("messages.attachment")}
+                  </a>
+                </p>
+              )}
               <div style={{ minHeight: 260, maxHeight: 420, overflowY: "auto" }}>
                 {threadRows.length === 0 && <p className="muted small">{t("messages.noMessagesInThread")}</p>}
                 {threadRows.map((m: any) => (

@@ -139,6 +139,13 @@ export default async function ParentMessagesPage({
           <p className="muted small">
             {(thread.participant_ids as string[] ?? []).map((pid) => threadNames[pid] ?? pid).join(", ")}
           </p>
+          {thread.attachment_url && (
+            <p className="small">
+              <a href={String(thread.attachment_url)} download={String(thread.attachment_name ?? "")}>
+                📎 {thread.attachment_name ?? t("messages.attachment")}
+              </a>
+            </p>
+          )}
           <div style={{ minHeight: 200, maxHeight: 360, overflowY: "auto" }}>
             {threadRows.length === 0 && <p className="muted small">{t("messages.noMessagesInThread")}</p>}
             {threadRows.map((m: any) => (

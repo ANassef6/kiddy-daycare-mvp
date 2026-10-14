@@ -1391,7 +1391,7 @@ export async function parentAccountsScoped(instituteId: string, accountId: strin
 }
 
 // KID-56: pre-defined class channels (one per room in scope) with the number
-// of parents reachable through each channel.
+// of parents and staff reachable through each channel.
 export async function roomChannelsForAccount(instituteId: string, accountId: string): Promise<Row[]> {
   const roomIds = await scopedRoomIds(instituteId, accountId);
   const rooms =
@@ -1406,10 +1406,40 @@ export async function roomChannelsForAccount(instituteId: string, accountId: str
           );
   const out: Row[] = [];
   for (const r of rooms) {
-    const parents = await roomParentIds(instituteId, String(r.id));
-    out.push({ ...r, parent_count: parents.length });
+    const [parents, staff] = await Promise.all([
+      roomParentIds(instituteId, String(r.id)),
+      roomStaffIds(instituteId, String(r.id)),
+    ]);
+    out.push({ ...r, parent_count: parents.length, staff_count: staff.length });
   }
   return out;
+}
+
+// KID-182: store a composer attachment on the thread itself so it renders in
+// the staff and parent thread views. Data-URL path: url + original file name.
+export async function setThreadAttachment(threadId: string, url: string, name: string): Promise<void> {
+  await queryRun(
+    "UPDATE message_thread SET attachment_url = ?, attachment_name = ? WHERE id = ?",
+    url,
+    name,
+    threadId
+  );
+}
+
+// KID-182: accounts of role staff/carer/admin/owner attached to the given room
+// via staff_room. Unlinked admins resolve to nothing here by design — a channel
+// only reaches staff records actually assigned to the classroom.
+export async function roomStaffIds(instituteId: string, roomId: string): Promise<string[]> {
+  const rows = await queryAll(
+    `SELECT DISTINCT a.id
+     FROM account a
+     JOIN staff s ON s.id = a.staff_id
+     JOIN staff_room sr ON sr.staff_id = s.id
+     WHERE s.institute_id = ? AND sr.room_id = ? AND a.role IN ('staff','carer','admin','owner')`,
+    instituteId,
+    roomId
+  );
+  return rows.map((r) => String(r.id));
 }
 
 export async function roomParentIds(instituteId: string, roomId: string): Promise<string[]> {
@@ -1432,15 +1462,19 @@ export async function createMessageThread(data: {
   isGroup: boolean;
   createdBy: string;
   participantIds: string[];
+  attachmentUrl?: string;
+  attachmentName?: string;
 }): Promise<Row> {
   const id = uid();
   await queryRun(
-    "INSERT INTO message_thread (id, institute_id, title, is_group, created_by_account_id) VALUES (?, ?, ?, ?, ?)",
+    "INSERT INTO message_thread (id, institute_id, title, is_group, created_by_account_id, attachment_url, attachment_name) VALUES (?, ?, ?, ?, ?, ?, ?)",
     id,
     data.instituteId,
     data.title ?? null,
     data.isGroup ? 1 : 0,
-    data.createdBy
+    data.createdBy,
+    data.attachmentUrl ?? null,
+    data.attachmentName ?? null
   );
   const unique = Array.from(new Set([data.createdBy, ...data.participantIds]));
   for (const pid of unique) {

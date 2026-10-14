@@ -1625,20 +1625,49 @@ export async function sendMessageAction(formData: FormData) {
   redirect(`/portal/messages?with=${recipient}`);
 }
 
-// KID-56: composer send — parents and/or whole-class channels, with the
-// "make it group message" toggle. Group on: one shared thread, every reply
-// stays visible to all. Group off: one private thread per recipient.
+// KID-56 / KID-182: composer send — per-classroom audience channels, individual
+// parents, and optional attachment. Each picked classroom carries an audience:
+// "whole" = parents + staff of the room, "children" = parents only, "staff" =
+// staff only. Group on: one shared thread, every reply stays visible to all.
+// Group off: one private thread per recipient.
+const MAX_ATTACHMENT_BYTES = 1_500_000;
+
 export async function sendComposerAction(formData: FormData) {
   const me = authAccount();
   await ensureSchema();
   const instituteId = await firstInstituteId();
   const body = String(formData.get("body") ?? "").trim();
   if (!instituteId || !body) redirect("/portal/messages");
-  const { parentAccountsScoped, roomParentIds, scopedRoomIds, createMessageThread } = await import("@/lib/store");
+  const { parentAccountsScoped, roomParentIds, roomStaffIds, scopedRoomIds, createMessageThread, setThreadAttachment } =
+    await import("@/lib/store");
 
   const pickedParents = formData.getAll("recipients").map(String).filter(Boolean);
   const pickedRooms = formData.getAll("channels").map(String).filter(Boolean);
+  // Per-room audience mode arrives as form fields named `audience:<roomId>`
+  // (hidden inputs paired with the channel checkboxes), so checkbox -> select
+  // ordering can never desync.
+  const pickedChannelSet = new Set(pickedRooms);
+  const audienceByRoom = new Map<string, string>();
+  for (const [key, value] of formData.entries()) {
+    if (!key.startsWith("audience:") || !pickedChannelSet.has(key.slice(9))) continue;
+    const mode = String(value ?? "whole");
+    audienceByRoom.set(key.slice(9), mode === "children" || mode === "staff" ? mode : "whole");
+  }
   const groupMode = String(formData.get("groupMode") ?? "") === "on";
+
+  // Attachment (KID-182): single optional file, stored as a data-URL on the
+  // resulting thread(s). Oversized or unreadable attachments fail explicitly.
+  const attachment = formData.get("attachment");
+  let attachmentUrl: string | undefined;
+  let attachmentName: string | undefined;
+  if (attachment instanceof File && attachment.size > 0) {
+    if (!attachment.name || attachment.size > MAX_ATTACHMENT_BYTES) {
+      redirect(`/portal/messages?error=attachment&preserve=${encodeURIComponent(String(formData.get("body") ?? ""))}`);
+    }
+    const bytes = Buffer.from(await attachment.arrayBuffer());
+    attachmentUrl = `data:${attachment.type || "application/octet-stream"};base64,${bytes.toString("base64")}`;
+    attachmentName = attachment.name;
+  }
 
   // Resolve + scope-check: parents must be in the sender's classroom scope,
   // channels must be rooms in scope.
@@ -1651,13 +1680,22 @@ export async function sendComposerAction(formData: FormData) {
   );
   const recipientIds = new Set<string>();
   for (const pid of pickedParents) if (allowedParents.has(pid) && pid !== me.accountId) recipientIds.add(pid);
+
   const channelNames: string[] = [];
   for (const rid of pickedRooms) {
     if (!allowedRooms.has(rid)) continue;
     const room = await (await import("@/lib/store")).getRoom(rid);
     if (room) channelNames.push(String(room.name));
-    for (const pid of await roomParentIds(String(instituteId), rid)) {
-      if (pid !== me.accountId) recipientIds.add(pid);
+    const mode = audienceByRoom.get(rid) ?? "whole";
+    if (mode === "whole" || mode === "children") {
+      for (const pid of await roomParentIds(String(instituteId), rid)) {
+        if (pid !== me.accountId) recipientIds.add(pid);
+      }
+    }
+    if (mode === "whole" || mode === "staff") {
+      for (const sid of await roomStaffIds(String(instituteId), rid)) {
+        if (sid !== me.accountId) recipientIds.add(sid);
+      }
     }
   }
   if (recipientIds.size === 0) redirect("/portal/messages?error=norecipients");
@@ -1672,6 +1710,8 @@ export async function sendComposerAction(formData: FormData) {
       isGroup: true,
       createdBy: me.accountId,
       participantIds: recipients,
+      attachmentUrl,
+      attachmentName,
     });
     for (const rid of recipients) {
       await sendMessage({ instituteId: String(instituteId), senderAccountId: me.accountId, recipientAccountId: rid, body, threadId: String(thread.id) });
@@ -1686,6 +1726,8 @@ export async function sendComposerAction(formData: FormData) {
       isGroup: false,
       createdBy: me.accountId,
       participantIds: [rid],
+      attachmentUrl,
+      attachmentName,
     });
     await sendMessage({ instituteId: String(instituteId), senderAccountId: me.accountId, recipientAccountId: rid, body, threadId: String(thread.id) });
     if (!firstThread) firstThread = String(thread.id);
