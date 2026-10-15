@@ -1847,6 +1847,23 @@ export async function formResponses(formId: string): Promise<Row[]> {
   );
 }
 
+// KID-86 #10: every form submission across all smart forms for the center's
+// Inquiries tab — each row carries the source form title and kind so the row
+// can show which form it was submitted from, and the UI can filter by form.
+export async function formResponsesForInstitute(instituteId: string): Promise<Row[]> {
+  return queryAll(
+    `SELECT fr.*, f.title AS form_title, f.kind AS form_kind,
+            a.full_name AS respondent_name, c.first_name, c.last_name
+     FROM form_response fr
+     JOIN form_template f ON f.id = fr.form_id
+     LEFT JOIN account a ON a.id = fr.account_id
+     LEFT JOIN child c ON c.id = fr.child_id
+     WHERE f.institute_id = ?
+     ORDER BY fr.created_at DESC`,
+    instituteId
+  );
+}
+
 export async function responsesByAccount(accountId: string): Promise<Row[]> {
   return queryAll(
     `SELECT fr.*, f.title AS form_title, f.kind FROM form_response fr

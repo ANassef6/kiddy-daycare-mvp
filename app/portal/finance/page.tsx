@@ -99,7 +99,7 @@ export default async function PortalFinancePage({
       <h1 className="title">Finance</h1>
       <p className="subtitle">Billing, payers, and payouts for the whole center. Amounts shown in AED.</p>
 
-      <div className="row" style={{ gap: 6, flexWrap: "wrap", marginBottom: 16, borderBottom: "2px solid var(--color-border)", marginLeft: 0, marginRight: 0 }}>
+      <div className="row" style={{ gap: 6, flexWrap: "wrap", marginBottom: 16, borderBottom: "2px solid var(--color-border)" }}>
         {TAB_IDS.map((t) => (
           <Link
             key={t}
@@ -115,12 +115,29 @@ export default async function PortalFinancePage({
       <div className="grid" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))" }}>
         {STATUS_KEYS.map((k) => {
           const n = grouped[k].length;
+          // KID-86 #12: every status card is a clickable filter — clicking the
+          // active one clears it and shows all invoices again.
+          const selected = statusFilter === k;
+          const href = selected ? `/portal/finance?tab=${tab}` : `/portal/finance?tab=${tab}&status=${k}`;
           return (
-            <div className={`card${n === 0 ? " muted" : ""}`} key={k} style={{ textAlign: "center", padding: "12px 10px" }}>
-              <div className="muted small">{STATUS_LABEL[k]}</div>
+            <Link
+              key={k}
+              href={href}
+              aria-pressed={selected}
+              className={`card${selected ? " active" : ""}`}
+              style={{
+                textAlign: "center",
+                padding: "12px 10px",
+                textDecoration: "none",
+                color: "inherit",
+                border: selected ? "2px solid var(--brand-primary)" : undefined,
+                boxShadow: selected ? "0 0 0 3px color-mix(in srgb, var(--brand-primary) 15%, transparent)" : undefined,
+              }}
+            >
+              <div className="muted small">{STATUS_LABEL[k]}{selected ? " ✓" : ""}</div>
               <div style={{ fontSize: 22, fontWeight: 800 }}>{n}</div>
               <div className="small">{money(totals[k], "AED")}</div>
-            </div>
+            </Link>
           );
         })}
       </div>

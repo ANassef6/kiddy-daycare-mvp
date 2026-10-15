@@ -7,8 +7,7 @@ import { tr } from "@/lib/i18n";
 
 type Milestone = { id: string; name: string; description?: string; age_group?: string; learning_point_name?: string };
 type LearningPoint = { id: string; name: string; age_group?: string; milestones?: Milestone[] };
-type Area = { id: string; name: string; learning_points?: LearningPoint[] };
-type Child = { id: string; first_name: string; last_name: string; dob?: string };
+type Area = { id: string; name: string; learning_points?: LearningPoint[] };type Child = { id: string; first_name: string; last_name: string; dob?: string };
 
 const PROGRESS_LEVELS = ["Emerging", "Developing", "Secure"] as const;
 
@@ -44,25 +43,35 @@ export default function ObservationModal({
   const [observation, setObservation] = useState("");
   const [nextSteps, setNextSteps] = useState("");
   const [showGoals, setShowGoals] = useState(false);
-  // KID-55 #7: single curriculum goal only (radio, not multi-checkbox).
-  const [selectedGoal, setSelectedGoal] = useState<string | null>(null);
+  // KID-86 #5/#6: single-select sub-goal (a learning point) — choosing one
+  // clears the previous highlight, and reveals that sub-goal's milestones so
+  // the child can be graded Emerging / Developing / Secure.
+  const [selectedSubGoal, setSelectedSubGoal] = useState<string | null>(null);
   // KID-55 #8: child's progress level for the chosen goal + age band.
   const [progress, setProgress] = useState<string>("");
 
   const activeArea = areas.find((a) => a.id === areaId);
 
-  const goalsInView = useMemo(() => {
-    const out: Milestone[] = [];
-    for (const lp of activeArea?.learning_points ?? []) {
-      for (const m of lp.milestones ?? []) {
-        if (ageGroup && m.age_group && m.age_group !== ageGroup) continue;
-        out.push({ ...m, learning_point_name: lp.name });
-      }
-    }
-    return out;
+  // Sub-goals of the active area (learning points), optionally narrowed to the
+  // selected age band.
+  const subGoalsInView = useMemo(() => {
+    const lps = activeArea?.learning_points ?? [];
+    return ageGroup ? lps.filter((lp) => !lp.age_group || lp.age_group === ageGroup) : lps;
   }, [activeArea, ageGroup]);
 
-  const toggleGoal = (id: string) => setSelectedGoal((prev) => (prev === id ? null : id));
+  // Milestones that belong to the selected sub-goal, narrowed by age band.
+  const subGoalMilestones = useMemo(() => {
+    const lp = (activeArea?.learning_points ?? []).find((l) => l.id === selectedSubGoal);
+    const list = lp?.milestones ?? [];
+    return ageGroup ? list.filter((m) => !m.age_group || m.age_group === ageGroup) : list;
+  }, [activeArea, selectedSubGoal, ageGroup]);
+
+  // Single-select: choosing a sub-goal un-highlights the previous one; the same
+  // row toggles it off.
+  const selectSubGoal = (id: string) => {
+    setSelectedSubGoal((prev) => (prev === id ? null : id));
+    setProgress("");
+  };
 
   const ageGroups = Array.from(
     new Set(areas.flatMap((a) => (a.learning_points ?? []).map((lp) => lp.age_group).filter(Boolean))) as Set<string>
@@ -70,10 +79,11 @@ export default function ObservationModal({
 
   if (!open) return null;
 
-  const chosenGoalRows = goalsInView.filter((m) => m.id === selectedGoal);
-  const chosenGoal = chosenGoalRows[0];
+  // The sub-goal is recorded through its first matching milestone (the action
+  // resolves the learning point from it), plus the explicit learning point id.
+  const attachedMilestoneId = subGoalMilestones[0]?.id ?? null;
   const progressLabel = progress ? tr(dict, `learning.${progress.toLowerCase()}`) : "";
-  const body = [observation.trim(), progress && chosenGoal ? `${t("learning.progress")}: ${progress}` : "", nextSteps.trim() ? `${t("learning.nextSteps")}: ${nextSteps.trim()}` : ""]
+  const body = [observation.trim(), progress && selectedSubGoal ? `${t("learning.progress")}: ${progress}` : "", nextSteps.trim() ? `${t("learning.nextSteps")}: ${nextSteps.trim()}` : ""]
     .filter(Boolean)
     .join("\n\n");
 
@@ -141,10 +151,9 @@ export default function ObservationModal({
           <div className="field">
             <label className="label">{t("learning.kind")}</label>
             <select className="select" name="kind" defaultValue="observation" style={{ maxWidth: 200 }}>
-              <option value="observation">{t("learning.observation")}</option>
-              <option value="milestone">{t("learning.milestone")}</option>
-              <option value="goal">{t("learning.goal")}</option>
-              <option value="assessment">{t("learning.assessment")}</option>
+              {/* KID-86 #5: exactly two kinds — Observations and Assessments. */}
+              <option value="observation">{t("learning.kindObservations")}</option>
+              <option value="assessment">{t("learning.kindAssessments")}</option>
             </select>
           </div>
 
@@ -152,8 +161,8 @@ export default function ObservationModal({
           <input type="hidden" name="ageGroup" value={ageGroup} />
           <input type="hidden" name="title" value={nextSteps.trim() ? `${t("learning.nextSteps")}: ${nextSteps.trim()}` : ""} />
           <input type="hidden" name="progress" value={progress} />
-          {selectedGoal && <input type="hidden" name="goalIds" value={selectedGoal} />}
-          {selectedGoal && <input type="hidden" name="learningPointId" value="" />}
+          {selectedSubGoal && <input type="hidden" name="learningPointId" value={selectedSubGoal} />}
+          {attachedMilestoneId && <input type="hidden" name="goalIds" value={attachedMilestoneId} />}
 
           <div className="row" style={{ justifyContent: "space-between", alignItems: "center" }}>
             <div className="row" style={{ gap: 10, alignItems: "center" }}>
@@ -161,7 +170,7 @@ export default function ObservationModal({
                 <span aria-hidden="true">📷 🎞 📎</span> {t("learning.attach")}
                 <input type="file" name="attachments" multiple accept="image/*,video/*,.pdf,.doc,.docx,.xls,.xlsx,.txt" style={{ display: "none" }} />
               </label>
-              {selectedGoal && (
+              {selectedSubGoal && (
                 <button type="button" className="badge badge-green" style={{ cursor: "default" }}>
                   {t("learning.curriculumGoalAttached")}{progress ? ` · ${progressLabel}` : ""}
                 </button>
@@ -214,28 +223,60 @@ export default function ObservationModal({
                 ))}
               </div>
               <div style={{ maxHeight: 220, overflowY: "auto" }}>
-                {goalsInView.length === 0 && <p className="muted small">{t("learning.noGoalsMatch")}</p>}
-                {goalsInView.map((m) => (
-                  <label key={m.id} style={{ display: "flex", gap: 8, alignItems: "flex-start", padding: "5px 0", cursor: "pointer", fontSize: 13 }}>
-                    <input
-                      type="radio"
-                      name="goalChoice"
-                      checked={selectedGoal === m.id}
-                      onChange={() => toggleGoal(m.id)}
-                      style={{ accentColor: "var(--brand-primary)", marginTop: 2 }}
-                    />
-                    <span>
-                      <strong>{m.name}</strong>
-                      {m.learning_point_name && <span className="muted"> · {m.learning_point_name}</span>}
-                      {m.description && <div className="muted small">{m.description}</div>}
-                    </span>
-                  </label>
-                ))}
+                <div className="muted small" style={{ marginBottom: 4 }}>{t("learning.subGoals")}</div>
+                {subGoalsInView.length === 0 && <p className="muted small">{t("learning.noSubGoals")}</p>}
+                {subGoalsInView.map((lp) => {
+                  const selected = selectedSubGoal === lp.id;
+                  return (
+                    <button
+                      key={lp.id}
+                      type="button"
+                      onClick={() => selectSubGoal(lp.id)}
+                      title={lp.name}
+                      style={{
+                        display: "flex",
+                        alignItems: "flex-start",
+                        gap: 8,
+                        width: "100%",
+                        textAlign: "start",
+                        padding: "7px 9px",
+                        borderRadius: 6,
+                        border: selected ? "1.5px solid var(--brand-primary)" : "1px solid var(--color-border)",
+                        background: selected
+                          ? "color-mix(in srgb, var(--brand-primary) 12%, transparent)"
+                          : "var(--color-surface)",
+                        color: "var(--color-text)",
+                        cursor: "pointer",
+                        fontSize: 13,
+                        marginBottom: 4,
+                      }}
+                    >
+                      <span className={selected ? "badge badge-green" : "badge badge-gray"} style={{ flexShrink: 0 }}>
+                        {selected ? "✓" : ""}
+                      </span>
+                      <strong style={{ fontWeight: selected ? 700 : 500 }}>{lp.name}</strong>
+                    </button>
+                  );
+                })}
+                {selectedSubGoal && (
+                  <div className="mt-2">
+                    <div className="muted small" style={{ marginBottom: 4 }}>{t("learning.subGoalMilestones")}</div>
+                    {subGoalMilestones.length === 0 && <p className="muted small">{t("learning.noMilestones")}</p>}
+                    <ul style={{ margin: 0, paddingInlineStart: 18 }}>
+                      {subGoalMilestones.map((m) => (
+                        <li key={m.id} style={{ fontSize: 12, color: "var(--color-muted)", marginBottom: 2 }}>
+                          {m.name}
+                          {m.age_group ? <span className="muted small"> · {m.age_group}</span> : null}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
               </div>
             </div>
-            {selectedGoal && ageGroup && (
+            {selectedSubGoal && (
               <div className="mt-3">
-                <div className="label">{t("learning.ageBandPrompt", { band: ageGroup, name: childChoices.find((c) => c.id === childId)?.first_name ?? t("learning.theChild") })}</div>
+                <div className="label">{t("learning.gradePrompt")}</div>
                 <div className="row" style={{ gap: 6, marginTop: 6 }}>
                   {PROGRESS_LEVELS.map((level) => (
                     <button
@@ -253,14 +294,11 @@ export default function ObservationModal({
               </div>
             )}
             <div className="row mt-3" style={{ justifyContent: "flex-end" }}>
-              <button type="button" className="btn btn-ghost small" onClick={() => { setSelectedGoal(null); setProgress(""); }}>{t("learning.cancel")}</button>
-              <button type="button" className="btn btn-primary small" onClick={() => setShowGoals(false)}>{t("learning.addSelected", { count: selectedGoal ? 1 : 0 })}</button>
+              <button type="button" className="btn btn-ghost small" onClick={() => { setSelectedSubGoal(null); setProgress(""); }}>{t("learning.cancel")}</button>
+              <button type="button" className="btn btn-primary small" onClick={() => setShowGoals(false)}>{t("learning.addSelected", { count: selectedSubGoal ? 1 : 0 })}</button>
             </div>
           </div>
         )}
-        {chosenGoalRows.map((m) => (
-          <input key={`chk-${m.id}`} type="hidden" name="goalIds" value={m.id} />
-        ))}
       </div>
     </div>
   );

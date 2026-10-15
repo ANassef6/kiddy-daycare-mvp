@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { requireSession } from "@/lib/require";
-import { listForms, formResponses, formResponseStatusCounts, FORM_RESPONSE_STATUSES } from "@/lib/store";
+import { listForms, formResponses, formResponseStatusCounts, formResponsesForInstitute, FORM_RESPONSE_STATUSES } from "@/lib/store";
 import { firstInstituteId, cap } from "@/lib/helpers";
 import { createFormAction, generateFormShareLinkAction, setFormResponseStatusAction } from "@/lib/actions";
 
@@ -13,7 +13,7 @@ function stripHtml(v: unknown): string {
 export default async function PortalFormsPage({
   searchParams,
 }: {
-  searchParams: { view?: string; q?: string; status?: string; type?: string };
+  searchParams: { view?: string; q?: string; status?: string; type?: string; form?: string };
 }) {
   requireSession();
   const instituteId = await firstInstituteId();
@@ -21,6 +21,100 @@ export default async function PortalFormsPage({
   const forms = await listForms(instituteId);
   const viewId = searchParams.view;
   const active = forms.find((f: any) => f.id === viewId);
+
+  // KID-86 #10: Inquiries live inside Smart Forms — every submission across all
+  // forms, each row showing the source form title, with a filter by form.
+  if (viewId === "inquiries") {
+    const all = await formResponsesForInstitute(instituteId);
+    const q = (searchParams.q ?? "").toLowerCase();
+    const statusFilter = searchParams.status ?? "";
+    const formFilter = searchParams.form ?? "";
+
+    const byForm = new Map<string, number>();
+    for (const r of all) {
+      const key = String(r.form_id);
+      byForm.set(key, (byForm.get(key) ?? 0) + 1);
+    }
+
+    let rows = all;
+    if (formFilter) rows = rows.filter((r) => String(r.form_id) === formFilter);
+    if (statusFilter) rows = rows.filter((r) => String(r.status ?? "new") === statusFilter);
+    if (q) rows = rows.filter((r) => String(r.answers_json ?? "").toLowerCase().includes(q) || `${r.respondent_name ?? ""} ${r.first_name ?? ""} ${r.last_name ?? ""}`.toLowerCase().includes(q));
+
+    const title = formFilter ? forms.find((f: any) => String(f.id) === formFilter)?.title : null;
+
+    return (
+      <div>
+        <div className="row" style={{ justifyContent: "space-between", alignItems: "center" }}>
+          <div>
+            <h1 className="title" style={{ marginBottom: 0 }}>Inquiries</h1>
+            <Link className="small muted" href="/portal/forms">← All forms</Link>
+          </div>
+          <span className="muted small">{rows.length} of {all.length} submissions</span>
+        </div>
+
+        <div className="card mb-4">
+          <form method="get" className="row" style={{ gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+            <input type="hidden" name="view" value="inquiries" />
+            <input className="input" name="q" defaultValue={searchParams.q ?? ""} placeholder="Search inquiries…" style={{ minWidth: 200 }} />
+            <select className="select" name="form" defaultValue={formFilter} style={{ maxWidth: 240 }}>
+              <option value="">All forms</option>
+              {forms.map((f: any) => (
+                <option key={f.id} value={String(f.id)}>{f.title} ({byForm.get(String(f.id)) ?? 0})</option>
+              ))}
+            </select>
+            <select className="select" name="status" defaultValue={statusFilter} style={{ maxWidth: 150 }}>
+              <option value="">Any status</option>
+              {FORM_RESPONSE_STATUSES.map((s) => (
+                <option key={s} value={s}>{cap(s)}</option>
+              ))}
+            </select>
+            <button className="btn btn-ghost small" type="submit">Apply</button>
+            <Link className="btn btn-ghost small" href="/portal/forms?view=inquiries">Clear</Link>
+          </form>
+        </div>
+
+        <div className="card">
+          {formFilter && <p className="small muted mt-0 mb-2">Filtered by form: <strong>{title ?? "—"}</strong></p>}
+          {rows.length === 0 && <p className="muted small">No inquiries match.</p>}
+          {rows.map((r: any) => {
+            let snippet = "";
+            try {
+              const answers = JSON.parse(String(r.answers_json ?? "{}")) as Record<string, string>;
+              snippet = Object.entries(answers).slice(0, 2).map(([k, v]) => `${stripHtml(k)}: ${String(v).slice(0, 60)}`).join(" · ");
+            } catch {
+              snippet = "";
+            }
+            return (
+              <div className="list-item" key={r.id}>
+                <div className="small" style={{ flex: 1, minWidth: 0 }}>
+                  <Link href={`/portal/forms?view=${r.form_id}`} style={{ fontWeight: 700, color: "inherit" }}>{r.form_title}</Link>
+                  <span className="badge badge-gray" style={{ marginInlineStart: 8 }}>{cap(r.form_kind)}</span>
+                  <div>
+                    <strong>{r.respondent_name ?? "Anonymous"}</strong>
+                    {r.first_name ? ` · for ${r.first_name} ${r.last_name}` : ""}
+                    <span className="muted"> · {new Date(r.created_at).toLocaleString()}</span>
+                    <span className="badge" style={{ marginInlineStart: 8 }}>{cap(String(r.status ?? "new"))}</span>
+                  </div>
+                  {snippet && <div className="muted mt-1">{snippet}</div>}
+                </div>
+                <form action={setFormResponseStatusAction} className="row" style={{ gap: 6, alignItems: "center" }}>
+                  <input type="hidden" name="responseId" value={String(r.id)} />
+                  <input type="hidden" name="formId" value={String(r.form_id)} />
+                  <select className="select small" name="status" defaultValue={String(r.status ?? "new")} style={{ maxWidth: 140 }}>
+                    {FORM_RESPONSE_STATUSES.map((s) => (
+                      <option key={s} value={s}>{cap(s)}</option>
+                    ))}
+                  </select>
+                  <button className="btn btn-ghost small" type="submit">Set</button>
+                </form>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  }
 
   // Funnel view: submissions with per-row statuses (New → Viewed → Contacted → Completed → Archived)
   const responses = active ? await formResponses(active.id) : [];
@@ -114,12 +208,15 @@ export default async function PortalFormsPage({
           <h1 className="title" style={{ marginBottom: 0 }}>Forms, lists &amp; surveys</h1>
           <p className="subtitle" style={{ marginBottom: 0 }}>Publish parent forms, surveys, and sign-up lists — then track the submission funnel.</p>
         </div>
-        <details style={{ position: "relative" }}>
-          <summary className="btn btn-primary" style={{ cursor: "pointer", listStyle: "none" }}>Build new form</summary>
-          <div style={{ position: "absolute", right: 0, top: "calc(100% + 6px)", width: 560, maxWidth: "92vw", zIndex: 50 }}>
-            <CreateFormCard />
-          </div>
-        </details>
+        <div className="row" style={{ gap: 8, alignItems: "center" }}>
+          <Link className="btn btn-ghost" href="/portal/forms?view=inquiries">Inquiries</Link>
+          <details style={{ position: "relative" }}>
+            <summary className="btn btn-primary" style={{ cursor: "pointer", listStyle: "none" }}>Build new form</summary>
+            <div style={{ position: "absolute", insetInlineEnd: 0, top: "calc(100% + 6px)", width: 560, maxWidth: "92vw", zIndex: 50 }}>
+              <CreateFormCard />
+            </div>
+          </details>
+        </div>
       </div>
 
       <div className="card mb-4">

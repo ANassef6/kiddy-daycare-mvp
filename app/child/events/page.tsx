@@ -16,7 +16,7 @@ export default async function ParentEventsPage() {
 
   return (
     <div>
-      <h1 className="title">Events &amp; video</h1>
+      <h1 className="title">Events</h1>
       <div className="subtitle">Daycare events and recent videos for your family.</div>
 
       <h3 className="subtitle">Upcoming events</h3>

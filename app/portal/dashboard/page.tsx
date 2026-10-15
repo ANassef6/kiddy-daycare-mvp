@@ -109,7 +109,7 @@ export default async function PortalDashboard() {
           <h3 className="subtitle">{tr(dict, "dashboard.demoInquiries")}</h3>
           <div style={{ fontSize: 24, fontWeight: 700 }}>{inquiries.length}</div>
           <p className="muted small mt-1">{tr(dict, "dashboard.newestSubmissions")}</p>
-          <Link className="small mt-2" href="/portal/inquiries">{tr(dict, "dashboard.openInquiries")} →</Link>
+          <Link className="small mt-2" href="/portal/forms?view=inquiries">{tr(dict, "dashboard.openInquiries")} →</Link>
         </div>
       </div>
     </div>

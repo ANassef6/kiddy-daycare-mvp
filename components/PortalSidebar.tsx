@@ -66,7 +66,7 @@ export function portalNav(dict: Dict, role?: string): NavGroup[] {
       href: "/portal/report-center",
       items: [
         { label: t("nav.reportCenter"), href: "/portal/report-center" },
-        { label: t("nav.inquiries"), href: "/portal/inquiries" },
+        // KID-86 #10: Inquiries moved under Smart Forms — no standalone entry.
         { label: t("nav.smartList"), href: "/portal/tags" },
         { label: t("nav.smartForm"), href: "/portal/forms" },
         { label: t("nav.surveys"), href: "/portal/surveys" },

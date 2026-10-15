@@ -109,9 +109,8 @@ export default function ObservationForm({
         <div className="col field">
           <label className="label">Kind</label>
           <select className="select" name="kind">
-            <option value="observation">Observation</option>
-            <option value="milestone">Milestone</option>
-            <option value="goal">Goal</option>
+            <option value="observation">Observations</option>
+            <option value="assessment">Assessments</option>
           </select>
         </div>
       </div>

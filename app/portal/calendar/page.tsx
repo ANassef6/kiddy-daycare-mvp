@@ -15,7 +15,7 @@ export default async function PortalCalendarPage() {
     <div>
       <h1 className="title">Calendar</h1>
       <p className="subtitle">Upcoming center events and field trips. Manage media and add events from the
-        <Link href="/portal/events" className="small" style={{ fontWeight: 600, marginLeft: 4 }}>Events &amp; video</Link> page.</p>
+        <Link href="/portal/events" className="small" style={{ fontWeight: 600, marginInlineStart: 4 }}>Events</Link> page.</p>
 
       {events.length === 0 && (
         <div className="card">

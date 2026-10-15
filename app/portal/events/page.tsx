@@ -15,7 +15,7 @@ export default async function PortalEventsPage({ searchParams }: { searchParams:
 
   return (
     <div>
-      <h1 className="title">Events &amp; video</h1>
+      <h1 className="title">Events</h1>
 
       <div className="card mb-4">
         <h3 className="subtitle">Add an event</h3>
