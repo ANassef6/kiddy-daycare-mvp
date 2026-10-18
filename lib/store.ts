@@ -669,6 +669,80 @@ export async function isTenancyDisabled(accountId: string): Promise<boolean> {
   return insts.length > 0 && insts.every((i) => Number(i.active ?? 1) === 0);
 }
 
+/** KID-199.4: every daycare for the /platform surface — subscription flag plus
+ *  owner/staff counts resolved in one grouped query (no per-tenant fan-out). covers any staff record at the daycare; owner accounts are the
+ *  logins (`role = 'owner'`) linked through `account.staff_id` — the seeded
+ *  owner login sits on an `admin`-role staff row, so the login role is the one
+ *  that describes ownership.
+ */
+export async function listInstitutesForPlatform(): Promise<Row[]> {
+  return queryAll(
+    `SELECT i.*,
+            COUNT(DISTINCT s.id) AS staff_count,
+            COUNT(DISTINCT CASE WHEN a.role = 'owner' THEN a.id END) AS owner_count
+     FROM institute i
+     LEFT JOIN staff s ON s.institute_id = i.id
+     LEFT JOIN account a ON a.staff_id = s.id
+     GROUP BY i.id
+     ORDER BY i.created_at`
+  );
+}
+
+/** KID-199.4: create a brand-new daycare from the /platform surface: the
+ *  institute plus its first owner, mirroring the seed.ts convention that every
+ *  login carries the `account.staff_id` of the staff row it belongs to. That
+ *  link is what tenant resolution (lib/tenant.ts) reads — without it the new
+ *  owner would silently fall back to the legacy "first institute" rule and see
+ *  the wrong daycare's data, so it is created here, not left to follow-up.
+ *  Throws when the owner email already has an account (the /platform action
+ *  surfaces that as a field error, not a digest page).
+ */
+export async function createDaycare(data: {
+  name: string;
+  primaryColor?: string;
+  accentColor?: string;
+  font?: string;
+  ownerEmail: string;
+  ownerPassword: string;
+  ownerFullName: string;
+}): Promise<{ instituteId: string; ownerStaffId: string; ownerAccountId: string }> {
+  const name = data.name.trim();
+  if (!name) throw new Error("daycare-name-required");
+  const ownerEmail = data.ownerEmail.trim().toLowerCase();
+  if (!ownerEmail || !data.ownerPassword) throw new Error("owner-credentials-required");
+  const { createAccount, findAccountByEmail } = await import("./auth");
+  if (await findAccountByEmail(ownerEmail)) throw new Error("owner-email-in-use");
+
+  const institute = await seedInstitute({
+    name,
+    primaryColor: data.primaryColor,
+    accentColor: data.accentColor,
+    font: data.font,
+  });
+  const instituteId = String(institute.id);
+  const ownerStaff = await createStaff({
+    instituteId,
+    fullName: data.ownerFullName.trim() || name,
+    role: "owner",
+  });
+  const ownerAccount = await createAccount({
+    email: ownerEmail,
+    password: data.ownerPassword,
+    fullName: data.ownerFullName.trim() || name,
+    role: "owner",
+  });
+  await queryRun(
+    "UPDATE account SET staff_id = ? WHERE id = ?",
+    String(ownerStaff.id),
+    String(ownerAccount.id)
+  );
+  return {
+    instituteId,
+    ownerStaffId: String(ownerStaff.id),
+    ownerAccountId: String(ownerAccount.id),
+  };
+}
+
 /** KID-199.3: enable/disable a daycare (platform operator action, KID-199.4 UI). */
 export async function setInstituteActive(instituteId: string, active: boolean): Promise<void> {
   await queryRun("UPDATE institute SET active = ? WHERE id = ?", active ? 1 : 0, instituteId);

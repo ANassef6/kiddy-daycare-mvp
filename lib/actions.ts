@@ -63,6 +63,8 @@ import {
   saveWorkingHours,
   checkInAllowed,
   runAutoCheckoutSweep,
+  createDaycare,
+  setInstituteActive,
 } from "@/lib/store";
 import type { WorkingWeek } from "@/lib/working-hours";
 import { supabaseConfigured, getSupabase, isGoTrueAlreadyRegisteredError, isGoTrueServerError } from "@/lib/supabase";
@@ -537,6 +539,68 @@ function requireAdmin(): SessionCookie {
   const me = authAccount();
   if (!isAdminRole(me.role)) redirect("/portal/dashboard");
   return me;
+}
+
+// KID-199.4: the /platform surface is the platform operator's only area. Both
+// guards here mirror the page guard (requireSession + superadmin check) —
+// the page block alone is not enough because actions can be POSTed directly.
+// A wrong-role POST gets the same treatment an anonymous one would: back to
+// /login. A wrong-tenancy POST never happens: superadmin resolves no tenant.
+function requireSuperadmin(): SessionCookie {
+  const me = authAccount();
+  if (!isSuperadminRole(me.role)) redirect("/login");
+  return me;
+}
+
+/** Validate the /platform hex color fields without trusting the form: accept
+ *  `#RRGGBB` only, everything else falls back to the seed defaults. */
+function platformColor(value: FormDataEntryValue | null, fallback: string): string {
+  const v = String(value ?? "").trim();
+  return /^#[0-9a-fA-F]{6}$/.test(v) ? v : fallback;
+}
+
+// KID-199.4: enable/disable a daycare account. The active flag already gates
+// login and entry (KID-199.3); this only flips it and refreshes the page so the
+// toggle reflects the stored state.
+export async function setDaycareActiveAction(formData: FormData) {
+  requireSuperadmin();
+  const instituteId = String(formData.get("instituteId") ?? "");
+  if (!instituteId) redirect("/platform?error=missing-id");
+  await setInstituteActive(instituteId, String(formData.get("active") ?? "") === "1");
+  revalidatePath("/platform");
+  redirect("/platform");
+}
+
+// KID-199.4: create a new daycare plus its first owner login, so the board can
+// add tenants like "Sunshine Daycare" without a code deploy. Every failure
+// lands back on /platform with a query-tagged friendly message.
+export async function createDaycareAction(formData: FormData) {
+  requireSuperadmin();
+  const name = String(formData.get("name") ?? "").trim();
+  const ownerEmail = String(formData.get("ownerEmail") ?? "").trim();
+  const ownerPassword = String(formData.get("ownerPassword") ?? "");
+  if (!name) redirect("/platform?error=name");
+  if (!ownerEmail || !isValidInviteEmail(ownerEmail)) redirect("/platform?error=owner-email");
+  if (ownerPassword.length < 8) redirect("/platform?error=password");
+  try {
+    await createDaycare({
+      name,
+      primaryColor: platformColor(formData.get("primaryColor"), "#3B82F6"),
+      accentColor: platformColor(formData.get("accentColor"), "#10B981"),
+      font: String(formData.get("font") ?? "").trim() || "Inter",
+      ownerEmail,
+      ownerPassword,
+      ownerFullName: String(formData.get("ownerFullName") ?? "").trim(),
+    });
+  } catch (err) {
+    if (String((err as Error)?.message ?? "") === "owner-email-in-use") {
+      redirect("/platform?error=owner-email-in-use");
+    }
+    console.error("KID-199.4 createDaycareAction failed:", err);
+    redirect("/platform?error=unknown");
+  }
+  revalidatePath("/platform");
+  redirect("/platform?created=1");
 }
 
 // KID-199.3: session-aware tenancy. This used to return the first-created
