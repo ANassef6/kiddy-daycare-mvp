@@ -1,8 +1,7 @@
 import Link from "next/link";
 import PortalSidebar from "@/components/PortalSidebar";
-import Avatar from "@/components/Avatar";
+import PortalAccountMenu from "@/components/PortalAccountMenu";
 import { requireSessionWithWithdrawalCheck } from "@/lib/require";
-import { isAdminRole } from "@/lib/role";
 import { ensureSchema } from "@/lib/db";
 import { getBranding } from "@/lib/theme";
 import { i18nForAccount } from "@/lib/i18n-session";
@@ -50,24 +49,13 @@ export default async function PortalLayout({ children }: { children: React.React
               <path d="M13.73 21a2 2 0 0 1-3.46 0" />
             </svg>
           </Link>
-          <details className="portal-account">
-            <summary className="portal-account-toggle" aria-label={tr(dict, "topbar.accountSettings")} title={session.email}>
-              <Avatar src={profile.photoUrl} name={displayName} size={28} className="portal-account-avatar" />
-              <span className="portal-account-name">{displayName}</span>
-            </summary>
-            <div className="portal-account-menu">
-              <div className="portal-account-meta">
-                <div className="portal-account-email">{session.email}</div>
-                <div className="small muted">{session.role}</div>
-              </div>
-              <Link href="/portal/account" className="portal-account-link">{tr(dict, "topbar.accountSettings")}</Link>
-              {isAdminRole(session.role) && (
-                <Link href="/portal/settings" className="portal-account-link">{tr(dict, "topbar.centerSettings")}</Link>
-              )}
-              <Link href="/portal/support" className="portal-account-link">{tr(dict, "topbar.helpSupport")}</Link>
-              <a href="/api/logout" className="portal-account-link">{tr(dict, "topbar.logout")}</a>
-            </div>
-          </details>
+          <PortalAccountMenu
+            email={session.email}
+            role={session.role}
+            displayName={displayName}
+            photoUrl={profile.photoUrl}
+            dict={dict}
+          />
         </div>
         {!session.emailConfirmed && (
           <div
