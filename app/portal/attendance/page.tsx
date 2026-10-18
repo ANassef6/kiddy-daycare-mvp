@@ -1,6 +1,7 @@
 import Link from "next/link";
+import { resolveTenantInstituteId } from "@/lib/tenant";
 import { requireSession } from "@/lib/require";
-import { listInstitutes, attendanceOn, runAutoCheckoutSweep, scopedRoomIds, listRooms } from "@/lib/store";
+import {attendanceOn, runAutoCheckoutSweep, scopedRoomIds, listRooms } from "@/lib/store";
 import { AttendanceCheckIn } from "@/components/AttendanceCheckIn";
 
 export const dynamic = "force-dynamic";
@@ -11,8 +12,7 @@ export default async function PortalAttendancePage({
   searchParams: { day?: string; sweep?: string; q?: string; room?: string };
 }) {
   const session = requireSession();
-  const institutes = await listInstitutes();
-  const iid = institutes[0]?.id as string | undefined;
+  const iid = await resolveTenantInstituteId();
   const day = searchParams.day ?? new Date().toISOString().slice(0, 10);
   const q = searchParams.q ?? "";
   const roomId = searchParams.room ?? "";

@@ -610,6 +610,70 @@ export async function instituteIdsForAccount(accountId: string): Promise<string[
   return rows.map((r) => String(r.institute_id));
 }
 
+/** KID-199.3: the staff row an account is linked to implies its institute —
+ *  the staff half of tenancy (`instituteIdsForAccount` returns only the
+ *  parent/invite/family-derived set and must stay untouched: it is the KID-152
+ *  gate's own definition).
+ */
+export async function staffInstituteIdForAccount(accountId: string): Promise<string | undefined> {
+  const row = await queryGet(
+    "SELECT s.institute_id FROM account a JOIN staff s ON s.id = a.staff_id WHERE a.id = ?",
+    accountId
+  );
+  return row?.institute_id ? String(row.institute_id) : undefined;
+}
+
+/** KID-199.3: the institutes the account is that daycare's own record of —
+ *  staff membership (staff row) plus the parent-derived set above. Ordered by
+ *  institute `created_at` so a multi-centre parent resolves deterministically
+ *  to their earliest centre, the same rule the old "first institute" code
+ *  accidentally used for everyone.
+ *
+ *  An institute referenced by tenancy but missing from `institute` is dropped
+ *  rather than crashing every portal page.
+ */
+export async function tenancyInstitutesForAccount(accountId: string): Promise<Row[]> {
+  const ids = new Set<string>();
+  const staffIid = await staffInstituteIdForAccount(accountId);
+  if (staffIid) ids.add(staffIid);
+  for (const iid of await instituteIdsForAccount(accountId)) ids.add(iid);
+  if (ids.size === 0) return [];
+  const placeholders = [...ids].map(() => "?").join(", ");
+  const rows = await queryAll(
+    `SELECT * FROM institute WHERE id IN (${placeholders}) ORDER BY created_at`,
+    ...[...ids]
+  );
+  return rows;
+}
+
+/** KID-199.3: session-aware tenant primary. Staff resolve to their own
+ *  daycare's institute; parents to their earliest matching one; anything else
+ *  (owner without a staff link, platform operator) falls back to the legacy
+ *  "first institute" ordering so single-tenant deployments and seeded demos
+ *  keep working exactly as before.
+ */
+export async function primaryInstituteIdForAccount(accountId: string): Promise<string> {
+  const insts = await tenancyInstitutesForAccount(accountId);
+  if (insts.length > 0) return String(insts[0].id);
+  const row = await queryGet("SELECT id FROM institute ORDER BY created_at LIMIT 1");
+  return String(row?.id ?? "");
+}
+
+/** KID-199.3: true when every institute the account belongs to is disabled.
+ *  This is the active-flag gate shared by login and portal/parent entry. A
+ *  superadmin (no tenancy rows) and an account with no tenancy at all are
+ *  never "disabled" by this check — they are handled by their own paths.
+ */
+export async function isTenancyDisabled(accountId: string): Promise<boolean> {
+  const insts = await tenancyInstitutesForAccount(accountId);
+  return insts.length > 0 && insts.every((i) => Number(i.active ?? 1) === 0);
+}
+
+/** KID-199.3: enable/disable a daycare (platform operator action, KID-199.4 UI). */
+export async function setInstituteActive(instituteId: string, active: boolean): Promise<void> {
+  await queryRun("UPDATE institute SET active = ? WHERE id = ?", active ? 1 : 0, instituteId);
+}
+
 /** KID-152: read-only tenant check for the deploy gate — the measurement QA
  *  asked for instead of an assumption about whether existing cross-institute
  *  rows need a cleanup migration.

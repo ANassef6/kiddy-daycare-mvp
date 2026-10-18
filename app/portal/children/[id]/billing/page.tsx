@@ -1,7 +1,8 @@
 import Link from "next/link";
+import { resolveTenantInstituteId } from "@/lib/tenant";
 import { notFound } from "next/navigation";
 import { requireSession } from "@/lib/require";
-import { getChild, listInstitutes, listChildBilling, isChildInScope } from "@/lib/store";
+import { getChild,listChildBilling, isChildInScope } from "@/lib/store";
 import { addChildBillingAction, updateBillingStatusAction } from "@/lib/actions";
 
 export const dynamic = "force-dynamic";
@@ -15,8 +16,7 @@ function money(cents: number, currency: string): string {
 
 export default async function ChildBillingPage({ params }: { params: { id: string } }) {
   const session = requireSession();
-  const institutes = await listInstitutes();
-  const iid = institutes[0]?.id as string | undefined;
+  const iid = await resolveTenantInstituteId();
   const child = await getChild(params.id);
   if (!child) notFound();
   // KID-103: direct URLs to out-of-scope children are hidden.

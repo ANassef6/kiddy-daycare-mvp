@@ -1,15 +1,15 @@
 import { requireSession } from "@/lib/require";
+import { resolveTenantInstituteId } from "@/lib/tenant";
 import { staffIdForAccount } from "@/lib/auth";
 import { isAdminRole } from "@/lib/role";
-import { listInstitutes, listStaff, staffRooms, getInstitute } from "@/lib/store";
+import {listStaff, staffRooms, getInstitute } from "@/lib/store";
 import { cap, safeJson } from "@/lib/helpers";
 
 export const dynamic = "force-dynamic";
 
 export default async function PortalStaffHoursPage() {
   const session = requireSession();
-  const institutes = await listInstitutes();
-  const iid = institutes[0]?.id as string | undefined;
+  const iid = await resolveTenantInstituteId();
   const allStaff = iid ? await listStaff(iid) : [];
 
   // KID-105 #13: staff sees only their own working-hours row.

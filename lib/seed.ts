@@ -3,10 +3,41 @@ import * as store from "./store";
 import { createAccount } from "./auth";
 import { ensureCurriculumSeeded, ageGroupForDob } from "./curriculum";
 
+// KID-199.3: documented demo credentials for the platform operator account
+// (superadmin). Both are overridable via env; production bootstraps the role
+// with SUPERADMIN_EMAIL instead (see docs/PLATFORM_BOOTSTRAP.md).
+const SUPERADMIN_EMAIL = process.env.SUPERADMIN_EMAIL ?? "superadmin@kiddy.test";
+const SUPERADMIN_PASSWORD = process.env.SUPERADMIN_PASSWORD ?? "kiddy-superadmin";
+
+// KID-199.3: idempotently ensure a superadmin account exists (demo convention)
+// and that SUPERADMIN_EMAIL (when set) carries the role on its existing row.
+export async function ensureSuperadmin() {
+  const existing = await queryGet(
+    "SELECT id, role FROM account WHERE lower(trim(email)) = lower(trim(?))",
+    SUPERADMIN_EMAIL
+  );
+  if (!existing) {
+    await createAccount({
+      email: SUPERADMIN_EMAIL,
+      password: SUPERADMIN_PASSWORD,
+      fullName: "Platform Operator",
+      role: "superadmin",
+    });
+    console.log(`Seeded superadmin account: ${SUPERADMIN_EMAIL}`);
+  } else if (String(existing.role ?? "") !== "superadmin") {
+    await queryRun("UPDATE account SET role = 'superadmin' WHERE id = ?", existing.id);
+    console.log(`Granted the superadmin role to ${SUPERADMIN_EMAIL}`);
+  }
+}
+
 // Seeds a demo daycare, its rooms/staff, two children with a parent, an invite,
 // and a small set of daily-loop records so the MVP is immediately explorable.
 // Runs against whichever engine is active (Supabase Postgres or local SQLite).
 export async function seedDemo() {
+  // KID-199.3: ensure the platform operator account exists even when the demo
+  // daycare is already seeded (skip path below).
+  await ensureSuperadmin();
+
   const existing = await queryGet("SELECT COUNT(*) AS c FROM institute");
   if ((existing?.c as number) > 0) {
     console.log("Seed skipped: data already present.");
@@ -14,8 +45,7 @@ export async function seedDemo() {
   }
 
   const institute = await store.seedInstitute({
-    name: "Sunshine Daycare",
-    primaryColor: "#8B5CF6",
+    name: "Sunshine Daycare",    primaryColor: "#8B5CF6",
     accentColor: "#F59E0B",
     font: "Nunito",
     openingHours: {

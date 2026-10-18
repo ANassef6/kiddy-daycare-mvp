@@ -1,16 +1,16 @@
 import Link from "next/link";
+import { resolveTenantInstituteId } from "@/lib/tenant";
 import { requireSession } from "@/lib/require";
 import { staffIdForAccount } from "@/lib/auth";
 import { isAdminRole } from "@/lib/role";
-import { listRooms, listInstitutes, listChildren, staffRooms } from "@/lib/store";
+import { listRooms,listChildren, staffRooms } from "@/lib/store";
 import { addRoomAction } from "@/lib/actions";
 
 export const dynamic = "force-dynamic";
 
 export default async function PortalRoomsPage() {
   const session = requireSession();
-  const institutes = await listInstitutes();
-  const iid = institutes[0]?.id as string | undefined;
+  const iid = await resolveTenantInstituteId();
   const allRooms = iid ? await listRooms(iid) : [];
   const children = iid ? await listChildren(iid) : [];
 

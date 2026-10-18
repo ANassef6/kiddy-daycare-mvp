@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { resolveTenantInstituteId } from "@/lib/tenant";
 import { notFound, redirect } from "next/navigation";
 import { requireSession } from "@/lib/require";
 import { staffIdForAccount } from "@/lib/auth";
@@ -26,9 +27,7 @@ const STATUS_KIND_LABEL: Record<string, string> = {
 
 export default async function StaffProfilePage({ params, searchParams }: { params: { id: string }; searchParams?: { edit?: string; linked?: string; existing?: string; error?: string } }) {
   const session = requireSession();
-  const { listInstitutes } = await import("@/lib/store");
-  const institutes = await listInstitutes();
-  const iid = institutes[0]?.id as string | undefined;
+  const iid = await resolveTenantInstituteId();
 
   // KID-105 #13: staff can only view their own profile.
   if (!isAdminRole(session.role)) {
@@ -281,9 +280,7 @@ function profileTab(
 }
 
 async function RoomsCheckboxes({ staffId }: { staffId: string }) {
-  const { listInstitutes } = await import("@/lib/store");
-  const institutes = await listInstitutes();
-  const iid = institutes[0]?.id as string | undefined;
+  const iid = await resolveTenantInstituteId();
   const allRooms = iid ? await listRooms(iid) : [];
   const assigned = new Set((await staffRooms(staffId)).map((r) => String(r.id)));
   return (

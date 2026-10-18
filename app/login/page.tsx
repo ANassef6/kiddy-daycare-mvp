@@ -4,15 +4,26 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { loginAction } from "@/lib/actions";
 
+// Friendlier messages for the guard redirects (KID-112 no_access, KID-86
+// withdrawal, KID-199.3 disabled daycare) that land on /login?error=…
+const GUARD_ERRORS: Record<string, string> = {
+  withdrawn: "This account's access has been withdrawn.",
+  disabled: "This account's access is currently disabled. Contact your daycare admin.",
+  "disabled-institute": "This daycare is currently disabled. Contact the platform team.",
+};
+
 export default function LoginPage() {
   const [error, setError] = useState<string | null>(null);
   const [confirmed, setConfirmed] = useState(false);
+  const [guardError, setGuardError] = useState<string | null>(null);
   const [brand, setBrand] = useState<{ name: string; logoUrl: string | null; primaryColor: string } | null>(null);
 
   // Fetch branding on mount and read query params (never during render)
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     if (params.get("confirmed") === "1") setConfirmed(true);
+    const guard = params.get("error");
+    if (guard) setGuardError(GUARD_ERRORS[guard] ?? null);
     let cancelled = false;
     fetch("/api/branding")
       .then((r) => r.json())
@@ -36,6 +47,20 @@ export default function LoginPage() {
       </div>
       <h1 className="title mt-4">Sign in</h1>
       <p className="subtitle">Welcome back. Sign in to see your daycare&apos;s day.</p>
+      {guardError && !confirmed && (
+        <div
+          className="small"
+          style={{
+            background: "#fee2e2",
+            border: "1px solid #dc2626",
+            borderRadius: 8,
+            padding: "10px 12px",
+            marginBottom: 16,
+          }}
+        >
+          {guardError}
+        </div>
+      )}
       {confirmed && (
         <div
           className="small"

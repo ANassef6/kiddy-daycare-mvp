@@ -492,6 +492,15 @@ export const en = {
     type: "Type",
     unknown: "Unknown",
   },
+  // KID-199.3: role labels, including the platform operator role.
+  roles: {
+    owner: "Owner",
+    admin: "Admin",
+    staff: "Staff",
+    carer: "Carer",
+    parent: "Parent",
+    superadmin: "Platform Operator",
+  },
 };
 
 export const ar = {
@@ -970,6 +979,14 @@ export const ar = {
     logIncidentBtn: "تسجيل حادث",
     type: "النوع",
     unknown: "غير معروف",
+  },
+  roles: {
+    owner: "المالك",
+    admin: "مدير",
+    staff: "موظف",
+    carer: "مقدّم رعاية",
+    parent: "ولي أمر",
+    superadmin: "مشغّل المنصة",
   },
 };
 

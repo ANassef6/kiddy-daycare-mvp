@@ -1,6 +1,7 @@
 import Link from "next/link";
+import { resolveTenantInstituteId } from "@/lib/tenant";
 import { requireSession } from "@/lib/require";
-import { listChildren, listRoomsScoped, listInstitutes } from "@/lib/store";
+import { listChildren, listRoomsScoped } from "@/lib/store";
 import { addChildAction, inviteParentAction } from "@/lib/actions";
 import Avatar from "@/components/Avatar";
 import RelationshipSelect from "@/components/RelationshipSelect";
@@ -28,8 +29,7 @@ export default async function PortalChildrenPage({
   searchParams: { error?: string; status?: string; invite?: string; email?: string; code?: string; activationUrl?: string; inviteDetail?: string; prefillEmail?: string };
 }) {
   const session = requireSession();
-  const institutes = await listInstitutes();
-  const instituteId = institutes[0]?.id as string | undefined;
+  const instituteId = await resolveTenantInstituteId();
   const statusFilter = searchParams.status ?? "";
   // KID-103: children list and room choices are scoped to assigned classrooms.
   const [children, rooms] = await Promise.all([

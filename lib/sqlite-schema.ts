@@ -15,6 +15,7 @@ export function sqliteSchema(db: any): void {
     closing_days TEXT,
     contact TEXT,
     address TEXT,
+    active INTEGER NOT NULL DEFAULT 1,
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
   );
 
@@ -518,6 +519,10 @@ export function sqliteSchema(db: any): void {
   }
   if (!instCols.some((c) => c.name === "address")) {
     db.exec("ALTER TABLE institute ADD COLUMN address TEXT");
+  }
+  // KID-199.3: mirror of supabase/migrations/0022_institute_active.sql.
+  if (!instCols.some((c) => c.name === "active")) {
+    db.exec("ALTER TABLE institute ADD COLUMN active INTEGER NOT NULL DEFAULT 1");
   }
   const staffCols = db.prepare("PRAGMA table_info(staff)").all() as { name: string }[];
   if (!staffCols.some((c) => c.name === "photo_url")) {

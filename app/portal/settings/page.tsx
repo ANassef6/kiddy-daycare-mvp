@@ -1,7 +1,8 @@
 import { redirect } from "next/navigation";
+import { resolveTenantInstituteId } from "@/lib/tenant";
 import { requireSession } from "@/lib/require";
 import { isAdminRole } from "@/lib/role";
-import { listInstitutes, getInstitute, getWorkingHours } from "@/lib/store";
+import {getInstitute, getWorkingHours } from "@/lib/store";
 import { saveBrandingAction, saveCenterDetailsAction, uploadBrandingImageAction } from "@/lib/actions";
 import { brandingFromInstitute } from "@/lib/theme";
 import Avatar from "@/components/Avatar";
@@ -20,8 +21,7 @@ export default async function PortalSettingsPage() {
     redirect("/portal/dashboard");
   }
   const { locale, dict } = await i18nForAccount(session.accountId);
-  const institutes = await listInstitutes();
-  const iid = institutes[0]?.id as string | undefined;
+  const iid = await resolveTenantInstituteId();
   const institute = iid ? await getInstitute(iid) : undefined;
   const week = iid ? await getWorkingHours(iid) : {};
   const b = brandingFromInstitute(institute as any);

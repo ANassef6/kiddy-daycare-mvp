@@ -1,5 +1,6 @@
 import { requireSession } from "@/lib/require";
-import { listInstitutes, listNewsfeed, listChildren, listRooms, staffRooms } from "@/lib/store";
+import { resolveTenantInstituteId } from "@/lib/tenant";
+import {listNewsfeed, listChildren, listRooms, staffRooms } from "@/lib/store";
 import { createNewsfeedWithAttachmentAction, commentAction, toggleLikeAction } from "@/lib/actions";
 import RecipientsPicker from "@/components/RecipientsPicker";
 import Avatar from "@/components/Avatar";
@@ -9,8 +10,7 @@ export const dynamic = "force-dynamic";
 
 export default async function PortalNewsfeedPage() {
   const session = requireSession();
-  const institutes = await listInstitutes();
-  const iid = institutes[0]?.id as string | undefined;
+  const iid = await resolveTenantInstituteId();
   // KID-103: composer children and visible posts are scoped to assigned classrooms.
   const [posts, children, rooms] = await Promise.all([
     iid ? listNewsfeed(iid, session.accountId) : Promise.resolve([]),

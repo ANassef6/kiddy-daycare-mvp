@@ -1,10 +1,14 @@
 // Tiny shared helpers used across parent + portal T5 pages.
-import { queryGet } from "./db";
 import { familiesForAccount } from "./store";
+import { resolveTenantInstituteId } from "./tenant";
 
+// KID-199.3: session-aware tenancy. This used to be a "first institute in the
+// table" query, which put every user — including the staff and parents of the
+// second daycare — on the first daycare's data. Pages keep calling it with no
+// arguments; the resolution now goes through lib/tenant.ts (staff → their
+// daycare, parent → their tenancy, superadmin → none).
 export async function firstInstituteId(): Promise<string> {
-  const row = await queryGet("SELECT id FROM institute ORDER BY created_at LIMIT 1");
-  return String(row?.id ?? "");
+  return resolveTenantInstituteId();
 }
 
 export async function familyChildren(accountId: string): Promise<any[]> {

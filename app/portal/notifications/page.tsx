@@ -1,8 +1,9 @@
 import Link from "next/link";
+import { resolveTenantInstituteId } from "@/lib/tenant";
 import { requireSession } from "@/lib/require";
 import { i18nForAccount } from "@/lib/i18n-session";
 import { tr } from "@/lib/i18n";
-import { listInstitutes, recentActivityFeed, type ActivityItem } from "@/lib/store";
+import {recentActivityFeed, type ActivityItem } from "@/lib/store";
 
 export const dynamic = "force-dynamic";
 
@@ -51,8 +52,7 @@ function formatTimeAgo(when: Date): string {
 export default async function PortalNotificationsPage() {
   const session = requireSession();
   const { dict } = await i18nForAccount(session.accountId);
-  const institutes = await listInstitutes();
-  const iid = institutes[0]?.id as string | undefined;
+  const iid = await resolveTenantInstituteId();
   const feed = iid ? await recentActivityFeed(String(iid), session.accountId, 50) : [];
 
   return (

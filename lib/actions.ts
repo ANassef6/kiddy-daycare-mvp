@@ -69,7 +69,8 @@ import { supabaseConfigured, getSupabase, isGoTrueAlreadyRegisteredError, isGoTr
 import { activationStepError } from "@/lib/activation";
 import { requestOrigin, publicOrigin } from "@/lib/url";
 import { sendContactInvite, contactNameForInvite } from "@/lib/contact-invite";
-import { isAdminRole } from "@/lib/role";
+import { isAdminRole, isSuperadminRole } from "@/lib/role";
+import { resolveTenantInstituteId } from "@/lib/tenant";
 import {
   buildParentInviteEmail,
   getInviteById,
@@ -111,6 +112,30 @@ function homeForRole(role: string): string {
   return role === "parent" ? "/child" : "/portal/dashboard";
 }
 
+// KID-199.3: a disabled daycare blocks its staff and parents at login with a
+// friendly message, in the family `no_access` style. The platform operator
+// role is exempt — it is the role that re-enables daycares. Re-enabling the
+// institute restores access; nothing is deleted by the gate.
+const INSTITUTE_DISABLED_MESSAGE = "This daycare is currently disabled. Contact the platform team.";
+
+async function tenancyDisabledError(
+  accountId: string,
+  role: string
+): Promise<{ error: string } | null> {
+  try {
+    if (isSuperadminRole(role)) return null;
+    const { isTenancyDisabled } = await import("@/lib/store");
+    if (await isTenancyDisabled(accountId)) {
+      return { error: INSTITUTE_DISABLED_MESSAGE };
+    }
+  } catch (err) {
+    // Never lock everyone out because the gate itself failed (e.g. the
+    // active column has not been applied yet).
+    console.error("KID-199.3 tenancy gate failed open:", err);
+  }
+  return null;
+}
+
 export async function loginAction(formData: FormData) {
   const email = String(formData.get("email") ?? "").trim();
   const password = String(formData.get("password") ?? "");
@@ -124,6 +149,8 @@ export async function loginAction(formData: FormData) {
     if (!error && data.user) {
       const account = await findAccountByEmail(email);
       if (account) {
+        const disabledGate = await tenancyDisabledError(String(account.id), String(account.role));
+        if (disabledGate) return disabledGate;
         if (data.user.email_confirmed_at && !emailConfirmedFor(account)) {
           await setEmailConfirmed(account.id, true);
         }
@@ -148,6 +175,9 @@ export async function loginAction(formData: FormData) {
   if (await isAccountAccessWithdrawn(account.id)) {
     return { error: "This account's access has been withdrawn." };
   }
+  // KID-199.3: disabled daycare gate (staff + parents; superadmin exempt).
+  const disabledGate = await tenancyDisabledError(String(account.id), String(account.role));
+  if (disabledGate) return disabledGate;
   // KID-112: contacts with relationship "No access" cannot log in
   // (e.g. unpaid fees). The admin re-enables them by changing the role.
   if (account.role === "parent") {
@@ -509,9 +539,13 @@ function requireAdmin(): SessionCookie {
   return me;
 }
 
+// KID-199.3: session-aware tenancy. This used to return the first-created
+// institute, which landed every account — including the staff and parents of
+// the second daycare — on the first daycare's data. The metrics, writes and
+// reads below now resolve through the session (lib/tenant.ts), keeping server
+// actions on the same tenant rule as the pages that call them.
 async function firstInstituteId(): Promise<string> {
-  const row = await queryGet("SELECT id FROM institute LIMIT 1");
-  return String(row?.id ?? "");
+  return resolveTenantInstituteId();
 }
 
 // KID-180: the invite decision tree lives in lib/contact-invite.ts so the

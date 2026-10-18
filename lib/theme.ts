@@ -1,6 +1,9 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { queryGet } from "./db";
 import { getInstitute as storeGetInstitute } from "./store";
+import { readSessionFromCookie } from "./auth";
+import { isSuperadminRole } from "./role";
+import { primaryInstituteIdForAccount } from "./store";
 import type { Row } from "./db";
 
 export async function getFirstInstitute(): Promise<Row | undefined> {
@@ -39,14 +42,42 @@ const BRANDING_TTL_MS = 30_000;
 let _brandingCache: { at: number; value: Branding } | null = null;
 
 export async function getBranding(): Promise<Branding> {
+  // KID-199.3: branding follows the session's own daycare. Anonymous visitors
+  // (login/landing) keep the legacy first-institute branding and the TTL cache.
+  // Signed-in staff/parents resolve per request — no cache, or the second
+  // daycare would render the first daycare's brand for 30s.
   const now = Date.now();
-  if (_brandingCache && now - _brandingCache.at < BRANDING_TTL_MS) {
-    return _brandingCache.value;
+  let institute: Row | undefined;
+  let cacheable = false;
+  try {
+    const headers = (await import("next/headers")).headers;
+    const session = readSessionFromCookie(headers().get("cookie"));
+    if (session) {
+      if (isSuperadminRole(session.role)) {
+        institute = undefined;
+      } else {
+        const iid = await primaryInstituteIdForAccount(session.accountId);
+        institute = iid ? await storeGetInstitute(iid) : undefined;
+      }
+    } else {
+      cacheable = true;
+    }
+  } catch {
+    // no request scope (tests/scripts): use the legacy fallback path
+    cacheable = true;
   }
-  const first = await getFirstInstitute();
-  const b = brandingFromInstitute(first);
-  _brandingCache = { at: now, value: b };
-  return b;
+  if (cacheable) {
+    if (_brandingCache && now - _brandingCache.at < BRANDING_TTL_MS) {
+      return _brandingCache.value;
+    }
+    institute = await getFirstInstitute();
+    const b = brandingFromInstitute(institute);
+    _brandingCache = { at: now, value: b };
+    return b;
+  }
+  // Signed-in: own daycare's branding (trust the tenancy resolver, which
+  // handles the no-tenancy fallback itself; superadmin = no tenant = defaults).
+  return brandingFromInstitute(institute);
 }
 
 // Builds the CSS custom-property theme block from branding so every surface

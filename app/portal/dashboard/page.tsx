@@ -1,11 +1,11 @@
 import Link from "next/link";
+import { resolveTenantInstituteId } from "@/lib/tenant";
 import { requireSession } from "@/lib/require";
 import { queryGet } from "@/lib/db";
 import {
   listChildren,
   listRoomsScoped,
   listStaff,
-  listInstitutes,
   checkedInNow,
   recentReports,
   listContactRequests,
@@ -19,8 +19,7 @@ export const dynamic = "force-dynamic";
 export default async function PortalDashboard() {
   const session = requireSession();
   const { dict } = await i18nForAccount(session.accountId);
-  const institutes = await listInstitutes();
-  const instituteId = institutes[0]?.id as string | undefined;
+  const instituteId = await resolveTenantInstituteId();
   if (!instituteId) {
     return (
       <p className="muted">

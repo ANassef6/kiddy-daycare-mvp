@@ -1,13 +1,13 @@
 import { requireSession } from "@/lib/require";
-import { listInstitutes, listConsents, listChildren } from "@/lib/store";
+import { resolveTenantInstituteId } from "@/lib/tenant";
+import {listConsents, listChildren } from "@/lib/store";
 import { createConsentAction } from "@/lib/actions";
 
 export const dynamic = "force-dynamic";
 
 export default async function PortalConsentsPage() {
   const session = requireSession();
-  const institutes = await listInstitutes();
-  const iid = institutes[0]?.id as string | undefined;
+  const iid = await resolveTenantInstituteId();
   // KID-103: child picker scoped to assigned classrooms.
   const [consents, children] = await Promise.all([
     iid ? listConsents(iid) : Promise.resolve([]),

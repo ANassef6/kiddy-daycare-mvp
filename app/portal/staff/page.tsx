@@ -1,9 +1,10 @@
 import Link from "next/link";
+import { resolveTenantInstituteId } from "@/lib/tenant";
 import { redirect } from "next/navigation";
 import { requireSession } from "@/lib/require";
 import { staffIdForAccount } from "@/lib/auth";
 import { isAdminRole } from "@/lib/role";
-import { listStaff, listRooms, listInstitutes, staffRooms } from "@/lib/store";
+import { listStaff, listRooms,staffRooms } from "@/lib/store";
 import { queryAll } from "@/lib/db";
 import Avatar from "@/components/Avatar";
 import ResendActivationButton from "@/components/ResendActivationButton";
@@ -27,8 +28,7 @@ export default async function PortalStaffPage({
   searchParams?: { added?: string; email?: string; q?: string; role?: string };
 }) {
   const session = requireSession();
-  const institutes = await listInstitutes();
-  const iid = institutes[0]?.id as string | undefined;
+  const iid = await resolveTenantInstituteId();
   const [staff, rooms] = await Promise.all([
     iid ? listStaff(iid) : Promise.resolve([]),
     iid ? listRooms(iid) : Promise.resolve([]),

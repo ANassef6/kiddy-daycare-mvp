@@ -1,5 +1,6 @@
 import { requireFamilyPage } from "@/lib/require";
-import { familiesForAccount, listInstitutes, listNewsfeed } from "@/lib/store";
+import { resolveTenantInstituteId } from "@/lib/tenant";
+import { familiesForAccount,listNewsfeed } from "@/lib/store";
 import { toggleLikeAction, commentAction } from "@/lib/actions";
 
 export const dynamic = "force-dynamic";
@@ -10,8 +11,7 @@ export default async function ParentNewsfeedPage() {
   const childIds = families.map((f) => f.id as string);
   const childName = Object.fromEntries(families.map((f) => [f.id, f.first_name as string]));
 
-  const institutes = await listInstitutes();
-  const iid = institutes[0]?.id as string | undefined;
+  const iid = await resolveTenantInstituteId();
   const allPosts = iid ? await listNewsfeed(iid, session.accountId) : [];
 
   const posts = childIds.length
