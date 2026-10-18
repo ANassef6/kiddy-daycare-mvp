@@ -175,7 +175,6 @@ export default function PortalSidebar({
   dict: Dict;
   role?: string;
 }) {
-  const t = (key: string) => tr(dict, key);
   const groups = useMemo(() => portalNav(dict, role), [dict, role]);
   return (
     <aside className="shell-side">
@@ -186,11 +185,9 @@ export default function PortalSidebar({
         )}
         <span className="brand">{brandName}</span>
       </Link>
+      {/* KID-199.1: sign-out lives only in the top-right account menu. */}
       <div className="mt-4 d-flex-col">
         <PortalSidebarNav groups={groups} dict={dict} />
-        <a href="/api/logout" className="small muted mt-3" style={{ display: "inline-block" }}>
-          {t("nav.signOut")}
-        </a>
       </div>
     </aside>
   );
