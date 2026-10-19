@@ -2,7 +2,7 @@ import { sessionFromHeaders } from "@/lib/auth";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { isAccountAccessWithdrawn, runWithdrawalSweep } from "@/lib/store";
-import { isSuperadminRole } from "@/lib/role";
+import { isPlatformOperatorRole } from "@/lib/platform";
 import { isPathAllowedForPickup } from "@/lib/contact-relationship";
 
 export function requireSession() {
@@ -41,9 +41,10 @@ export async function requireSessionWithWithdrawalCheck() {
   const withdrawn = await isAccountAccessWithdrawn(session.accountId);
   if (withdrawn) redirect("/login?error=withdrawn");
   // KID-199.3: a disabled daycare blocks its people at entry, in the same
-  // style as the family no_access gate below. The platform operator role is
-  // exempt: it is the role that re-enables daycares.
-  if (!isSuperadminRole(session.role)) {
+  // style as the family no_access gate below. The platform operator (whose
+  // internal sentinel session is not a daycare role, KID-199.4r) is exempt:
+  // they are the ones who re-enable daycares.
+  if (!isPlatformOperatorRole(session.role)) {
     const { isTenancyDisabled } = await import("@/lib/store");
     if (await isTenancyDisabled(session.accountId)) {
       redirect("/login?error=disabled-institute");

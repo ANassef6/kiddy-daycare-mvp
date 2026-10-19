@@ -1,5 +1,7 @@
 import crypto from "crypto";
 import { queryGet, queryRun, type Row } from "./db";
+import { ROLES } from "./role";
+import { PLATFORM_OPERATOR_ROLE } from "./platform";
 
 const COOKIE = "kiddy_sess";
 const TOKEN_SECRET = process.env.SESSION_SECRET ?? "dev-only-secret-change-me";
@@ -95,6 +97,17 @@ export async function createAccount(data: {
   emailConfirmed?: boolean;
 }): Promise<DbRow> {
   const id = crypto.randomUUID();
+  // KID-199.4r: daycare accounts are created with real daycare roles only.
+  // `superadmin` (and any other non-daycare value) can never be assigned
+  // through this path. Two internal sentinel values stay mintable here for
+  // the server's own unattended actors (lib/platform.ts operator, the hidden
+  // "system" sweep actor in lib/store.ts) — they are never offered to or
+  // assignable by any daycare surface.
+  const effectiveRole = data.role ?? "parent";
+  const internal = ["system", PLATFORM_OPERATOR_ROLE];
+  const allowed =
+    ROLES.includes(effectiveRole as (typeof ROLES)[number]) || internal.includes(effectiveRole);
+  if (!allowed) throw new Error(`account-role-not-assignable: ${effectiveRole}`);
   await queryRun(
     `INSERT INTO account (id, email, password_hash, full_name, role, pin, language, auth_user_id, email_confirmed)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
@@ -102,7 +115,7 @@ export async function createAccount(data: {
     data.email.toLowerCase(),
     hashPassword(data.password),
     data.fullName,
-    data.role ?? "parent",
+    effectiveRole,
     data.pin ? crypto.createHash("sha256").update(data.pin).digest("hex") : null,
     data.language ?? "en",
     data.authUserId ?? null,

@@ -6,8 +6,9 @@
 // staff and parents of the second daycare included -- landed on the FIRST
 // daycare's data and branding. The fix is one resolution rule used everywhere:
 //
-//   superadmin -> no tenant (""), the /platform surface (KID-199.4) picks
-//                 daycares explicitly.
+//   platform operator -> no tenant (""), the /platform surface (KID-199.4)
+//                 picks daycares explicitly. Their session role is an
+//                 internal sentinel (`lib/platform.ts`), not a daycare role.
 //   staff      -> their staff row's institute.
 //   parent     -> their KID-152 tenancy set (invites + family links), earliest
 //                 institute first.
@@ -17,7 +18,7 @@
 // `instituteIdsForAccount` (KID-152) stays untouched as the parent-side
 // tenancy definition; this module only consumes it.
 import { headers } from "next/headers";
-import { isSuperadminRole } from "./role";
+import { isPlatformOperatorRole } from "./platform";
 import { primaryInstituteIdForAccount } from "./store";
 
 /** Legacy fallback: the first-created institute. Still right for public pages
@@ -35,7 +36,7 @@ export async function fallbackInstituteId(): Promise<string> {
 export async function tenantInstituteIdForCookie(cookie: string | null | undefined): Promise<string> {
   const { readSessionFromCookie } = await import("./auth");
   const session = readSessionFromCookie(cookie);
-  if (session && isSuperadminRole(session.role)) return "";
+  if (session && isPlatformOperatorRole(session.role)) return "";
   if (session) {
     return primaryInstituteIdForAccount(session.accountId);
   }

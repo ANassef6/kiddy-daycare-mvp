@@ -21,22 +21,43 @@ export async function seedInstitute(data: {
   primaryColor?: string;
   accentColor?: string;
   font?: string;
+  logoUrl?: string | null;
   openingHours?: Record<string, string>;
   closingDays?: string[];
 }): Promise<Row> {
   const id = uid();
   await queryRun(
-    `INSERT INTO institute (id, name, primary_color, accent_color, font, opening_hours, closing_days)
-     VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO institute (id, name, primary_color, accent_color, font, logo_url, opening_hours, closing_days)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
     id,
     data.name,
     data.primaryColor ?? "#3B82F6",
     data.accentColor ?? "#10B981",
     data.font ?? "Inter",
+    data.logoUrl ?? null,
     JSON.stringify(data.openingHours ?? {}),
     JSON.stringify(data.closingDays ?? [])
   );
   return (await getInstitute(id))!;
+}
+
+/** KID-199.4r: one branch row per branch of a daycare ("Main" first, then the
+ *  named extras). The branch table already existed (0001); the /platform
+ *  create-daycare form is just its first writer. */
+export async function createBranch(
+  instituteId: string,
+  name: string,
+  address?: string | null
+): Promise<Row> {
+  const id = uid();
+  await queryRun(
+    "INSERT INTO branch (id, institute_id, name, address) VALUES (?, ?, ?, ?)",
+    id,
+    instituteId,
+    name,
+    address ?? null
+  );
+  return (await queryGet("SELECT * FROM branch WHERE id = ?", id))!;
 }
 
 export async function updateInstitute(instituteId: string, patch: Record<string, unknown>): Promise<void> {
@@ -661,7 +682,7 @@ export async function primaryInstituteIdForAccount(accountId: string): Promise<s
 
 /** KID-199.3: true when every institute the account belongs to is disabled.
  *  This is the active-flag gate shared by login and portal/parent entry. A
- *  superadmin (no tenancy rows) and an account with no tenancy at all are
+ *  platform operator (no tenancy rows) and an account with no tenancy at all are
  *  never "disabled" by this check — they are handled by their own paths.
  */
 export async function isTenancyDisabled(accountId: string): Promise<boolean> {
@@ -702,10 +723,14 @@ export async function createDaycare(data: {
   primaryColor?: string;
   accentColor?: string;
   font?: string;
+  logoUrl?: string | null;
+  /** KID-199.4r: number of branch rows to create — "Main" first, then
+   *  "Branch 2".."Branch N". Defaults to 1; clamped to 1..20. */
+  branches?: number;
   ownerEmail: string;
   ownerPassword: string;
   ownerFullName: string;
-}): Promise<{ instituteId: string; ownerStaffId: string; ownerAccountId: string }> {
+}): Promise<{ instituteId: string; branchIds: string[]; ownerStaffId: string; ownerAccountId: string }> {
   const name = data.name.trim();
   if (!name) throw new Error("daycare-name-required");
   const ownerEmail = data.ownerEmail.trim().toLowerCase();
@@ -718,8 +743,19 @@ export async function createDaycare(data: {
     primaryColor: data.primaryColor,
     accentColor: data.accentColor,
     font: data.font,
+    logoUrl: data.logoUrl ?? null,
   });
   const instituteId = String(institute.id);
+  // KID-199.4r: the board's "number of branches" field — one branch row per
+  // branch, "Main" named first. Clamped so a bad form value can't fan out.
+  const branchCount = Number.isFinite(Number(data.branches))
+    ? Math.min(Math.max(Math.round(Number(data.branches)), 1), 20)
+    : 1;
+  const branchIds: string[] = [];
+  for (let i = 0; i < branchCount; i++) {
+    const branch = await createBranch(instituteId, i === 0 ? "Main" : `Branch ${i + 1}`);
+    branchIds.push(String(branch.id));
+  }
   const ownerStaff = await createStaff({
     instituteId,
     fullName: data.ownerFullName.trim() || name,
@@ -738,6 +774,7 @@ export async function createDaycare(data: {
   );
   return {
     instituteId,
+    branchIds,
     ownerStaffId: String(ownerStaff.id),
     ownerAccountId: String(ownerAccount.id),
   };

@@ -6,7 +6,7 @@ import { resolveTenantInstituteId } from "./tenant";
 // table" query, which put every user — including the staff and parents of the
 // second daycare — on the first daycare's data. Pages keep calling it with no
 // arguments; the resolution now goes through lib/tenant.ts (staff → their
-// daycare, parent → their tenancy, superadmin → none).
+// daycare, parent → their tenancy, platform operator → none).
 export async function firstInstituteId(): Promise<string> {
   return resolveTenantInstituteId();
 }

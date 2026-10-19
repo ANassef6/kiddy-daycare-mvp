@@ -13,15 +13,15 @@ export async function ensureSeeded(): Promise<void> {
     const { seedDemo } = await import("./seed");
     await seedDemo();
   }
-  // KID-199.3: production superadmin bootstrap (SUPERADMIN_EMAIL on an
-  // existing account) must run even when the demo daycare is already seeded —
-  // that is exactly the production case, where institutes exist.
+  // KID-199.4r: production platform-operator bootstrap (PLATFORM_ADMIN_EMAIL
+  // allowlist) must run even when the demo daycare is already seeded — that
+  // is exactly the production case, where institutes exist.
   try {
-    const { ensureSuperadmin } = await import("./seed");
-    await ensureSuperadmin();
+    const { ensurePlatformOperator } = await import("./seed");
+    await ensurePlatformOperator();
   } catch (err) {
     // Bootstrap must never block the first request.
-    console.error("KID-199.3 superadmin bootstrap failed:", err);
+    console.error("KID-199.4r platform operator bootstrap failed:", err);
   }
   initialized = true;
 }

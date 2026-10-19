@@ -2,31 +2,53 @@ import { queryGet, queryRun } from "./db";
 import * as store from "./store";
 import { createAccount } from "./auth";
 import { ensureCurriculumSeeded, ageGroupForDob } from "./curriculum";
+import { PLATFORM_OPERATOR_LEGACY_ROLE, PLATFORM_OPERATOR_ROLE } from "./platform";
 
-// KID-199.3: documented demo credentials for the platform operator account
-// (superadmin). Both are overridable via env; production bootstraps the role
-// with SUPERADMIN_EMAIL instead (see docs/PLATFORM_BOOTSTRAP.md).
-const SUPERADMIN_EMAIL = process.env.SUPERADMIN_EMAIL ?? "superadmin@kiddy.test";
-const SUPERADMIN_PASSWORD = process.env.SUPERADMIN_PASSWORD ?? "kiddy-superadmin";
+// KID-199.4r: documented platform operator credentials. Both are overridable
+// via env; production bootstraps access with PLATFORM_ADMIN_EMAIL instead
+// (see docs/PLATFORM_BOOTSTRAP.md). The account row carries the internal
+// platform sentinel (`lib/platform.ts`) — it is NOT a daycare role.
+const PLATFORM_OPERATOR_EMAIL = process.env.PLATFORM_ADMIN_EMAIL ?? "superadmin@kiddy.test";
+const PLATFORM_OPERATOR_PASSWORD = process.env.PLATFORM_OPERATOR_PASSWORD ?? "kiddy-superadmin";
 
-// KID-199.3: idempotently ensure a superadmin account exists (demo convention)
-// and that SUPERADMIN_EMAIL (when set) carries the role on its existing row.
-export async function ensureSuperadmin() {
+// KID-199.4r: idempotently make the operator identity real. Any KID-199.3
+// `superadmin` rows are renamed to the internal sentinel (migration 0023 does
+// the same at the SQL layer), and the allowlisted email gets the account.
+export async function ensurePlatformOperator() {
+  // One-time data fix for datasets that existed before the rework.
+  const legacy = await queryGet(
+    "SELECT COUNT(*) AS c FROM account WHERE role = 'superadmin'"
+  );
+  if (Number(legacy?.c ?? 0) > 0) {
+    await queryRun(
+      `UPDATE account SET role = ? WHERE role = ?`,
+      PLATFORM_OPERATOR_ROLE,
+      PLATFORM_OPERATOR_LEGACY_ROLE
+    );
+    console.log("Renamed the legacy superadmin accounts to the platform operator sentinel");
+  }
   const existing = await queryGet(
     "SELECT id, role FROM account WHERE lower(trim(email)) = lower(trim(?))",
-    SUPERADMIN_EMAIL
+    PLATFORM_OPERATOR_EMAIL
   );
   if (!existing) {
+    // createAccount() refuses daycare-facing role values; the internal
+    // platform sentinel is on its server-internal allowlist, so only seeded/
+    // bootstrap code can mint an operator account — no UI or API can.
     await createAccount({
-      email: SUPERADMIN_EMAIL,
-      password: SUPERADMIN_PASSWORD,
+      email: PLATFORM_OPERATOR_EMAIL,
+      password: PLATFORM_OPERATOR_PASSWORD,
       fullName: "Platform Operator",
-      role: "superadmin",
+      role: PLATFORM_OPERATOR_ROLE,
     });
-    console.log(`Seeded superadmin account: ${SUPERADMIN_EMAIL}`);
-  } else if (String(existing.role ?? "") !== "superadmin") {
-    await queryRun("UPDATE account SET role = 'superadmin' WHERE id = ?", existing.id);
-    console.log(`Granted the superadmin role to ${SUPERADMIN_EMAIL}`);
+    console.log(`Seeded platform operator account: ${PLATFORM_OPERATOR_EMAIL}`);
+  } else if (String(existing.role ?? "") !== PLATFORM_OPERATOR_ROLE) {
+    await queryRun(
+      "UPDATE account SET role = ? WHERE id = ?",
+      PLATFORM_OPERATOR_ROLE,
+      existing.id
+    );
+    console.log(`Granted the platform sentinel role to ${PLATFORM_OPERATOR_EMAIL}`);
   }
 }
 
@@ -36,7 +58,7 @@ export async function ensureSuperadmin() {
 export async function seedDemo() {
   // KID-199.3: ensure the platform operator account exists even when the demo
   // daycare is already seeded (skip path below).
-  await ensureSuperadmin();
+  await ensurePlatformOperator();
 
   const existing = await queryGet("SELECT COUNT(*) AS c FROM institute");
   if ((existing?.c as number) > 0) {

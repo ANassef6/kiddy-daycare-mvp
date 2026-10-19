@@ -2,7 +2,7 @@
 import { queryGet } from "./db";
 import { getInstitute as storeGetInstitute } from "./store";
 import { readSessionFromCookie } from "./auth";
-import { isSuperadminRole } from "./role";
+import { isPlatformOperatorRole } from "./platform";
 import { primaryInstituteIdForAccount } from "./store";
 import type { Row } from "./db";
 
@@ -53,7 +53,7 @@ export async function getBranding(): Promise<Branding> {
     const headers = (await import("next/headers")).headers;
     const session = readSessionFromCookie(headers().get("cookie"));
     if (session) {
-      if (isSuperadminRole(session.role)) {
+      if (isPlatformOperatorRole(session.role)) {
         institute = undefined;
       } else {
         const iid = await primaryInstituteIdForAccount(session.accountId);
@@ -76,7 +76,8 @@ export async function getBranding(): Promise<Branding> {
     return b;
   }
   // Signed-in: own daycare's branding (trust the tenancy resolver, which
-  // handles the no-tenancy fallback itself; superadmin = no tenant = defaults).
+  // handles the no-tenancy fallback itself; platform operator = no tenant =
+  // defaults, KID-199.4r).
   return brandingFromInstitute(institute);
 }
 

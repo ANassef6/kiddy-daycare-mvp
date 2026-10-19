@@ -4,7 +4,7 @@
 // plus the create-daycare form underneath.
 import { redirect } from "next/navigation";
 import { requireSession } from "@/lib/require";
-import { isSuperadminRole } from "@/lib/role";
+import { isPlatformOperatorEmail, isPlatformOperatorRole, PLATFORM_THEME_KEYS } from "@/lib/platform";
 import { listInstitutesForPlatform } from "@/lib/store";
 import { setDaycareActiveAction, createDaycareAction } from "@/lib/actions";
 import { i18nForAccount } from "@/lib/i18n-session";
@@ -28,7 +28,11 @@ export default async function PlatformDaycaresPage({
   searchParams: { created?: string; error?: string };
 }) {
   const session = requireSession();
-  if (!isSuperadminRole(session.role)) redirect("/login");
+  // Same double check as the layout + every server action: internal sentinel
+  // session AND the env allowlist (KID-199.4r — accessing is not a role).
+  if (!isPlatformOperatorRole(session.role) || !isPlatformOperatorEmail(session.email)) {
+    redirect("/login");
+  }
   const { dict, dir } = await i18nForAccount(session.accountId);
   const institutes = await listInstitutesForPlatform();
   const created = searchParams.created === "1";
@@ -119,6 +123,35 @@ export default async function PlatformDaycaresPage({
           <div className="col field">
             <label className="label">{tr(dict, "platform.ownerFullName")}</label>
             <input className="input" name="ownerFullName" placeholder="e.g. Maria Lopez" />
+          </div>
+          <div className="col field">
+            {/* KID-199.4r: number of branches — the create action makes one
+                branch row per branch ("Main" first; clamped server-side). */}
+            <label className="label">{tr(dict, "platform.branches")}</label>
+            <input className="input" name="branches" type="number" min={1} max={20} defaultValue={1} />
+          </div>
+          <div className="col field">
+            {/* KID-199.4r: logo upload feeds the same storage path as the
+                settings branding upload; the URL is persisted to
+                institute.logo_url so the tenant branding renders it. */}
+            <label className="label">{tr(dict, "platform.logo")}</label>
+            <input className="input" name="logo" type="file" accept="image/*" />
+          </div>
+        </div>
+        <div className="row">
+          <div className="col field">
+            {/* KID-199.4r: theme picker over the existing branding tokens;
+                "custom" reveals the raw color fields. Server-side, no JS needed
+                because the action maps presets to the tokens. */}
+            <label className="label">{tr(dict, "platform.theme")}</label>
+            <select className="input" name="theme" defaultValue={PLATFORM_THEME_KEYS[0]}>
+              {PLATFORM_THEME_KEYS.map((key) => (
+                <option key={key} value={key}>
+                  {tr(dict, `platform.theme${key[0].toUpperCase()}${key.slice(1)}`)}
+                </option>
+              ))}
+              <option value="custom">{tr(dict, "platform.themeCustom")}</option>
+            </select>
           </div>
           <div className="col field">
             <label className="label">{tr(dict, "platform.primaryColor")}</label>

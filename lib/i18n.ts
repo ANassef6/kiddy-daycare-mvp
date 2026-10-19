@@ -492,14 +492,14 @@ export const en = {
     type: "Type",
     unknown: "Unknown",
   },
-  // KID-199.3: role labels, including the platform operator role.
+  // KID-199.4r: daycare role labels only — the platform operator is not a
+  // role (it is gated by the PLATFORM_ADMIN_EMAIL allowlist instead).
   roles: {
     owner: "Owner",
     admin: "Admin",
     staff: "Staff",
     carer: "Carer",
     parent: "Parent",
-    superadmin: "Platform Operator",
   },
   // KID-199.4: the /platform surface the board asked for — every daycare with
   // an enable/disable toggle, plus self-serve tenant creation.
@@ -526,6 +526,15 @@ export const en = {
     primaryColor: "Primary color",
     accentColor: "Accent color",
     create: "Create daycare",
+    operator: "Platform Operator",
+    branches: "Number of branches",
+    logo: "Logo",
+    theme: "Theme",
+    themeOcean: "Ocean",
+    themeSunset: "Sunset",
+    themeForest: "Forest",
+    themeMidnight: "Midnight",
+    themeCustom: "Custom colors",
   },
 };
 
@@ -1012,7 +1021,6 @@ export const ar = {
     staff: "موظف",
     carer: "مقدّم رعاية",
     parent: "ولي أمر",
-    superadmin: "مشغّل المنصة",
   },
   platform: {
     title: "الروضات",
@@ -1037,6 +1045,15 @@ export const ar = {
     primaryColor: "اللون الأساسي",
     accentColor: "اللون الثانوي",
     create: "إنشاء الروضة",
+    operator: "مشغّل المنصة",
+    branches: "عدد الفروع",
+    logo: "الشعار",
+    theme: "النمط",
+    themeOcean: "محيطي",
+    themeSunset: "غروب",
+    themeForest: "طبيعي",
+    themeMidnight: "ليلي",
+    themeCustom: "ألوان مخصصة",
   },
 };
 

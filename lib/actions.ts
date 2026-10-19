@@ -71,7 +71,13 @@ import { supabaseConfigured, getSupabase, isGoTrueAlreadyRegisteredError, isGoTr
 import { activationStepError } from "@/lib/activation";
 import { requestOrigin, publicOrigin } from "@/lib/url";
 import { sendContactInvite, contactNameForInvite } from "@/lib/contact-invite";
-import { isAdminRole, isSuperadminRole } from "@/lib/role";
+import { isAdminRole } from "@/lib/role";
+import {
+  PLATFORM_OPERATOR_ROLE,
+  defaultThemeTokens,
+  isPlatformOperatorEmail,
+  isPlatformOperatorRole,
+} from "@/lib/platform";
 import { resolveTenantInstituteId } from "@/lib/tenant";
 import {
   buildParentInviteEmail,
@@ -111,6 +117,9 @@ async function setSession(email: string) {
 }
 
 function homeForRole(role: string): string {
+  // KID-199.4r: the platform operator lands on /platform (its internal
+  // sentinel session is not a daycare role).
+  if (role === PLATFORM_OPERATOR_ROLE) return "/platform";
   return role === "parent" ? "/child" : "/portal/dashboard";
 }
 
@@ -125,7 +134,7 @@ async function tenancyDisabledError(
   role: string
 ): Promise<{ error: string } | null> {
   try {
-    if (isSuperadminRole(role)) return null;
+    if (isPlatformOperatorRole(role)) return null;
     const { isTenancyDisabled } = await import("@/lib/store");
     if (await isTenancyDisabled(accountId)) {
       return { error: INSTITUTE_DISABLED_MESSAGE };
@@ -177,7 +186,7 @@ export async function loginAction(formData: FormData) {
   if (await isAccountAccessWithdrawn(account.id)) {
     return { error: "This account's access has been withdrawn." };
   }
-  // KID-199.3: disabled daycare gate (staff + parents; superadmin exempt).
+  // KID-199.3: disabled daycare gate (staff + parents; platform operator exempt).
   const disabledGate = await tenancyDisabledError(String(account.id), String(account.role));
   if (disabledGate) return disabledGate;
   // KID-112: contacts with relationship "No access" cannot log in
@@ -541,29 +550,60 @@ function requireAdmin(): SessionCookie {
   return me;
 }
 
-// KID-199.4: the /platform surface is the platform operator's only area. Both
-// guards here mirror the page guard (requireSession + superadmin check) —
-// the page block alone is not enough because actions can be POSTed directly.
-// A wrong-role POST gets the same treatment an anonymous one would: back to
-// /login. A wrong-tenancy POST never happens: superadmin resolves no tenant.
-function requireSuperadmin(): SessionCookie {
+// KID-199.4r: the /platform surface is the platform operator's only area.
+// The guard mirrors the page guard (requireSession + operator checks) — the
+// page block alone is not enough because actions can be POSTed directly. Two
+// checks: the internal sentinel session (identifies the bootstrapped operator
+// account — never a daycare role) AND the env allowlist (so removing an email
+// from PLATFORM_ADMIN_EMAIL cuts access even for an existing session). A
+// non-operator POST gets the same treatment an anonymous one would: back to
+// /login. A wrong-tenancy POST never happens: the operator resolves no tenant.
+function requirePlatformOperator(): SessionCookie {
   const me = authAccount();
-  if (!isSuperadminRole(me.role)) redirect("/login");
+  if (!isPlatformOperatorRole(me.role) || !isPlatformOperatorEmail(me.email)) {
+    redirect("/login");
+  }
   return me;
 }
 
 /** Validate the /platform hex color fields without trusting the form: accept
- *  `#RRGGBB` only, everything else falls back to the seed defaults. */
+ *  `#RRGGBB` only, everything else falls back to the theme default. */
 function platformColor(value: FormDataEntryValue | null, fallback: string): string {
   const v = String(value ?? "").trim();
   return /^#[0-9a-fA-F]{6}$/.test(v) ? v : fallback;
+}
+
+// KID-199.4r: shared uploader for daycare branding images (logo). Same path
+// the /portal/settings branding upload uses, so the new daycare's logo lands
+// on the same Supabase bucket and the URL flows into institute.logo_url
+// (lib/theme.ts branding picks it up). Returns null when storage is not
+// configured (local dev without Supabase) — branding then just stays color-only.
+async function uploadBrandingFile(
+  file: File,
+  instituteId: string,
+  kind: string
+): Promise<string | null> {
+  const ext = file.name.split(".").pop() || "png";
+  const filename = `branding/${instituteId}/${kind}-${Date.now()}.${ext}`;
+  if (!supabaseConfigured()) return null;
+  const { getSupabase } = await import("@/lib/supabase");
+  const supabase = getSupabase();
+  const { error } = await supabase.storage
+    .from("kiddy-public")
+    .upload(filename, file, { contentType: file.type, upsert: true });
+  if (error) {
+    console.error("KID-199.4r branding upload failed:", error.message);
+    return null;
+  }
+  const { data: urlData } = supabase.storage.from("kiddy-public").getPublicUrl(filename);
+  return urlData.publicUrl;
 }
 
 // KID-199.4: enable/disable a daycare account. The active flag already gates
 // login and entry (KID-199.3); this only flips it and refreshes the page so the
 // toggle reflects the stored state.
 export async function setDaycareActiveAction(formData: FormData) {
-  requireSuperadmin();
+  requirePlatformOperator();
   const instituteId = String(formData.get("instituteId") ?? "");
   if (!instituteId) redirect("/platform?error=missing-id");
   await setInstituteActive(instituteId, String(formData.get("active") ?? "") === "1");
@@ -574,24 +614,70 @@ export async function setDaycareActiveAction(formData: FormData) {
 // KID-199.4: create a new daycare plus its first owner login, so the board can
 // add tenants like "Sunshine Daycare" without a code deploy. Every failure
 // lands back on /platform with a query-tagged friendly message.
+// KID-199.4r: the form also carries the board-required extras — number of
+// branches (one branch row per branch, "Main" first), optional logo upload
+// (stored the same way as the settings branding upload and persisted to
+// institute.logo_url), and a theme preset mapped onto the existing branding
+// tokens. Custom-color fields still win when the theme is "custom".
 export async function createDaycareAction(formData: FormData) {
-  requireSuperadmin();
+  requirePlatformOperator();
   const name = String(formData.get("name") ?? "").trim();
   const ownerEmail = String(formData.get("ownerEmail") ?? "").trim();
   const ownerPassword = String(formData.get("ownerPassword") ?? "");
   if (!name) redirect("/platform?error=name");
   if (!ownerEmail || !isValidInviteEmail(ownerEmail)) redirect("/platform?error=owner-email");
   if (ownerPassword.length < 8) redirect("/platform?error=password");
+
+  // Branches: 1..20, "Main" first — the raw form value is never trusted.
+  const branchesRaw = Number(String(formData.get("branches") ?? "").trim());
+  const branches = Number.isFinite(branchesRaw)
+    ? Math.min(Math.max(Math.round(branchesRaw), 1), 20)
+    : 1;
+
+  // Theme: preset name from the picker (ocean/sunset/forest/midnight), or
+  // "custom" to fall back to the typed color fields.
+  const themeRaw = String(formData.get("theme") ?? "").trim();
+  const custom = themeRaw === "custom";
+  const tokens = defaultThemeTokens(themeRaw);
+  const primaryColor = custom
+    ? platformColor(formData.get("primaryColor"), tokens.primaryColor)
+    : tokens.primaryColor;
+  const accentColor = custom
+    ? platformColor(formData.get("accentColor"), tokens.accentColor)
+    : tokens.accentColor;
+  const font = custom
+    ? String(formData.get("font") ?? "").trim() || tokens.font
+    : tokens.font;
+
   try {
-    await createDaycare({
+    const res = await createDaycare({
       name,
-      primaryColor: platformColor(formData.get("primaryColor"), "#3B82F6"),
-      accentColor: platformColor(formData.get("accentColor"), "#10B981"),
-      font: String(formData.get("font") ?? "").trim() || "Inter",
+      primaryColor,
+      accentColor,
+      font,
+      branches,
       ownerEmail,
       ownerPassword,
       ownerFullName: String(formData.get("ownerFullName") ?? "").trim(),
     });
+    // Logo upload — same storage path as the settings branding upload. Run
+    // after the institute row exists so the storage key carries its id; the
+    // URL is persisted to logo_url so the branding reads it from row data.
+    const logoFile = formData.get("logo");
+    if (logoFile instanceof File && logoFile.size > 0) {
+      const logoUrl = await uploadBrandingFile(logoFile, res.instituteId, "logo");
+      if (logoUrl) {
+        const { updateInstitute, addMedia } = await import("@/lib/store");
+        await updateInstitute(res.instituteId, { logo_url: logoUrl });
+        await addMedia({
+          instituteId: res.instituteId,
+          url: logoUrl,
+          kind: "logo",
+          caption: "Daycare logo",
+          accountId: res.ownerAccountId,
+        });
+      }
+    }
   } catch (err) {
     if (String((err as Error)?.message ?? "") === "owner-email-in-use") {
       redirect("/platform?error=owner-email-in-use");
@@ -1911,20 +1997,11 @@ export async function uploadBrandingImageAction(formData: FormData) {
   const kind = String(formData.get("kind") ?? "logo"); // "logo" | "brandImage"
   if (!file || file.size === 0) redirect("/portal/settings");
 
-  const ext = file.name.split(".").pop() || "png";
-  const filename = `branding/${instituteId}/${kind}-${Date.now()}.${ext}`;
-
-  const { supabaseConfigured, getSupabase } = await import("@/lib/supabase");
-  if (supabaseConfigured()) {
-    const supabase = getSupabase();
-    const { error } = await supabase.storage
-      .from("kiddy-public")
-      .upload(filename, file, { contentType: file.type, upsert: true });
-    if (!error) {
-      const { data: urlData } = supabase.storage.from("kiddy-public").getPublicUrl(filename);
-      const column = kind === "logo" ? "logo_url" : "brand_image_url";
-      await updateInstitute(instituteId, { [column]: urlData.publicUrl });
-    }
+  // KID-199.4r: shares the storage path with the /platform daycare creation.
+  const url = await uploadBrandingFile(file, instituteId, kind);
+  if (url) {
+    const column = kind === "logo" ? "logo_url" : "brand_image_url";
+    await updateInstitute(instituteId, { [column]: url });
   }
   redirect("/portal/settings");
 }

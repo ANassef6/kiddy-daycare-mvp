@@ -1,5 +1,5 @@
 // KID-199.3: platform foundation — institute active flag, per-session tenant
-// scoping, superadmin role.
+// scoping. Reworked by KID-199.4r: the platform operator is not a role.
 //
 // Two-tenant fixture (same pattern as kid152-tenant-gate.test.ts): the seeded
 // Sunshine Daycare plus "Other Center". Before this ticket every read site
@@ -9,7 +9,7 @@
 //
 //   staff  -> their staff row's institute
 //   parent -> their KID-152 tenancy set (earliest institute first)
-//   superadmin -> excluded from tenant scoping (no forced institute)
+//   platform operator -> excluded from tenant scoping (no forced institute)
 //   disabled tenant -> staff AND parents blocked at gate level
 //
 // The DB-level functions are tested directly (no request scope needed); the
@@ -21,7 +21,8 @@ import * as store from "@/lib/store";
 import { createAccount, createSessionToken } from "@/lib/auth";
 import { queryGet, queryRun } from "@/lib/db";
 import { tenantInstituteIdForCookie } from "@/lib/tenant";
-import { isSuperadminRole, isAdminRole } from "@/lib/role";
+import { isAdminRole } from "@/lib/role";
+import { isPlatformOperatorRole, PLATFORM_OPERATOR_ROLE } from "@/lib/platform";
 import { seedFixture } from "../helpers";
 
 let sunshineIid: string;
@@ -248,20 +249,22 @@ describe("KID-199.3 active flag enforcement", () => {
   });
 });
 
-describe("KID-199.3 superadmin role", () => {
-  it("superadmin is excluded from tenant scoping", async () => {
-    // Arrange: the seeded superadmin + a session cookie. The resolver hands
+describe("KID-199.4r platform operator", () => {
+  it("the operator resolves no tenant (excluded from tenant scoping)", async () => {
+    // Arrange: the seeded operator + a session cookie. The resolver hands
     // them no institute — the /platform surface (KID-199.4) selects daycares
     // explicitly, and the scoping rule must not pin them to the first one.
-    const superadmin = await queryGet("SELECT id FROM account WHERE email = 'superadmin@kiddy.test'");
+    const operator = await queryGet("SELECT id, role FROM account WHERE email = 'superadmin@kiddy.test'");
+    expect(operator).toBeDefined();
+    expect(String(operator!.role)).toBe(PLATFORM_OPERATOR_ROLE);
     await seedOtherCenter(); // two institutes present
 
     // Act
     const viaCookie = await tenantInstituteIdForCookie(
       `kiddy_sess=${encodeURIComponent(
         createSessionToken({
-          accountId: String(superadmin!.id),
-          role: "superadmin",
+          accountId: String(operator!.id),
+          role: PLATFORM_OPERATOR_ROLE,
           email: "superadmin@kiddy.test",
           emailConfirmed: true,
         })
@@ -269,16 +272,16 @@ describe("KID-199.3 superadmin role", () => {
     );
 
     // Assert
-    expect(await isSuperadminRole("superadmin")).toBe(true);
+    expect(isPlatformOperatorRole(PLATFORM_OPERATOR_ROLE)).toBe(true);
     expect(viaCookie).toBe("");
   });
 
   it("isAdminRole keeps exact owner|admin semantics (center admins unchanged)", async () => {
     expect(isAdminRole("owner")).toBe(true);
     expect(isAdminRole("admin")).toBe(true);
-    // The regression this pins: superadmin must not silently pass center-admin
-    // gates, and no center role leaks into it.
-    expect(isAdminRole("superadmin")).toBe(false);
+    // The regression this pins: the operator sentinel must not silently pass
+    // center-admin gates, and no internal role leaks into it.
+    expect(isAdminRole(PLATFORM_OPERATOR_ROLE)).toBe(false);
     expect(isAdminRole("staff")).toBe(false);
     expect(isAdminRole("carer")).toBe(false);
     expect(isAdminRole("parent")).toBe(false);
