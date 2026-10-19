@@ -14,7 +14,21 @@ const PLATFORM_OPERATOR_PASSWORD = process.env.PLATFORM_OPERATOR_PASSWORD ?? "ki
 // KID-199.4r: idempotently make the operator identity real. Any KID-199.3
 // `superadmin` rows are renamed to the internal sentinel (migration 0023 does
 // the same at the SQL layer), and the allowlisted email gets the account.
-export async function ensurePlatformOperator() {
+export async function ensurePlatformOperator(opts?: {
+  /** Production bootstrap: only act when the allowlist is explicit. */
+  requireEnv?: boolean;
+}) {
+  if (opts?.requireEnv) {
+    // KID-199.4r security rail: never mint the demo operator credentials
+    // into a server this code does not own. When PLATFORM_ADMIN_EMAIL (or
+    // the legacy SUPERADMIN_EMAIL) is not set, there is nothing to
+    // bootstrap — renting the documented demo password onto a public
+    // deployment would hand /platform to anyone.
+    if (!process.env.PLATFORM_ADMIN_EMAIL?.trim() && !process.env.SUPERADMIN_EMAIL?.trim()) {
+      console.log("Platform operator bootstrap skipped: no PLATFORM_ADMIN_EMAIL set.");
+      return;
+    }
+  }
   // One-time data fix for datasets that existed before the rework.
   const legacy = await queryGet(
     "SELECT COUNT(*) AS c FROM account WHERE role = 'superadmin'"

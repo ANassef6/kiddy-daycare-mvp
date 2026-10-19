@@ -36,6 +36,9 @@ PLATFORM_ADMIN_EMAIL=ceo@example.test,ops@example.test
    - creates the account for the allowlisted email if none exists — set
      `PLATFORM_OPERATOR_PASSWORD` in that case, since the default is the demo
      value.
+   - With **neither** env set, production bootstrap does nothing: the demo
+     credentials are never minted into a deployment. This is the safety rail
+     that keeps the documented demo password off public hosts.
 3. Sign in with that email on the normal login page; the session lands on
    `/platform`.
 

@@ -15,10 +15,11 @@ export async function ensureSeeded(): Promise<void> {
   }
   // KID-199.4r: production platform-operator bootstrap (PLATFORM_ADMIN_EMAIL
   // allowlist) must run even when the demo daycare is already seeded — that
-  // is exactly the production case, where institutes exist.
+  // is exactly the production case, where institutes exist. requireEnv
+  // keeps the documented demo credentials out of unconfigured deployments.
   try {
     const { ensurePlatformOperator } = await import("./seed");
-    await ensurePlatformOperator();
+    await ensurePlatformOperator({ requireEnv: true });
   } catch (err) {
     // Bootstrap must never block the first request.
     console.error("KID-199.4r platform operator bootstrap failed:", err);
