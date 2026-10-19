@@ -3,7 +3,7 @@ import { cookies } from "next/headers";
 import "./globals.css";
 import { getBranding } from "@/lib/theme";
 import { SITE_BRAND } from "@/lib/site";
-import { readSessionFromCookie } from "@/lib/auth";
+import { readSessionFromCookieValue } from "@/lib/auth";
 import { LANG_COOKIE, dirFor, localeOf, type Locale } from "@/lib/i18n";
 
 export const metadata: Metadata = {
@@ -23,7 +23,7 @@ async function resolveLocale(): Promise<Locale> {
   const langCookie = cookieStore.get(LANG_COOKIE)?.value;
   if (langCookie === "en" || langCookie === "ar") return langCookie;
   try {
-    const session = readSessionFromCookie(cookieStore.get("kiddy_sess")?.value ?? null);
+    const session = readSessionFromCookieValue(cookieStore.get("kiddy_sess")?.value ?? null);
     if (session?.accountId) {
       const { getAccount } = await import("@/lib/auth");
       const account = await getAccount(session.accountId);

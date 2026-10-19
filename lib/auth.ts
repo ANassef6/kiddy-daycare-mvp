@@ -39,7 +39,13 @@ export function verifyToken(token: string): Record<string, unknown> | null {
   const [body, sig] = token.split(".");
   if (!body || !sig) return null;
   const expected = crypto.createHmac("sha256", TOKEN_SECRET).update(body).digest("base64url");
-  if (!crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(expected))) return null;
+  // KID-214: timingSafeEqual throws RangeError when buffer lengths differ — a
+  // malformed token must fail closed (null), not crash the caller.
+  if (
+    sig.length !== expected.length ||
+    !crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(expected))
+  )
+    return null;
   try {
     return JSON.parse(Buffer.from(body, "base64url").toString());
   } catch {
@@ -70,6 +76,15 @@ export function readSessionFromCookie(cookieHeader: string | null | undefined): 
     email: String(data.email),
     emailConfirmed: data.emailConfirmed === false ? false : true,
   };
+}
+
+// KID-214: value-only reader. Next.js's cookies() store yields the bare cookie
+// value, while readSessionFromCookie expects a raw `Cookie:` header that
+// matches on `kiddy_sess=`. Passing the bare value to the header reader always
+// returned null, killing the account-language fallback in the root layout.
+export function readSessionFromCookieValue(value: string | null | undefined): Session | null {
+  if (!value) return null;
+  return readSessionFromCookie(`${COOKIE}=${value}`);
 }
 
 export function sessionCookieHeader(session: Session): Record<string, string> {
