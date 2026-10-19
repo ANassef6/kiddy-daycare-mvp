@@ -535,6 +535,10 @@ export const en = {
     themeForest: "Forest",
     themeMidnight: "Midnight",
     themeCustom: "Custom colors",
+    // KID-199.3r: white-label wildcard subdomains.
+    subdomain: "Subdomain",
+    subdomainHint: "One word/short slug for the daycare's own web address (e.g. sunshine). Leave blank to derive it from the name.",
+    subdomainSave: "Save address",
   },
 };
 
@@ -1054,6 +1058,9 @@ export const ar = {
     themeForest: "طبيعي",
     themeMidnight: "ليلي",
     themeCustom: "ألوان مخصصة",
+    subdomain: "العنوان الفرعي",
+    subdomainHint: "كلمة قصيرة لعنوان الروضة على الويب (مثل sunshine). اتركه فارغًا ليُشتق من الاسم.",
+    subdomainSave: "حفظ العنوان",
   },
 };
 

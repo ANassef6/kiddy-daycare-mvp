@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import ActiveLink from "@/components/ActiveLink";
 import { requireSessionWithWithdrawalCheck } from "@/lib/require";
+import { requireTenantForPage } from "@/lib/tenant";
 import { familiesForAccount, familyAccessForAccount } from "@/lib/store";
 import { ensureSchema } from "@/lib/db";
 import { getBranding } from "@/lib/theme";
@@ -12,6 +13,10 @@ export const dynamic = "force-dynamic";
 
 export default async function ParentLayout({ children }: { children: React.ReactNode }) {
   const session = await requireSessionWithWithdrawalCheck();
+  // KID-199.3r: on a daycare subdomain the parent pages serve ONLY the host
+  // tenant. Unknown subdomains land on the neutral error page; a session of
+  // another daycare is fail-closed refused with the "belongs to" message.
+  await requireTenantForPage();
   // KID-147: the parent read path is pure SELECT, so it never triggered
   // ensureSchema(). A migration that backfills family_member rows could
   // therefore stay unapplied until some unrelated staff write action ran,

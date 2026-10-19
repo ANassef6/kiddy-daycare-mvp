@@ -6,11 +6,20 @@ import { loginAction } from "@/lib/actions";
 
 // Friendlier messages for the guard redirects (KID-112 no_access, KID-86
 // withdrawal, KID-199.3 disabled daycare) that land on /login?error=…
+// KID-199.3r: wrong-tenant carries the account's own daycare name in the
+// `tenant` query param (our own DB text, rendered as text by React).
 const GUARD_ERRORS: Record<string, string> = {
   withdrawn: "This account's access has been withdrawn.",
   disabled: "This account's access is currently disabled. Contact your daycare admin.",
   "disabled-institute": "This daycare is currently disabled. Contact the platform team.",
 };
+
+function wrongTenantMessage(tenant: string | null): string {
+  const name = (tenant ?? "").trim().slice(0, 80);
+  return name
+    ? `This account belongs to ${name}. Sign in from that daycare's own address instead.`
+    : "This account is not the daycare for this address. Sign in from that daycare's own address instead.";
+}
 
 export default function LoginPage() {
   const [error, setError] = useState<string | null>(null);
@@ -23,7 +32,8 @@ export default function LoginPage() {
     const params = new URLSearchParams(window.location.search);
     if (params.get("confirmed") === "1") setConfirmed(true);
     const guard = params.get("error");
-    if (guard) setGuardError(GUARD_ERRORS[guard] ?? null);
+    if (guard === "wrong-tenant") setGuardError(wrongTenantMessage(params.get("tenant")));
+    else if (guard) setGuardError(GUARD_ERRORS[guard] ?? null);
     let cancelled = false;
     fetch("/api/branding")
       .then((r) => r.json())

@@ -78,7 +78,7 @@ import {
   isPlatformOperatorEmail,
   isPlatformOperatorRole,
 } from "@/lib/platform";
-import { resolveTenantInstituteId } from "@/lib/tenant";
+import { resolveTenantInstituteId, loginHostGate } from "@/lib/tenant";
 import {
   buildParentInviteEmail,
   getInviteById,
@@ -107,6 +107,10 @@ async function setSession(email: string) {
     email: account.email,
     emailConfirmed: confirmed,
   });
+  // KID-199.3r: no explicit `domain` — the cookie is host-only, so a session
+  // issued on sunshine.<apex> is never SENT to mapletree.<apex> by the
+  // browser. The app-level host gates (loginHostGate + requireTenantForPage)
+  // are the second line of defense for anything that does arrive cross-host.
   cookies().set(SESSION_COOKIE, token, {
     httpOnly: true,
     sameSite: "lax",
@@ -162,6 +166,10 @@ export async function loginAction(formData: FormData) {
       if (account) {
         const disabledGate = await tenancyDisabledError(String(account.id), String(account.role));
         if (disabledGate) return disabledGate;
+        // KID-199.3r: a daycare account is only valid on its own subdomain —
+        // a Sunshine login on the Maple host is refused, never signed in.
+        const hostGate = await loginHostGate(String(account.id), String(account.role), headers().get("host"));
+        if (hostGate) return hostGate;
         if (data.user.email_confirmed_at && !emailConfirmedFor(account)) {
           await setEmailConfirmed(account.id, true);
         }
@@ -189,6 +197,9 @@ export async function loginAction(formData: FormData) {
   // KID-199.3: disabled daycare gate (staff + parents; platform operator exempt).
   const disabledGate = await tenancyDisabledError(String(account.id), String(account.role));
   if (disabledGate) return disabledGate;
+  // KID-199.3r: wrong-subdomain login gate — same refusal as the Supabase path.
+  const hostGate = await loginHostGate(String(account.id), String(account.role), headers().get("host"));
+  if (hostGate) return hostGate;
   // KID-112: contacts with relationship "No access" cannot log in
   // (e.g. unpaid fees). The admin re-enables them by changing the role.
   if (account.role === "parent") {
@@ -611,6 +622,27 @@ export async function setDaycareActiveAction(formData: FormData) {
   redirect("/platform");
 }
 
+// KID-199.3r: edit a daycare's wildcard subdomain from /platform. The same
+// normalization + uniqueness rule as create (store-backed by the 0024 unique
+// index); failures land back on /platform with a friendly message.
+export async function updateDaycareSubdomainAction(formData: FormData) {
+  requirePlatformOperator();
+  const instituteId = String(formData.get("instituteId") ?? "");
+  if (!instituteId) redirect("/platform?error=missing-id");
+  const { setInstituteSubdomain } = await import("@/lib/store");
+  try {
+    await setInstituteSubdomain(instituteId, String(formData.get("subdomain") ?? ""));
+  } catch (err) {
+    const reason = String((err as Error)?.message ?? "");
+    if (reason === "subdomain-taken") redirect("/platform?error=subdomain-taken");
+    if (reason === "subdomain-invalid") redirect("/platform?error=subdomain-invalid");
+    console.error("KID-199.3r updateDaycareSubdomainAction failed:", err);
+    redirect("/platform?error=unknown");
+  }
+  revalidatePath("/platform");
+  redirect("/platform");
+}
+
 // KID-199.4: create a new daycare plus its first owner login, so the board can
 // add tenants like "Sunshine Daycare" without a code deploy. Every failure
 // lands back on /platform with a query-tagged friendly message.
@@ -656,6 +688,10 @@ export async function createDaycareAction(formData: FormData) {
       accentColor,
       font,
       branches,
+      // KID-199.3r: optional explicit subdomain (sunshine.<apex> → "sunshine").
+      // Blank derives a slug from the name; normalization + uniqueness live in
+      // the store, backed by the 0024 unique index.
+      subdomain: String(formData.get("subdomain") ?? "").trim(),
       ownerEmail,
       ownerPassword,
       ownerFullName: String(formData.get("ownerFullName") ?? "").trim(),
@@ -704,9 +740,19 @@ async function firstInstituteId(): Promise<string> {
 // KID-103: verifies a child belongs to the current account's assigned
 // classrooms. Owners/admins always pass; out-of-scope direct-action attempts
 // redirect to the children list instead of silently writing data.
+// KID-199.3r: an empty tenant is now only ever legitimate for the platform
+// operator (the /platform surface scopes explicitly). For a daycare session
+// "" means cross-tenant session or unknown host — fail closed, never write.
 async function assertChildInScope(childId: string, me: SessionCookie): Promise<void> {
   const instituteId = await firstInstituteId();
-  if (!instituteId) return;
+  if (!instituteId) {
+    if (isPlatformOperatorRole(me.role)) return;
+    console.error(
+      "KID-199.3r blocked a write with no request tenant (cross-tenant session or unknown host):",
+      me.email
+    );
+    redirect("/login?error=wrong-tenant");
+  }
   if (!(await isChildInScope(instituteId, me.accountId, childId))) {
     redirect("/portal/children?error=scope");
   }

@@ -1,4 +1,5 @@
 import { queryAll, queryGet, queryRun, uid, type Row } from "./db";
+import { normalizeSubdomainSlug } from "./subdomain";
 import {
   normalizeWorkingHours,
   encodeWorkingHours,
@@ -16,6 +17,19 @@ export async function listInstitutes(): Promise<Row[]> {
   return queryAll("SELECT * FROM institute ORDER BY name");
 }
 
+// KID-199.3r: the first free variant of a slug under the unique
+// `institute.subdomain` index — `sunshine-daycare`, then `sunshine-daycare-2`,
+// and so on. `exceptInstituteId` keeps a row's own slug from counting as a
+// clash when it is being edited.
+async function nextFreeSubdomain(base: string, exceptInstituteId?: string): Promise<string> {
+  for (let n = 1; n < 1000; n++) {
+    const candidate = n === 1 ? base : `${base}-${n}`;
+    const row = await queryGet("SELECT id FROM institute WHERE subdomain = ?", candidate);
+    if (!row || (exceptInstituteId && String(row.id) === exceptInstituteId)) return candidate;
+  }
+  throw new Error("subdomain-exhausted");
+}
+
 export async function seedInstitute(data: {
   name: string;
   primaryColor?: string;
@@ -24,11 +38,19 @@ export async function seedInstitute(data: {
   logoUrl?: string | null;
   openingHours?: Record<string, string>;
   closingDays?: string[];
+  /** KID-199.3r: explicit subdomain (create-daycare form). Blank derives a
+   *  slug from the name; a name with no usable slug leaves the column NULL. */
+  subdomain?: string;
 }): Promise<Row> {
   const id = uid();
+  // KID-199.3r: the subdomain is normalized and de-duplicated at create time,
+  // never trusted raw — the unique index (0024) is the enforcement backstop.
+  const explicit = normalizeSubdomainSlug(String(data.subdomain ?? ""));
+  const base = explicit || normalizeSubdomainSlug(data.name);
+  const subdomain = base ? await nextFreeSubdomain(base) : null;
   await queryRun(
-    `INSERT INTO institute (id, name, primary_color, accent_color, font, logo_url, opening_hours, closing_days)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO institute (id, name, primary_color, accent_color, font, logo_url, opening_hours, closing_days, subdomain)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     id,
     data.name,
     data.primaryColor ?? "#3B82F6",
@@ -36,9 +58,29 @@ export async function seedInstitute(data: {
     data.font ?? "Inter",
     data.logoUrl ?? null,
     JSON.stringify(data.openingHours ?? {}),
-    JSON.stringify(data.closingDays ?? [])
+    JSON.stringify(data.closingDays ?? []),
+    subdomain
   );
   return (await getInstitute(id))!;
+}
+
+/** KID-199.3r: the institute id owning a wildcard subdomain slug, or "" when
+ *  no daycare claims it (unknown host — pages show the neutral error). */
+export async function instituteIdBySubdomain(slug: string): Promise<string> {
+  const row = await queryGet("SELECT id FROM institute WHERE subdomain = ?", slug);
+  return row ? String(row.id) : "";
+}
+
+/** KID-199.3r: set (or clear with "") a daycare's subdomain from the /platform
+ *  edit field. Normalized like every other create path; throws the named
+ *  errors the platform action surfaces as friendly messages. */
+export async function setInstituteSubdomain(instituteId: string, raw: string): Promise<string> {
+  const slug = normalizeSubdomainSlug(raw);
+  if (!slug) throw new Error("subdomain-invalid");
+  const clash = await queryGet("SELECT id FROM institute WHERE subdomain = ?", slug);
+  if (clash && String(clash.id) !== String(instituteId)) throw new Error("subdomain-taken");
+  await queryRun("UPDATE institute SET subdomain = ? WHERE id = ?", slug, instituteId);
+  return slug;
 }
 
 /** KID-199.4r: one branch row per branch of a daycare ("Main" first, then the
@@ -727,6 +769,9 @@ export async function createDaycare(data: {
   /** KID-199.4r: number of branch rows to create — "Main" first, then
    *  "Branch 2".."Branch N". Defaults to 1; clamped to 1..20. */
   branches?: number;
+  /** KID-199.3r: explicit subdomain (sunshine.<apex> → "sunshine"). Blank
+   *  derives a slug from the name; collisions get -2/-3 suffixes. */
+  subdomain?: string;
   ownerEmail: string;
   ownerPassword: string;
   ownerFullName: string;
@@ -744,6 +789,7 @@ export async function createDaycare(data: {
     accentColor: data.accentColor,
     font: data.font,
     logoUrl: data.logoUrl ?? null,
+    subdomain: data.subdomain ?? "",
   });
   const instituteId = String(institute.id);
   // KID-199.4r: the board's "number of branches" field — one branch row per

@@ -2,6 +2,7 @@ import Link from "next/link";
 import PortalSidebar from "@/components/PortalSidebar";
 import PortalAccountMenu from "@/components/PortalAccountMenu";
 import { requireSessionWithWithdrawalCheck } from "@/lib/require";
+import { requireTenantForPage } from "@/lib/tenant";
 import { ensureSchema } from "@/lib/db";
 import { getBranding } from "@/lib/theme";
 import { i18nForAccount } from "@/lib/i18n-session";
@@ -12,6 +13,10 @@ export const dynamic = "force-dynamic";
 
 export default async function PortalLayout({ children }: { children: React.ReactNode }) {
   const session = await requireSessionWithWithdrawalCheck();
+  // KID-199.3r: on a daycare subdomain the portal serves ONLY the host tenant.
+  // Unknown subdomains land on the neutral error page; a session of another
+  // daycare is fail-closed refused with the "belongs to <other>" message.
+  await requireTenantForPage();
   // KID-147: same reason as app/child/layout.tsx. Only a handful of portal
   // pages and the server actions called ensureSchema(), so a pending migration
   // sat unapplied until an organic write. Both authenticated roots now apply

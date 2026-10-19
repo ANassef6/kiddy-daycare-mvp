@@ -1,5 +1,7 @@
 // SQLite schema for the local zero-infra fallback. Mirrors
 // supabase/migrations/0001_init.sql (Postgres) exactly.
+import { normalizeSubdomainSlug } from "./subdomain";
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function sqliteSchema(db: any): void {
   db.exec(`
@@ -16,6 +18,7 @@ export function sqliteSchema(db: any): void {
     contact TEXT,
     address TEXT,
     active INTEGER NOT NULL DEFAULT 1,
+    subdomain TEXT,
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
   );
 
@@ -524,6 +527,42 @@ export function sqliteSchema(db: any): void {
   if (!instCols.some((c) => c.name === "active")) {
     db.exec("ALTER TABLE institute ADD COLUMN active INTEGER NOT NULL DEFAULT 1");
   }
+  // KID-199.3r: mirror of supabase/migrations/0024_institute_subdomain.sql.
+  // The unique index is created after the backfill below so two legacy rows
+  // whose names normalize to the same slug never collide mid-backfill.
+  if (!instCols.some((c) => c.name === "subdomain")) {
+    db.exec("ALTER TABLE institute ADD COLUMN subdomain TEXT");
+  }
+  try {
+    const pending = db
+      .prepare("SELECT id, name FROM institute WHERE subdomain IS NULL")
+      .all() as { id: string; name: string }[];
+    if (pending.length > 0) {
+      // Same normalization rule as supabase/migrations/0024 (lib/subdomain.ts).
+      const taken = new Set(
+        (
+          db
+            .prepare("SELECT DISTINCT subdomain FROM institute WHERE subdomain IS NOT NULL")
+            .all() as { subdomain: string }[]
+        ).map((r) => String(r.subdomain))
+      );
+      const counts = new Map<string, number>();
+      const update = db.prepare("UPDATE institute SET subdomain = ? WHERE id = ?");
+      for (const row of pending) {
+        const base = normalizeSubdomainSlug(row.name);
+        if (!base) continue; // no usable slug: stays NULL, operator sets one
+        let n = (counts.get(base) ?? 0) + 1;
+        while (taken.has(n === 1 ? base : `${base}-${n}`)) n += 1;
+        const slug = n === 1 ? base : `${base}-${n}`;
+        taken.add(slug);
+        counts.set(base, n);
+        update.run(slug, row.id);
+      }
+    }
+  } catch {}
+  db.exec(
+    "CREATE UNIQUE INDEX IF NOT EXISTS uq_institute_subdomain ON institute (subdomain) WHERE subdomain IS NOT NULL"
+  );
   const staffCols = db.prepare("PRAGMA table_info(staff)").all() as { name: string }[];
   if (!staffCols.some((c) => c.name === "photo_url")) {
     db.exec("ALTER TABLE staff ADD COLUMN photo_url TEXT");

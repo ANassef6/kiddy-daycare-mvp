@@ -4,6 +4,7 @@ import { getInstitute as storeGetInstitute } from "./store";
 import { readSessionFromCookie } from "./auth";
 import { isPlatformOperatorRole } from "./platform";
 import { primaryInstituteIdForAccount } from "./store";
+import { splitSubdomainHost } from "./subdomain";
 import type { Row } from "./db";
 
 export async function getFirstInstitute(): Promise<Row | undefined> {
@@ -40,13 +41,39 @@ export function brandingFromInstitute(institute: Row | undefined): Branding {
 // still reflect within this window — no redeploy required.
 const BRANDING_TTL_MS = 30_000;
 let _brandingCache: { at: number; value: Branding } | null = null;
+// KID-199.3r: subdomain branding is per HOST, so the single legacy slot above
+// (generic/anonymous apex traffic) cannot hold it — a second daycare's
+// subdomain would render the first cached brand for the TTL window.
+const _hostBrandingCache = new Map<string, { at: number; value: Branding }>();
 
 export async function getBranding(): Promise<Branding> {
-  // KID-199.3: branding follows the session's own daycare. Anonymous visitors
-  // (login/landing) keep the legacy first-institute branding and the TTL cache.
-  // Signed-in staff/parents resolve per request — no cache, or the second
-  // daycare would render the first daycare's brand for 30s.
   const now = Date.now();
+  // KID-199.3r: on a daycare subdomain the HOST decides the brand — Sunshine's
+  // address renders Sunshine, Maple's renders Maple, for signed-in and
+  // anonymous visitors alike (the anonymous case is what fixes the "first
+  // daycare renders everywhere" leak). An unknown subdomain gets neutral
+  // Kiddy defaults — never a tenant, never the first institute.
+  try {
+    const h = (await import("next/headers")).headers();
+    const ctx = splitSubdomainHost(h.get("host"));
+    if (ctx.kind === "subdomain") {
+      const { instituteIdBySubdomain } = await import("./store");
+      const hostIid = await instituteIdBySubdomain(ctx.slug);
+      if (!hostIid) return brandingFromInstitute(undefined);
+      const cached = _hostBrandingCache.get(hostIid);
+      if (cached && now - cached.at < BRANDING_TTL_MS) return cached.value;
+      const b = brandingFromInstitute(await storeGetInstitute(hostIid));
+      _hostBrandingCache.set(hostIid, { at: now, value: b });
+      return b;
+    }
+  } catch {
+    // no request scope (tests/scripts): the legacy fallback path below
+  }
+  // KID-199.3: branding follows the session's own daycare (generic hosts).
+  // Anonymous visitors (login/landing) keep the legacy first-institute
+  // branding and the TTL cache. Signed-in staff/parents resolve per request —
+  // no cache, or the second daycare would render the first daycare's brand
+  // for 30s.
   let institute: Row | undefined;
   let cacheable = false;
   try {

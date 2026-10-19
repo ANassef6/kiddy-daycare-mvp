@@ -607,6 +607,36 @@ try {
       recipients.map((r) => `${r.id}:${r.full_name}`),
       ["acc-maria:Maria Lopez"]
     );
+
+    // ---------------------------------------------------------------------
+    // 0024 — one daycare per wildcard subdomain. The column plus its partial
+    // unique index are the SQL-level enforcement behind lib/subdomain.ts; a
+    // unique index that did not exist would let two daycares silently share
+    // (and therefore both serve on) one hostname.
+    console.log("\n== 0024 institute subdomain ==");
+    await db.run("TRUNCATE family_member, invite, contact, child, account, staff_room, staff, room, institute CASCADE");
+    await ins("institute", ["id", "name"], ["inst-sun", "Sunshine Daycare"]);
+    await ins("institute", ["id", "name"], ["inst-maple", "Maple Tree Daycare"]);
+    await db.run(`UPDATE institute SET subdomain = 'sunshine' WHERE id = 'inst-sun'`);
+    await db.run(`UPDATE institute SET subdomain = 'mapletree' WHERE id = 'inst-maple'`);
+    check("both daycares keep their own subdomain", (await db.all(`SELECT id FROM institute WHERE subdomain = 'sunshine'`)).map((r) => String(r.id)), ["inst-sun"]);
+    // A second daycare claiming a taken subdomain must be refused loudly.
+    // Like the 0018 guard above: the abort would poison the transaction, so
+    // run it inside a savepoint.
+    await db.run("SAVEPOINT subdomain_check");
+    let dupRaised = false;
+    try {
+      await db.run(`UPDATE institute SET subdomain = 'sunshine' WHERE id = 'inst-maple'`);
+    } catch (err) {
+      dupRaised = true;
+    }
+    await db.run("ROLLBACK TO SAVEPOINT subdomain_check");
+    check("two daycares cannot claim one subdomain", dupRaised, true);
+    // Several daycares with no subdomain yet is the normal legacy state — the
+    // partial index must not make NULLs collide.
+    await db.run(`UPDATE institute SET subdomain = NULL`);
+    const nullCount = Number((await db.all("SELECT COUNT(*) AS c FROM institute"))[0].c);
+    check("NULL subdomains coexist (pre-backfill legacy rows)", nullCount, 2);
   }
 } catch (err) {
   failures.push(`setup: ${err.message}`);

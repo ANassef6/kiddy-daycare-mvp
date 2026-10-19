@@ -6,9 +6,10 @@ import { redirect } from "next/navigation";
 import { requireSession } from "@/lib/require";
 import { isPlatformOperatorEmail, isPlatformOperatorRole, PLATFORM_THEME_KEYS } from "@/lib/platform";
 import { listInstitutesForPlatform } from "@/lib/store";
-import { setDaycareActiveAction, createDaycareAction } from "@/lib/actions";
+import { setDaycareActiveAction, createDaycareAction, updateDaycareSubdomainAction } from "@/lib/actions";
 import { i18nForAccount } from "@/lib/i18n-session";
 import { tr } from "@/lib/i18n";
+import { apexDomain } from "@/lib/subdomain";
 
 export const dynamic = "force-dynamic";
 
@@ -19,6 +20,9 @@ const ERRORS: Record<string, string> = {
   "owner-email": "Enter a valid email for the first owner account.",
   "owner-email-in-use": "That email already has an account. Use a different one.",
   password: "The owner password must be at least 8 characters.",
+  // KID-199.3r: subdomain edit/create failures.
+  "subdomain-taken": "That subdomain is already used by another daycare.",
+  "subdomain-invalid": "Use letters, numbers and hyphens only for the subdomain.",
   unknown: "Something went wrong creating the daycare. Please try again.",
 };
 
@@ -37,6 +41,9 @@ export default async function PlatformDaycaresPage({
   const institutes = await listInstitutesForPlatform();
   const created = searchParams.created === "1";
   const createError = searchParams.error ? (ERRORS[searchParams.error] ?? ERRORS.unknown) : "";
+  // KID-199.3r: the apex is deployment configuration; when set, the operator
+  // sees the full host each daycare resolves on.
+  const apex = apexDomain();
 
   return (
     <div dir={dir}>
@@ -58,6 +65,7 @@ export default async function PlatformDaycaresPage({
         <thead>
           <tr style={{ textAlign: "left" }}>
             <th className="label" style={{ padding: 8 }}>{tr(dict, "platform.daycare")}</th>
+            <th className="label" style={{ padding: 8 }}>{tr(dict, "platform.subdomain")}</th>
             <th className="label" style={{ padding: 8 }}>{tr(dict, "platform.brand")}</th>
             <th className="label" style={{ padding: 8 }}>{tr(dict, "platform.created")}</th>
             <th className="label" style={{ padding: 8 }}>{tr(dict, "platform.owners")}</th>
@@ -71,6 +79,25 @@ export default async function PlatformDaycaresPage({
             return (
               <tr key={String(inst.id)} style={{ borderTop: "1px solid #e5e7eb" }}>
                 <td style={{ padding: 8, fontWeight: 700 }}>{String(inst.name)}</td>
+                {/* KID-199.3r: the wildcard subdomain and its full host, editable
+                    inline. Blank = not reachable on any subdomain yet. */}
+                <td style={{ padding: 8 }}>
+                  <form action={updateDaycareSubdomainAction} style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                    <input type="hidden" name="instituteId" value={String(inst.id)} />
+                    <input
+                      className="input"
+                      name="subdomain"
+                      defaultValue={String(inst.subdomain ?? "")}
+                      placeholder="sunshine"
+                      style={{ width: 160, marginBottom: 0 }}
+                      aria-label={`${tr(dict, "platform.subdomain")}: ${String(inst.name)}`}
+                    />
+                    <button className="btn" type="submit">{tr(dict, "platform.subdomainSave")}</button>
+                  </form>
+                  {apex && inst.subdomain ? (
+                    <span className="small muted">{String(inst.subdomain)}.{apex}</span>
+                  ) : null}
+                </td>
                 <td style={{ padding: 8 }}>
                   <span
                     aria-label={String(inst.primary_color ?? "")}
@@ -109,6 +136,13 @@ export default async function PlatformDaycaresPage({
           <div className="col field">
             <label className="label">{tr(dict, "platform.name")}</label>
             <input className="input" name="name" placeholder="e.g. Sunshine Daycare" />
+          </div>
+          <div className="col field">
+            {/* KID-199.3r: the daycare's wildcard subdomain; blank derives a
+                slug from the name, collisions get -2/-3 suffixes. */}
+            <label className="label">{tr(dict, "platform.subdomain")}</label>
+            <input className="input" name="subdomain" placeholder="e.g. sunshine" />
+            <span className="small muted">{tr(dict, "platform.subdomainHint")}</span>
           </div>
           <div className="col field">
             <label className="label">{tr(dict, "platform.ownerEmail")}</label>
