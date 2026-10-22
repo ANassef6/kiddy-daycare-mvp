@@ -4,6 +4,7 @@ import "./globals.css";
 import { getBranding } from "@/lib/theme";
 import { SITE_BRAND } from "@/lib/site";
 import { readSessionFromCookieValue } from "@/lib/auth";
+import { ensureSeeded } from "@/lib/bootstrap";
 import { LANG_COOKIE, dirFor, localeOf, type Locale } from "@/lib/i18n";
 
 export const metadata: Metadata = {
@@ -36,6 +37,17 @@ async function resolveLocale(): Promise<Locale> {
 }
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  // KID-216: the lazy bootstrap (schema + demo seed + platform operator for the
+  // PLATFORM_ADMIN_EMAIL allowlist) was never wired to any request path, so an
+  // unmanaged deployment could never mint its operator account. Await it once
+  // on the first render of every warm instance; it self-skips afterwards and
+  // must never block the render on failure.
+  try {
+    await ensureSeeded();
+  } catch (err) {
+    console.error("Bootstrap failed at layout render:", err);
+  }
+
   let theme = "";
   let brand = SITE_BRAND;
   let logoUrl: string | null = null;
