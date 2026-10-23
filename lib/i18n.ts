@@ -539,6 +539,12 @@ export const en = {
     subdomain: "Subdomain",
     subdomainHint: "One word/short slug for the daycare's own web address (e.g. sunshine). Leave blank to derive it from the name.",
     subdomainSave: "Save address",
+    // KID-227: make the prefix + public URL obvious.
+    editPrefix: "Edit web prefix",
+    copyUrl: "Copy link",
+    copied: "Copied",
+    noPrefix: "No web prefix yet — type one and save.",
+    apexMissing: "Daycare web addresses stay off until PUBLIC_APEX_DOMAIN is set.",
   },
 };
 
@@ -1061,6 +1067,11 @@ export const ar = {
     subdomain: "العنوان الفرعي",
     subdomainHint: "كلمة قصيرة لعنوان الروضة على الويب (مثل sunshine). اتركه فارغًا ليُشتق من الاسم.",
     subdomainSave: "حفظ العنوان",
+    editPrefix: "تعديل بادئة العنوان",
+    copyUrl: "نسخ الرابط",
+    copied: "تم النسخ",
+    noPrefix: "لا توجد بادئة عنوان بعد — اكتب واحدة واحفظ.",
+    apexMissing: "تبقى عناوين الروضات على الويب معطّلة حتى ضبط PUBLIC_APEX_DOMAIN.",
   },
 };
 

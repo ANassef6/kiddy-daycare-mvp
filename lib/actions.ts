@@ -624,20 +624,26 @@ export async function setDaycareActiveAction(formData: FormData) {
 
 // KID-199.3r: edit a daycare's wildcard subdomain from /platform. The same
 // normalization + uniqueness rule as create (store-backed by the 0024 unique
-// index); failures land back on /platform with a friendly message.
+// index); failures land back on the edited row with a friendly message.
+// KID-227: the redirect carries `edit` (which row failed) and `prefix` (what
+// was typed), so the page shows the error at that row and keeps the typed
+// value in the input — the operator no longer has to retype or hunt for what
+// went wrong.
 export async function updateDaycareSubdomainAction(formData: FormData) {
   requirePlatformOperator();
   const instituteId = String(formData.get("instituteId") ?? "");
   if (!instituteId) redirect("/platform?error=missing-id");
+  const typed = String(formData.get("subdomain") ?? "");
   const { setInstituteSubdomain } = await import("@/lib/store");
+  const { subdomainEditErrorPath } = await import("@/lib/subdomain");
   try {
-    await setInstituteSubdomain(instituteId, String(formData.get("subdomain") ?? ""));
+    await setInstituteSubdomain(instituteId, typed);
   } catch (err) {
     const reason = String((err as Error)?.message ?? "");
-    if (reason === "subdomain-taken") redirect("/platform?error=subdomain-taken");
-    if (reason === "subdomain-invalid") redirect("/platform?error=subdomain-invalid");
+    if (reason === "subdomain-taken") redirect(subdomainEditErrorPath(instituteId, typed, "subdomain-taken"));
+    if (reason === "subdomain-invalid") redirect(subdomainEditErrorPath(instituteId, typed, "subdomain-invalid"));
     console.error("KID-199.3r updateDaycareSubdomainAction failed:", err);
-    redirect("/platform?error=unknown");
+    redirect(subdomainEditErrorPath(instituteId, typed, "unknown"));
   }
   revalidatePath("/platform");
   redirect("/platform");

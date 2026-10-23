@@ -2,6 +2,8 @@
 // operator resolves no tenant (lib/tenant.ts), so the /portal shell and its
 // daycare styling do not apply here. The guard is the env-based operator
 // allowlist (lib/platform.ts), NOT a daycare role — the ticket's core rule.
+// KID-227: the chrome is .platform-shell (full-width single column) — the
+// portal .shell grid built for the 220px sidebar squeezed the topbar here.
 import { logoutAction } from "@/lib/actions";
 import { requireSession } from "@/lib/require";
 import { isPlatformOperatorEmail, isPlatformOperatorRole } from "@/lib/platform";
@@ -20,15 +22,15 @@ export default async function PlatformLayout({ children }: { children: React.Rea
   }
   const { locale, dict, dir } = await i18nForAccount(session.accountId);
   return (
-    <div dir={dir} className="shell">
-      <header className="portal-topbar" style={{ padding: "12px 20px", borderBottom: "1px solid #e5e7eb" }}>
+    <div dir={dir} className="platform-shell">
+      <header className="platform-topbar">
         <strong>Kiddy</strong>
         <span className="small muted">{tr(dict, "platform.operator")} · {session.email}</span>
-        <form action={logoutAction} style={{ marginLeft: "auto" }}>
+        <form action={logoutAction}>
           <button className="btn" type="submit">{tr(dict, "nav.signOut")}</button>
         </form>
       </header>
-      <main className="shell-main" style={{ padding: 20 }}>{children}</main>
+      <main className="platform-main">{children}</main>
     </div>
   );
 }

@@ -2,6 +2,11 @@
 // table (this repo has no client data-fetching libs) — every daycare with its
 // brand color, created date, owner/staff counts and an enable/disable toggle,
 // plus the create-daycare form underneath.
+// KID-227: the table scrolls horizontally on narrow screens instead of
+// squeezing; success/error banners ride the brand CSS variables; the inline
+// subdomain edit is labeled ("Edit prefix"), shows the full public URL with a
+// copy button, and a failed save keeps the typed prefix and reports at the
+// row; the create form gains native color pickers beside the hex fields.
 import { redirect } from "next/navigation";
 import { requireSession } from "@/lib/require";
 import { isPlatformOperatorEmail, isPlatformOperatorRole, PLATFORM_THEME_KEYS } from "@/lib/platform";
@@ -9,7 +14,9 @@ import { listInstitutesForPlatform } from "@/lib/store";
 import { setDaycareActiveAction, createDaycareAction, updateDaycareSubdomainAction } from "@/lib/actions";
 import { i18nForAccount } from "@/lib/i18n-session";
 import { tr } from "@/lib/i18n";
-import { apexDomain } from "@/lib/subdomain";
+import { apexDomain, subdomainUrl } from "@/lib/subdomain";
+import ColorField from "./color-field";
+import CopyUrlButton from "./copy-url-button";
 
 export const dynamic = "force-dynamic";
 
@@ -26,10 +33,19 @@ const ERRORS: Record<string, string> = {
   unknown: "Something went wrong creating the daycare. Please try again.",
 };
 
+/** KID-227: the same reasons, worded for the inline per-row prefix edit —
+ *  shown at the row that failed, not as a page-wide create banner. */
+const ROW_ERRORS: Record<string, string> = {
+  "subdomain-taken": "That web prefix is already used by another daycare.",
+  "subdomain-invalid": "Use letters, numbers and hyphens only for the web prefix.",
+  "missing-id": "Something went wrong saving the web prefix. Please try again.",
+  unknown: "Something went wrong saving the web prefix. Please try again.",
+};
+
 export default async function PlatformDaycaresPage({
   searchParams,
 }: {
-  searchParams: { created?: string; error?: string };
+  searchParams: { created?: string; error?: string; edit?: string; prefix?: string };
 }) {
   const session = requireSession();
   // Same double check as the layout + every server action: internal sentinel
@@ -40,7 +56,12 @@ export default async function PlatformDaycaresPage({
   const { dict, dir } = await i18nForAccount(session.accountId);
   const institutes = await listInstitutesForPlatform();
   const created = searchParams.created === "1";
-  const createError = searchParams.error ? (ERRORS[searchParams.error] ?? ERRORS.unknown) : "";
+  // KID-227: an error carrying `edit` belongs to a row (the inline prefix
+  // save); only create-flow errors render the page-wide banner.
+  const rowEditId = searchParams.edit ?? "";
+  const rowError = searchParams.error ? (ROW_ERRORS[searchParams.error] ?? ROW_ERRORS.unknown) : "";
+  const createError =
+    searchParams.error && !rowEditId ? (ERRORS[searchParams.error] ?? ERRORS.unknown) : "";
   // KID-199.3r: the apex is deployment configuration; when set, the operator
   // sees the full host each daycare resolves on.
   const apex = apexDomain();
@@ -51,83 +72,128 @@ export default async function PlatformDaycaresPage({
       <p className="subtitle">{tr(dict, "platform.subtitle")}</p>
 
       {created && (
-        <div className="card mb-4" style={{ background: "#ECFDF5", border: "1px solid #10B981" }}>
-          {tr(dict, "platform.createdMessage")}
-        </div>
+        <div className="card mb-4 banner-success">{tr(dict, "platform.createdMessage")}</div>
       )}
-      {createError && (
-        <div className="card mb-4" style={{ background: "#FEF2F2", border: "1px solid #EF4444" }}>
-          {createError}
-        </div>
-      )}
+      {createError && <div className="card mb-4 banner-error">{createError}</div>}
 
-      <table className="card" style={{ width: "100%", borderCollapse: "collapse", marginBottom: 16 }}>
-        <thead>
-          <tr style={{ textAlign: "left" }}>
-            <th className="label" style={{ padding: 8 }}>{tr(dict, "platform.daycare")}</th>
-            <th className="label" style={{ padding: 8 }}>{tr(dict, "platform.subdomain")}</th>
-            <th className="label" style={{ padding: 8 }}>{tr(dict, "platform.brand")}</th>
-            <th className="label" style={{ padding: 8 }}>{tr(dict, "platform.created")}</th>
-            <th className="label" style={{ padding: 8 }}>{tr(dict, "platform.owners")}</th>
-            <th className="label" style={{ padding: 8 }}>{tr(dict, "platform.staff")}</th>
-            <th className="label" style={{ padding: 8 }}>{tr(dict, "platform.status")}</th>
-          </tr>
-        </thead>
-        <tbody>
-          {institutes.map((inst) => {
-            const active = Number(inst.active ?? 1) === 1;
-            return (
-              <tr key={String(inst.id)} style={{ borderTop: "1px solid #e5e7eb" }}>
-                <td style={{ padding: 8, fontWeight: 700 }}>{String(inst.name)}</td>
-                {/* KID-199.3r: the wildcard subdomain and its full host, editable
-                    inline. Blank = not reachable on any subdomain yet. */}
-                <td style={{ padding: 8 }}>
-                  <form action={updateDaycareSubdomainAction} style={{ display: "flex", gap: 6, alignItems: "center" }}>
-                    <input type="hidden" name="instituteId" value={String(inst.id)} />
-                    <input
-                      className="input"
-                      name="subdomain"
-                      defaultValue={String(inst.subdomain ?? "")}
-                      placeholder="sunshine"
-                      style={{ width: 160, marginBottom: 0 }}
-                      aria-label={`${tr(dict, "platform.subdomain")}: ${String(inst.name)}`}
-                    />
-                    <button className="btn" type="submit">{tr(dict, "platform.subdomainSave")}</button>
-                  </form>
-                  {apex && inst.subdomain ? (
-                    <span className="small muted">{String(inst.subdomain)}.{apex}</span>
-                  ) : null}
-                </td>
-                <td style={{ padding: 8 }}>
-                  <span
-                    aria-label={String(inst.primary_color ?? "")}
-                    title={String(inst.primary_color ?? "")}
-                    style={{ display: "inline-flex", gap: 6, alignItems: "center" }}
-                  >
-                    <span style={{ width: 14, height: 14, borderRadius: 4, background: String(inst.primary_color ?? "#3B82F6"), display: "inline-block" }} />
-                    <span style={{ width: 14, height: 14, borderRadius: 4, background: String(inst.accent_color ?? "#10B981"), display: "inline-block" }} />
-                  </span>
-                </td>
-                <td className="small" style={{ padding: 8 }}>{String(inst.created_at ?? "").slice(0, 10)}</td>
-                <td style={{ padding: 8 }}>{Number(inst.owner_count ?? 0)}</td>
-                <td style={{ padding: 8 }}>{Number(inst.staff_count ?? 0)}</td>
-                <td style={{ padding: 8 }}>
-                  <span className="small" style={{ marginRight: 8 }}>
-                    {active ? tr(dict, "platform.active") : tr(dict, "platform.disabled")}
-                  </span>
-                  <form action={setDaycareActiveAction} style={{ display: "inline" }}>
-                    <input type="hidden" name="instituteId" value={String(inst.id)} />
-                    <input type="hidden" name="active" value={active ? "0" : "1"} />
-                    <button className="btn" type="submit">
-                      {active ? tr(dict, "platform.disable") : tr(dict, "platform.enable")}
-                    </button>
-                  </form>
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
+      <div className="table-scroll">
+        <table className="card" style={{ width: "100%", borderCollapse: "collapse", marginBottom: 16 }}>
+          <thead>
+            <tr style={{ textAlign: "left" }}>
+              <th className="label" style={{ padding: 8 }}>{tr(dict, "platform.daycare")}</th>
+              <th className="label" style={{ padding: 8 }}>{tr(dict, "platform.subdomain")}</th>
+              <th className="label" style={{ padding: 8 }}>{tr(dict, "platform.brand")}</th>
+              <th className="label" style={{ padding: 8 }}>{tr(dict, "platform.created")}</th>
+              <th className="label" style={{ padding: 8 }}>{tr(dict, "platform.owners")}</th>
+              <th className="label" style={{ padding: 8 }}>{tr(dict, "platform.staff")}</th>
+              <th className="label" style={{ padding: 8 }}>{tr(dict, "platform.status")}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {institutes.map((inst) => {
+              const active = Number(inst.active ?? 1) === 1;
+              const instId = String(inst.id);
+              const storedSubdomain = String(inst.subdomain ?? "");
+              // KID-227: after a failed save the row re-renders with what the
+              // operator typed (the `prefix` round-trip), never the stale
+              // stored value — the typed work survives the redirect.
+              const editing = rowEditId === instId && searchParams.prefix !== undefined;
+              const inputDefault = editing ? (searchParams.prefix ?? "") : storedSubdomain;
+              const publicUrl = storedSubdomain ? subdomainUrl(storedSubdomain) : "";
+              return (
+                <tr key={instId} style={{ borderTop: "1px solid #e5e7eb" }}>
+                  <td style={{ padding: 8, fontWeight: 700 }}>{String(inst.name)}</td>
+                  {/* KID-199.3r: the wildcard subdomain and its full host,
+                      editable inline. KID-227: labeled "Edit prefix", with the
+                      resulting URL + copy button when the apex is configured,
+                      a visible hint when it is not, and row-level errors. */}
+                  <td style={{ padding: 8 }}>
+                    <form action={updateDaycareSubdomainAction}>
+                      <input type="hidden" name="instituteId" value={instId} />
+                      <label className="label" htmlFor={`subdomain-${instId}`} style={{ marginBottom: 2 }}>
+                        {tr(dict, "platform.editPrefix")}
+                      </label>
+                      <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
+                        <input
+                          className="input"
+                          id={`subdomain-${instId}`}
+                          name="subdomain"
+                          defaultValue={inputDefault}
+                          placeholder="sunshine"
+                          style={{ width: 160, marginBottom: 0 }}
+                          aria-label={`${tr(dict, "platform.subdomain")}: ${String(inst.name)}`}
+                        />
+                        <button className="btn" type="submit">{tr(dict, "platform.subdomainSave")}</button>
+                      </div>
+                    </form>
+                    {apex ? (
+                      publicUrl ? (
+                        <span
+                          style={{
+                            display: "inline-flex",
+                            gap: 6,
+                            alignItems: "center",
+                            marginTop: 6,
+                            flexWrap: "wrap",
+                          }}
+                        >
+                          <span className="small muted">{publicUrl}</span>
+                          <CopyUrlButton
+                            url={publicUrl}
+                            copyLabel={tr(dict, "platform.copyUrl")}
+                            copiedLabel={tr(dict, "platform.copied")}
+                          />
+                        </span>
+                      ) : (
+                        <span className="small muted" style={{ display: "block", marginTop: 6 }}>
+                          {tr(dict, "platform.noPrefix")}
+                        </span>
+                      )
+                    ) : (
+                      <span className="small muted" style={{ display: "block", marginTop: 6 }}>
+                        {tr(dict, "platform.apexMissing")}
+                      </span>
+                    )}
+                    {editing && rowError ? (
+                      <span
+                        className="small banner-error"
+                        style={{ display: "inline-block", padding: "4px 10px", borderRadius: 8, marginTop: 6 }}
+                      >
+                        {rowError}
+                      </span>
+                    ) : null}
+                  </td>
+                  <td style={{ padding: 8 }}>
+                    <span
+                      aria-label={String(inst.primary_color ?? "")}
+                      title={String(inst.primary_color ?? "")}
+                      style={{ display: "inline-flex", gap: 6, alignItems: "center" }}
+                    >
+                      <span style={{ width: 14, height: 14, borderRadius: 4, background: String(inst.primary_color ?? "#3B82F6"), display: "inline-block" }} />
+                      <span style={{ width: 14, height: 14, borderRadius: 4, background: String(inst.accent_color ?? "#10B981"), display: "inline-block" }} />
+                    </span>
+                  </td>
+                  <td className="small" style={{ padding: 8 }}>{String(inst.created_at ?? "").slice(0, 10)}</td>
+                  <td style={{ padding: 8 }}>{Number(inst.owner_count ?? 0)}</td>
+                  <td style={{ padding: 8 }}>{Number(inst.staff_count ?? 0)}</td>
+                  <td style={{ padding: 8 }}>
+                    <span className="small" style={{ marginRight: 8 }}>
+                      {active ? tr(dict, "platform.active") : tr(dict, "platform.disabled")}
+                    </span>
+                    <form action={setDaycareActiveAction} style={{ display: "inline" }}>
+                      <input type="hidden" name="instituteId" value={instId} />
+                      <input type="hidden" name="active" value={active ? "0" : "1"} />
+                      <button className="btn" type="submit">
+                        {active ? tr(dict, "platform.disable") : tr(dict, "platform.enable")}
+                      </button>
+                    </form>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
 
       <form className="card" action={createDaycareAction}>
         <h3 className="subtitle">{tr(dict, "platform.createTitle")}</h3>
@@ -175,7 +241,7 @@ export default async function PlatformDaycaresPage({
         <div className="row">
           <div className="col field">
             {/* KID-199.4r: theme picker over the existing branding tokens;
-                "custom" reveals the raw color fields. Server-side, no JS needed
+                "custom" uses the raw color fields. Server-side, no JS needed
                 because the action maps presets to the tokens. */}
             <label className="label">{tr(dict, "platform.theme")}</label>
             <select className="input" name="theme" defaultValue={PLATFORM_THEME_KEYS[0]}>
@@ -187,13 +253,28 @@ export default async function PlatformDaycaresPage({
               <option value="custom">{tr(dict, "platform.themeCustom")}</option>
             </select>
           </div>
+          {/* KID-227: native pickers beside the hex fields, synced both ways
+              (ColorField); the hex input keeps the submitted name, and the
+              server-side platformColor() #RRGGBB validation is unchanged. */}
           <div className="col field">
             <label className="label">{tr(dict, "platform.primaryColor")}</label>
-            <input className="input" name="primaryColor" placeholder="#3B82F6" pattern="^#[0-9a-fA-F]{6}$" />
+            <ColorField
+              name="primaryColor"
+              pickerDefault="#3B82F6"
+              hexPlaceholder="#3B82F6"
+              pickerLabel={`${tr(dict, "platform.primaryColor")} picker`}
+              hexLabel={tr(dict, "platform.primaryColor")}
+            />
           </div>
           <div className="col field">
             <label className="label">{tr(dict, "platform.accentColor")}</label>
-            <input className="input" name="accentColor" placeholder="#10B981" pattern="^#[0-9a-fA-F]{6}$" />
+            <ColorField
+              name="accentColor"
+              pickerDefault="#10B981"
+              hexPlaceholder="#10B981"
+              pickerLabel={`${tr(dict, "platform.accentColor")} picker`}
+              hexLabel={tr(dict, "platform.accentColor")}
+            />
           </div>
         </div>
         <button className="btn btn-primary" type="submit">{tr(dict, "platform.create")}</button>

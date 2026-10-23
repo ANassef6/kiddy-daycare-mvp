@@ -96,3 +96,21 @@ export function subdomainUrl(slug: string, proto = "https"): string {
   const apex = apexDomain();
   return apex ? `${proto}://${slug}.${apex}` : "";
 }
+
+/** KID-227: where a failed inline subdomain edit lands — the error keyed to
+ *  the edited row (`edit`) plus the exact typed prefix (`prefix`), so the row
+ *  can show the message in place and re-fill the input with what the operator
+ *  typed instead of silently reverting to the stored value. Pure so the
+ *  server action and the unit tests drive the same encoding. */
+export function subdomainEditErrorPath(
+  instituteId: string,
+  typed: string,
+  reason: string
+): string {
+  const params = new URLSearchParams({
+    error: reason,
+    edit: instituteId,
+    prefix: typed,
+  });
+  return `/platform?${params.toString()}`;
+}

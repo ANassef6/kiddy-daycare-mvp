@@ -318,6 +318,56 @@ table.data th {
   gap: 0;
 }
 
+/* KID-227: /platform chrome — a full-width single-column shell. The portal
+   .shell grid (220px sidebar + main) does not fit here: /platform has no
+   sidebar slot, so the grid squeezed the topbar into the 220px column. */
+.platform-shell {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+.platform-topbar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 12px 20px;
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-surface);
+}
+
+.platform-topbar form {
+  /* Logical property so the sign-out button lands at the inline end in RTL too. */
+  margin-inline-start: auto;
+}
+
+.platform-main {
+  flex: 1;
+  padding: var(--space-5);
+}
+
+/* KID-227: wide data tables (the platform daycare table carries embedded
+   forms) scroll horizontally on narrow screens instead of squeezing. */
+.table-scroll {
+  overflow-x: auto;
+}
+
+.table-scroll > table {
+  min-width: 720px;
+}
+
+/* KID-227: status banners on the brand tokens — no hardcoded hex. */
+.banner-success {
+  background: color-mix(in srgb, var(--brand-accent) 12%, var(--color-surface));
+  border: 1px solid var(--brand-accent);
+}
+
+.banner-error {
+  background: color-mix(in srgb, var(--color-danger) 12%, var(--color-surface));
+  border: 1px solid var(--color-danger);
+}
+
 .shell-side {
   background: var(--color-surface);
   border-right: 1px solid var(--color-border);
