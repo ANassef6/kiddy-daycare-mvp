@@ -80,13 +80,13 @@ export default async function PlatformDaycaresPage({
         <table className="card" style={{ width: "100%", borderCollapse: "collapse", marginBottom: 16 }}>
           <thead>
             <tr style={{ textAlign: "left" }}>
-              <th className="label" style={{ padding: 8 }}>{tr(dict, "platform.daycare")}</th>
-              <th className="label" style={{ padding: 8 }}>{tr(dict, "platform.subdomain")}</th>
-              <th className="label" style={{ padding: 8 }}>{tr(dict, "platform.brand")}</th>
-              <th className="label" style={{ padding: 8 }}>{tr(dict, "platform.created")}</th>
-              <th className="label" style={{ padding: 8 }}>{tr(dict, "platform.owners")}</th>
-              <th className="label" style={{ padding: 8 }}>{tr(dict, "platform.staff")}</th>
-              <th className="label" style={{ padding: 8 }}>{tr(dict, "platform.status")}</th>
+              <th>{tr(dict, "platform.daycare")}</th>
+              <th>{tr(dict, "platform.subdomain")}</th>
+              <th>{tr(dict, "platform.brand")}</th>
+              <th>{tr(dict, "platform.created")}</th>
+              <th>{tr(dict, "platform.owners")}</th>
+              <th>{tr(dict, "platform.staff")}</th>
+              <th>{tr(dict, "platform.status")}</th>
             </tr>
           </thead>
           <tbody>

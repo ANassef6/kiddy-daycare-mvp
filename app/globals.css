@@ -357,6 +357,18 @@ table.data th {
   min-width: 720px;
 }
 
+/* KID-227: header cells must keep the table-cell layout — the old markup
+   reused the .label text style, but .label forces display:block and stacked
+   every column header on its own line. */
+.table-scroll th {
+  display: table-cell;
+  padding: var(--space-2) var(--space-3);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-muted);
+  text-align: left;
+}
+
 /* KID-227: status banners on the brand tokens — no hardcoded hex. */
 .banner-success {
   background: color-mix(in srgb, var(--brand-accent) 12%, var(--color-surface));
