@@ -1,6 +1,6 @@
 import { queryGet, queryRun } from "./db";
 import * as store from "./store";
-import { createAccount } from "./auth";
+import { createAccount, hashPassword, verifyPassword } from "./auth";
 import { ensureCurriculumSeeded, ageGroupForDob } from "./curriculum";
 import { PLATFORM_OPERATOR_LEGACY_ROLE, PLATFORM_OPERATOR_ROLE } from "./platform";
 
@@ -41,28 +41,63 @@ export async function ensurePlatformOperator(opts?: {
     );
     console.log("Renamed the legacy superadmin accounts to the platform operator sentinel");
   }
+  // KID-199.6: read the operator identity at call time (not module load) so a
+  // changed PLATFORM_ADMIN_EMAIL is adopted by the next bootstrap pass on an
+  // already-running deployment.
+  const operatorEmail = process.env.PLATFORM_ADMIN_EMAIL || PLATFORM_OPERATOR_EMAIL;
+  // KID-199.6: same for the password, when one is explicitly configured.
+  const operatorPassword = process.env.PLATFORM_OPERATOR_PASSWORD || PLATFORM_OPERATOR_PASSWORD;
   const existing = await queryGet(
-    "SELECT id, role FROM account WHERE lower(trim(email)) = lower(trim(?))",
-    PLATFORM_OPERATOR_EMAIL
+    "SELECT id, role, password_hash FROM account WHERE lower(trim(email)) = lower(trim(?))",
+    operatorEmail
   );
   if (!existing) {
     // createAccount() refuses daycare-facing role values; the internal
     // platform sentinel is on its server-internal allowlist, so only seeded/
     // bootstrap code can mint an operator account — no UI or API can.
     await createAccount({
-      email: PLATFORM_OPERATOR_EMAIL,
-      password: PLATFORM_OPERATOR_PASSWORD,
+      email: operatorEmail,
+      password: operatorPassword,
       fullName: "Platform Operator",
       role: PLATFORM_OPERATOR_ROLE,
     });
-    console.log(`Seeded platform operator account: ${PLATFORM_OPERATOR_EMAIL}`);
-  } else if (String(existing.role ?? "") !== PLATFORM_OPERATOR_ROLE) {
+    console.log(`Seeded platform operator account: ${operatorEmail}`);
+    return;
+  }
+  if (String(existing.role ?? "") !== PLATFORM_OPERATOR_ROLE) {
     await queryRun(
       "UPDATE account SET role = ? WHERE id = ?",
       PLATFORM_OPERATOR_ROLE,
       existing.id
     );
-    console.log(`Granted the platform sentinel role to ${PLATFORM_OPERATOR_EMAIL}`);
+    console.log(`Granted the platform sentinel role to ${operatorEmail}`);
+  }
+  // KID-199.6: an explicitly configured PLATFORM_OPERATOR_PASSWORD must be
+  // adopted by the EXISTING operator row (docs/PLATFORM_BOOTSTRAP.md: the row
+  // keeps the deploy-time credentials). Idempotent: verify against the stored
+  // hash and only write when it no longer matches, so a re-run never churns.
+  // The KID-199.4r rail stays: when PLATFORM_OPERATOR_PASSWORD is NOT set this
+  // is a hard no-op — the demo default is never pushed onto an existing row.
+  if (
+    typeof process.env.PLATFORM_OPERATOR_PASSWORD === "string" &&
+    process.env.PLATFORM_OPERATOR_PASSWORD.length > 0
+  ) {
+    const storedHash = String(existing.password_hash ?? "");
+    let passwordMatches = false;
+    try {
+      passwordMatches = verifyPassword(operatorPassword, storedHash);
+    } catch {
+      // An unreadable/empty stored hash can never match — upgrade it.
+      passwordMatches = false;
+    }
+    if (!passwordMatches) {
+      await queryRun(
+        "UPDATE account SET password_hash = ? WHERE id = ?",
+        hashPassword(operatorPassword),
+        existing.id
+      );
+      console.log(`Updated platform operator password for ${operatorEmail}`);
+    }
   }
 }
 
