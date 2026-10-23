@@ -14,7 +14,7 @@ import { listInstitutesForPlatform } from "@/lib/store";
 import { setDaycareActiveAction, createDaycareAction, updateDaycareSubdomainAction } from "@/lib/actions";
 import { i18nForAccount } from "@/lib/i18n-session";
 import { tr } from "@/lib/i18n";
-import { apexDomain, subdomainUrl } from "@/lib/subdomain";
+import { apexDomain, daycarePublicUrl, subdomainUrl } from "@/lib/subdomain";
 import ColorField from "./color-field";
 import CopyUrlButton from "./copy-url-button";
 
@@ -100,9 +100,34 @@ export default async function PlatformDaycaresPage({
               const editing = rowEditId === instId && searchParams.prefix !== undefined;
               const inputDefault = editing ? (searchParams.prefix ?? "") : storedSubdomain;
               const publicUrl = storedSubdomain ? subdomainUrl(storedSubdomain) : "";
+              // KID-230: the row's openable tenant URL — empty (→ hint, never
+              // a dead link) when no apex is configured, the prefix is not
+              // set, or the prefix is a reserved platform label.
+              const openUrl = daycarePublicUrl(storedSubdomain);
               return (
                 <tr key={instId} style={{ borderTop: "1px solid #e5e7eb" }}>
-                  <td style={{ padding: 8, fontWeight: 700 }}>{String(inst.name)}</td>
+                  {/* KID-230: the daycare name keeps its own visible
+                      "Open daycare" link to https://<prefix>.<apex>. Only a
+                      linkable URL renders the link — with no apex, no prefix,
+                      or a reserved prefix, the cell shows a hint instead,
+                      never a link to a host that cannot resolve. */}
+                  <td style={{ padding: 8 }}>
+                    <span style={{ fontWeight: 700 }}>{String(inst.name)}</span>
+                    {openUrl ? (
+                      <a
+                        href={openUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        style={{ display: "block", marginTop: 2, fontWeight: 700 }}
+                      >
+                        {tr(dict, "platform.openDaycare")}
+                      </a>
+                    ) : (
+                      <span className="small muted" style={{ display: "block", marginTop: 2 }}>
+                        {apex ? tr(dict, "platform.noPrefix") : tr(dict, "platform.apexMissing")}
+                      </span>
+                    )}
+                  </td>
                   {/* KID-199.3r: the wildcard subdomain and its full host,
                       editable inline. KID-227: labeled "Edit prefix", with the
                       resulting URL + copy button when the apex is configured,

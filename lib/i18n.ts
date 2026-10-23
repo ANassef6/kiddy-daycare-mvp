@@ -507,6 +507,8 @@ export const en = {
     title: "Daycares",
     subtitle: "Every daycare account on the platform. Disabling a daycare blocks its staff and parents from signing in until it is re-enabled.",
     daycare: "Daycare",
+    // KID-230: the visible link to the daycare's own https://<prefix>.<apex>.
+    openDaycare: "Open daycare",
     brand: "Brand",
     created: "Created",
     owners: "Owners",
@@ -1067,6 +1069,7 @@ export const ar = {
     subdomain: "العنوان الفرعي",
     subdomainHint: "كلمة قصيرة لعنوان الروضة على الويب (مثل sunshine). اتركه فارغًا ليُشتق من الاسم.",
     subdomainSave: "حفظ العنوان",
+    openDaycare: "فتح الروضة",
     editPrefix: "تعديل بادئة العنوان",
     copyUrl: "نسخ الرابط",
     copied: "تم النسخ",

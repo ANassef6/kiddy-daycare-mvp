@@ -97,6 +97,18 @@ export function subdomainUrl(slug: string, proto = "https"): string {
   return apex ? `${proto}://${slug}.${apex}` : "";
 }
 
+/** KID-230: the URL an /platform "Open daycare" link is allowed to point at.
+ *  Empty unless the apex is configured AND the stored slug is a usable,
+ *  non-reserved tenant label — a reserved label (`kiddy-one`, `www`, …)
+ *  resolves as generic platform behavior, never as that daycare's tenant
+ *  (splitSubdomainHost), so it must never be linked. Empty means the caller
+ *  renders a hint instead of a dead link. */
+export function daycarePublicUrl(rawSlug: string | null | undefined, proto = "https"): string {
+  const slug = normalizeSubdomainSlug(String(rawSlug ?? ""));
+  if (!slug || RESERVED_SUBDOMAINS.has(slug)) return "";
+  return subdomainUrl(slug, proto);
+}
+
 /** KID-227: where a failed inline subdomain edit lands — the error keyed to
  *  the edited row (`edit`) plus the exact typed prefix (`prefix`), so the row
  *  can show the message in place and re-fill the input with what the operator
