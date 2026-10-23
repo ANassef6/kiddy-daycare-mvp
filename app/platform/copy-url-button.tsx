@@ -24,7 +24,7 @@ export default function CopyUrlButton({
       className="btn btn-ghost"
       style={{ padding: "2px 10px", fontSize: 12 }}
       title={url}
-      aria-label={`${copyLabel}: ${url}`}
+      aria-label={`${copied ? copiedLabel : copyLabel}: ${url}`}
       onClick={async () => {
         try {
           await navigator.clipboard.writeText(url);
