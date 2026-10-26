@@ -39,7 +39,8 @@ PLATFORM_ADMIN_EMAIL=ceo@example.test,ops@example.test
    - With **neither** env set, production bootstrap does nothing: the demo
      credentials are never minted into a deployment. This is the safety rail
      that keeps the documented demo password off public hosts.
-3. Sign in with that email on the normal login page; the session lands on
+3. Sign in with that email on the normal login page — **`https://kiddyapp.net/login`**
+   (the canonical platform address, KID-237) — and the session lands on
    `/platform`.
 
 Registration stays invite-only; this is the only server-side path that can

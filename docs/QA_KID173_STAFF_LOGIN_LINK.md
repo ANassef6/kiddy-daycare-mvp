@@ -68,7 +68,9 @@ depends on that, and no cross-institute link occurred.
 
 ## D2 browser pass — 8 of 9 checks pass
 
-Production is `https://kiddy-one.vercel.app`. The script is
+Production is `https://kiddyapp.net` (canonical platform address, KID-237; the
+pass below ran when production still answered on the legacy
+`kiddy-one.vercel.app` host). The script is
 `docs/evidence/kid173/d2-check.mjs`; raw output is `docs/evidence/kid173/d2-report.json`.
 Both demo logins are the ones the app itself prints on `/login`, so the pass needs no
 private credential.

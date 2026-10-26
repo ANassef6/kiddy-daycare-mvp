@@ -1,7 +1,7 @@
 import { chromium } from "/paperclip/.npm/_npx/705bc6b22212b352/node_modules/playwright-core/index.mjs";
 import fs from "node:fs";
 
-const BASE = "https://kiddy-one.vercel.app";
+const BASE = "https://kiddyapp.net";
 const EXEC = "/paperclip/.cache/ms-playwright/chromium-1148/chrome-linux/chrome";
 const OUT = process.env.OUT_DIR;
 const stamp = new Date().toISOString();

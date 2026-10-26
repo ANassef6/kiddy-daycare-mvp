@@ -4,7 +4,7 @@ investigation. All criteria are observable from a browser or an HTTP response.
 
 ## Environment and access
 
-- Production: https://kiddy-one.vercel.app
+- Production: https://kiddyapp.net (canonical platform address, KID-237; the legacy `kiddy-one.vercel.app` host stays functional but is no longer the documented address)
 - Signed in as the **affected parent** (the account whose email is shared by both children).
 - Browser: headless Chromium via the `agent-browser` skill.
 - No arbitrary sleeps. Every wait is a `waitForSelector` / `waitForResponse` on the
