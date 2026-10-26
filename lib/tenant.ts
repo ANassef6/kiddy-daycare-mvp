@@ -59,6 +59,11 @@ export async function fallbackInstituteId(): Promise<string> {
 export async function tenantInstituteIdForCookie(cookie: string | null | undefined): Promise<string> {
   const { readSessionFromCookie } = await import("./auth");
   const session = readSessionFromCookie(cookie);
+  // KID-236: an operator-view session is bound to one daycare subdomain and
+  // exists only on that host. On any generic host it resolves NO tenant —
+  // fail closed, exactly like the platform sentinel below — so a copied view
+  // cookie can never borrow a generic host's legacy first-institute fallback.
+  if (session?.operatorViewInstituteId) return "";
   if (session && isPlatformOperatorRole(session.role)) return "";
   if (session) {
     return primaryInstituteIdForAccount(session.accountId);
@@ -87,6 +92,17 @@ export async function resolveRequestTenantFor(
   if (!hostIid) return { kind: "unknown-host", instituteId: "" };
   const { readSessionFromCookie } = await import("./auth");
   const session = readSessionFromCookie(cookie);
+  // KID-236: an operator-view session is accepted ONLY for its bound
+  // institute on its own host. A view cookie presented on any other daycare
+  // subdomain is a cross-tenant refusal (fail closed) — the same treatment a
+  // foreign daycare account gets. This check must precede the role checks:
+  // the session's effective role reads back as the daycare admin, and only
+  // the marker can tell it apart from a real admin session.
+  if (session?.operatorViewInstituteId) {
+    return String(session.operatorViewInstituteId) === hostIid
+      ? { kind: "host", instituteId: hostIid }
+      : { kind: "cross-tenant", instituteId: "" };
+  }
   // Anonymous visitors and the platform operator (no daycare tenancy, and
   // /platform is an apex surface) both see the host's own tenant.
   if (!session || isPlatformOperatorRole(session.role)) {

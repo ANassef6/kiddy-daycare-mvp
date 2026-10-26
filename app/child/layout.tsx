@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import ActiveLink from "@/components/ActiveLink";
+import OperatorViewBanner from "@/components/OperatorViewBanner";
 import { requireSessionWithWithdrawalCheck } from "@/lib/require";
 import { requireTenantForPage } from "@/lib/tenant";
 import { familiesForAccount, familyAccessForAccount } from "@/lib/store";
@@ -8,6 +9,7 @@ import { ensureSchema } from "@/lib/db";
 import { getBranding } from "@/lib/theme";
 import { i18nForAccount } from "@/lib/i18n-session";
 import { tr } from "@/lib/i18n";
+import { instituteNameForOperatorView } from "@/lib/operator-view";
 
 export const dynamic = "force-dynamic";
 
@@ -29,6 +31,16 @@ export default async function ParentLayout({ children }: { children: React.React
     console.error("ensureSchema failed on the parent layout:", err);
   }
   const { dict } = await i18nForAccount(session.accountId);
+  // KID-236: same persistent operator-view banner as the portal layout — the
+  // parent surface is a tenant surface too.
+  let operatorViewName = "";
+  if (session.operatorViewInstituteId) {
+    try {
+      operatorViewName = await instituteNameForOperatorView(session.operatorViewInstituteId);
+    } catch (err) {
+      console.error("KID-236 operator-view banner name lookup failed:", err);
+    }
+  }
   let families: Record<string, unknown>[] = [];
   let logoUrl: string | null = null;
   let brandName = "Kiddy";
@@ -102,6 +114,9 @@ export default async function ParentLayout({ children }: { children: React.React
           </form>
         </nav>
       </header>
+      {session.operatorViewInstituteId && (
+        <OperatorViewBanner instituteName={operatorViewName} dict={dict} />
+      )}
       {children}
       <footer className="muted small" style={{ padding: "24px 0", borderTop: "1px solid var(--color-border)", marginTop: 40 }}>
         {tr(dict, "topbar.signedInAs", { email: session.email })}

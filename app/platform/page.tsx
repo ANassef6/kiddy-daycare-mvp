@@ -11,7 +11,12 @@ import { redirect } from "next/navigation";
 import { requireSession } from "@/lib/require";
 import { isPlatformOperatorEmail, isPlatformOperatorRole, PLATFORM_THEME_KEYS } from "@/lib/platform";
 import { listInstitutesForPlatform } from "@/lib/store";
-import { setDaycareActiveAction, createDaycareAction, updateDaycareSubdomainAction } from "@/lib/actions";
+import {
+  setDaycareActiveAction,
+  createDaycareAction,
+  updateDaycareSubdomainAction,
+  enterDaycareAsAdminAction,
+} from "@/lib/actions";
 import { i18nForAccount } from "@/lib/i18n-session";
 import { tr } from "@/lib/i18n";
 import { apexDomain, daycarePublicUrl, subdomainUrl } from "@/lib/subdomain";
@@ -42,6 +47,14 @@ const ROW_ERRORS: Record<string, string> = {
   unknown: "Something went wrong saving the web prefix. Please try again.",
 };
 
+/** KID-236: the "Enter as admin" refusals. The mint action refuses a disabled
+ *  daycare and a daycare with no web address before any grant is minted;
+ *  consumption on the daycare's own host re-checks everything again. */
+const ENTRY_ERRORS: Record<string, string> = {
+  "enter-disabled": "This daycare is disabled. Enable it before entering as admin.",
+  "enter-no-address": "This daycare has no web address yet. Set a web prefix first.",
+};
+
 export default async function PlatformDaycaresPage({
   searchParams,
 }: {
@@ -60,8 +73,13 @@ export default async function PlatformDaycaresPage({
   // save); only create-flow errors render the page-wide banner.
   const rowEditId = searchParams.edit ?? "";
   const rowError = searchParams.error ? (ROW_ERRORS[searchParams.error] ?? ROW_ERRORS.unknown) : "";
+  // KID-236: an entry refusal renders its own message (fall back to the
+  // generic create banners when the key is unknown).
+  const entryError = searchParams.error ? (ENTRY_ERRORS[searchParams.error] ?? "") : "";
   const createError =
-    searchParams.error && !rowEditId ? (ERRORS[searchParams.error] ?? ERRORS.unknown) : "";
+    searchParams.error && !rowEditId && !entryError
+      ? (ERRORS[searchParams.error] ?? ERRORS.unknown)
+      : "";
   // KID-199.3r: the apex is deployment configuration; when set, the operator
   // sees the full host each daycare resolves on.
   const apex = apexDomain();
@@ -75,6 +93,7 @@ export default async function PlatformDaycaresPage({
         <div className="card mb-4 banner-success">{tr(dict, "platform.createdMessage")}</div>
       )}
       {createError && <div className="card mb-4 banner-error">{createError}</div>}
+      {entryError && <div className="card mb-4 banner-error">{entryError}</div>}
 
       <div className="table-scroll">
         <table className="card" style={{ width: "100%", borderCollapse: "collapse", marginBottom: 16 }}>
@@ -114,14 +133,30 @@ export default async function PlatformDaycaresPage({
                   <td style={{ padding: 8 }}>
                     <span style={{ fontWeight: 700 }}>{String(inst.name)}</span>
                     {openUrl ? (
-                      <a
-                        href={openUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                        style={{ display: "block", marginTop: 2, fontWeight: 700 }}
-                      >
-                        {tr(dict, "platform.openDaycare")}
-                      </a>
+                      <>
+                        <a
+                          href={openUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          style={{ display: "block", marginTop: 2, fontWeight: 700 }}
+                        >
+                          {tr(dict, "platform.openDaycare")}
+                        </a>
+                        {/* KID-236: two distinct meanings per the board —
+                            "Open daycare" is the daycare's public site (the
+                            branded landing/login, what visitors see) and
+                            "Enter as admin" starts the audited operator view
+                            inside that daycare's own portal. The mint action
+                            refuses a disabled daycare with a friendly
+                            message; consumption on the daycare's own host
+                            re-checks everything again. */}
+                        <form action={enterDaycareAsAdminAction} style={{ display: "block", marginTop: 6 }}>
+                          <input type="hidden" name="instituteId" value={instId} />
+                          <button className="btn" type="submit">
+                            {tr(dict, "platform.enterAsAdmin")}
+                          </button>
+                        </form>
+                      </>
                     ) : (
                       <span className="small muted" style={{ display: "block", marginTop: 2 }}>
                         {apex ? tr(dict, "platform.noPrefix") : tr(dict, "platform.apexMissing")}

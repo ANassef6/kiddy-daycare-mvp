@@ -12,6 +12,11 @@ const GUARD_ERRORS: Record<string, string> = {
   withdrawn: "This account's access has been withdrawn.",
   disabled: "This account's access is currently disabled. Contact your daycare admin.",
   "disabled-institute": "This daycare is currently disabled. Contact the platform team.",
+  // KID-236: an "Enter as admin" grant that failed verification on this host
+  // (expired past its 60s window, already used, wrong daycare host, or the
+  // operator is no longer on the platform allowlist).
+  "operator-entry-invalid":
+    "This entry link is invalid, expired or already used. Ask the platform team to open the daycare again.",
 };
 
 function wrongTenantMessage(tenant: string | null): string {

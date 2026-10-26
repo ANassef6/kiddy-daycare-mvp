@@ -1,6 +1,7 @@
 import Link from "next/link";
 import PortalSidebar from "@/components/PortalSidebar";
 import PortalAccountMenu from "@/components/PortalAccountMenu";
+import OperatorViewBanner from "@/components/OperatorViewBanner";
 import { requireSessionWithWithdrawalCheck } from "@/lib/require";
 import { requireTenantForPage } from "@/lib/tenant";
 import { ensureSchema } from "@/lib/db";
@@ -8,6 +9,7 @@ import { getBranding } from "@/lib/theme";
 import { i18nForAccount } from "@/lib/i18n-session";
 import { tr } from "@/lib/i18n";
 import { accountProfile } from "@/lib/auth";
+import { instituteNameForOperatorView } from "@/lib/operator-view";
 
 export const dynamic = "force-dynamic";
 
@@ -29,6 +31,17 @@ export default async function PortalLayout({ children }: { children: React.React
   const { locale, dict } = await i18nForAccount(session.accountId);
   const profile = await accountProfile(session.accountId);
   const displayName = profile.fullName || session.email;
+  // KID-236: the persistent "viewing as platform operator" banner rides every
+  // portal page during an operator-view session. requireTenantForPage above
+  // has already refused any host other than the session's bound institute.
+  let operatorViewName = "";
+  if (session.operatorViewInstituteId) {
+    try {
+      operatorViewName = await instituteNameForOperatorView(session.operatorViewInstituteId);
+    } catch (err) {
+      console.error("KID-236 operator-view banner name lookup failed:", err);
+    }
+  }
   let logoUrl: string | null = null;
   let brandName = "Kiddy";
   try {
@@ -78,6 +91,9 @@ export default async function PortalLayout({ children }: { children: React.React
               {tr(dict, "topbar.confirmEmail")}
             </Link>
           </div>
+        )}
+        {session.operatorViewInstituteId && (
+          <OperatorViewBanner instituteName={operatorViewName} dict={dict} />
         )}
         {children}
       </main>

@@ -300,3 +300,15 @@ export function isForeignKeyViolation(err: unknown): boolean {
   const message = String(rec.message ?? "");
   return /foreign key constraint failed|violates foreign key constraint/i.test(message);
 }
+
+// KID-236: unique-constraint matcher for the single-use grant consumption in
+// platform_access_log (uq_platform_access_nonce). pg reports code 23505,
+// better-sqlite3 reports "UNIQUE constraint failed". Used to tell a replayed
+// grant apart from any other insert failure — a replay is refused quietly,
+// anything else is rethrown (never a silent failure).
+export function isUniqueViolation(err: unknown): boolean {
+  if (!err || typeof err !== "object") return false;
+  const rec = err as Record<string, unknown>;
+  if (String(rec.code ?? "") === "23505") return true;
+  return /unique constraint failed|duplicate key value|unique violation/i.test(String(rec.message ?? ""));
+}

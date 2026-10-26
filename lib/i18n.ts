@@ -547,6 +547,15 @@ export const en = {
     copied: "Copied",
     noPrefix: "No web prefix yet — type one and save.",
     apexMissing: "Daycare web addresses stay off until PUBLIC_APEX_DOMAIN is set.",
+    // KID-236: "Enter as admin" — the operator's one-click view of a daycare,
+    // beside the public "Open daycare" link (two distinct meanings: the public
+    // site vs. the audited operator view). openDaycare itself shipped with
+    // KID-230.
+    enterAsAdmin: "Enter as admin",
+    enterDisabled: "This daycare is disabled. Enable it before entering as admin.",
+    enterNoAddress: "This daycare has no web address yet. Set a web prefix first.",
+    operatorViewBanner: "Viewing {daycare} as platform operator",
+    exitView: "Exit",
   },
 };
 
@@ -1075,6 +1084,14 @@ export const ar = {
     copied: "تم النسخ",
     noPrefix: "لا توجد بادئة عنوان بعد — اكتب واحدة واحفظ.",
     apexMissing: "تبقى عناوين الروضات على الويب معطّلة حتى ضبط PUBLIC_APEX_DOMAIN.",
+    // KID-236: "الدخول كمسؤول" — استعراض المشغّل لبيانات الروضة، بجوار رابط
+    // "فتح الروضة" العام (معنيان مختلفان: الموقع العام مقابل جلسة المشغّل).
+    // openDaycare وردت أولًا مع KID-230.
+    enterAsAdmin: "الدخول كمسؤول",
+    enterDisabled: "هذه الروضة موقوفة. فعّلها قبل الدخول كمسؤول.",
+    enterNoAddress: "لا توجد بادئة عنوان لهذه الروضة بعد. اضبط بادئة أولًا.",
+    operatorViewBanner: "تستعرض بيانات {daycare} بحساب مشغّل المنصة",
+    exitView: "خروج",
   },
 };
 

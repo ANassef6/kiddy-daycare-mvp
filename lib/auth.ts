@@ -58,10 +58,22 @@ export type Session = {
   role: string;
   email: string;
   emailConfirmed: boolean;
+  // KID-236: present only on an operator-view session — the signed cookie the
+  // operator-entry route mints after consuming a single-use grant. The signed
+  // payload keeps the platform sentinel role; readers see the marker so tenant
+  // resolution can bind the session to exactly one daycare host (lib/tenant.ts)
+  // and layouts can render the "viewing as platform operator" banner. Sessions
+  // without the marker behave byte-for-byte as before.
+  operatorViewInstituteId?: string;
 };
 
 export function createSessionToken(session: Session): string {
-  return signToken({ ...session, exp: Date.now() + 30 * 24 * 3600 * 1000 });
+  // KID-236: the operator-view marker must never flow into a 30-day session —
+  // strip it here, so no code path can mint a long-lived operator-view token
+  // through the regular session helpers. The 60-minute view cookie is minted
+  // only by lib/operator-view.ts operatorViewSessionToken().
+  const { operatorViewInstituteId: _stripMarker, ...rest } = session;
+  return signToken({ ...rest, exp: Date.now() + 30 * 24 * 3600 * 1000 });
 }
 
 export function readSessionFromCookie(cookieHeader: string | null | undefined): Session | null {
@@ -70,6 +82,23 @@ export function readSessionFromCookie(cookieHeader: string | null | undefined): 
   if (!m) return null;
   const data = verifyToken(decodeURIComponent(m[1]));
   if (!data || (typeof data.exp === "number" && data.exp < Date.now())) return null;
+  // KID-236: an operator-view token stores the platform sentinel role plus the
+  // bound institute. Readers get the marker AND the daycare's admin effective
+  // role, so the operator can actually use the daycare's admin surfaces —
+  // while every tenancy decision keys off the marker, never off the effective
+  // role. A marker without the sentinel role is ignored entirely (degrades to
+  // the ordinary session rules — no new capability can be conjured by it).
+  const marker =
+    typeof data.operatorViewInstituteId === "string" ? data.operatorViewInstituteId : "";
+  if (marker && String(data.role) === PLATFORM_OPERATOR_ROLE) {
+    return {
+      accountId: String(data.accountId),
+      role: "admin",
+      email: String(data.email),
+      emailConfirmed: data.emailConfirmed === false ? false : true,
+      operatorViewInstituteId: marker,
+    };
+  }
   return {
     accountId: String(data.accountId),
     role: String(data.role),

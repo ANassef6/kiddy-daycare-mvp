@@ -81,6 +81,7 @@ import {
   isPlatformOperatorRole,
 } from "@/lib/platform";
 import { resolveTenantInstituteId, loginHostGate } from "@/lib/tenant";
+import { mintOperatorEntryGrant, operatorEntryUrl } from "@/lib/operator-view";
 import {
   buildParentInviteEmail,
   getInviteById,
@@ -97,6 +98,12 @@ type SessionCookie = {
   role: string;
   email: string;
   emailConfirmed: boolean;
+  // KID-236: carried on the RAW payload of an operator-view token (its signed
+  // role stays the platform sentinel; verifyToken returns the payload as
+  // stored). Only requireAdmin consults these, and only while the token is
+  // unexpired and the request's tenant is the bound institute.
+  operatorViewInstituteId?: string;
+  exp?: number;
 };
 
 async function setSession(email: string) {
@@ -559,9 +566,24 @@ function authAccount(): SessionCookie {
   return session;
 }
 
-function requireAdmin(): SessionCookie {
+async function requireAdmin(): Promise<SessionCookie> {
   const me = authAccount();
-  if (!isAdminRole(me.role)) redirect("/portal/dashboard");
+  if (!isAdminRole(me.role)) {
+    // KID-236: an operator-view session (signed role stays the platform
+    // sentinel) administers ONLY its bound institute, and only while the
+    // 60-minute token is unexpired. The request-tenant comparison is what a
+    // view cookie replayed on ANOTHER daycare's host fails: there the
+    // resolver (lib/tenant.ts) refuses the marker and resolves no tenant.
+    // A real admin role passes unchanged — nothing here touches daycare
+    // sessions.
+    const viewCoversRequest =
+      me.role === PLATFORM_OPERATOR_ROLE &&
+      !!me.operatorViewInstituteId &&
+      typeof me.exp === "number" &&
+      me.exp > Date.now() &&
+      (await resolveTenantInstituteId()) === me.operatorViewInstituteId;
+    if (!viewCoversRequest) redirect("/portal/dashboard");
+  }
   return me;
 }
 
@@ -574,7 +596,16 @@ function requireAdmin(): SessionCookie {
 // non-operator POST gets the same treatment an anonymous one would: back to
 // /login. A wrong-tenancy POST never happens: the operator resolves no tenant.
 function requirePlatformOperator(): SessionCookie {
-  const me = authAccount();
+  let me: SessionCookie;
+  try {
+    me = authAccount();
+  } catch (err) {
+    // KID-236: an anonymous POST gets the same treatment as a non-operator —
+    // back to /login, which is what this guard's own comment always promised.
+    // (It used to surface as a thrown "not signed in" digest instead.)
+    if (err instanceof Error && err.message === "not signed in") redirect("/login");
+    throw err;
+  }
   if (!isPlatformOperatorRole(me.role) || !isPlatformOperatorEmail(me.email)) {
     redirect("/login");
   }
@@ -624,6 +655,35 @@ export async function setDaycareActiveAction(formData: FormData) {
   await setInstituteActive(instituteId, String(formData.get("active") ?? "") === "1");
   revalidatePath("/platform");
   redirect("/platform");
+}
+
+// KID-236: "Enter as admin" — the /platform row action behind the board's
+// one-click operator access. It does NOT create or mutate any account, staff
+// row, role or password: it mints a SINGLE-USE signed grant bound to (this
+// operator, this daycare, a random nonce, exp <= 60s) and 302s the browser to
+// the daycare's own subdomain, where app/operator-entry/route.ts verifies the
+// grant ON THAT HOST and starts the 60-minute operator-view session. A
+// disabled daycare refuses here with the friendly message; consumption
+// re-checks everything again (defense in depth). Only requirePlatformOperator
+// can reach this code — a staff/parent/guest POST is redirected to /login
+// before any grant exists.
+export async function enterDaycareAsAdminAction(formData: FormData) {
+  const me = requirePlatformOperator();
+  const instituteId = String(formData.get("instituteId") ?? "");
+  if (!instituteId) redirect("/platform?error=missing-id");
+  const inst = await queryGet("SELECT id, active, subdomain FROM institute WHERE id = ?", instituteId);
+  if (!inst) redirect("/platform?error=missing-id");
+  if (Number(inst.active ?? 1) !== 1) redirect("/platform?error=enter-disabled");
+  const grant = mintOperatorEntryGrant(
+    { accountId: me.accountId, email: me.email },
+    instituteId
+  );
+  // Production serves https (Vercel sets x-forwarded-proto); local http dev
+  // follows its own scheme so the entry hop does not dead-end on TLS.
+  const proto = (headers().get("x-forwarded-proto") ?? "https").split(",")[0]!.trim() || "https";
+  const target = operatorEntryUrl(String(inst.subdomain ?? ""), grant, proto);
+  if (!target) redirect("/platform?error=enter-no-address");
+  redirect(target);
 }
 
 // KID-199.3r: edit a daycare's wildcard subdomain from /platform. The same
@@ -1034,7 +1094,7 @@ export async function addChildAction(formData: FormData) {
 }
 
 export async function addStaffAction(formData: FormData) {
-  requireAdmin();
+  await requireAdmin();
   await ensureSchema();
   const instituteId = await firstInstituteId();
   const fullName = String(formData.get("fullName") ?? "").trim();
@@ -1091,7 +1151,7 @@ export async function addStaffAction(formData: FormData) {
 // owns room assignment. The password is required rather than generated, so no
 // credential ever travels back through a redirect URL.
 export async function linkStaffLoginAction(formData: FormData) {
-  requireAdmin();
+  await requireAdmin();
   await ensureSchema();
   const instituteId = await firstInstituteId();
   const staffId = String(formData.get("staffId") ?? "").trim();
@@ -1164,7 +1224,7 @@ function genTempPassword(): string {
 }
 
 export async function addRoomAction(formData: FormData) {
-  requireAdmin();
+  await requireAdmin();
   await ensureSchema();
   const instituteId = await firstInstituteId();
   await createRoom(
@@ -1178,7 +1238,7 @@ export async function addRoomAction(formData: FormData) {
 
 // #6 room settings: name / colour / capacity.
 export async function updateRoomAction(formData: FormData) {
-  requireAdmin();
+  await requireAdmin();
   await ensureSchema();
   const roomId = String(formData.get("roomId") ?? "");
   const capacityRaw = String(formData.get("capacity") ?? "").trim();
@@ -1266,7 +1326,7 @@ export async function addContactAction(formData: FormData) {
  *  Admin-only, and scoped to the caller's classrooms.
  */
 export async function updateContactAction(formData: FormData) {
-  requireAdmin();
+  await requireAdmin();
   const me = authAccount();
   const contactId = String(formData.get("contactId") ?? "").trim();
   if (!contactId) redirect("/portal/children?error=contact");
@@ -1493,7 +1553,7 @@ export async function sendInviteForContactAction(formData: FormData) {
 }
 
 export async function saveBrandingAction(formData: FormData) {
-  requireAdmin();
+  await requireAdmin();
   await ensureSchema();
   const instituteId = await firstInstituteId();
   if (instituteId) {
@@ -1508,7 +1568,7 @@ export async function saveBrandingAction(formData: FormData) {
 }
 
 export async function saveCenterDetailsAction(formData: FormData) {
-  requireAdmin();
+  await requireAdmin();
   await ensureSchema();
   const instituteId = await firstInstituteId();
   if (instituteId) {
@@ -1526,7 +1586,7 @@ export async function saveCenterDetailsAction(formData: FormData) {
 
 // KID-55 item 3 / KID-58: per-day open/close editor persisted on the institute.
 export async function saveWorkingHoursAction(formData: FormData) {
-  requireAdmin();
+  await requireAdmin();
   await ensureSchema();
   const instituteId = await firstInstituteId();
   if (!instituteId) return { ok: false, error: "No center configured." };
@@ -2063,7 +2123,7 @@ export async function sendParentMessageAction(formData: FormData) {
 
 // ---- #1 Logo / branding image upload ----
 export async function uploadBrandingImageAction(formData: FormData) {
-  requireAdmin();
+  await requireAdmin();
   await ensureSchema();
   const instituteId = await firstInstituteId();
   if (!instituteId) redirect("/portal/settings");
@@ -2459,7 +2519,7 @@ export async function logStaffStatusAction(formData: FormData) {
 
 // Staff profile edits (full name, role, contact, rooms, last date).
 export async function updateStaffInfoAction(formData: FormData) {
-  requireAdmin();
+  await requireAdmin();
   await ensureSchema();
   const { updateStaffInfo } = await import("@/lib/store");
   const staffId = String(formData.get("staffId") ?? "");

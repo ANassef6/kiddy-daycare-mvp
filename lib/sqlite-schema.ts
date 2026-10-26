@@ -510,6 +510,26 @@ export function sqliteSchema(db: any): void {
   );
   CREATE INDEX IF NOT EXISTS idx_activation_resend_email ON activation_resend_log (target_email, created_at);
   CREATE INDEX IF NOT EXISTS idx_activation_resend_admin ON activation_resend_log (admin_account_id, created_at);
+
+  -- KID-236: audit trail for the platform operator's "Enter as admin" view.
+  -- Mirror of supabase/migrations/0026_platform_access_log.sql: one row per
+  -- enter / exit / refused event; the partial unique index on the nonce makes
+  -- grant consumption atomic, so a replayed single-use grant can never start
+  -- a second operator-view session (refusal rows keep the nonce NULL so they
+  -- never consume the grant they name).
+  CREATE TABLE IF NOT EXISTS platform_access_log (
+    id TEXT PRIMARY KEY,
+    event TEXT NOT NULL CHECK (event IN ('enter', 'exit', 'refused')),
+    operator_account_id TEXT REFERENCES account(id) ON DELETE SET NULL,
+    operator_email TEXT NOT NULL,
+    institute_id TEXT,
+    nonce TEXT,
+    detail TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+  CREATE INDEX IF NOT EXISTS idx_platform_access_institute ON platform_access_log (institute_id, created_at);
+  CREATE INDEX IF NOT EXISTS idx_platform_access_operator ON platform_access_log (operator_email, created_at);
+  CREATE UNIQUE INDEX IF NOT EXISTS uq_platform_access_nonce ON platform_access_log (nonce) WHERE nonce IS NOT NULL;
   `);
 
   // Idempotent column backfills for databases created before these columns
