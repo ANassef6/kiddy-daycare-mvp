@@ -114,9 +114,6 @@ export default function LoginPage() {
       <p className="small mt-2">
         <Link href="/register">Have an invite code? Activate your account</Link>
       </p>
-      <p className="muted small mt-3">
-        Demo: admin@sunshinedaycare.test / kiddy-admin (portal) · parent@example.test / kiddy-parent (parent)
-      </p>
     </div>
   );
 }
