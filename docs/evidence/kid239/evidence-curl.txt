@@ -1,0 +1,3 @@
+kiddyapp.net status=200 forbidden_matches=0
+sunshine.kiddyapp.net status=200 forbidden_matches=0
+kiddy-one.vercel.app status=200 forbidden_matches=0
