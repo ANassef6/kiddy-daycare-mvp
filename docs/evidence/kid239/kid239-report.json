@@ -2,7 +2,7 @@
   "issue": "KID-239",
   "runStamp": "2026-10-26T21:47Z",
   "head": "06582a4",
-  "deploy": { "id": "dpl_D9mzA7PrZcx8LenzBUhmsZESNfu4", "state": "READY", "alias": "https://kiddyapp.net" },
+  "deploy": { "id": "dpl via CLI redeploy from final head (also 06582a4-deploy dpl_D9mzA7PrZcx8LenzBUhmsZESNfu4 then bf3298c redeploy, both READY)", "state": "READY", "alias": "https://kiddyapp.net" },
   "checks": {
     "test": { "files": 37, "tests": 379, "failed": 0 },
     "lint": { "errors": 0, "warnings": "preexisting img-element warnings only" },
