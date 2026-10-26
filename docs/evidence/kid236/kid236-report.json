@@ -1,0 +1,63 @@
+{
+  "stamp": "2026-10-26T19:18:13.351Z",
+  "head": "4f543d8",
+  "deploy": "dpl_e8PAsCkK",
+  "url": "https://kiddyapp.net/platform",
+  "results": [
+    {
+      "id": "P1-apex-login",
+      "ok": true,
+      "detail": "https://kiddyapp.net/login"
+    },
+    {
+      "id": "P2-lands-on-platform",
+      "ok": true,
+      "detail": "https://kiddyapp.net/platform"
+    },
+    {
+      "id": "P3-row-actions-two-meanings",
+      "ok": true,
+      "detail": "sunshine open=1 enter=1; maple open=1 enter=1"
+    },
+    {
+      "id": "P4-enter-lands-in-tenant-portal",
+      "ok": true,
+      "detail": "https://sunshine.kiddyapp.net/portal/dashboard"
+    },
+    {
+      "id": "P5-banner-with-exit",
+      "ok": true,
+      "detail": "banner=\"Viewing Sunshine Daycare as platform operatorExit\" exit=1"
+    },
+    {
+      "id": "P6-cross-tenant-refused",
+      "ok": true,
+      "detail": "landed at https://maple-grove-daycare-2.kiddyapp.net/login (no tenant data, no signed-in state)"
+    },
+    {
+      "id": "P7-exit-returns-to-platform",
+      "ok": true,
+      "detail": "https://kiddyapp.net/platform"
+    },
+    {
+      "id": "P8-view-cookie-cleared",
+      "ok": true,
+      "detail": "tenant portal now at https://sunshine.kiddyapp.net/login"
+    },
+    {
+      "id": "P9-disabled-row-refused",
+      "ok": true,
+      "detail": "https://kiddyapp.net/platform?error=enter-disabled (row already disabled; no toggle used) message=\"This daycare is disabled. Enable it before entering as admin.\""
+    },
+    {
+      "id": "P10-replay-refused",
+      "ok": true,
+      "detail": "replay lands at https://sunshine.kiddyapp.net/login?error=operator-entry-invalid"
+    }
+  ],
+  "consoleErrors": [
+    "Failed to load resource: the server responded with a status of 404 ()",
+    "Failed to load resource: the server responded with a status of 404 ()",
+    "Failed to load resource: the server responded with a status of 404 ()"
+  ]
+}
