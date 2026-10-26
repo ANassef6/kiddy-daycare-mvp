@@ -71,6 +71,8 @@ import { supabaseConfigured, getSupabase, isGoTrueAlreadyRegisteredError, isGoTr
 import { activationStepError } from "@/lib/activation";
 import { requestOrigin, publicOrigin } from "@/lib/url";
 import { sendContactInvite, contactNameForInvite } from "@/lib/contact-invite";
+import { notifyPlatformInbox } from "@/lib/contact-notify";
+import { PLATFORM_CONTACT_EMAIL } from "@/lib/site";
 import { isAdminRole } from "@/lib/role";
 import {
   PLATFORM_OPERATOR_ROLE,
@@ -131,7 +133,9 @@ function homeForRole(role: string): string {
 // friendly message, in the family `no_access` style. The platform operator
 // role is exempt — it is the role that re-enables daycares. Re-enabling the
 // institute restores access; nothing is deleted by the gate.
-const INSTITUTE_DISABLED_MESSAGE = "This daycare is currently disabled. Contact the platform team.";
+// KID-238: the message also names the platform contact inbox so the blocked
+// user has a direct channel that works even while the daycare is disabled.
+const INSTITUTE_DISABLED_MESSAGE = `This daycare is currently disabled. Contact the platform team at ${PLATFORM_CONTACT_EMAIL}.`;
 
 async function tenancyDisabledError(
   accountId: string,
@@ -1562,12 +1566,30 @@ export async function submitContactAction(formData: FormData) {
   if (!emailOk || email.length > 200) redirect("/contact?error=email");
   if (message.length > 2000) redirect("/contact?error=long");
 
+  let saved: Awaited<ReturnType<typeof createContactRequest>> | null = null;
   try {
     await ensureSchema();
-    await createContactRequest({ name, email, phone, role, interest, message });
+    saved = await createContactRequest({ name, email, phone, role, interest, message });
   } catch (err) {
     console.error("submitContactAction failed:", err);
     redirect("/contact?error=server");
+  }
+  // KID-238: best-effort notification of the new inquiry to the platform
+  // contact inbox through the existing shared mail path. Record + continue:
+  // the visitor's submission must never block or fail on delivery, and the
+  // outcome lands on the row (email_sent_at / email_error) either way. The
+  // inner guard is belt-and-braces so a contract regression in the notifier
+  // can never turn a saved request into a fake server error.
+  try {
+    const { notifyPlatformInbox } = await import("@/lib/contact-notify");
+    const { recordContactMailAttempt } = await import("@/lib/store");
+    const outcome = await notifyPlatformInbox(saved!);
+    await recordContactMailAttempt(String(saved!.id), {
+      ok: outcome.status === "sent",
+      error: outcome.status === "sent" ? undefined : outcome.detail,
+    });
+  } catch (err) {
+    console.error(`KID-238: contact notification failed for request ${String(saved?.id)}:`, err);
   }
   redirect("/contact?sent=1");
 }

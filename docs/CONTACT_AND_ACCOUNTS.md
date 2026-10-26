@@ -1,6 +1,6 @@
 # Kiddy — contact submissions & account access (Round 5)
 
-_Last updated 2026-09-29 (KID-146, family-link backfill)._
+_Last updated 2026-10-26 (KID-238, platform contact inbox)._
 
 ## Where demo / inquiry submissions go
 
@@ -10,10 +10,22 @@ _Last updated 2026-09-29 (KID-146, family-link backfill)._
 3. The daycare owner sees every row in the portal at **`/portal/inquiries`**
    (Portal → Tools → Inquiries), newest first, with a one-click **Reply** mailto
    link. The portal dashboard also shows a "Demo & inquiry requests" card.
+4. **Platform-inbox notification (KID-238).** The submission is also notified
+   best-effort to the platform contact inbox — `PLATFORM_CONTACT_EMAIL`
+   (`lib/site.ts`, default `info@kiddyapp.net`, shown on `/contact`, in the
+   footer, and in the disabled-daycare message) — through the app's existing
+   shared mail path (`lib/contact-notify.ts`, the Supabase GoTrue service-role
+   channel from `lib/invite-email.ts`; no separate mail vendor). The same
+   degradation applies: with no provider configured the request is recorded
+   and the send is skipped; GoTrue only sends templated invite mails, so the
+   inbox mail proves deliverability while the inquiry content lives in the
+   row (the full notification body is logged for manual forwarding). Every
+   attempt's outcome is recorded on the row (`email_sent_at` / `email_error`,
+   migration `0025_contact_request_mail.sql`) and logged. Whether the mailbox
+   itself actually receives mail depends on the board's MX/mailbox records for
+   the domain (their DNS zone), which is outside this codebase.
 
-There is **no outbound notification email yet** (SMTP is not wired on the
-Supabase project). The portal inbox is the notification path for now. To read the
-raw rows directly:
+To read the raw rows directly:
 
 ```sql
 SELECT created_at, name, email, phone, role, interest, message

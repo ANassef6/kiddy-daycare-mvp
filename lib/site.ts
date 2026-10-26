@@ -9,3 +9,11 @@ export const SITE_BRAND = "Kiddy";
 export const SITE_MARKET = "Egyptian daycares";
 
 export const SITE_TAGLINE = `Childcare management software for ${SITE_MARKET}`;
+
+// KID-238: the platform's public contact/demo inbox. The literal below is the
+// built-in default and must appear exactly once in the codebase — every
+// surface (the /contact page, the site footer, the disabled-daycare message,
+// and the new-inquiry notification) renders this constant, and a deployment
+// can point it at another address with PLATFORM_CONTACT_EMAIL.
+export const PLATFORM_CONTACT_EMAIL =
+  process.env.PLATFORM_CONTACT_EMAIL?.trim() || "info@kiddyapp.net";

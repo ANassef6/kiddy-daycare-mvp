@@ -295,7 +295,9 @@ export function sqliteSchema(db: any): void {
     role TEXT NOT NULL DEFAULT 'parent',
     interest TEXT NOT NULL DEFAULT 'demo',
     message TEXT,
-    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    email_sent_at TEXT,
+    email_error TEXT
   );
   CREATE TABLE IF NOT EXISTS event (
     id TEXT PRIMARY KEY,
@@ -659,6 +661,17 @@ export function sqliteSchema(db: any): void {
     const inviteCols = db.prepare("PRAGMA table_info(invite)").all() as { name: string }[];
     if (!inviteCols.some((c) => c.name === "role")) {
       db.exec("ALTER TABLE invite ADD COLUMN role TEXT NOT NULL DEFAULT 'parent'");
+    }
+  } catch {}
+  // KID-238: mirror of supabase/migrations/0025_contact_request_mail.sql —
+  // best-effort platform-inbox notification outcome per public contact request.
+  try {
+    const contactRequestCols = db.prepare("PRAGMA table_info(contact_request)").all() as { name: string }[];
+    if (!contactRequestCols.some((c) => c.name === "email_sent_at")) {
+      db.exec("ALTER TABLE contact_request ADD COLUMN email_sent_at TEXT");
+    }
+    if (!contactRequestCols.some((c) => c.name === "email_error")) {
+      db.exec("ALTER TABLE contact_request ADD COLUMN email_error TEXT");
     }
   } catch {}
   try {

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
-import { SITE_BRAND } from "@/lib/site";
+import { SITE_BRAND, PLATFORM_CONTACT_EMAIL } from "@/lib/site";
 import ContactForm from "./ContactForm";
 
 export const metadata = {
@@ -75,9 +75,16 @@ export default async function ContactPage({
               <ul className="audience-list">
                 <li><strong>Centers:</strong> book a demo below — we onboard each daycare directly.</li>
                 <li><strong>Parents:</strong> your daycare invites you to {SITE_BRAND}; ask the front desk to get in touch with us.</li>
-                <li><strong>Prefer email?</strong> Leave the form above and we&apos;ll reply within one business day.</li>
+                <li>
+                  <strong>Prefer email?</strong> Write to{" "}
+                  <a href={`mailto:${PLATFORM_CONTACT_EMAIL}`}>{PLATFORM_CONTACT_EMAIL}</a>{" "}
+                  and we&apos;ll reply within one business day.
+                </li>
               </ul>
               <div className="row mt-3">
+                <a className="btn btn-primary" href={`mailto:${PLATFORM_CONTACT_EMAIL}`}>
+                  Email {PLATFORM_CONTACT_EMAIL}
+                </a>
                 <Link className="btn btn-ghost" href="/for-centers">
                   More for centers
                 </Link>

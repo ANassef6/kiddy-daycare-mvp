@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { SITE_BRAND, SITE_MARKET } from "@/lib/site";
+import { SITE_BRAND, SITE_MARKET, PLATFORM_CONTACT_EMAIL } from "@/lib/site";
 
 export default function SiteFooter() {
   return (
@@ -26,6 +26,10 @@ export default function SiteFooter() {
               <li><Link href="/contact">Book a demo</Link></li>
               <li><Link href="/contact">Contact us</Link></li>
               <li><Link href="/login">Sign in</Link></li>
+              {/* KID-238: the platform contact inbox is the direct channel. */}
+              <li>
+                <a href={`mailto:${PLATFORM_CONTACT_EMAIL}`}>{PLATFORM_CONTACT_EMAIL}</a>
+              </li>
             </ul>
           </div>
         </div>

@@ -1914,6 +1914,33 @@ export async function listContactRequests(limit = 100): Promise<Row[]> {
   return queryAll("SELECT * FROM contact_request ORDER BY created_at DESC LIMIT ?", limit);
 }
 
+// KID-238: record the platform-inbox notification attempt on the request row
+// (same pattern as recordInviteEmailAttempt for invites). Never throws: the
+// notification is best-effort and must never break the contact flow, and
+// missing columns (pre-migration databases) are tolerated.
+export async function recordContactMailAttempt(
+  requestId: string,
+  args: { ok: boolean; error?: string }
+): Promise<void> {
+  try {
+    if (args.ok) {
+      await queryRun(
+        "UPDATE contact_request SET email_sent_at = ?, email_error = NULL WHERE id = ?",
+        new Date().toISOString(),
+        requestId
+      );
+    } else {
+      await queryRun(
+        "UPDATE contact_request SET email_error = ? WHERE id = ?",
+        String(args.error ?? "unknown error").slice(0, 500),
+        requestId
+      );
+    }
+  } catch (err) {
+    console.error(`KID-238 contact ${requestId}: could not record mail attempt:`, err);
+  }
+}
+
 // ---------- T5 / M5 extra kept areas ----------
 // All tables are guaranteed by ensureSchema (0003 migration on Postgres, the
 // sqlite-schema.ts mirror locally), so the fn() pattern stays simple.
