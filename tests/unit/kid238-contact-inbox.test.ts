@@ -5,8 +5,10 @@
 //   1. The address is read from PLATFORM_CONTACT_EMAIL with the board-set
 //      built-in default, and the literal exists exactly once in the codebase
 //      (grep-audited below).
-//   2. The /contact page and the site footer render a visible mailto link for
-//      it, and the disabled-daycare login message names the address.
+//   2. The /contact page renders a visible mailto link for it, the disabled-
+//      daycare login message names the address, and the site footer does NOT
+//      carry a raw-email mailto link (KID-240 removed it; the /contact page
+//      is the single public surface that shows the address).
 //   3. Each new inquiry is notified best-effort to that inbox through the
 //      EXISTING shared mail path (lib/contact-notify.ts, the GoTrue
 //      service-role channel from lib/invite-email.ts) with the same
@@ -99,11 +101,11 @@ describe("the /contact page and footer name the address", () => {
     expect(html).toContain("Prefer email?");
   });
 
-  it("the site footer contact block carries the mailto link", async () => {
+  it("the site footer no longer carries a raw-email mailto link (KID-240)", async () => {
     const { default: SiteFooter } = await import("@/components/SiteFooter");
     const html = renderToStaticMarkup(SiteFooter());
-    expect(html).toContain(`mailto:${DEFAULT_CONTACT_EMAIL}`);
-    expect(html).toContain(DEFAULT_CONTACT_EMAIL);
+    expect(html).not.toContain("mailto:");
+    expect(html).not.toContain(DEFAULT_CONTACT_EMAIL);
   });
 });
 

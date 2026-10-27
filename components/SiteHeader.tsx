@@ -10,7 +10,6 @@ const NAV: { href: string; label: string }[] = [
   { href: "/features", label: "Features" },
   { href: "/for-parents", label: "For parents" },
   { href: "/for-centers", label: "For centers" },
-  { href: "/contact", label: "Book a demo" },
 ];
 
 export default function SiteHeader({ active }: SiteHeaderProps) {
