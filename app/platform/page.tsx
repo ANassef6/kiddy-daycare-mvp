@@ -11,6 +11,7 @@ import { redirect } from "next/navigation";
 import { requireSession } from "@/lib/require";
 import { isPlatformOperatorEmail, isPlatformOperatorRole, PLATFORM_THEME_KEYS } from "@/lib/platform";
 import { listInstitutesForPlatform } from "@/lib/store";
+import { BILLING_DEFAULTS } from "@/lib/billing";
 import {
   setDaycareActiveAction,
   createDaycareAction,
@@ -75,10 +76,20 @@ export default async function PlatformDaycaresPage({
   const rowError = searchParams.error ? (ROW_ERRORS[searchParams.error] ?? ROW_ERRORS.unknown) : "";
   // KID-236: an entry refusal renders its own message (fall back to the
   // generic create banners when the key is unknown).
+  // KID-244: the create flow's billing rollout — the same named reasons the
+  // store throws, with their friendly wording.
   const entryError = searchParams.error ? (ENTRY_ERRORS[searchParams.error] ?? "") : "";
+  const billingErrorKeys: Record<string, string> = {
+    "billing-plan-invalid": "Choose one of: demo, monthly or annual.",
+    "billing-monthly_rate_egp-invalid": "The monthly rate must be a number of at least zero.",
+    "billing-per_child_rate_egp-invalid": "The incremental child rate must be a number of at least zero.",
+    "billing-free_child_threshold-invalid": "The free-child threshold must be a number of at least zero.",
+    "billing-annual_amount_egp-invalid": "The annual amount must be a number of at least zero.",
+    "billing-cycle-invalid": "Type the first billing month as a date (YYYY-MM-DD).",
+  };
   const createError =
     searchParams.error && !rowEditId && !entryError
-      ? (ERRORS[searchParams.error] ?? ERRORS.unknown)
+      ? (ERRORS[searchParams.error] ?? billingErrorKeys[searchParams.error] ?? ERRORS.unknown)
       : "";
   // KID-199.3r: the apex is deployment configuration; when set, the operator
   // sees the full host each daycare resolves on.
@@ -247,6 +258,19 @@ export default async function PlatformDaycaresPage({
                         {active ? tr(dict, "platform.disable") : tr(dict, "platform.enable")}
                       </button>
                     </form>
+                    {/* KID-244: the per-daycare billing settings — a link (a
+                        gear, real href, middle-clickable) next to the status
+                        cell's toggle, into the operator's billing module for
+                        THIS daycare. */}
+                    <a
+                      href={`/platform/daycares/${instId}/billing`}
+                      className="btn"
+                      style={{ marginLeft: 8, textDecoration: "none" }}
+                      aria-label={`${tr(dict, "platform.billingSettings")}: ${String(inst.name)}`}
+                      title={tr(dict, "platform.billingSettings")}
+                    >
+                      ⚙ {tr(dict, "platform.billingSettings")}
+                    </a>
                   </td>
                 </tr>
               );
@@ -313,6 +337,39 @@ export default async function PlatformDaycaresPage({
               <option value="custom">{tr(dict, "platform.themeCustom")}</option>
             </select>
           </div>
+          {/* KID-244: the billing plan the new daycare starts on, plus the
+              editable rate options (prefilled with the platform defaults;
+              the raw values are re-validated by the store). */}
+          <div className="col field">
+            <label className="label">{tr(dict, "platform.billingPlan")}</label>
+            <select className="input" name="billingPlan" defaultValue="demo">
+              {["demo", "monthly", "annual"].map((p) => (
+                <option key={p} value={p}>
+                  {tr(dict, `platform.billingPlan${p[0]!.toUpperCase()}${p.slice(1)}`)}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="col field">
+            <label className="label">{tr(dict, "platform.billingMonthlyRate")}</label>
+            <input className="input" name="billingMonthlyRate" type="number" min={0} defaultValue={BILLING_DEFAULTS.monthlyRateEgp} />
+          </div>
+        </div>
+        <div className="row">
+          <div className="col field">
+            <label className="label">{tr(dict, "platform.billingPerChildRate")}</label>
+            <input className="input" name="billingPerChildRate" type="number" min={0} defaultValue={BILLING_DEFAULTS.perChildRateEgp} />
+          </div>
+          <div className="col field">
+            <label className="label">{tr(dict, "platform.billingFreeThreshold")}</label>
+            <input className="input" name="billingFreeThreshold" type="number" min={0} defaultValue={BILLING_DEFAULTS.freeChildThreshold} />
+          </div>
+          <div className="col field">
+            <label className="label">{tr(dict, "platform.billingAnnualAmount")}</label>
+            <input className="input" name="billingAnnualAmount" type="number" min={0} defaultValue={BILLING_DEFAULTS.annualAmountEgp} />
+          </div>
+        </div>
+        <div className="row">
           {/* KID-227: native pickers beside the hex fields, synced both ways
               (ColorField); the hex input keeps the submitted name, and the
               server-side platformColor() #RRGGBB validation is unchanged. */}

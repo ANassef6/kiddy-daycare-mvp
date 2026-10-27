@@ -762,6 +762,9 @@ export async function createDaycareAction(formData: FormData) {
       // Blank derives a slug from the name; normalization + uniqueness live in
       // the store, backed by the 0024 unique index.
       subdomain: String(formData.get("subdomain") ?? "").trim(),
+      // KID-244: the plan + rate options picked (and prefilled/editable) on
+      // the create form; stored defaults apply for any field left blank.
+      billing: billingFormNumbers(formData),
       ownerEmail,
       ownerPassword,
       ownerFullName: String(formData.get("ownerFullName") ?? "").trim(),
@@ -785,14 +788,95 @@ export async function createDaycareAction(formData: FormData) {
       }
     }
   } catch (err) {
-    if (String((err as Error)?.message ?? "") === "owner-email-in-use") {
+    const reason = String((err as Error)?.message ?? "");
+    if (reason === "owner-email-in-use") {
       redirect("/platform?error=owner-email-in-use");
+    }
+    // KID-244: the billing fields validate at the store too — surface the
+    // named reason instead of a generic digest.
+    if (reason.startsWith("billing-")) {
+      redirect(`/platform?error=${reason}`);
     }
     console.error("KID-199.4 createDaycareAction failed:", err);
     redirect("/platform?error=unknown");
   }
   revalidatePath("/platform");
   redirect("/platform?created=1");
+}
+
+// KID-244: the billing settings a NEW daycare starts with. Parsed at the
+// form boundary here, validated (and defaulted) again by the store, so a
+// malformed POST can never write a raw un-validated money value. When
+// monthly/annual is picked the rate fields are editable and prefilled with
+// the platform defaults (500/50/10, 24000 EGP); a missing/garbage rate falls
+// back to the default rather than writing a bad number.
+function billingFormNumbers(formData: FormData): {
+  plan: "demo" | "monthly" | "annual";
+  monthlyRateEgp?: number;
+  perChildRateEgp?: number;
+  freeChildThreshold?: number;
+  annualAmountEgp?: number;
+} {
+  const planRaw = String(formData.get("billingPlan") ?? "demo").trim();
+  const plan = (["demo", "monthly", "annual"] as const).includes(
+    planRaw as "demo" | "monthly" | "annual"
+  )
+    ? (planRaw as "demo" | "monthly" | "annual")
+    : "demo";
+  const num = (key: string, fallback: number): number => {
+    const n = Number(String(formData.get(key) ?? "").trim());
+    return Number.isFinite(n) && n >= 0 ? n : fallback;
+  };
+  return {
+    plan,
+    monthlyRateEgp: num("billingMonthlyRate", 500),
+    perChildRateEgp: num("billingPerChildRate", 50),
+    freeChildThreshold: num("billingFreeThreshold", 10),
+    annualAmountEgp: num("billingAnnualAmount", 24000),
+  };
+}
+
+// KID-244: the /platform/daycares/[id]/billing save action. Same guard as
+// every platform action; every failure lands back on the billing form with a
+// friendly message, a success back with ?saved=1.
+export async function updateDaycareBillingAction(formData: FormData) {
+  requirePlatformOperator();
+  const instituteId = String(formData.get("instituteId") ?? "");
+  if (!instituteId) redirect("/platform?error=missing-id");
+  const inst = await queryGet("SELECT id FROM institute WHERE id = ?", instituteId);
+  if (!inst) redirect("/platform?error=missing-id");
+  const back = `/platform/daycares/${instituteId}/billing`;
+  const planRaw = String(formData.get("plan") ?? "").trim();
+  const plan =
+    planRaw === "monthly" || planRaw === "annual" || planRaw === "demo" ? planRaw : "";
+  if (!plan) redirect(`${back}?error=billing-plan-invalid`);
+  const number = (key: string): number => Number(String(formData.get(key) ?? "").trim());
+  const firstCycleStart = String(formData.get("firstCycleStart") ?? "").trim();
+  const { updateDaycareBilling } = await import("@/lib/billing");
+  try {
+    await updateDaycareBilling(instituteId, {
+      plan,
+      monthlyRateEgp: number("monthlyRateEgp"),
+      perChildRateEgp: number("perChildRateEgp"),
+      freeChildThreshold: number("freeChildThreshold"),
+      annualAmountEgp: number("annualAmountEgp"),
+      firstCycleStart: /^\d{4}-\d{2}-\d{2}$/.test(firstCycleStart) ? firstCycleStart : undefined,
+    });
+  } catch (err) {
+    const reason = String((err as Error)?.message ?? "");
+    const known = [
+      "billing-plan-invalid",
+      "billing-monthly_rate_egp-invalid",
+      "billing-per_child_rate_egp-invalid",
+      "billing-free_child_threshold-invalid",
+      "billing-annual_amount_egp-invalid",
+      "billing-cycle-invalid",
+    ];
+    console.error("KID-244 updateDaycareBillingAction failed:", err);
+    redirect(`${back}?error=${known.includes(reason) ? reason : "unknown"}`);
+  }
+  revalidatePath("/platform");
+  redirect(`${back}?saved=1`);
 }
 
 // KID-199.3: session-aware tenancy. This used to return the first-created

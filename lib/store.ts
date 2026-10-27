@@ -1,5 +1,6 @@
 import { queryAll, queryGet, queryRun, uid, type Row } from "./db";
 import { normalizeSubdomainSlug } from "./subdomain";
+import { nextMonthStart, type BillingPlan } from "./billing";
 import {
   normalizeWorkingHours,
   encodeWorkingHours,
@@ -772,6 +773,16 @@ export async function createDaycare(data: {
   /** KID-199.3r: explicit subdomain (sunshine.<apex> → "sunshine"). Blank
    *  derives a slug from the name; collisions get -2/-3 suffixes. */
   subdomain?: string;
+  /** KID-244: the subscription the operator picked at creation — the billing
+   *  row is written in the same logical step, so a daycare never exists
+   *  without one. Defaults apply per field (demo / 500 / 50 / 10 / 24000). */
+  billing?: {
+    plan?: BillingPlan;
+    monthlyRateEgp?: number;
+    perChildRateEgp?: number;
+    freeChildThreshold?: number;
+    annualAmountEgp?: number;
+  };
   ownerEmail: string;
   ownerPassword: string;
   ownerFullName: string;
@@ -818,6 +829,22 @@ export async function createDaycare(data: {
     String(ownerStaff.id),
     String(ownerAccount.id)
   );
+  // KID-244: write the billing row in the same logical step. firstCycleStart
+  // is the 1st of the month AFTER the institute's own created_at (signup
+  // month free) — read back from the row, never from "now" at write time, so
+  // a delayed write still bills from the day the daycare actually signed up.
+  const { updateDaycareBilling } = await import("./billing");
+  const createdAt = institute.created_at ? new Date(String(institute.created_at)) : new Date();
+  await updateDaycareBilling(instituteId, {
+    plan: data.billing?.plan ?? "demo",
+    monthlyRateEgp: data.billing?.monthlyRateEgp,
+    perChildRateEgp: data.billing?.perChildRateEgp,
+    freeChildThreshold: data.billing?.freeChildThreshold,
+    annualAmountEgp: data.billing?.annualAmountEgp,
+    firstCycleStart: Number.isNaN(createdAt.getTime())
+      ? undefined
+      : nextMonthStart(createdAt),
+  });
   return {
     instituteId,
     branchIds,

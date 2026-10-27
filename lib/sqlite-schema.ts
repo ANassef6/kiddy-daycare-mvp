@@ -530,6 +530,23 @@ export function sqliteSchema(db: any): void {
   CREATE INDEX IF NOT EXISTS idx_platform_access_institute ON platform_access_log (institute_id, created_at);
   CREATE INDEX IF NOT EXISTS idx_platform_access_operator ON platform_access_log (operator_email, created_at);
   CREATE UNIQUE INDEX IF NOT EXISTS uq_platform_access_nonce ON platform_access_log (nonce) WHERE nonce IS NOT NULL;
+
+  -- KID-244: mirror of supabase/migrations/0027_daycare_billing.sql — one row
+  -- per institute with its subscription settings (plan + EGP amounts); the
+  -- signup month stays free because the store writes first_cycle_start as the
+  -- 1st of the month AFTER created_at. Existing institutes are backfilled to
+  -- these same defaults in the block below.
+  CREATE TABLE IF NOT EXISTS daycare_billing (
+    institute_id TEXT PRIMARY KEY REFERENCES institute(id) ON DELETE CASCADE,
+    plan TEXT NOT NULL DEFAULT 'demo' CHECK (plan IN ('demo', 'monthly', 'annual')),
+    monthly_rate_egp INTEGER NOT NULL DEFAULT 500,
+    per_child_rate_egp INTEGER NOT NULL DEFAULT 50,
+    free_child_threshold INTEGER NOT NULL DEFAULT 10,
+    annual_amount_egp INTEGER NOT NULL DEFAULT 24000,
+    first_cycle_start TEXT,
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+  CREATE INDEX IF NOT EXISTS idx_daycare_billing_plan ON daycare_billing (plan);
   `);
 
   // Idempotent column backfills for databases created before these columns
@@ -585,6 +602,18 @@ export function sqliteSchema(db: any): void {
   db.exec(
     "CREATE UNIQUE INDEX IF NOT EXISTS uq_institute_subdomain ON institute (subdomain) WHERE subdomain IS NOT NULL"
   );
+  // KID-244: mirror of supabase/migrations/0027_daycare_billing.sql — every
+  // institute that predates the table gets a default-settings row (demo plan,
+  // 500/50/10, 24000 EGP) with first_cycle_start = the 1st of the month after
+  // its creation ('start of month' first, then '+1 month', so a created_at on
+  // the 29th-31st lands in the immediately NEXT month, not two months later).
+  try {
+    db.exec(`INSERT OR IGNORE INTO daycare_billing
+      (institute_id, plan, first_cycle_start)
+      SELECT id, 'demo', strftime('%Y-%m-01', created_at, 'start of month', '+1 month')
+      FROM institute`);
+  } catch {}
+
   const staffCols = db.prepare("PRAGMA table_info(staff)").all() as { name: string }[];
   if (!staffCols.some((c) => c.name === "photo_url")) {
     db.exec("ALTER TABLE staff ADD COLUMN photo_url TEXT");
