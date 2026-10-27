@@ -112,6 +112,7 @@ export const en = {
     surveys: "Surveys",
     performance: "Performance",
     finance: "Finance",
+    accountBilling: "Account billing",
     supplies: "Supplies",
     settings: "Settings",
     centerDetails: "Center details",
@@ -642,6 +643,45 @@ export const en = {
     invoiceDaycareBlocked:
       "This daycare is currently disabled because of an overdue invoice. Mark the invoice paid to restore its users' access.",
   },
+  // KID-246: the owner's own "Account billing" page under Tools — plan and
+  // rates are read-only here (the platform team manages them); the invoice
+  // ledger is the same daycare_invoice records the /platform list reads.
+  accountBilling: {
+    title: "Account billing",
+    subtitle: "Your daycare's subscription plan, current rates and invoices.",
+    planCard: "Plan",
+    planDemo: "Demo (free preview)",
+    planMonthly: "Monthly",
+    planAnnual: "Annual",
+    firstBilledMonth: "First billed month",
+    sinceDate: "Since",
+    ratesCard: "Current rates (read-only)",
+    ratesReadOnly: "Read-only — the platform team manages your plan and rates.",
+    monthlyRate: "Monthly base fee (EGP)",
+    perChildRate: "Per child beyond the free children (EGP)",
+    freeThreshold: "Children included free",
+    annualAmount: "Annual amount (EGP)",
+    invoicesCard: "Invoices",
+    colCycle: "Cycle",
+    colAmount: "Amount (EGP)",
+    colDue: "Due date",
+    colStatus: "Status",
+    colPaid: "Paid",
+    statusPending: "Pending",
+    statusPaid: "Paid",
+    statusOverdue: "Overdue",
+    breakdownMeta: "{children} billed children · base {base} EGP + {extra} × {rate} EGP",
+    manualNote: "Operator note: {note}",
+    noInvoices: "No invoices yet. The invoice for a cycle appears after that cycle ends.",
+    demoNote: "The demo plan is a free preview — it never generates invoices.",
+    upcomingCard: "Upcoming & overdue",
+    nothingDue: "No invoices are due or overdue right now.",
+    dueSoon:
+      "Invoice {cycle} is due on {date} — pay before then to keep the daycare open.",
+    overdueWarning:
+      "Invoice {cycle} is overdue ({amount} EGP). Pay it now — the daycare is disabled while an invoice stays unpaid.",
+    autoDisableHint: "The platform disables the daycare from the due date onward until the invoice is paid.",
+  },
 };
 
 export const ar = {
@@ -721,6 +761,7 @@ export const ar = {
     surveys: "الاستبيانات",
     performance: "الأداء",
     finance: "المالية",
+    accountBilling: "فواتير الحساب",
     supplies: "المستلزمات",
     settings: "الإعدادات",
     centerDetails: "بيانات المركز",
@@ -1234,6 +1275,44 @@ export const ar = {
     invoiceBackToBilling: "إعدادات الفاتورة",
     invoiceDaycareBlocked:
       "هذه الروضة موقوفة حاليًا بسبب فاتورة متأخرة. سجّل الفاتورة كمدفوعة لإعادة تفعيل حسابات مستخدميها.",
+  },
+  // KID-246: page "فواتير الحساب" الخاصة بمالك الروضة — الخطة والأسعار
+  // للعرض فقط هنا (فريق المنصّة يديرها)، وسجل الفواتير هو سجلات
+  // daycare_invoice نفسها التي تغذّي قائمة المنصّة.
+  accountBilling: {
+    title: "فواتير الحساب",
+    subtitle: "اشتراك روضتكم والأسعار الحالية والفواتير.",
+    planCard: "الخطة",
+    planDemo: "تجريبي (معاينة مجانية)",
+    planMonthly: "شهري",
+    planAnnual: "سنوي",
+    firstBilledMonth: "أول شهر محتسب",
+    sinceDate: "منذ",
+    ratesCard: "الأسعار الحالية (للعرض فقط)",
+    ratesReadOnly: "للعرض فقط — فريق المنصّة يدير خطتكم وأسعاركم.",
+    monthlyRate: "الرسوم الشهرية الثابتة (جنيه)",
+    perChildRate: "الرسوم لكل طفل فوق العدد المجاني (جنيه)",
+    freeThreshold: "عدد الأطفال المجاني",
+    annualAmount: "المبلغ السنوي (جنيه)",
+    invoicesCard: "الفواتير",
+    colCycle: "الدورة",
+    colAmount: "المبلغ (جنيه)",
+    colDue: "تاريخ الاستحقاق",
+    colStatus: "الحالة",
+    colPaid: "تاريخ السداد",
+    statusPending: "معلّقة",
+    statusPaid: "مدفوعة",
+    statusOverdue: "متأخرة",
+    breakdownMeta: "{children} طفل محتسب · أساس {base} جنيه + {extra} × {rate} جنيه",
+    manualNote: "ملاحظة المنصّة: {note}",
+    noInvoices: "لا توجد فواتير بعد. تظهر فاتورة الدورة بعد انتهائها.",
+    demoNote: "الخطة التجريبية معاينة مجانية — لا تُنشئ فواتير.",
+    upcomingCard: "القادمة والمتأخرة",
+    nothingDue: "لا توجد فواتير مستحقة أو متأخرة الآن.",
+    dueSoon: "فاتورة الدورة {cycle} تستحق في {date} — سدّدها قبل ذلك لإبقاء الروضة مفتوحة.",
+    overdueWarning:
+      "فاتورة الدورة {cycle} متأخرة ({amount} جنيه). سدّدها الآن — الروضة موقوفة طالما الفاتورة غير مسددة.",
+    autoDisableHint: "تُوقف المنصّة الروضة من تاريخ الاستحقاق حتى تسديد الفاتورة.",
   },
 };
 

@@ -2798,6 +2798,96 @@ export type ActivityItem = {
   meta?: string;
 };
 
+/** KID-246: the daycare owner's own billing notifications, derived from the
+ *  daycare_invoice ledger — exactly the recentActivityFeed pattern (no new
+ *  table): an invoice CREATION within the feed's 7-day window is the "new
+ *  invoice" entry, a due date within 3 days is the pre-disable warning, and
+ *  an open overdue invoice keeps warning until it is paid.
+ *
+ *  Scoped to the exact owner account role: admins/staff/parents (classroom-
+ *  scoped or not) never receive daycare billing events. The "billing"
+ *  notification preference (channel `inapp`, the /portal/account toggle)
+ *  is honored: a stored disabled pref suppresses the slice; no pref row
+ *  defaults to enabled, the same convention the prefs page uses.
+ */
+export async function ownerBillingFeedForInstance(
+  instituteId: string,
+  accountId: string,
+  sinceIso: string,
+  limit: number
+): Promise<ActivityItem[]> {
+  const acct = await queryGet("SELECT role FROM account WHERE id = ?", accountId);
+  if (!acct || String(acct.role) !== "owner") return [];
+
+  const pref = await queryGet(
+    "SELECT enabled FROM notification_pref WHERE account_id = ? AND activity = 'billing' AND channel = 'inapp'",
+    accountId
+  );
+  if (pref && Number(pref.enabled) === 0) return [];
+
+  // "Due within 3 days" — the pre-disable warning window (the day after the
+  // due date the enforcement sweep flips the invoice overdue, KID-245).
+  const dueCutoffIso = new Date(Date.now() + 3 * 24 * 3600 * 1000).toISOString();
+
+  const rows = await queryAll(
+    `SELECT id, cycle_month, total_amount, currency, due_date, status, paid_at, created_at
+     FROM daycare_invoice
+     WHERE institute_id = ?
+       AND (
+         created_at >= ?
+         OR status = 'overdue'
+         OR (status = 'pending' AND due_date <= ?)
+       )
+     ORDER BY created_at DESC, id DESC LIMIT ?`,
+    instituteId,
+    sinceIso,
+    dueCutoffIso.slice(0, 10),
+    limit
+  );
+
+  const items: ActivityItem[] = [];
+  for (const r of rows) {
+    const invoiceId = String(r.id ?? "");
+    const cycle = String(r.cycle_month ?? "");
+    const status = String(r.status ?? "pending");
+    const dueDate = String(r.due_date ?? "").slice(0, 10);
+    const amountEgp = `${Number(r.total_amount ?? 0)} ${String(r.currency ?? "EGP")}`;
+    const body = `Total ${amountEgp} · due ${dueDate}`;
+    const overdue = status === "overdue";
+    const dueSoon = !overdue && status === "pending" && dueDate <= dueCutoffIso.slice(0, 10);
+    if (!overdue && !dueSoon && String(r.created_at ?? "") < sinceIso) continue;
+    items.push({
+      id: `dinv-${invoiceId}-${overdue ? "overdue" : dueSoon ? "due-soon" : "new"}`,
+      // The "billing" type maps to the existing activity pref + 💳 feed icon.
+      type: "billing",
+      title: overdue
+        ? `Overdue invoice — ${cycle}`
+        : dueSoon
+          ? `Invoice due soon — ${cycle}`
+          : `New invoice — ${cycle}`,
+      body: overdue ? `${body} — the daycare is blocked while this stays unpaid` : body,
+      meta: statusMeta(status, overdue, r),
+      timestamp: String(r.created_at ?? ""),
+      link: "/portal/account-billing",
+    });
+  }
+  return items;
+}
+
+/** The invoice item's meta line: what the owner must know at a glance. */
+function statusMeta(
+  status: string,
+  overdue: boolean,
+  r: Record<string, unknown>
+): string {
+  if (status === "paid") {
+    const paidAt = String(r.paid_at ?? "");
+    return `Paid · ${paidAt ? paidAt.slice(0, 10) : ""}`;
+  }
+  if (overdue) return "Overdue — pay now";
+  return "Pending";
+}
+
 export async function recentActivityFeed(
   instituteId: string,
   accountId: string,
@@ -2857,6 +2947,13 @@ export async function recentActivityFeed(
   ]);
 
   const items: ActivityItem[] = [];
+
+  // KID-246: the daycare owner's own billing slice (new invoices, due-soon
+  // and overdue warnings) — scoped to the exact owner account role and
+  // honoring the "billing" notification preference. Every other feed source
+  // below is role-agnostic and unchanged.
+  const ownerBilling = await ownerBillingFeedForInstance(instituteId, accountId, sinceIso, limit);
+  items.push(...ownerBilling);
 
   for (const n of newsfeed.slice(0, limit)) {
     items.push({

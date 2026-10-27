@@ -487,17 +487,19 @@ export async function hasOverdueInvoice(instituteId: string): Promise<boolean> {
  *  (another warm instance, a retry) into a no-op. Returns the count of
  *  invoices actually inserted. */
 export async function generateDueInvoices(now: Date = new Date()): Promise<number> {
-  const today = todayIso(now);
-  const configs = await queryAll(
-    `SELECT b.institute_id, b.plan, b.monthly_rate_egp, b.per_child_rate_egp,
-            b.free_child_threshold, b.annual_amount_egp, b.first_cycle_start
-     FROM daycare_billing b
-     JOIN institute i ON i.id = b.institute_id`
-  );
-  let generated = 0;
-  for (const cfg of configs) {
-    const settings = rowToBilling(cfg);
-    const instituteId = String(cfg.institute_id);
+    const today = todayIso(now);
+    const configs = await queryAll(
+      `SELECT b.institute_id, b.plan, b.monthly_rate_egp, b.per_child_rate_egp,
+              b.free_child_threshold, b.annual_amount_egp, b.first_cycle_start,
+              i.name AS institute_name
+       FROM daycare_billing b
+       JOIN institute i ON i.id = b.institute_id`
+    );
+    let generated = 0;
+    for (const cfg of configs) {
+      const settings = rowToBilling(cfg);
+      const instituteId = String(cfg.institute_id);
+      const daycareName = String(cfg.institute_name ?? "");
     // Demo never bills (KID-244); a config without a first cycle cannot
     // define a billing calendar.
     if (settings.plan === "demo" || !settings.firstCycleStart) continue;
@@ -548,10 +550,60 @@ export async function generateDueInvoices(now: Date = new Date()): Promise<numbe
         breakdown.totalAmount,
         dueDate
       );
-      generated += res.rowCount > 0 ? 1 : 0;
+      if (res.rowCount > 0) {
+        generated += 1;
+        // KID-246: the creation notification — the in-app slice is derived by
+        // recentActivityFeed (ownerBillingFeedForInstance, lib/store.ts) from
+        // the ledger itself; email is this one best-effort, pref-honoring
+        // attempt through the existing Supabase GoTrue path (no SMTP).
+        await emailInvoiceOwners(instituteId, daycareName, {
+          cycleMonth,
+          totalAmount: breakdown.totalAmount,
+          currency: "EGP",
+          dueDate,
+        });
+      }
     }
   }
   return generated;
+}
+
+/** KID-246: best-effort creation email to the daycare's owner accounts. The
+ *  owner logins are the `role = 'owner'` accounts linked through
+ *  account.staff_id (the shape createDaycare/seedDemo write). Each owner's
+ *  "billing"/"email" notification preference is honored: a stored disabled
+ *  pref skips their email; the in-app feed never depends on this. Never
+ *  throws — a mail-path failure is logged loudly, never silent, and never
+ *  breaks the ledger write that already happened. */
+async function emailInvoiceOwners(
+  instituteId: string,
+  daycareName: string,
+  invoice: { cycleMonth: string; totalAmount: number; currency: string; dueDate: string }
+): Promise<void> {
+  try {
+    const owners = await queryAll(
+      `SELECT a.id, a.email
+       FROM account a
+       JOIN staff s ON s.id = a.staff_id
+       WHERE s.institute_id = ? AND a.role = 'owner' AND trim(a.email) <> ''`,
+      instituteId
+    );
+    const { notifyInvoiceOwner } = await import("./invoice-notify");
+    for (const o of owners) {
+      const ownerEmail = String(o.email ?? "").trim();
+      if (!ownerEmail) continue;
+      const pref = await queryGet(
+        "SELECT enabled FROM notification_pref WHERE account_id = ? AND activity = 'billing' AND channel = 'email'",
+        String(o.id)
+      );
+      if (pref && Number(pref.enabled) === 0) continue;
+      await notifyInvoiceOwner({ daycareName, ownerEmail, ...invoice });
+    }
+  } catch (err) {
+    // Best-effort by contract (lib/invoice-notify.ts) — this catch only
+    // guards against unexpected errors in the resolution queries themselves.
+    console.error(`KID-246: owner invoice email for ${instituteId} failed:`, err);
+  }
 }
 
 // ----- enforcement, payment, overrides -----

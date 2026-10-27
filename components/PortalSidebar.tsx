@@ -61,20 +61,30 @@ export function portalNav(dict: Dict, role?: string): NavGroup[] {
   // KID-179 item 4: Rooms joins the Tools group. The Rooms page itself stays
   // scoped to the staff member's assigned classrooms (KID-105 #16, unchanged).
   if (isAdminRole(role ?? "")) {
+    const tools: NavItem[] = [
+      { label: t("nav.reportCenter"), href: "/portal/report-center" },
+      // KID-86 #10: Inquiries moved under Smart Forms — no standalone entry.
+      { label: t("nav.smartList"), href: "/portal/tags" },
+      { label: t("nav.smartForm"), href: "/portal/forms" },
+      { label: t("nav.surveys"), href: "/portal/surveys" },
+      { label: t("nav.performance"), href: "/portal/performance" },
+      { label: t("nav.finance"), href: "/portal/finance" },
+      { label: t("nav.supplies"), href: "/portal/supplies" },
+      { label: t("nav.rooms"), href: "/portal/rooms" },
+    ];
+    // KID-246: "Account billing" is the daycare OWNER's own surface — the
+    // subscription plan, the read-only rates and the daycare's invoice
+    // ledger. A plain admin (staff-level manager) must not see or reach it,
+    // which is why this is the exact owner role, not isAdminRole. The page
+    // itself (app/portal/account-billing) re-checks the session and refuses
+    // every non-owner, so the tab and the URL stay in sync.
+    if (role === "owner") {
+      tools.push({ label: t("nav.accountBilling"), href: "/portal/account-billing" });
+    }
     groups.push({
       label: t("nav.tools"),
       href: "/portal/report-center",
-      items: [
-        { label: t("nav.reportCenter"), href: "/portal/report-center" },
-        // KID-86 #10: Inquiries moved under Smart Forms — no standalone entry.
-        { label: t("nav.smartList"), href: "/portal/tags" },
-        { label: t("nav.smartForm"), href: "/portal/forms" },
-        { label: t("nav.surveys"), href: "/portal/surveys" },
-        { label: t("nav.performance"), href: "/portal/performance" },
-        { label: t("nav.finance"), href: "/portal/finance" },
-        { label: t("nav.supplies"), href: "/portal/supplies" },
-        { label: t("nav.rooms"), href: "/portal/rooms" },
-      ],
+      items: tools,
     });
   }
 

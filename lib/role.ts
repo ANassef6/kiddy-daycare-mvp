@@ -9,3 +9,12 @@ export type Role = (typeof ROLES)[number];
 export function isAdminRole(role: string): boolean {
   return role === "owner" || role === "admin";
 }
+
+// KID-246: the "Account billing" surface is the daycare owner's own — the
+// plain admin (a staff-level manager) must not see or reach the daycare's
+// subscription plan, rates or invoices. Ownership is the ACCOUNT role
+// ("owner", lib/auth), not the staff row, so an admin-role staff account is
+// excluded even at the same daycare.
+export function isOwnerRole(role: string): boolean {
+  return role === "owner";
+}

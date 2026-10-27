@@ -190,6 +190,12 @@ a {
   color: #b91c1c;
 }
 
+/* KID-246: the "pending" invoice state — paid stays green, overdue red. */
+.badge-amber {
+  background: #fef3c7;
+  color: #92400e;
+}
+
 .badge-gray {
   background: #e5e7eb;
   color: #374151;
