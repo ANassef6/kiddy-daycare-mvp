@@ -52,6 +52,14 @@ export default async function DaycareBillingPage({
       <h1 className="title">{tr(dict, "platform.billingTitle")}</h1>
       <p className="subtitle">{String(inst.name)}</p>
 
+      {/* KID-245: the generated invoices for this daycare (Finance/2) — the
+          list where the operator overrides amounts and marks invoices paid. */}
+      <p className="small">
+        <a href={`/platform/daycares/${instituteId}/invoices`}>
+          {tr(dict, "platform.invoiceTitle")} →
+        </a>
+      </p>
+
       {/* Who was just reached: the gear on /platform; additionally show the
           exact plan in use and what the current settings bill for this
           daycare's current roster (demo always bills 0). */}

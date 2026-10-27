@@ -1,6 +1,6 @@
 import { queryAll, queryGet, queryRun, uid, type Row } from "./db";
 import { normalizeSubdomainSlug } from "./subdomain";
-import { nextMonthStart, type BillingPlan } from "./billing";
+import { hasOverdueInvoice, nextMonthStart, type BillingPlan } from "./billing";
 import {
   normalizeWorkingHours,
   encodeWorkingHours,
@@ -731,6 +731,21 @@ export async function primaryInstituteIdForAccount(accountId: string): Promise<s
 export async function isTenancyDisabled(accountId: string): Promise<boolean> {
   const insts = await tenancyInstitutesForAccount(accountId);
   return insts.length > 0 && insts.every((i) => Number(i.active ?? 1) === 0);
+}
+
+/** KID-245: true when the account's whole tenancy is disabled BECAUSE OF
+ *  BILLING — at least one of its (all-disabled) institutes carries an unpaid
+ *  overdue invoice. This is what lets the login gate show the "temporarily
+ *  blocked, contact us" billing message instead of the generic manual-disable
+ *  message; lib/actions.ts tenancyDisabledError and lib/require.ts both use
+ *  it. An institute disabled by hand (no overdue invoice) reads false. */
+export async function isTenancyBillingBlocked(accountId: string): Promise<boolean> {
+  const insts = await tenancyInstitutesForAccount(accountId);
+  if (insts.length === 0 || !insts.every((i) => Number(i.active ?? 1) === 0)) return false;
+  for (const inst of insts) {
+    if (await hasOverdueInvoice(String(inst.id))) return true;
+  }
+  return false;
 }
 
 /** KID-199.4: every daycare for the /platform surface — subscription flag plus

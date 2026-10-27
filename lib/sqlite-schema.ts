@@ -547,6 +547,40 @@ export function sqliteSchema(db: any): void {
     updated_at TEXT NOT NULL DEFAULT (datetime('now'))
   );
   CREATE INDEX IF NOT EXISTS idx_daycare_billing_plan ON daycare_billing (plan);
+
+  -- KID-245: mirror of supabase/migrations/0028_daycare_invoice.sql — one
+  -- invoice per billed cycle, (institute_id, cycle_month) unique so the lazy
+  -- generator stays idempotent. cycle_month is the FIRST month of the billed
+  -- cycle (YYYY-MM): the month itself for monthly plans, the first month of a
+  -- 12-month block for annual. Amounts are integers in EGP; the formula
+  -- fields snapshot the configuration the invoice was computed with, and
+  -- total_amount is manually overridable before payment (manual_adjustment
+  -- carries the operator's note). Lifecycle: pending -> overdue (past
+  -- due_date, daycare auto-disabled) -> paid (daycare re-activated).
+  CREATE TABLE IF NOT EXISTS daycare_invoice (
+    id TEXT PRIMARY KEY,
+    institute_id TEXT NOT NULL REFERENCES institute(id) ON DELETE CASCADE,
+    cycle_month TEXT NOT NULL,
+    plan TEXT NOT NULL DEFAULT 'monthly' CHECK (plan IN ('demo', 'monthly', 'annual')),
+    max_active_children INTEGER NOT NULL DEFAULT 0,
+    billable_children INTEGER NOT NULL DEFAULT 0,
+    flat_rate_amount INTEGER NOT NULL DEFAULT 0,
+    incremental_rate INTEGER NOT NULL DEFAULT 0,
+    incremental_amount INTEGER NOT NULL DEFAULT 0,
+    total_amount INTEGER NOT NULL DEFAULT 0,
+    currency TEXT NOT NULL DEFAULT 'EGP',
+    due_date TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'paid', 'overdue')),
+    paid_at TEXT,
+    manual_adjustment TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+  CREATE UNIQUE INDEX IF NOT EXISTS uq_daycare_invoice_cycle
+    ON daycare_invoice (institute_id, cycle_month);
+  CREATE INDEX IF NOT EXISTS idx_daycare_invoice_status_due
+    ON daycare_invoice (status, due_date);
+  CREATE INDEX IF NOT EXISTS idx_daycare_invoice_institute
+    ON daycare_invoice (institute_id, cycle_month DESC);
   `);
 
   // Idempotent column backfills for databases created before these columns

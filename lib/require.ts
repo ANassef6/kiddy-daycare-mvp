@@ -45,9 +45,13 @@ export async function requireSessionWithWithdrawalCheck() {
   // internal sentinel session is not a daycare role, KID-199.4r) is exempt:
   // they are the ones who re-enable daycares.
   if (!isPlatformOperatorRole(session.role)) {
-    const { isTenancyDisabled } = await import("@/lib/store");
+    const { isTenancyDisabled, isTenancyBillingBlocked } = await import("@/lib/store");
     if (await isTenancyDisabled(session.accountId)) {
-      redirect("/login?error=disabled-institute");
+      // KID-245: name WHY the daycare is blocked so /login can show the
+      // billing message ("temporarily blocked ... contact us") instead of the
+      // generic manual-disable one.
+      const reason = (await isTenancyBillingBlocked(session.accountId)) ? "billing" : "manual";
+      redirect(`/login?error=disabled-institute&reason=${reason}`);
     }
   }
   return session;

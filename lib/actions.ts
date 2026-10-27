@@ -3,7 +3,7 @@
 import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
-import { LANG_COOKIE } from "@/lib/i18n";
+import { LANG_COOKIE, tenancyDisabledMessage, type TenancyDisabledReason } from "@/lib/i18n";
 import {
   createAccount,
   findAccountByEmail,
@@ -140,19 +140,44 @@ function homeForRole(role: string): string {
 // friendly message, in the family `no_access` style. The platform operator
 // role is exempt — it is the role that re-enables daycares. Re-enabling the
 // institute restores access; nothing is deleted by the gate.
-// KID-238: the message also names the platform contact inbox so the blocked
-// user has a direct channel that works even while the daycare is disabled.
-const INSTITUTE_DISABLED_MESSAGE = `This daycare is currently disabled. Contact the platform team at ${PLATFORM_CONTACT_EMAIL}.`;
+// KID-238: the message names the platform contact inbox so the blocked user
+// has a direct channel that works even while the daycare is disabled.
+// KID-245: the gate now distinguishes WHY the daycare is blocked — a manual
+// disable by the platform team, or a billing block (an invoice past its due
+// date and unpaid). The EN/AR wording lives in lib/i18n.ts (tenancyDisabledMessage)
+// because this "use server" module may only export async functions — the
+// login page renders the identical wording from there for the mid-session
+// guard redirect. The language follows the same precedence the root layout
+// uses: the kiddy_lang cookie first, then the account's own preference.
+/** The locale for a login gate message: the kiddy_lang cookie wins (same
+ *  precedence as app/layout.tsx resolveLocale), then the account's own
+ *  preference, then English. */
+async function gateLocale(accountLanguage: unknown): Promise<string> {
+  try {
+    const cookie = cookies().get(LANG_COOKIE)?.value;
+    if (cookie === "en" || cookie === "ar") return cookie;
+  } catch {
+    // no request scope (tests) — fall through to the account preference
+  }
+  return String(accountLanguage ?? "en");
+}
 
 async function tenancyDisabledError(
   accountId: string,
-  role: string
+  role: string,
+  accountLanguage?: unknown
 ): Promise<{ error: string } | null> {
   try {
     if (isPlatformOperatorRole(role)) return null;
-    const { isTenancyDisabled } = await import("@/lib/store");
+    const { isTenancyDisabled, isTenancyBillingBlocked } = await import("@/lib/store");
     if (await isTenancyDisabled(accountId)) {
-      return { error: INSTITUTE_DISABLED_MESSAGE };
+      // KID-245: billing block vs manual disable — an unpaid overdue invoice
+      // is the data signature of the billing block.
+      const reason: TenancyDisabledReason = (await isTenancyBillingBlocked(accountId))
+        ? "billing"
+        : "manual";
+      const lang = await gateLocale(accountLanguage);
+      return { error: tenancyDisabledMessage(reason, lang) };
     }
   } catch (err) {
     // Never lock everyone out because the gate itself failed (e.g. the
@@ -175,7 +200,7 @@ export async function loginAction(formData: FormData) {
     if (!error && data.user) {
       const account = await findAccountByEmail(email);
       if (account) {
-        const disabledGate = await tenancyDisabledError(String(account.id), String(account.role));
+        const disabledGate = await tenancyDisabledError(String(account.id), String(account.role), account.language);
         if (disabledGate) return disabledGate;
         // KID-199.3r: a daycare account is only valid on its own subdomain —
         // a Sunshine login on the Maple host is refused, never signed in.
@@ -206,7 +231,7 @@ export async function loginAction(formData: FormData) {
     return { error: "This account's access has been withdrawn." };
   }
   // KID-199.3: disabled daycare gate (staff + parents; platform operator exempt).
-  const disabledGate = await tenancyDisabledError(String(account.id), String(account.role));
+  const disabledGate = await tenancyDisabledError(String(account.id), String(account.role), account.language);
   if (disabledGate) return disabledGate;
   // KID-199.3r: wrong-subdomain login gate — same refusal as the Supabase path.
   const hostGate = await loginHostGate(String(account.id), String(account.role), headers().get("host"));
@@ -876,6 +901,63 @@ export async function updateDaycareBillingAction(formData: FormData) {
     redirect(`${back}?error=${known.includes(reason) ? reason : "unknown"}`);
   }
   revalidatePath("/platform");
+  redirect(`${back}?saved=1`);
+}
+
+// ---------------------------------------------------------------------------
+// KID-245: Finance/2 — the superadmin invoice actions (view/edit amounts,
+// mark as paid) behind the /platform invoices page.
+// ---------------------------------------------------------------------------
+
+/** The engine errors the invoice actions map to friendly labels on the page
+ *  (app/platform/daycares/[id]/invoices/page.tsx); anything else is "unknown". */
+const KNOWN_INVOICE_ERRORS = new Set(["invoice-not-found", "invoice-paid-locked", "invoice-total-invalid"]);
+
+/** KID-245: the operator's manual override of an invoice's payable amount,
+ *  with an explanatory note (manual_adjustment). Only before payment — a paid
+ *  invoice is locked. Redirects back to this daycare's invoice list. */
+export async function updateInvoiceAmountAction(formData: FormData) {
+  requirePlatformOperator();
+  const invoiceId = String(formData.get("invoiceId") ?? "");
+  const { getInvoice } = await import("@/lib/billing");
+  const invoice = invoiceId ? await getInvoice(invoiceId) : undefined;
+  if (!invoice) redirect("/platform?error=missing-invoice");
+  const back = `/platform/daycares/${invoice.instituteId}/invoices`;
+  const rawTotal = String(formData.get("totalAmountEgp") ?? "").trim();
+  const rawNote = String(formData.get("manualAdjustment") ?? "");
+  const { updateInvoiceAmount } = await import("@/lib/billing");
+  try {
+    await updateInvoiceAmount(invoiceId, {
+      totalAmountEgp: rawTotal === "" ? undefined : Number(rawTotal),
+      note: rawNote,
+    });
+  } catch (err) {
+    const reason = String((err as Error)?.message ?? "");
+    console.error("KID-245 updateInvoiceAmountAction failed:", err);
+    redirect(`${back}?error=${KNOWN_INVOICE_ERRORS.has(reason) ? reason : "unknown"}`);
+  }
+  revalidatePath(`${back}`);
+  redirect(`${back}?saved=1`);
+}
+
+/** KID-245: the operator marks an invoice paid. The engine (lib/billing.ts)
+ *  stamps paid_at and re-activates the daycare as soon as no other unpaid
+ *  overdue invoice remains — the billing block lifts. */
+export async function markInvoicePaidAction(formData: FormData) {
+  requirePlatformOperator();
+  const invoiceId = String(formData.get("invoiceId") ?? "");
+  const { getInvoice, markInvoicePaid } = await import("@/lib/billing");
+  const invoice = invoiceId ? await getInvoice(invoiceId) : undefined;
+  if (!invoice) redirect("/platform?error=missing-invoice");
+  const back = `/platform/daycares/${invoice.instituteId}/invoices`;
+  try {
+    await markInvoicePaid(invoiceId);
+  } catch (err) {
+    const reason = String((err as Error)?.message ?? "");
+    console.error("KID-245 markInvoicePaidAction failed:", err);
+    redirect(`${back}?error=${KNOWN_INVOICE_ERRORS.has(reason) ? reason : "unknown"}`);
+  }
+  revalidatePath(`${back}`);
   redirect(`${back}?saved=1`);
 }
 

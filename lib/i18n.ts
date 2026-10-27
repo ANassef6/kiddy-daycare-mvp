@@ -2,10 +2,38 @@
 // Pure module — safe to import from both server and client components.
 // Arabic first ships as MSA well-suited to an Egyptian daycare context.
 
+import { PLATFORM_CONTACT_EMAIL } from "./site";
+
 export const LOCALES = ["en", "ar"] as const;
 export type Locale = (typeof LOCALES)[number];
 export const DEFAULT_LOCALE: Locale = "en";
 export const LANG_COOKIE = "kiddy_lang";
+
+// KID-245: the disabled-daycare login gate messages, shared by the login
+// action (server, localized by the account preference after the lang cookie)
+// and app/login/page.tsx (client, for the mid-session guard redirect). The
+// gate distinguishes WHY the daycare is blocked: a manual disable by the
+// platform team, or a billing block — an invoice past its due date and
+// unpaid. Both reasons ship in EN and AR and always name the platform
+// contact inbox, the channel that works even while the daycare is blocked.
+export type TenancyDisabledReason = "manual" | "billing";
+
+const INSTITUTE_DISABLED_MESSAGES = {
+  en: `This daycare is currently disabled. Contact the platform team at ${PLATFORM_CONTACT_EMAIL}.`,
+  ar: `هذا الحضانة معطّلة حاليًا. تواصلوا مع فريق المنصة عبر ${PLATFORM_CONTACT_EMAIL}.`,
+} as const;
+
+const INSTITUTE_BILLING_BLOCKED_MESSAGES = {
+  en: `This daycare is temporarily blocked due to an overdue invoice. Contact us at ${PLATFORM_CONTACT_EMAIL} to restore access.`,
+  ar: `تم إيقاف هذه الحضانة مؤقتًا بسبب تأخر سداد الفاتورة. تواصلوا معنا عبر ${PLATFORM_CONTACT_EMAIL} لإعادة التفعيل.`,
+} as const;
+
+export function tenancyDisabledMessage(reason: TenancyDisabledReason, lang: string): string {
+  const locale = String(lang ?? "").toLowerCase().startsWith("ar") ? "ar" : "en";
+  return reason === "billing"
+    ? INSTITUTE_BILLING_BLOCKED_MESSAGES[locale]
+    : INSTITUTE_DISABLED_MESSAGES[locale];
+}
 
 export const en = {
   app: {
@@ -580,6 +608,39 @@ export const en = {
     billingCycleHint: "The signup month is free; billing starts the 1st of the next month.",
     billingSave: "Save billing settings",
     billingDefaultsHint: "Platform defaults (monthly / per child / free children / annual)",
+    // KID-245: the per-daycare invoice list (Finance/2) — generation records,
+    // manual total overrides, and the mark-as-paid action.
+    invoiceTitle: "Invoices",
+    invoiceSaved: "Invoice updated.",
+    invoiceSubtitle:
+      "One invoice per billed cycle. Monthly bills every month; annual bills one 12-month cycle. An invoice past its due date and unpaid disables the daycare until it is marked paid.",
+    invoiceCycle: "Cycle",
+    invoicePlan: "Plan",
+    invoicePeak: "Peak children",
+    invoicePeakHint: "The most children active at any point in the cycle — not the month-end count.",
+    invoiceBillable: "Billable children",
+    invoiceFlat: "Flat rate (EGP)",
+    invoiceIncrementalRate: "Incremental rate (EGP)",
+    invoiceIncremental: "Incremental total (EGP)",
+    invoiceTotal: "Total (EGP)",
+    invoiceCurrency: "Currency",
+    invoiceDue: "Due",
+    invoiceStatus: "Status",
+    invoiceStatusPending: "Pending",
+    invoiceStatusPaid: "Paid",
+    invoiceStatusOverdue: "Overdue",
+    invoicePaidAt: "Paid at",
+    invoiceMarkPaid: "Mark as paid",
+    invoiceEditTitle: "Edit total & note",
+    invoiceEditTotalLabel: "Override total (EGP)",
+    invoiceNoteLabel: "Adjustment note",
+    invoiceNoteHint: "Why the total was overridden — stored with the invoice.",
+    invoiceSave: "Save invoice",
+    invoiceLocked: "Paid invoices are locked and can no longer be edited.",
+    invoiceNone: "No invoices yet. Invoices appear here when a billing cycle ends.",
+    invoiceBackToBilling: "Billing settings",
+    invoiceDaycareBlocked:
+      "This daycare is currently disabled because of an overdue invoice. Mark the invoice paid to restore its users' access.",
   },
 };
 
@@ -1140,6 +1201,39 @@ export const ar = {
     billingCycleHint: "شهر التسجيل مجاني؛ يبدأ الفاتورة في الأول من الشهر التالي.",
     billingSave: "حفظ إعدادات الفاتورة",
     billingDefaultsHint: "الإعدادات الافتراضية (شهري / لكل طفل / أطفال مشمولون / سنوي)",
+    // KID-245: قائمة الفواتير لكل روضة (Finance/2) — سجلّات الدورات، تعديل
+    // المبلغ يدويًا، وزر إعلام الفاتورة بأنها مدفوعة.
+    invoiceTitle: "الفواتير",
+    invoiceSaved: "تم تحديث الفاتورة.",
+    invoiceSubtitle:
+      "فاتورة واحدة لكل دورة محتسبة. الخطة الشهرية تُحسب شهريًا؛ والسنوية تُحسب دورة كل 12 شهرًا. الفاتورة التي تجاوز موعد استحقاقها ولم تُسدد توقف الروضة حتى تُسجَّل كمدفوعة.",
+    invoiceCycle: "الدورة",
+    invoicePlan: "الخطة",
+    invoicePeak: "أعلى عدد أطفال",
+    invoicePeakHint: "أكبر عدد من الأطفال في أي يوم خلال الدورة — وليس عدد نهاية الشهر.",
+    invoiceBillable: "الأطفال المحتسبون",
+    invoiceFlat: "المبلغ الثابت (جنيه)",
+    invoiceIncrementalRate: "المبلغ الإضافي لكل طفل (جنيه)",
+    invoiceIncremental: "إجمالي المبلغ الإضافي (جنيه)",
+    invoiceTotal: "الإجمالي (جنيه)",
+    invoiceCurrency: "العملة",
+    invoiceDue: "تاريخ الاستحقاق",
+    invoiceStatus: "الحالة",
+    invoiceStatusPending: "معلّقة",
+    invoiceStatusPaid: "مدفوعة",
+    invoiceStatusOverdue: "متأخرة",
+    invoicePaidAt: "تاريخ السداد",
+    invoiceMarkPaid: "تسجيل كمدفوعة",
+    invoiceEditTitle: "تعديل الإجمالي والملاحظة",
+    invoiceEditTotalLabel: "تعديل الإجمالي (جنيه)",
+    invoiceNoteLabel: "ملاحظة التعديل",
+    invoiceNoteHint: "سبب تعديل الإجمالي — يُحفظ مع الفاتورة.",
+    invoiceSave: "حفظ الفاتورة",
+    invoiceLocked: "الفاتورة المدفوعة مغلقة ولا يمكن تعديلها.",
+    invoiceNone: "لا توجد فواتير بعد. تظهر الفواتير هنا عند انتهاء كل دورة محتسبة.",
+    invoiceBackToBilling: "إعدادات الفاتورة",
+    invoiceDaycareBlocked:
+      "هذه الروضة موقوفة حاليًا بسبب فاتورة متأخرة. سجّل الفاتورة كمدفوعة لإعادة تفعيل حسابات مستخدميها.",
   },
 };
 

@@ -3,21 +3,35 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { loginAction } from "@/lib/actions";
+import { LANG_COOKIE, tenancyDisabledMessage } from "@/lib/i18n";
 
 // Friendlier messages for the guard redirects (KID-112 no_access, KID-86
 // withdrawal, KID-199.3 disabled daycare) that land on /login?error=…
 // KID-199.3r: wrong-tenant carries the account's own daycare name in the
 // `tenant` query param (our own DB text, rendered as text by React).
+// KID-245: `disabled-institute` is rendered through the shared
+// tenancyDisabledMessage builder so the billing-blocked case ("temporarily
+// blocked … contact us", EN + AR) reads exactly like the one the login
+// action itself returns.
 const GUARD_ERRORS: Record<string, string> = {
   withdrawn: "This account's access has been withdrawn.",
   disabled: "This account's access is currently disabled. Contact your daycare admin.",
-  "disabled-institute": "This daycare is currently disabled. Contact the platform team.",
   // KID-236: an "Enter as admin" grant that failed verification on this host
   // (expired past its 60s window, already used, wrong daycare host, or the
   // operator is no longer on the platform allowlist).
   "operator-entry-invalid":
     "This entry link is invalid, expired or already used. Ask the platform team to open the daycare again.",
 };
+
+// KID-245: the language for guard messages follows the same cookie the rest
+// of the app uses (kiddy_lang); pre-login there is no session to read.
+function langFromCookie(): string {
+  if (typeof document === "undefined") return "en";
+  const entry = document.cookie
+    .split(/;\s*/)
+    .find((c) => c.startsWith(`${LANG_COOKIE}=`));
+  return entry ? decodeURIComponent(entry.slice(LANG_COOKIE.length + 1)) : "en";
+}
 
 function wrongTenantMessage(tenant: string | null): string {
   const name = (tenant ?? "").trim().slice(0, 80);
@@ -38,7 +52,11 @@ export default function LoginPage() {
     if (params.get("confirmed") === "1") setConfirmed(true);
     const guard = params.get("error");
     if (guard === "wrong-tenant") setGuardError(wrongTenantMessage(params.get("tenant")));
-    else if (guard) setGuardError(GUARD_ERRORS[guard] ?? null);
+    else if (guard === "disabled-institute") {
+      // KID-245: billing block vs manual disable, in the visitor's language.
+      const reason = params.get("reason") === "billing" ? "billing" : "manual";
+      setGuardError(tenancyDisabledMessage(reason, langFromCookie()));
+    } else if (guard) setGuardError(GUARD_ERRORS[guard] ?? null);
     let cancelled = false;
     fetch("/api/branding")
       .then((r) => r.json())

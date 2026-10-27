@@ -30,6 +30,17 @@ export async function ensureSeeded(): Promise<void> {
       // Bootstrap must never block the first request.
       console.error("KID-199.4r platform operator bootstrap failed:", err);
     }
+    // KID-245: the lazy billing sweep — generate the invoices whose cycle has
+    // ended (monthly per calendar month, annual per 12-month block) and
+    // enforce the overdue rule (past-due unpaid invoice -> daycare disabled).
+    // Idempotent by design (unique institute+cycle), so warm instances that
+    // re-run it change nothing; a failure must never block the first request.
+    try {
+      const { runBillingSweep } = await import("./billing");
+      await runBillingSweep();
+    } catch (err) {
+      console.error("KID-245 billing sweep failed:", err);
+    }
     initialized = true;
   })();
   inFlight = run;
