@@ -1,47 +1,45 @@
+import Link from "next/link";
 import { requireSession } from "@/lib/require";
-import { listSupportTickets } from "@/lib/store";
-import { firstInstituteId, cap, fmtDate } from "@/lib/helpers";
-import { setTicketStatusAction } from "@/lib/actions";
+import { i18nForAccount } from "@/lib/i18n-session";
+import { tr } from "@/lib/i18n";
+import { helpLanguageForRequest } from "@/lib/help-lang";
+import {
+  HELP_ARTICLES,
+  helpAudiencesForRole,
+  visibleHelpArticles,
+} from "@/lib/help-kb";
+import HelpCenter from "@/components/HelpCenter";
 
 export const dynamic = "force-dynamic";
 
-function badge(s: string) {
-  if (s === "closed") return "badge badge-gray";
-  if (s === "answered") return "badge badge-green";
-  return "badge";
-}
-
-export default async function PortalSupportPage() {
-  requireSession();
-  const instituteId = await firstInstituteId();
-  if (!instituteId) return <p className="muted">No institute configured.</p>;
-  const tickets = await listSupportTickets(instituteId);
+// KID-260: the account-menu "Help & Support" entry lands here — the staff
+// Knowledge Base (Wren's articles, search bar, EN/AR toggle, role-filtered).
+// The ticket inbox stays reachable below as the human escalation path.
+export default async function PortalSupportPage({
+  searchParams,
+}: {
+  searchParams: { [key: string]: string | string[] | undefined };
+}) {
+  const session = requireSession();
+  const { dict, locale } = await i18nForAccount(session.accountId);
+  const language = await helpLanguageForRequest(searchParams.lang, locale);
+  const audiences = helpAudiencesForRole(session.role);
+  const articles = [...visibleHelpArticles(HELP_ARTICLES, audiences, "en"), ...visibleHelpArticles(HELP_ARTICLES, audiences, "ar")];
 
   return (
     <div>
-      <h1 className="title">Support inbox</h1>
-      <div className="subtitle">Parent help requests. Answer them here or in live chat; the parent sees the status.</div>
-      {tickets.length === 0 && <p className="muted">No support requests yet.</p>}
-      {tickets.map((t: any) => (
-        <div className="card mb-4" key={t.id}>
-          <div className="status-card">
-            <div>
-              <div style={{ fontWeight: 700 }}>{t.subject} <span className={`${badge(t.status)}`} style={{ marginLeft: 8 }}>{cap(t.status)}</span></div>
-              <div className="muted small">{t.author_name ?? "Anonymous"} · {fmtDate(t.created_at)}</div>
-              <p className="small mt-2">{t.body}</p>
-            </div>
-          </div>
-          <form action={setTicketStatusAction} className="mt-2 row">
-            <input type="hidden" name="ticketId" value={t.id} />
-            <select className="select small" name="status" style={{ width: 160 }}>
-              <option value="open" selected={t.status === "open"}>Open</option>
-              <option value="answered" selected={t.status === "answered"}>Answered</option>
-              <option value="closed" selected={t.status === "closed"}>Closed</option>
-            </select>
-            <button className="btn btn-ghost small" type="submit">Update</button>
-          </form>
-        </div>
-      ))}
+      <h1 className="title">{tr(dict, "topbar.helpSupport")}</h1>
+      <HelpCenter
+        articles={articles}
+        dict={dict}
+        defaultLanguage={language}
+        mode="staff"
+        basePath="/portal/support"
+        inboxHref="/portal/support-inbox"
+      />
+      <p style={{ marginTop: 12 }}>
+        <Link href="/portal/support-inbox">{tr(dict, "help.inboxLink")}</Link>
+      </p>
     </div>
   );
 }

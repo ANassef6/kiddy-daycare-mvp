@@ -1217,3 +1217,82 @@ html[dir="rtl"] .audience-list li::before {
   left: auto;
   right: 0;
 }
+
+/* KID-260: in-app Help Center (knowledge base list + article detail). */
+.help-center {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md, 10px);
+  padding: var(--space-4);
+  background: var(--color-surface, #fff);
+}
+
+.help-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.help-area-group {
+  margin-bottom: 14px;
+}
+
+.help-area-head {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  color: var(--color-muted, #667);
+  margin-bottom: 2px;
+}
+
+.help-article-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: 9px 4px;
+  border-bottom: 1px solid var(--color-border);
+  text-decoration: none;
+}
+
+.help-article-row:hover {
+  background: color-mix(in srgb, var(--brand-primary, #2563eb) 5%, transparent);
+}
+
+.help-article-row:last-child {
+  border-bottom: none;
+}
+
+.help-article-title {
+  font-weight: 500;
+}
+
+.help-article-area {
+  font-size: 11px;
+  color: var(--color-muted, #667);
+  flex-shrink: 0;
+}
+
+.help-empty-state {
+  margin-top: 8px;
+}
+
+.help-article-body h1,
+.help-article-body h2,
+.help-article-body h3 {
+  font-size: 15px;
+  font-weight: 700;
+  margin: 14px 0 4px;
+}
+
+.help-article-body ol {
+  padding-inline-start: 22px;
+}
+
+.help-article-body li,
+.help-article-body p {
+  margin: 4px 0;
+}
+
+[dir="rtl"] .help-article-body {
+  text-align: right;
+}

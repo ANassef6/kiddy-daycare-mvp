@@ -5,6 +5,7 @@ out
 next-env.d.ts
 data/*
 !data/curriculum-eg-kg.json
+!data/help-articles.json
 .env*.local
 .DS_Store
 .vercel

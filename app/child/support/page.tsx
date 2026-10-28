@@ -2,49 +2,85 @@ import { requireFamilyPage } from "@/lib/require";
 import { ticketsForAccount } from "@/lib/store";
 import { cap } from "@/lib/helpers";
 import { createSupportTicketAction } from "@/lib/actions";
+import { i18nForAccount } from "@/lib/i18n-session";
+import { tr } from "@/lib/i18n";
+import { helpLanguageForRequest } from "@/lib/help-lang";
+import {
+  HELP_ARTICLES,
+  helpAudiencesForRole,
+  visibleHelpArticles,
+} from "@/lib/help-kb";
+import HelpCenter from "@/components/HelpCenter";
 
 export const dynamic = "force-dynamic";
 
-export default async function ParentSupportPage({ searchParams }: { searchParams: { sent?: string } }) {
+// KID-260: the parent Help & support landing is now the Knowledge Base (Wren's
+// articles, search bar, EN/AR toggle) with the support-ticket form preserved
+// below as the human escalation path. The old hardcoded FAQ block is gone.
+export default async function ParentSupportPage({
+  searchParams,
+}: {
+  searchParams: { [key: string]: string | string[] | undefined };
+}) {
   const session = await requireFamilyPage("/child/support");
+  const { dict, locale } = await i18nForAccount(session.accountId);
+  const language = await helpLanguageForRequest(searchParams.lang, locale);
+  const audiences = helpAudiencesForRole(session.role);
+  const articles = [...visibleHelpArticles(HELP_ARTICLES, audiences, "en"), ...visibleHelpArticles(HELP_ARTICLES, audiences, "ar")];
   const tickets = await ticketsForAccount(session.accountId);
 
   return (
     <div>
-      <h1 className="title">Help &amp; support</h1>
-      <div className="subtitle">Questions about your child&apos;s day, billing, or the app? Send a message below.</div>
+      <h1 className="title">{tr(dict, "help.title")}</h1>
 
-      {searchParams.sent && <p className="badge badge-green mb-4" style={{ display: "inline-block" }}>✅ Sent. The daycare will reply here and by chat.</p>}
+      <HelpCenter
+        articles={articles}
+        dict={dict}
+        defaultLanguage={language}
+        mode="family"
+        basePath="/child/support"
+        inboxHref="#support-form"
+      />
 
-      <div className="grid mb-4">
+      <div className="grid mt-4" id="support-form">
         <div className="card">
-          <h3 className="subtitle">Send a request</h3>
+          <h3 className="subtitle">{tr(dict, "help.sendRequest")}</h3>
+          <p className="small muted">{tr(dict, "help.requestIntro")}</p>
+          {typeof searchParams.sent === "string" && (
+            <p className="badge badge-green mb-4" style={{ display: "inline-block" }}>
+              {tr(dict, "help.requestSent")}
+            </p>
+          )}
           <form action={createSupportTicketAction}>
-            <div className="field"><label className="label">Subject</label><input className="input" name="subject" required placeholder="e.g. Question about my child's schedule" /></div>
-            <div className="field"><label className="label">Message</label><textarea className="textarea" name="body" required /></div>
-            <button className="btn btn-primary" type="submit">Send request</button>
+            <div className="field">
+              <label className="label">{tr(dict, "help.formSubject")}</label>
+              <input className="input" name="subject" required placeholder={tr(dict, "help.formSubjectPlaceholder")} />
+            </div>
+            <div className="field">
+              <label className="label">{tr(dict, "help.formMessage")}</label>
+              <textarea className="textarea" name="body" required />
+            </div>
+            <button className="btn btn-primary" type="submit">
+              {tr(dict, "help.sendRequest")}
+            </button>
           </form>
         </div>
         <div className="card">
-          <h3 className="subtitle">My requests</h3>
-          {tickets.length === 0 && <p className="muted small">No requests yet.</p>}
+          <h3 className="subtitle">{tr(dict, "help.myRequests")}</h3>
+          {tickets.length === 0 && <p className="muted small">{tr(dict, "help.noRequests")}</p>}
           {tickets.map((t: any) => (
             <div className="list-item small" key={t.id}>
-              <div><strong>{t.subject}</strong><br /><span className="muted">{t.body}</span></div>
-              <span className={t.status === "closed" ? "badge badge-gray" : t.status === "answered" ? "badge badge-green" : "badge"}>{cap(t.status)}</span>
+              <div>
+                <strong>{t.subject}</strong>
+                <br />
+                <span className="muted">{t.body}</span>
+              </div>
+              <span className={t.status === "closed" ? "badge badge-gray" : t.status === "answered" ? "badge badge-green" : "badge"}>
+                {cap(t.status)}
+              </span>
             </div>
           ))}
         </div>
-      </div>
-
-      <div className="card">
-        <h3 className="subtitle">Frequently asked questions</h3>
-        <ul style={{ listStyle: "none" }}>
-          <li className="list-item"><strong>How do I check my child in?</strong> <span className="muted small">Open your child&apos;s page and tap Check in, or staff can do it for you.</span></li>
-          <li className="list-item"><strong>Where is the daily report?</strong> <span className="muted small">Your child&apos;s page shows today&apos;s report, newsfeed, and media.</span></li>
-          <li className="list-item"><strong>Can I fix a wrong check-in time?</strong> <span className="muted small">Ask your daycare to edit it — staff can adjust the attendance record.</span></li>
-          <li className="list-item"><strong>How do I add another family member?</strong> <span className="muted small">Share your invite code, or ask the daycare to send a new invite.</span></li>
-        </ul>
       </div>
     </div>
   );
