@@ -80,6 +80,13 @@ export function portalNav(dict: Dict, role?: string): NavGroup[] {
     // every non-owner, so the tab and the URL stay in sync.
     if (role === "owner") {
       tools.push({ label: t("nav.accountBilling"), href: "/portal/account-billing" });
+      // KID-258 A1 (KID-264): "Enhancements requests" rides the same EXACT
+      // owner gate as Account billing (not isAdminRole — a plain admin must
+      // not see it either). The page (app/portal/enhancements) re-checks the
+      // session and refuses every non-owner, so the tab and the URL stay in
+      // sync. Submissions land in the queue for the KID-258 Linear sync
+      // agent; the app itself never calls Linear.
+      tools.push({ label: t("nav.enhancements"), href: "/portal/enhancements" });
     }
     groups.push({
       label: t("nav.tools"),

@@ -581,6 +581,46 @@ export function sqliteSchema(db: any): void {
     ON daycare_invoice (status, due_date);
   CREATE INDEX IF NOT EXISTS idx_daycare_invoice_institute
     ON daycare_invoice (institute_id, cycle_month DESC);
+
+  -- KID-258 A1 (KID-264): mirror of supabase/migrations/
+  -- 0029_enhancement_request.sql — the daycare owner's "Enhancements
+  -- requests" record. The app never calls Linear; the KID-258 Linear sync
+  -- agent writes Linear results back through the write-back route. Lifecycle:
+  -- queued -> linear_created -> synced (terminal); sync_error is a retryable
+  -- OPEN state. customer_request is the denormalized daycare NAME (e.g.
+  -- "Sunshine") captured at submit time so the sync agent never needs a
+  -- second tenant lookup.
+  CREATE TABLE IF NOT EXISTS enhancement_request (
+    id TEXT PRIMARY KEY,
+    institute_id TEXT NOT NULL REFERENCES institute(id) ON DELETE CASCADE,
+    title TEXT NOT NULL,
+    description TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'queued' CHECK (status IN ('queued', 'linear_created', 'synced', 'sync_error')),
+    linear_issue_id TEXT,
+    linear_issue_url TEXT,
+    priority TEXT,
+    estimate INTEGER,
+    due_date TEXT,
+    expected_delivery TEXT,
+    sync_error_detail TEXT,
+    customer_request TEXT,
+    requested_by_account_id TEXT REFERENCES account(id) ON DELETE SET NULL,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+    last_synced_at TEXT
+  );
+  CREATE INDEX IF NOT EXISTS idx_enhancement_request_institute
+    ON enhancement_request (institute_id, created_at DESC);
+  CREATE INDEX IF NOT EXISTS idx_enhancement_request_status
+    ON enhancement_request (status, created_at);
+  CREATE INDEX IF NOT EXISTS idx_enhancement_request_requested_by
+    ON enhancement_request (requested_by_account_id);
+  -- One OPEN request per (daycare, exact title) — the schema-level half of
+  -- the A1 de-dup (the action gives the friendly message; this makes a
+  -- concurrent-submit race impossible even if both queries pass).
+  CREATE UNIQUE INDEX IF NOT EXISTS uq_enhancement_request_open_title
+    ON enhancement_request (institute_id, title)
+    WHERE status <> 'synced';
   `);
 
   // Idempotent column backfills for databases created before these columns

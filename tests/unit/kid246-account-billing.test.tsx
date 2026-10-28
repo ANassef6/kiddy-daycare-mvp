@@ -118,9 +118,13 @@ describe("the Account billing tab under Tools (owner-only)", () => {
         expect(group!.items.map((i) => i.href)).not.toContain("/portal/account-billing");
       }
       // The admin keeps every other Tools surface byte-for-byte; the owner
-      // tab is purely additive.
+      // tabs are purely additive. KID-258 A1 (KID-264): "Enhancements
+      // requests" rides the SAME exact-owner gate as Account billing, so the
+      // additive diff now excludes both owner-only tabs.
       expect(toolsGroup(dict, "admin")!.items.map((i) => i.href)).toEqual(
-        ownerGroup.items.map((i) => i.href).filter((h) => h !== "/portal/account-billing")
+        ownerGroup.items.map((i) => i.href).filter(
+          (h) => h !== "/portal/account-billing" && h !== "/portal/enhancements"
+        )
       );
     }
   });

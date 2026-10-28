@@ -65,6 +65,7 @@ import {
   runAutoCheckoutSweep,
   createDaycare,
   setInstituteActive,
+  getInstitute,
 } from "@/lib/store";
 import type { WorkingWeek } from "@/lib/working-hours";
 import { supabaseConfigured, getSupabase, isGoTrueAlreadyRegisteredError, isGoTrueServerError } from "@/lib/supabase";
@@ -73,7 +74,9 @@ import { requestOrigin, publicOrigin } from "@/lib/url";
 import { sendContactInvite, contactNameForInvite } from "@/lib/contact-invite";
 import { notifyPlatformInbox } from "@/lib/contact-notify";
 import { PLATFORM_CONTACT_EMAIL } from "@/lib/site";
-import { isAdminRole } from "@/lib/role";
+import { isAdminRole, isOwnerRole } from "@/lib/role";
+import { requireSession } from "@/lib/require";
+import { createEnhancementRequest } from "@/lib/enhancements";
 import {
   PLATFORM_OPERATOR_ROLE,
   defaultThemeTokens,
@@ -2870,4 +2873,43 @@ export async function resendActivationAction(formData: FormData) {
     });
     return { error: "We couldn't send the activation email right now. Try again in a few minutes." };
   }
+}
+// KID-258 A1 (KID-264): submit an "Enhancements request" from the owner-only
+// Tools page (/portal/enhancements). Title + description ONLY — estimate,
+// due date and priority are set by the Kiddy team in Linear (locked answer on
+// KID-258). The app never calls Linear from here; the record starts
+// 'queued' and customer_request carries the daycare's NAME for the sync
+// agent (e.g. "Sunshine"). De-dup: an identical OPEN (non-terminal) title for
+// the same daycare is refused with a friendly message — no client-visible
+// stack, no silent swallow (the unexpected path rethrows).
+export async function createEnhancementRequestAction(formData: FormData) {
+  const session = requireSession();
+  // Owner-only in the ACTION too, not only the page: a forged form post from
+  // a non-owner session must not mint rows. Same test as the tab/page
+  // (components/PortalSidebar.tsx, isOwnerRole) — the exact owner role, not
+  // isAdminRole.
+  if (!isOwnerRole(session.role)) redirect("/portal/dashboard");
+  const instituteId = await resolveTenantInstituteId();
+  if (!instituteId) redirect("/portal/dashboard");
+  const title = String(formData.get("title") ?? "").trim();
+  const description = String(formData.get("description") ?? "").trim();
+  if (!title || !description) redirect("/portal/enhancements?error=invalid");
+  const inst = await getInstitute(instituteId);
+  if (!inst) redirect("/portal/dashboard");
+  try {
+    await createEnhancementRequest({
+      instituteId,
+      title,
+      description,
+      requestedByAccountId: session.accountId,
+      // customer_request = the daycare's human name (locked answer KID-258).
+      customerRequest: String(inst.name ?? ""),
+    });
+  } catch (err) {
+    if (err instanceof Error && err.message === "duplicate-open-title") {
+      redirect("/portal/enhancements?error=duplicate");
+    }
+    throw err;
+  }
+  redirect("/portal/enhancements?submitted=1");
 }
