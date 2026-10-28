@@ -634,6 +634,117 @@ table.data th {
   margin-bottom: var(--space-4);
 }
 
+/* ==========================================================================
+   KID-255 — parent (child portal) header nav.
+   The header row is brand | ChildNavMenu. Above 720px ChildNavMenu renders
+   the original inline nav plus the sign-out button. At phone widths the
+   links collapse into a hamburger dropdown and the sign-out button stays
+   pinned as the last header item, so nothing is trimmed off-screen.
+   ========================================================================== */
+
+.child-nav {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  position: relative;
+}
+
+.child-nav-burger {
+  display: none;
+}
+
+/* Desktop: dissolve the inline <nav> so its links wrap in the same flex row
+   as the sign-out button — the exact flow the old single .nav row had. */
+.child-nav-inline {
+  display: contents;
+}
+
+/* Phone widths: hamburger + dropdown panel of links; sign-out pinned. */
+@media (max-width: 720px) {
+  .child-header .site-brand {
+    /* flex-basis 0 (not auto): the brand's hypothetical main size must be
+       tiny so the row never wraps — a long white-label daycare name then
+       truncates inside the grown brand box instead of pushing the pinned
+       sign-out button off-screen. */
+    flex: 1 1 0;
+    min-width: 0;
+    overflow: hidden;
+  }
+
+  .child-header .site-brand .brand {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .child-header .site-logo {
+    flex: none;
+  }
+
+  .child-nav-inline {
+    display: none;
+  }
+
+  .child-nav-burger {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    flex: none;
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    background: transparent;
+    color: var(--color-text);
+    cursor: pointer;
+  }
+
+  .child-nav-burger:hover {
+    background: color-mix(in srgb, var(--brand-primary) 12%, transparent);
+  }
+
+  /* Dropdown anchored to the header's inline end; logical properties keep it
+     inside the viewport in RTL too. Wide enough for the longest label,
+     never wider than the viewport minus the container padding. */
+  .child-nav-panel {
+    position: absolute;
+    inset-inline-end: 0;
+    top: calc(100% + 8px);
+    width: min(280px, calc(100vw - 32px));
+    max-height: calc(100vh - 140px);
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: 12px;
+    padding: 8px;
+    z-index: 50;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  }
+
+  .child-nav-panel a {
+    display: block;
+    padding: 10px 12px;
+    border-radius: 8px;
+    color: var(--color-text);
+    font-size: 14px;
+    font-weight: 500;
+    text-decoration: none;
+  }
+
+  .child-nav-panel a:hover {
+    background: color-mix(in srgb, var(--brand-primary) 12%, transparent);
+  }
+
+  .child-nav-panel a.active {
+    background: var(--brand-primary);
+    color: #fff;
+  }
+}
+
 .subtitle {
   font-size: 14px;
   color: var(--color-muted);

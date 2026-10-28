@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import ActiveLink from "@/components/ActiveLink";
+import ChildNavMenu from "@/components/ChildNavMenu";
 import OperatorViewBanner from "@/components/OperatorViewBanner";
 import { requireSessionWithWithdrawalCheck } from "@/lib/require";
 import { requireTenantForPage } from "@/lib/tenant";
@@ -94,7 +94,7 @@ export default async function ParentLayout({ children }: { children: React.React
           </Link>
         </div>
       )}
-      <header className="row" style={{ justifyContent: "space-between", padding: "16px 0" }}>
+      <header className="row child-header" style={{ justifyContent: "space-between", padding: "16px 0" }}>
         <Link href="/child" className="site-brand" style={{ textDecoration: "none" }}>
           {logoUrl && (
             // eslint-disable-next-line @next/next/no-img-element
@@ -102,17 +102,18 @@ export default async function ParentLayout({ children }: { children: React.React
           )}
           <span className="brand">{brandName}</span>
         </Link>
-        <nav className="nav">
-          {visibleNav.map((item) => (
-            <ActiveLink key={item.href} href={item.href}>{item.label}</ActiveLink>
-          ))}
-          <Link href="/child/settings" className="nav-settings-link small" title={tr(dict, "topbar.accountSettings")}>
-            {tr(dict, "nav.settings")}
-          </Link>
-          <form style={{ margin: 0 }}>
-            <button className="btn btn-ghost" formAction="/api/logout">{tr(dict, "nav.signOut")}</button>
-          </form>
-        </nav>
+        {/* KID-255: below 720px the nav links collapse into a hamburger
+            dropdown while the sign-out button stays pinned in the header row —
+            at 320–430px it used to be pushed past the right viewport edge
+            (trimmed, untappable on Android). Desktop keeps the inline row. */}
+        <ChildNavMenu
+          items={visibleNav}
+          settingsHref="/child/settings"
+          settingsLabel={tr(dict, "nav.settings")}
+          settingsTitle={tr(dict, "topbar.accountSettings")}
+          signOutLabel={tr(dict, "nav.signOut")}
+          dict={dict}
+        />
       </header>
       {session.operatorViewInstituteId && (
         <OperatorViewBanner instituteName={operatorViewName} dict={dict} />
