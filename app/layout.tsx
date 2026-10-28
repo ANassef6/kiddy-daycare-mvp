@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import "./globals.css";
 import { getBranding } from "@/lib/theme";
-import { SITE_BRAND } from "@/lib/site";
 import { readSessionFromCookieValue } from "@/lib/auth";
 import { ensureSeeded } from "@/lib/bootstrap";
 import { LANG_COOKIE, dirFor, localeOf, type Locale } from "@/lib/i18n";
@@ -49,10 +48,14 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   }
 
   let theme = "";
-  let brand = SITE_BRAND;
-  let logoUrl: string | null = null;
+  // KID-256: the meta/head branding is the HOST's brand — on
+  // sunshine.<apex> the browser chrome, apple-touch icon, and manifest
+  // link all name the daycare; apex/legacy hosts keep generic Kiddy. The
+  // defaults below are also the no-DB fallback.
+  let metaBrand = { name: "Kiddy", primaryColor: "#3B82F6", logoUrl: null as string | null };
   try {
     const b = await getBranding();
+    metaBrand = { name: b.name, primaryColor: b.primaryColor, logoUrl: b.logoUrl };
     theme = [
       `--brand-primary: ${b.primaryColor};`,
       `--brand-accent: ${b.accentColor};`,
@@ -68,13 +71,19 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     <html lang={locale} dir={dirFor(locale)}>
       <head>
         <style dangerouslySetInnerHTML={{ __html: `:root{${theme}}` }} />
+        <meta name="theme-color" content={metaBrand.primaryColor} />
+        {/* KID-256: manifest + generated fallback icon; on a daycare
+            subdomain the manifest is that daycare's brand. Relative hrefs so
+            the per-origin manifest is picked up on every host. */}
+        <link rel="manifest" href="/manifest.webmanifest" />
+        <link rel="apple-touch-icon" href={metaBrand.logoUrl ?? "/brand-icon.svg"} />
       </head>
       <body>
         <a className="skip-link" href="#main">
           {locale === "ar" ? "تخطَّ إلى المحتوى" : "Skip to content"}
         </a>
         {/* #1: logo URL available as data attribute for client components */}
-        <div data-brand={brand} data-logo={logoUrl ?? ""} style={{ display: "none" }} />
+        <div data-brand={metaBrand.name} data-logo={metaBrand.logoUrl ?? ""} style={{ display: "none" }} />
         {children}
       </body>
     </html>
