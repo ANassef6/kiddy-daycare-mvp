@@ -1608,6 +1608,32 @@ export async function scopedRoomIds(instituteId: string, accountId: string): Pro
   return rooms.map((r) => String(r.id));
 }
 
+// KID-207: the room scope for the message composer (recipient lists, class
+// channels, and the send gate). A parent has no staff row, and that absence
+// used to read as "unscoped admin-like": every room and every parent of
+// whatever institute the page happened to be pinned to. The parent scope is
+// now derived from the parent's own records instead — `family_member → child`
+// filtered to the page's institute, so a wrong pin (stale invite tenancy, the
+// pre-KID-199.3 indexer, anything) can only ever fail closed, never leak
+// another centre. A parent with no family links in the pin scopes to []
+// (empty composer), NEVER to null. Staff/owner semantics stay the
+// `scopedRoomIds` ones above.
+export async function messagingRoomIds(instituteId: string, accountId: string): Promise<string[] | null> {
+  const acct = await queryGet("SELECT role FROM account WHERE id = ?", accountId);
+  if (String(acct?.role ?? "") === "parent") {
+    const rooms = await queryAll(
+      `SELECT DISTINCT c.room_id AS room_id FROM family_member fm
+       JOIN child c ON c.id = fm.child_id
+       WHERE fm.account_id = ? AND c.institute_id = ? AND c.room_id IS NOT NULL
+       ORDER BY c.room_id`,
+      accountId,
+      instituteId
+    );
+    return rooms.map((r) => String(r.room_id));
+  }
+  return scopedRoomIds(instituteId, accountId);
+}
+
 // KID-103: returns true when the child is in one of the account's assigned
 // classrooms. Owners/admins/parents always pass.
 export async function isChildInScope(instituteId: string, accountId: string, childId: string): Promise<boolean> {
@@ -1633,12 +1659,15 @@ export async function listRoomsScoped(instituteId: string, accountId: string): P
   );
 }
 
-// KID-56: staff see only parents in their assigned classrooms; everyone else
-// sees the full parent list. Recipient rows carry the parent's own name (a
-// child can have several parents — staff message a specific parent).
+// KID-56: staff see only parents in their assigned classrooms; owners/admins
+// see the full parent list. KID-207: parents see the parents of the rooms
+// THEIR OWN children attend (family-derived scope, see `messagingRoomIds`).
+// Recipient rows carry the parent's own name (a child can have several
+// parents — staff message a specific parent); the viewer's own account is
+// never a recipient row.
 export async function parentAccountsScoped(instituteId: string, accountId: string): Promise<Row[]> {
-  const roomIds = await scopedRoomIds(instituteId, accountId);
-  if (roomIds === null) return parentAccounts(instituteId);
+  const roomIds = await messagingRoomIds(instituteId, accountId);
+  if (roomIds === null) return (await parentAccounts(instituteId)).filter((p) => String(p.id) !== String(accountId));
   if (roomIds.length === 0) return [];
   const placeholders = roomIds.map(() => "?").join(", ");
   return queryAll(
@@ -1647,16 +1676,19 @@ export async function parentAccountsScoped(instituteId: string, accountId: strin
      JOIN family_member fm ON fm.account_id = a.id
      JOIN child c ON c.id = fm.child_id
      WHERE c.institute_id = ? AND a.role = 'parent' AND c.room_id IN (${placeholders})
+       AND a.id <> ?
      ORDER BY a.full_name`,
     instituteId,
-    ...roomIds
+    ...roomIds,
+    accountId
   );
 }
 
 // KID-56: pre-defined class channels (one per room in scope) with the number
-// of parents and staff reachable through each channel.
+// of parents and staff reachable through each channel. KID-207: parent scope
+// is family-derived (see messagingRoomIds).
 export async function roomChannelsForAccount(instituteId: string, accountId: string): Promise<Row[]> {
-  const roomIds = await scopedRoomIds(instituteId, accountId);
+  const roomIds = await messagingRoomIds(instituteId, accountId);
   const rooms =
     roomIds === null
       ? await queryAll("SELECT * FROM room WHERE institute_id = ? ORDER BY name", instituteId)

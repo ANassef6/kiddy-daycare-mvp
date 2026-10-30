@@ -21,6 +21,7 @@ import {
   runWithdrawalSweep,
   isChildInScope,
   scopedRoomIds,
+  messagingRoomIds,
 } from "@/lib/store";
 import {
   getInviteByCode,
@@ -2125,7 +2126,7 @@ export async function sendComposerAction(formData: FormData) {
   const instituteId = await firstInstituteId();
   const body = String(formData.get("body") ?? "").trim();
   if (!instituteId || !body) redirect("/portal/messages");
-  const { parentAccountsScoped, roomParentIds, roomStaffIds, scopedRoomIds, createMessageThread, setThreadAttachment } =
+  const { parentAccountsScoped, roomParentIds, roomStaffIds, createMessageThread, setThreadAttachment } =
     await import("@/lib/store");
 
   const pickedParents = formData.getAll("recipients").map(String).filter(Boolean);
@@ -2157,9 +2158,12 @@ export async function sendComposerAction(formData: FormData) {
   }
 
   // Resolve + scope-check: parents must be in the sender's classroom scope,
-  // channels must be rooms in scope.
+  // channels must be rooms in scope. KID-207: the scope is the composer's own
+  // one — family-derived for parents (messagingRoomIds), assigned rooms for
+  // staff — so a parent can only pick channels of the rooms their children
+  // attend and only recipients the same scope returned.
   const allowedParents = new Set((await parentAccountsScoped(String(instituteId), me.accountId)).map((p) => String(p.id)));
-  const scopeRooms = await scopedRoomIds(String(instituteId), me.accountId);
+  const scopeRooms = await messagingRoomIds(String(instituteId), me.accountId);
   const allowedRooms = new Set(
     scopeRooms === null
       ? (await (await import("@/lib/store")).listRooms(String(instituteId))).map((r) => String(r.id))
