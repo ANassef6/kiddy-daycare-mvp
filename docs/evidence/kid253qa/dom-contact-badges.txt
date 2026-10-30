@@ -1,0 +1,9 @@
+--- row 0:
+<div class="list-item"><div><div style="font-weight:600">Grace Nguyen<!-- --> <span class="muted">(<!-- -->parent<!-- -->)</span></div><div class="muted small">+1 555 0100<!-- --> · grace@example.test</div></div><div><span class="badge">Pickup</span> <span class="badge badge-red">Emergency</span></div></div>
+
+--- row 1:
+<div class="list-item"><div><div style="font-weight:600">Hana Samir<!-- --> <span class="muted">(<!-- -->family<!-- -->)</span></div><div class="muted small">+1 555 0123<!-- --> · carer@sunshinedaycare.test</div></div><div><span class="badge">Pickup</span> <!-- -->0</div></div>
+
+--- row 2:
+<div class="list-item"><div><div style="font-weight:600">Tarek Fouad<!-- --> <span class="muted">(<!-- -->pickup<!-- -->)</span></div><div class="muted small">+1 555 0124<!-- --> · pickup@sunshinedaycare.test</div></div><div><span class="badge">Pickup</span> <!-- -->0</div></div>
+

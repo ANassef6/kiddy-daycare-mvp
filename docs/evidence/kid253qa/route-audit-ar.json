@@ -1,0 +1,432 @@
+[
+  {
+    "route": "language switch → العربية (settings)",
+    "dir": "ltr",
+    "lang": "en",
+    "cookie": null,
+    "h1": "Account settings",
+    "file": "settings-language-ar-selected-320.png"
+  },
+  {
+    "route": "/child",
+    "lang": "ar",
+    "width": 320,
+    "file": "child-ar-320.png",
+    "h1": "أطفالي",
+    "scrollWidth": 320,
+    "clientWidth": 320,
+    "dir": "rtl",
+    "signOut": {
+      "left": 16,
+      "right": 128,
+      "onScreen": true
+    },
+    "consoleErrors": [],
+    "failed": []
+  },
+  {
+    "route": "/child/mutz75ky-21fwuvxh",
+    "lang": "ar",
+    "width": 320,
+    "file": "child-detail-ar-320.png",
+    "h1": "",
+    "scrollWidth": 320,
+    "clientWidth": 320,
+    "dir": "rtl",
+    "signOut": {
+      "left": 16,
+      "right": 128,
+      "onScreen": true
+    },
+    "consoleErrors": [],
+    "failed": []
+  },
+  {
+    "route": "/child/newsfeed",
+    "lang": "ar",
+    "width": 320,
+    "file": "newsfeed-ar-320.png",
+    "h1": "Newsfeed",
+    "scrollWidth": 320,
+    "clientWidth": 320,
+    "dir": "rtl",
+    "signOut": {
+      "left": 16,
+      "right": 128,
+      "onScreen": true
+    },
+    "consoleErrors": [],
+    "failed": []
+  },
+  {
+    "route": "/child/events",
+    "lang": "ar",
+    "width": 320,
+    "file": "events-ar-320.png",
+    "h1": "Events",
+    "scrollWidth": 320,
+    "clientWidth": 320,
+    "dir": "rtl",
+    "signOut": {
+      "left": 16,
+      "right": 128,
+      "onScreen": true
+    },
+    "consoleErrors": [],
+    "failed": []
+  },
+  {
+    "route": "/child/learning",
+    "lang": "ar",
+    "width": 320,
+    "file": "learning-ar-320.png",
+    "h1": "التعلّم والملاحظات",
+    "scrollWidth": 320,
+    "clientWidth": 320,
+    "dir": "rtl",
+    "signOut": {
+      "left": 16,
+      "right": 128,
+      "onScreen": true
+    },
+    "consoleErrors": [],
+    "failed": []
+  },
+  {
+    "route": "/child/drive",
+    "lang": "ar",
+    "width": 320,
+    "file": "drive-ar-320.png",
+    "h1": "Parent drive",
+    "scrollWidth": 320,
+    "clientWidth": 320,
+    "dir": "rtl",
+    "signOut": {
+      "left": 16,
+      "right": 128,
+      "onScreen": true
+    },
+    "consoleErrors": [
+      "Warning: Encountered two children with the same key, `%s`. Keys should be unique so that components maintain their identity across updates. Non-unique keys may cause children to be duplicated and/or omitted — the behavior is unsupported and could cha"
+    ],
+    "failed": []
+  },
+  {
+    "route": "/child/forms",
+    "lang": "ar",
+    "width": 320,
+    "file": "forms-ar-320.png",
+    "h1": "Forms & surveys",
+    "scrollWidth": 320,
+    "clientWidth": 320,
+    "dir": "rtl",
+    "signOut": {
+      "left": 16,
+      "right": 128,
+      "onScreen": true
+    },
+    "consoleErrors": [],
+    "failed": []
+  },
+  {
+    "route": "/child/consents",
+    "lang": "ar",
+    "width": 320,
+    "file": "consents-ar-320.png",
+    "h1": "Consents & approvals",
+    "scrollWidth": 320,
+    "clientWidth": 320,
+    "dir": "rtl",
+    "signOut": {
+      "left": 16,
+      "right": 128,
+      "onScreen": true
+    },
+    "consoleErrors": [],
+    "failed": []
+  },
+  {
+    "route": "/child/messages",
+    "lang": "ar",
+    "width": 320,
+    "file": "messages-ar-320.png",
+    "h1": "الرسائل",
+    "scrollWidth": 320,
+    "clientWidth": 320,
+    "dir": "rtl",
+    "signOut": {
+      "left": 16,
+      "right": 128,
+      "onScreen": true
+    },
+    "consoleErrors": [],
+    "failed": []
+  },
+  {
+    "route": "/child/support",
+    "lang": "ar",
+    "width": 320,
+    "file": "support-ar-320.png",
+    "h1": "مركز المساعدة",
+    "scrollWidth": 320,
+    "clientWidth": 320,
+    "dir": "rtl",
+    "signOut": {
+      "left": 16,
+      "right": 128,
+      "onScreen": true
+    },
+    "consoleErrors": [],
+    "failed": []
+  },
+  {
+    "route": "/child/settings",
+    "lang": "ar",
+    "width": 320,
+    "file": "settings-ar-320.png",
+    "h1": "إعدادات الحساب",
+    "scrollWidth": 320,
+    "clientWidth": 320,
+    "dir": "rtl",
+    "signOut": {
+      "left": 16,
+      "right": 128,
+      "onScreen": true
+    },
+    "consoleErrors": [],
+    "failed": []
+  },
+  {
+    "route": "/child",
+    "lang": "ar",
+    "width": 390,
+    "file": "child-ar-390.png",
+    "h1": "أطفالي",
+    "scrollWidth": 390,
+    "clientWidth": 390,
+    "dir": "rtl",
+    "signOut": {
+      "left": 16,
+      "right": 128,
+      "onScreen": true
+    },
+    "consoleErrors": [],
+    "failed": []
+  },
+  {
+    "route": "/child/mutz75ky-21fwuvxh",
+    "lang": "ar",
+    "width": 390,
+    "file": "child-detail-ar-390.png",
+    "h1": "",
+    "scrollWidth": 390,
+    "clientWidth": 390,
+    "dir": "rtl",
+    "signOut": {
+      "left": 16,
+      "right": 128,
+      "onScreen": true
+    },
+    "consoleErrors": [],
+    "failed": []
+  },
+  {
+    "route": "/child/newsfeed",
+    "lang": "ar",
+    "width": 390,
+    "file": "newsfeed-ar-390.png",
+    "h1": "Newsfeed",
+    "scrollWidth": 390,
+    "clientWidth": 390,
+    "dir": "rtl",
+    "signOut": {
+      "left": 16,
+      "right": 128,
+      "onScreen": true
+    },
+    "consoleErrors": [],
+    "failed": []
+  },
+  {
+    "route": "/child/events",
+    "lang": "ar",
+    "width": 390,
+    "file": "events-ar-390.png",
+    "h1": "Events",
+    "scrollWidth": 390,
+    "clientWidth": 390,
+    "dir": "rtl",
+    "signOut": {
+      "left": 16,
+      "right": 128,
+      "onScreen": true
+    },
+    "consoleErrors": [],
+    "failed": []
+  },
+  {
+    "route": "/child/learning",
+    "lang": "ar",
+    "width": 390,
+    "file": "learning-ar-390.png",
+    "h1": "التعلّم والملاحظات",
+    "scrollWidth": 390,
+    "clientWidth": 390,
+    "dir": "rtl",
+    "signOut": {
+      "left": 16,
+      "right": 128,
+      "onScreen": true
+    },
+    "consoleErrors": [],
+    "failed": []
+  },
+  {
+    "route": "/child/drive",
+    "lang": "ar",
+    "width": 390,
+    "file": "drive-ar-390.png",
+    "h1": "Parent drive",
+    "scrollWidth": 390,
+    "clientWidth": 390,
+    "dir": "rtl",
+    "signOut": {
+      "left": 16,
+      "right": 128,
+      "onScreen": true
+    },
+    "consoleErrors": [
+      "Warning: Encountered two children with the same key, `%s`. Keys should be unique so that components maintain their identity across updates. Non-unique keys may cause children to be duplicated and/or omitted — the behavior is unsupported and could cha"
+    ],
+    "failed": []
+  },
+  {
+    "route": "/child/forms",
+    "lang": "ar",
+    "width": 390,
+    "file": "forms-ar-390.png",
+    "h1": "Forms & surveys",
+    "scrollWidth": 390,
+    "clientWidth": 390,
+    "dir": "rtl",
+    "signOut": {
+      "left": 16,
+      "right": 128,
+      "onScreen": true
+    },
+    "consoleErrors": [],
+    "failed": []
+  },
+  {
+    "route": "/child/consents",
+    "lang": "ar",
+    "width": 390,
+    "file": "consents-ar-390.png",
+    "h1": "Consents & approvals",
+    "scrollWidth": 390,
+    "clientWidth": 390,
+    "dir": "rtl",
+    "signOut": {
+      "left": 16,
+      "right": 128,
+      "onScreen": true
+    },
+    "consoleErrors": [],
+    "failed": []
+  },
+  {
+    "route": "/child/messages",
+    "lang": "ar",
+    "width": 390,
+    "file": "messages-ar-390.png",
+    "h1": "الرسائل",
+    "scrollWidth": 390,
+    "clientWidth": 390,
+    "dir": "rtl",
+    "signOut": {
+      "left": 16,
+      "right": 128,
+      "onScreen": true
+    },
+    "consoleErrors": [],
+    "failed": []
+  },
+  {
+    "route": "/child/support",
+    "lang": "ar",
+    "width": 390,
+    "file": "support-ar-390.png",
+    "h1": "مركز المساعدة",
+    "scrollWidth": 390,
+    "clientWidth": 390,
+    "dir": "rtl",
+    "signOut": {
+      "left": 16,
+      "right": 128,
+      "onScreen": true
+    },
+    "consoleErrors": [],
+    "failed": []
+  },
+  {
+    "route": "/child/settings",
+    "lang": "ar",
+    "width": 390,
+    "file": "settings-ar-390.png",
+    "h1": "إعدادات الحساب",
+    "scrollWidth": 390,
+    "clientWidth": 390,
+    "dir": "rtl",
+    "signOut": {
+      "left": 16,
+      "right": 128,
+      "onScreen": true
+    },
+    "consoleErrors": [],
+    "failed": []
+  },
+  {
+    "route": "/child (hamburger open)",
+    "lang": "ar",
+    "width": 320,
+    "file": "nav-menu-open-ar-320.png",
+    "panel": {
+      "left": 16,
+      "right": 296,
+      "width": 280,
+      "inViewport": true,
+      "text": "أطفاليالأخبارالفعالياتالتعلّمالملفات المشتركةالاستبياناتالموافقاتالدردشةالدعمالإعدادات"
+    }
+  },
+  {
+    "route": "/login",
+    "lang": "ar",
+    "width": 320,
+    "file": "login-ar-320.png",
+    "scrollWidth": 320,
+    "clientWidth": 320,
+    "dir": "rtl",
+    "signOut": null,
+    "visibleText": "تخطَّ إلى المحتوى Sunshine Daycare Sign in Welcome back. Sign in to see your daycare's day. Email Password Sign in Forgot your password? Have an invite code? Activate your account",
+    "consoleErrors": [],
+    "failed": []
+  },
+  {
+    "route": "/login",
+    "lang": "ar",
+    "width": 390,
+    "file": "login-ar-390.png",
+    "scrollWidth": 390,
+    "clientWidth": 390,
+    "dir": "rtl",
+    "signOut": null,
+    "visibleText": "تخطَّ إلى المحتوى Sunshine Daycare Sign in Welcome back. Sign in to see your daycare's day. Email Password Sign in Forgot your password? Have an invite code? Activate your account",
+    "consoleErrors": [],
+    "failed": []
+  },
+  {
+    "route": "restore → English",
+    "dir": "rtl",
+    "cookie": "kiddy_lang=ar"
+  }
+]

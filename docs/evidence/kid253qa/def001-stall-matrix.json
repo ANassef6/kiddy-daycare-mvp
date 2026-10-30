@@ -1,0 +1,818 @@
+{
+  "after_cachedPrefetch": {
+    "mode": "nav",
+    "seen": [
+      {
+        "at": 1793368203830,
+        "prefetch": true
+      },
+      {
+        "at": 1793368203923,
+        "prefetch": false
+      }
+    ],
+    "timeline": [
+      {
+        "ms": 460,
+        "path": "/child/mutz75ky-21fwuvxh",
+        "skel": true,
+        "heading": ""
+      },
+      {
+        "ms": 864,
+        "path": "/child/mutz75ky-21fwuvxh",
+        "skel": true,
+        "heading": ""
+      },
+      {
+        "ms": 1320,
+        "path": "/child/mutz75ky-21fwuvxh",
+        "skel": true,
+        "heading": ""
+      },
+      {
+        "ms": 1724,
+        "path": "/child/mutz75ky-21fwuvxh",
+        "skel": true,
+        "heading": ""
+      },
+      {
+        "ms": 2129,
+        "path": "/child/mutz75ky-21fwuvxh",
+        "skel": true,
+        "heading": ""
+      },
+      {
+        "ms": 2534,
+        "path": "/child/mutz75ky-21fwuvxh",
+        "skel": true,
+        "heading": ""
+      },
+      {
+        "ms": 2937,
+        "path": "/child/mutz75ky-21fwuvxh",
+        "skel": true,
+        "heading": ""
+      },
+      {
+        "ms": 3342,
+        "path": "/child/mutz75ky-21fwuvxh",
+        "skel": true,
+        "heading": ""
+      },
+      {
+        "ms": 3747,
+        "path": "/child/mutz75ky-21fwuvxh",
+        "skel": true,
+        "heading": ""
+      },
+      {
+        "ms": 4200,
+        "path": "/child/mutz75ky-21fwuvxh",
+        "skel": true,
+        "heading": ""
+      },
+      {
+        "ms": 4604,
+        "path": "/child/mutz75ky-21fwuvxh",
+        "skel": true,
+        "heading": ""
+      },
+      {
+        "ms": 5009,
+        "path": "/child/mutz75ky-21fwuvxh",
+        "skel": true,
+        "heading": ""
+      },
+      {
+        "ms": 5413,
+        "path": "/child/mutz75ky-21fwuvxh",
+        "skel": true,
+        "heading": ""
+      },
+      {
+        "ms": 5817,
+        "path": "/child/mutz75ky-21fwuvxh",
+        "skel": true,
+        "heading": ""
+      },
+      {
+        "ms": 6222,
+        "path": "/child/mutz75ky-21fwuvxh",
+        "skel": true,
+        "heading": ""
+      },
+      {
+        "ms": 6627,
+        "path": "/child/mutz75ky-21fwuvxh",
+        "skel": true,
+        "heading": ""
+      },
+      {
+        "ms": 7030,
+        "path": "/child/mutz75ky-21fwuvxh",
+        "skel": true,
+        "heading": ""
+      },
+      {
+        "ms": 7434,
+        "path": "/child/mutz75ky-21fwuvxh",
+        "skel": false,
+        "heading": ""
+      }
+    ],
+    "shots": [
+      {
+        "phase": "tap+~0.7s",
+        "ms": 864,
+        "file": "def001-after-warm-1-tap-plus864ms-320.png",
+        "path": "/child/mutz75ky-21fwuvxh",
+        "skel": true,
+        "heading": ""
+      },
+      {
+        "phase": "mid-stall",
+        "ms": 3747,
+        "file": "def001-after-warm-2-stall-plus3747ms-320.png",
+        "path": "/child/mutz75ky-21fwuvxh",
+        "skel": true,
+        "heading": ""
+      },
+      {
+        "phase": "loaded",
+        "ms": 8138,
+        "file": "def001-after-warm-3-detail-loaded-8048ms-320.png",
+        "path": "/child/mutz75ky-21fwuvxh",
+        "skel": false,
+        "text": "Skip to content Sunshine Daycare Sign out ← My children EN Ella Nguyen 2021-04-12 · Toddlers Not checked in yet Check in"
+      }
+    ],
+    "loadToTap": 4178
+  },
+  "after_stalledPrefetch": {
+    "mode": "all",
+    "seen": [
+      {
+        "at": 1793368215339,
+        "prefetch": true
+      },
+      {
+        "at": 1793368222442,
+        "prefetch": false
+      }
+    ],
+    "timeline": [
+      {
+        "ms": 446,
+        "path": "/child",
+        "skel": false,
+        "heading": "My children"
+      },
+      {
+        "ms": 851,
+        "path": "/child",
+        "skel": false,
+        "heading": "My children"
+      },
+      {
+        "ms": 1299,
+        "path": "/child",
+        "skel": false,
+        "heading": "My children"
+      },
+      {
+        "ms": 1702,
+        "path": "/child",
+        "skel": false,
+        "heading": "My children"
+      },
+      {
+        "ms": 2106,
+        "path": "/child",
+        "skel": false,
+        "heading": "My children"
+      },
+      {
+        "ms": 2511,
+        "path": "/child",
+        "skel": false,
+        "heading": "My children"
+      },
+      {
+        "ms": 2915,
+        "path": "/child",
+        "skel": false,
+        "heading": "My children"
+      },
+      {
+        "ms": 3320,
+        "path": "/child",
+        "skel": false,
+        "heading": "My children"
+      },
+      {
+        "ms": 3724,
+        "path": "/child",
+        "skel": false,
+        "heading": "My children"
+      },
+      {
+        "ms": 4160,
+        "path": "/child",
+        "skel": false,
+        "heading": "My children"
+      },
+      {
+        "ms": 4563,
+        "path": "/child",
+        "skel": false,
+        "heading": "My children"
+      },
+      {
+        "ms": 4967,
+        "path": "/child",
+        "skel": false,
+        "heading": "My children"
+      },
+      {
+        "ms": 5372,
+        "path": "/child",
+        "skel": false,
+        "heading": "My children"
+      },
+      {
+        "ms": 5777,
+        "path": "/child",
+        "skel": false,
+        "heading": "My children"
+      },
+      {
+        "ms": 6180,
+        "path": "/child",
+        "skel": false,
+        "heading": "My children"
+      },
+      {
+        "ms": 6585,
+        "path": "/child",
+        "skel": false,
+        "heading": "My children"
+      },
+      {
+        "ms": 6989,
+        "path": "/child",
+        "skel": false,
+        "heading": "My children"
+      },
+      {
+        "ms": 7392,
+        "path": "/child/mutz75ky-21fwuvxh",
+        "skel": true,
+        "heading": ""
+      },
+      {
+        "ms": 7797,
+        "path": "/child/mutz75ky-21fwuvxh",
+        "skel": true,
+        "heading": ""
+      },
+      {
+        "ms": 8202,
+        "path": "/child/mutz75ky-21fwuvxh",
+        "skel": true,
+        "heading": ""
+      },
+      {
+        "ms": 8606,
+        "path": "/child/mutz75ky-21fwuvxh",
+        "skel": true,
+        "heading": ""
+      },
+      {
+        "ms": 9010,
+        "path": "/child/mutz75ky-21fwuvxh",
+        "skel": true,
+        "heading": ""
+      },
+      {
+        "ms": 9414,
+        "path": "/child/mutz75ky-21fwuvxh",
+        "skel": true,
+        "heading": ""
+      },
+      {
+        "ms": 9819,
+        "path": "/child/mutz75ky-21fwuvxh",
+        "skel": true,
+        "heading": ""
+      },
+      {
+        "ms": 10222,
+        "path": "/child/mutz75ky-21fwuvxh",
+        "skel": true,
+        "heading": ""
+      },
+      {
+        "ms": 10627,
+        "path": "/child/mutz75ky-21fwuvxh",
+        "skel": true,
+        "heading": ""
+      },
+      {
+        "ms": 11030,
+        "path": "/child/mutz75ky-21fwuvxh",
+        "skel": true,
+        "heading": ""
+      },
+      {
+        "ms": 11434,
+        "path": "/child/mutz75ky-21fwuvxh",
+        "skel": true,
+        "heading": ""
+      },
+      {
+        "ms": 11839,
+        "path": "/child/mutz75ky-21fwuvxh",
+        "skel": true,
+        "heading": ""
+      },
+      {
+        "ms": 12255,
+        "path": "/child/mutz75ky-21fwuvxh",
+        "skel": true,
+        "heading": ""
+      },
+      {
+        "ms": 12661,
+        "path": "/child/mutz75ky-21fwuvxh",
+        "skel": true,
+        "heading": ""
+      },
+      {
+        "ms": 13066,
+        "path": "/child/mutz75ky-21fwuvxh",
+        "skel": true,
+        "heading": ""
+      },
+      {
+        "ms": 13470,
+        "path": "/child/mutz75ky-21fwuvxh",
+        "skel": true,
+        "heading": ""
+      },
+      {
+        "ms": 13873,
+        "path": "/child/mutz75ky-21fwuvxh",
+        "skel": true,
+        "heading": ""
+      },
+      {
+        "ms": 14277,
+        "path": "/child/mutz75ky-21fwuvxh",
+        "skel": true,
+        "heading": ""
+      },
+      {
+        "ms": 14682,
+        "path": "/child/mutz75ky-21fwuvxh",
+        "skel": false,
+        "heading": ""
+      }
+    ],
+    "shots": [
+      {
+        "phase": "tap+~0.7s",
+        "ms": 851,
+        "file": "def001-after-slow-1-tap-plus851ms-320.png",
+        "path": "/child",
+        "skel": false,
+        "heading": "My children"
+      },
+      {
+        "phase": "mid-stall",
+        "ms": 3724,
+        "file": "def001-after-slow-2-stall-plus3724ms-320.png",
+        "path": "/child",
+        "skel": false,
+        "heading": "My children"
+      },
+      {
+        "phase": "loaded",
+        "ms": 15385,
+        "file": "def001-after-slow-3-detail-loaded-15293ms-320.png",
+        "path": "/child/mutz75ky-21fwuvxh",
+        "skel": false,
+        "text": "Skip to content Sunshine Daycare Sign out ← My children EN Ella Nguyen 2021-04-12 · Toddlers Not checked in yet Check in"
+      }
+    ],
+    "loadToTap": 1642
+  },
+  "before_cachedPrefetch": {
+    "mode": "nav",
+    "seen": [
+      {
+        "at": 1793368237077,
+        "prefetch": true
+      },
+      {
+        "at": 1793368237193,
+        "prefetch": false
+      }
+    ],
+    "timeline": [
+      {
+        "ms": 464,
+        "path": "/child",
+        "skel": false,
+        "heading": "My children"
+      },
+      {
+        "ms": 869,
+        "path": "/child",
+        "skel": false,
+        "heading": "My children"
+      },
+      {
+        "ms": 1314,
+        "path": "/child",
+        "skel": false,
+        "heading": "My children"
+      },
+      {
+        "ms": 1719,
+        "path": "/child",
+        "skel": false,
+        "heading": "My children"
+      },
+      {
+        "ms": 2123,
+        "path": "/child",
+        "skel": false,
+        "heading": "My children"
+      },
+      {
+        "ms": 2528,
+        "path": "/child",
+        "skel": false,
+        "heading": "My children"
+      },
+      {
+        "ms": 2933,
+        "path": "/child",
+        "skel": false,
+        "heading": "My children"
+      },
+      {
+        "ms": 3336,
+        "path": "/child",
+        "skel": false,
+        "heading": "My children"
+      },
+      {
+        "ms": 3741,
+        "path": "/child",
+        "skel": false,
+        "heading": "My children"
+      },
+      {
+        "ms": 4179,
+        "path": "/child",
+        "skel": false,
+        "heading": "My children"
+      },
+      {
+        "ms": 4584,
+        "path": "/child",
+        "skel": false,
+        "heading": "My children"
+      },
+      {
+        "ms": 4988,
+        "path": "/child",
+        "skel": false,
+        "heading": "My children"
+      },
+      {
+        "ms": 5393,
+        "path": "/child",
+        "skel": false,
+        "heading": "My children"
+      },
+      {
+        "ms": 5798,
+        "path": "/child",
+        "skel": false,
+        "heading": "My children"
+      },
+      {
+        "ms": 6202,
+        "path": "/child",
+        "skel": false,
+        "heading": "My children"
+      },
+      {
+        "ms": 6607,
+        "path": "/child",
+        "skel": false,
+        "heading": "My children"
+      },
+      {
+        "ms": 7012,
+        "path": "/child",
+        "skel": false,
+        "heading": "My children"
+      },
+      {
+        "ms": 7414,
+        "path": "/child/mutz75ky-21fwuvxh",
+        "skel": false,
+        "heading": ""
+      }
+    ],
+    "shots": [
+      {
+        "phase": "tap+~0.7s",
+        "ms": 869,
+        "file": "def001-before-warm-1-tap-plus869ms-320.png",
+        "path": "/child",
+        "skel": false,
+        "heading": "My children"
+      },
+      {
+        "phase": "mid-stall",
+        "ms": 3741,
+        "file": "def001-before-warm-2-stall-plus3741ms-320.png",
+        "path": "/child",
+        "skel": false,
+        "heading": "My children"
+      },
+      {
+        "phase": "loaded",
+        "ms": 8115,
+        "file": "def001-before-warm-3-detail-loaded-8025ms-320.png",
+        "path": "/child/mutz75ky-21fwuvxh",
+        "skel": false,
+        "text": "Skip to content Sunshine Daycare Sign out ← My children EN Ella Nguyen 2021-04-12 · Toddlers Not checked in yet Check in"
+      }
+    ],
+    "loadToTap": 4177
+  },
+  "before_stalledPrefetch": {
+    "mode": "all",
+    "seen": [
+      {
+        "at": 1793368248572,
+        "prefetch": true
+      },
+      {
+        "at": 1793368255666,
+        "prefetch": false
+      }
+    ],
+    "timeline": [
+      {
+        "ms": 445,
+        "path": "/child",
+        "skel": false,
+        "heading": "My children"
+      },
+      {
+        "ms": 851,
+        "path": "/child",
+        "skel": false,
+        "heading": "My children"
+      },
+      {
+        "ms": 1298,
+        "path": "/child",
+        "skel": false,
+        "heading": "My children"
+      },
+      {
+        "ms": 1702,
+        "path": "/child",
+        "skel": false,
+        "heading": "My children"
+      },
+      {
+        "ms": 2107,
+        "path": "/child",
+        "skel": false,
+        "heading": "My children"
+      },
+      {
+        "ms": 2510,
+        "path": "/child",
+        "skel": false,
+        "heading": "My children"
+      },
+      {
+        "ms": 2915,
+        "path": "/child",
+        "skel": false,
+        "heading": "My children"
+      },
+      {
+        "ms": 3320,
+        "path": "/child",
+        "skel": false,
+        "heading": "My children"
+      },
+      {
+        "ms": 3724,
+        "path": "/child",
+        "skel": false,
+        "heading": "My children"
+      },
+      {
+        "ms": 4164,
+        "path": "/child",
+        "skel": false,
+        "heading": "My children"
+      },
+      {
+        "ms": 4569,
+        "path": "/child",
+        "skel": false,
+        "heading": "My children"
+      },
+      {
+        "ms": 4974,
+        "path": "/child",
+        "skel": false,
+        "heading": "My children"
+      },
+      {
+        "ms": 5379,
+        "path": "/child",
+        "skel": false,
+        "heading": "My children"
+      },
+      {
+        "ms": 5784,
+        "path": "/child",
+        "skel": false,
+        "heading": "My children"
+      },
+      {
+        "ms": 6189,
+        "path": "/child",
+        "skel": false,
+        "heading": "My children"
+      },
+      {
+        "ms": 6594,
+        "path": "/child",
+        "skel": false,
+        "heading": "My children"
+      },
+      {
+        "ms": 7000,
+        "path": "/child",
+        "skel": false,
+        "heading": "My children"
+      },
+      {
+        "ms": 7405,
+        "path": "/child",
+        "skel": false,
+        "heading": "My children"
+      },
+      {
+        "ms": 7808,
+        "path": "/child",
+        "skel": false,
+        "heading": "My children"
+      },
+      {
+        "ms": 8213,
+        "path": "/child",
+        "skel": false,
+        "heading": "My children"
+      },
+      {
+        "ms": 8619,
+        "path": "/child",
+        "skel": false,
+        "heading": "My children"
+      },
+      {
+        "ms": 9024,
+        "path": "/child",
+        "skel": false,
+        "heading": "My children"
+      },
+      {
+        "ms": 9428,
+        "path": "/child",
+        "skel": false,
+        "heading": "My children"
+      },
+      {
+        "ms": 9831,
+        "path": "/child",
+        "skel": false,
+        "heading": "My children"
+      },
+      {
+        "ms": 10236,
+        "path": "/child",
+        "skel": false,
+        "heading": "My children"
+      },
+      {
+        "ms": 10641,
+        "path": "/child",
+        "skel": false,
+        "heading": "My children"
+      },
+      {
+        "ms": 11046,
+        "path": "/child",
+        "skel": false,
+        "heading": "My children"
+      },
+      {
+        "ms": 11449,
+        "path": "/child",
+        "skel": false,
+        "heading": "My children"
+      },
+      {
+        "ms": 11853,
+        "path": "/child",
+        "skel": false,
+        "heading": "My children"
+      },
+      {
+        "ms": 12258,
+        "path": "/child",
+        "skel": false,
+        "heading": "My children"
+      },
+      {
+        "ms": 12663,
+        "path": "/child",
+        "skel": false,
+        "heading": "My children"
+      },
+      {
+        "ms": 13066,
+        "path": "/child",
+        "skel": false,
+        "heading": "My children"
+      },
+      {
+        "ms": 13470,
+        "path": "/child",
+        "skel": false,
+        "heading": "My children"
+      },
+      {
+        "ms": 13875,
+        "path": "/child",
+        "skel": false,
+        "heading": "My children"
+      },
+      {
+        "ms": 14282,
+        "path": "/child",
+        "skel": false,
+        "heading": "My children"
+      },
+      {
+        "ms": 14687,
+        "path": "/child/mutz75ky-21fwuvxh",
+        "skel": false,
+        "heading": ""
+      }
+    ],
+    "shots": [
+      {
+        "phase": "tap+~0.7s",
+        "ms": 851,
+        "file": "def001-before-slow-1-tap-plus851ms-320.png",
+        "path": "/child",
+        "skel": false,
+        "heading": "My children"
+      },
+      {
+        "phase": "mid-stall",
+        "ms": 3724,
+        "file": "def001-before-slow-2-stall-plus3724ms-320.png",
+        "path": "/child",
+        "skel": false,
+        "heading": "My children"
+      },
+      {
+        "phase": "loaded",
+        "ms": 15385,
+        "file": "def001-before-slow-3-detail-loaded-15298ms-320.png",
+        "path": "/child/mutz75ky-21fwuvxh",
+        "skel": false,
+        "text": "Skip to content Sunshine Daycare Sign out ← My children EN Ella Nguyen 2021-04-12 · Toddlers Not checked in yet Check in"
+      }
+    ],
+    "loadToTap": 1664
+  }
+}
