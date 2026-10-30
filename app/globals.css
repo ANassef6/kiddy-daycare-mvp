@@ -691,14 +691,25 @@ table.data th {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 40px;
-    height: 40px;
+    /* KID-369 OBS-002: the burger measured 40x40 — below the >=44px hit-area
+       recommendation; the square is grown instead of only padded so the
+       visual target, the border and the hit area stay identical. */
+    width: 44px;
+    height: 44px;
     flex: none;
     border: 1px solid var(--color-border);
     border-radius: 8px;
     background: transparent;
     color: var(--color-text);
     cursor: pointer;
+  }
+
+  /* KID-369 OBS-002: the pinned sign-out button measured 98x34 at phone
+     widths — reachable but under the 44px hit target. min-height grows the
+     tappable area without changing the header flex row layout that KID-255
+     pinned (the button stays the last header item at every width). */
+  .child-nav form .btn {
+    min-height: 44px;
   }
 
   .child-nav-burger:hover {

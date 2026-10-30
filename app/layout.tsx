@@ -4,7 +4,9 @@ import "./globals.css";
 import { getBranding } from "@/lib/theme";
 import { readSessionFromCookieValue } from "@/lib/auth";
 import { ensureSeeded } from "@/lib/bootstrap";
-import { LANG_COOKIE, dirFor, localeOf, type Locale } from "@/lib/i18n";
+import { LANG_COOKIE, dirFor } from "@/lib/i18n";
+import { effectiveLocale } from "@/lib/i18n-session";
+import type { Locale } from "@/lib/i18n";
 
 export const metadata: Metadata = {
   title: {
@@ -16,23 +18,27 @@ export const metadata: Metadata = {
 
 export const dynamic = "force-dynamic";
 
-// Resolve the active locale for the request: the lang cookie (set when the
-// user picks a language) wins; otherwise fall back to the account preference.
+// Resolve the active locale for the request. OBS-001: account.language is the
+// canonical preference — the kiddy_lang cookie is accepted only while they
+// agree, so a stale cookie (changed from another device) can no longer flip
+// `dir` against the page dictionaries. Anonymous visitors keep the cookie
+// choice. Deriving both from the same value also keeps dir/lang in lockstep
+// with every page's `i18nForAccount` dictionary.
 async function resolveLocale(): Promise<Locale> {
   const cookieStore = cookies();
   const langCookie = cookieStore.get(LANG_COOKIE)?.value;
-  if (langCookie === "en" || langCookie === "ar") return langCookie;
+  let accountLanguage: string | null | undefined = null;
   try {
     const session = readSessionFromCookieValue(cookieStore.get("kiddy_sess")?.value ?? null);
     if (session?.accountId) {
       const { getAccount } = await import("@/lib/auth");
       const account = await getAccount(session.accountId);
-      if (account?.language) return localeOf(account.language);
+      accountLanguage = account?.language ?? null;
     }
   } catch {
-    // never block render on DB availability
+    // never block render on DB availability; the cookie then decides
   }
-  return "en" as Locale;
+  return effectiveLocale(langCookie, accountLanguage);
 }
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {

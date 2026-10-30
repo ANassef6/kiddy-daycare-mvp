@@ -12,6 +12,7 @@ import {
 } from "@/lib/store";
 import { CheckInButton } from "@/components/CheckInButton";
 import Avatar from "@/components/Avatar";
+import ContactBadges from "@/components/ContactBadges";
 import { getBranding } from "@/lib/theme";
 import { toggleLikeAction } from "@/lib/actions";
 import { i18nForAccount } from "@/lib/i18n-session";
@@ -158,8 +159,7 @@ export default async function ChildDetailPage({ params }: { params: { id: string
               <div className="muted small">{c.phone}{c.email ? ` · ${c.email}` : ""}</div>
             </div>
             <div>
-              {c.is_pickup && <span className="badge">{t("child.pickup")}</span>}{" "}
-              {c.is_emergency && <span className="badge badge-red">{t("child.emergency")}</span>}
+              <ContactBadges isPickup={c.is_pickup} isEmergency={c.is_emergency} dict={dict} />
             </div>
           </div>
         ))

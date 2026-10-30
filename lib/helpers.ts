@@ -20,6 +20,22 @@ export function cap(s: unknown): string {
   return v.charAt(0).toUpperCase() + v.slice(1);
 }
 
+// KID-369 DEF-003: the per-child drive query returns institute-wide files
+// (child_id NULL) once per linked child, so flat-mapping per-child lists
+// duplicated every shared file row (and its React key). First occurrence
+// wins; the row order (created_at DESC) is preserved.
+export function dedupeById<T extends { id?: unknown }>(rows: T[]): T[] {
+  const seen = new Set<string>();
+  const out: T[] = [];
+  for (const row of rows) {
+    const key = String(row.id);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(row);
+  }
+  return out;
+}
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function safeJson<T = any>(v: unknown, fallback: T): T {
   if (!v) return fallback;

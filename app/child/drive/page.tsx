@@ -1,6 +1,6 @@
 import { requireFamilyPage } from "@/lib/require";
 import { familiesForAccount, driveFilesFor } from "@/lib/store";
-import { cap } from "@/lib/helpers";
+import { cap, dedupeById } from "@/lib/helpers";
 import { i18nForAccount } from "@/lib/i18n-session";
 import { tr } from "@/lib/i18n";
 
@@ -24,10 +24,14 @@ export default async function ParentDrivePage() {
   const { dict } = await i18nForAccount(session.accountId);
   const t = (key: string, vars?: Record<string, string | number>) => tr(dict, key, vars);
   const families = await familiesForAccount(session.accountId);
+  // DEF-003: driveFilesFor(institute, childId) includes the institute-wide
+  // rows (child_id NULL) for every linked child, so institute-wide files
+  // used to render once per child — duplicate rows sharing one React key.
+  // The lists are then merged once and deduped by file id.
   const all = await Promise.all(
     families.map(async (c: any) => ({ childId: c.id, files: await driveFilesFor(c.institute_id, c.id) }))
   );
-  const files = all.flatMap((f: any) => f.files);
+  const files = dedupeById(all.flatMap((f: any) => f.files));
 
   return (
     <div>
