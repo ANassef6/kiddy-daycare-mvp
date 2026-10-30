@@ -218,6 +218,97 @@ export const en = {
     helpAndSupport: "Help & Support",
     backToChildren: "My children",
   },
+  // KID-368 (DEF-004): every /login string ships in both locales. The static
+  // screen is rendered by app/login/page.tsx from this section, and the
+  // loginAction error returns (bad credentials / withdrawn access / disabled
+  // daycare) pick their wording from here in the visitor's language.
+  login: {
+    signIn: "Sign in",
+    welcomeBack: "Welcome back. Sign in to see your daycare's day.",
+    emailLabel: "Email",
+    passwordLabel: "Password",
+    forgotPassword: "Forgot your password?",
+    inviteActivate: "Have an invite code? Activate your account",
+    emailConfirmed: "Your email is confirmed. You can now sign in.",
+    withdrawn: "This account's access has been withdrawn.",
+    noAccess: "This account's access is currently disabled. Contact your daycare admin.",
+    operatorEntryInvalid:
+      "This entry link is invalid, expired or already used. Ask the platform team to open the daycare again.",
+    wrongTenantNamed:
+      "This account belongs to {name}. Sign in from that daycare's own address instead.",
+    wrongTenant:
+      "This account is not the daycare for this address. Sign in from that daycare's own address instead.",
+    // KID-368: the login HOST gate (loginAction path, lib/tenant.ts) wording.
+    wrongTenantHome:
+      "This account belongs to {name}. Sign in at {url} instead.",
+    wrongTenantOwn:
+      "This account belongs to {name} — it is not the daycare for this address.",
+  },
+  // KID-368 (DEF-004): /child/newsfeed strings.
+  newsfeed: {
+    title: "Newsfeed",
+    empty: "Nothing posted for your children yet.",
+    forChild: "for {name}",
+    likesAndComments: "{likes} likes · {comments} comments",
+    addCommentPlaceholder: "Add a comment…",
+    comment: "Comment",
+  },
+  // KID-368 (DEF-004): /child/events strings.
+  events: {
+    title: "Events",
+    subtitle: "Daycare events and recent videos for your family.",
+    upcoming: "Upcoming events",
+    noUpcoming: "No upcoming events right now.",
+    noInstitute: "No daycare configured yet.",
+    videos: "Videos",
+    noVideos: "No videos shared yet.",
+  },
+  // KID-368 (DEF-004): /child/drive strings. The drive kind labels mirror the
+  // portal upload form's enum (file | pdf | photo | video) with a safe EN
+  // fallback for anything the daycare names itself.
+  drive: {
+    title: "Parent drive",
+    subtitle: "Documents, forms, and media shared with your family by the daycare.",
+    empty: "Nothing shared yet.",
+    open: "Open",
+    allChildren: "all children",
+    kindFile: "File",
+    kindPdf: "PDF",
+    kindPhoto: "Photo",
+    kindVideo: "Video",
+  },
+  // KID-368 (DEF-004): /child/forms strings. The form-template kind labels
+  // mirror the portal form builder's enum (form | survey | list) with a safe
+  // EN fallback for unknown kinds.
+  forms: {
+    title: "Forms & surveys",
+    subtitle: "Answer questions from the daycare — surveys, permission lists, and more.",
+    sent: "✅ Response sent. Thank you!",
+    empty: "No forms to complete right now.",
+    responsesSoFar: "{count} responses so far",
+    fillIn: "Fill in",
+    submit: "Submit",
+    mySubmissions: "My submissions",
+    noSubmissions: "You haven't submitted any forms yet.",
+    submitted: "Submitted",
+    yes: "Yes",
+    noInstitute: "No daycare configured yet.",
+    kindForm: "Form",
+    kindSurvey: "Survey",
+    kindList: "List / sign-up",
+  },
+  // KID-368 (DEF-004): /child/consents strings. Consent status badges carry
+  // the exact DB enum (pending | approved | denied) — the page bakes each
+  // state through these keys.
+  consents: {
+    title: "Consents & approvals",
+    empty: "No consent requests for your children right now.",
+    approve: "Approve",
+    deny: "Deny",
+    statusPending: "Pending",
+    statusApproved: "Approved",
+    statusDenied: "Denied",
+  },
   messages: {
     title: "Messages",
     unread: "Unread",
@@ -930,6 +1021,81 @@ export const ar = {
     needsAcknowledgement: "يحتاج إلى إقرار",
     helpAndSupport: "المساعدة والدعم",
     backToChildren: "أطفالي",
+  },
+  login: {
+    signIn: "تسجيل الدخول",
+    welcomeBack: "أهلًا بعودتك. سجّل الدخول لترى يوم روضتك.",
+    emailLabel: "البريد الإلكتروني",
+    passwordLabel: "كلمة المرور",
+    forgotPassword: "هل نسيت كلمة المرور؟",
+    inviteActivate: "لديك رمز دعوة؟ فعّل حسابك",
+    emailConfirmed: "تم تأكيد بريدك الإلكتروني. يمكنك الآن تسجيل الدخول.",
+    withdrawn: "ألغيت صلاحية الوصول لهذا الحساب.",
+    noAccess: "تعطّل صلاحية الوصول لهذا الحساب حاليًا. تواصل مع مسؤول روضتك.",
+    operatorEntryInvalid:
+      "رابط الدخول هذا غير صالح أو منتهٍ أو مستخدم مسبقًا. اطلب من فريق المنصة إعادة فتح الروضة.",
+    wrongTenantNamed:
+      "هذا الحساب ينتمي إلى {name}. سجّل الدخول من عنوان روضتك الخاص بدلًا من ذلك.",
+    wrongTenant:
+      "هذا الحساب ليس روضة هذا العنوان. سجّل الدخول من عنوان الروضة نفسها بدلًا من ذلك.",
+    wrongTenantHome:
+      "هذا الحساب ينتمي إلى {name}. سجّل الدخول من {url} بدلًا من ذلك.",
+    wrongTenantOwn:
+      "هذا الحساب ينتمي إلى {name} — وهو ليس روضة هذا العنوان.",
+  },
+  newsfeed: {
+    title: "الأخبار",
+    empty: "لا يوجد منشور عن أطفالك بعد.",
+    forChild: "لـ {name}",
+    likesAndComments: "{likes} إعجاب · {comments} تعليق",
+    addCommentPlaceholder: "أضف تعليقًا…",
+    comment: "تعليق",
+  },
+  events: {
+    title: "الفعاليات",
+    subtitle: "فعاليات الحضانة وفيديوهاتها الأخيرة لعائلتك.",
+    upcoming: "الفعاليات القادمة",
+    noUpcoming: "لا توجد فعاليات قادمة الآن.",
+    noInstitute: "لم تُهيّأ أي روضة بعد.",
+    videos: "الفيديوهات",
+    noVideos: "لا توجد فيديوهات مشارَكة بعد.",
+  },
+  drive: {
+    title: "الملفات المشتركة",
+    subtitle: "المستندات والنماذج والوسائط التي تشاركها روضتك مع عائلتك.",
+    empty: "لا يوجد شيء مشارَك بعد.",
+    open: "فتح",
+    allChildren: "كل الأطفال",
+    kindFile: "ملف",
+    kindPdf: "PDF",
+    kindPhoto: "صورة",
+    kindVideo: "فيديو",
+  },
+  forms: {
+    title: "النماذج والاستبيانات",
+    subtitle: "أجب عن أسئلة الحضانة — استبيانات وقوائم تصاريح وغيرها.",
+    sent: "✅ تم إرسال الرد. شكرًا لكم!",
+    empty: "لا توجد نماذج لإكمالها الآن.",
+    responsesSoFar: "{count} رد حتى الآن",
+    fillIn: "تعبئة",
+    submit: "إرسال",
+    mySubmissions: "إرسالاتي",
+    noSubmissions: "لم ترسل أي نماذج بعد.",
+    submitted: "مُرسَل",
+    yes: "نعم",
+    noInstitute: "لم تُهيّأ أي روضة بعد.",
+    kindForm: "نموذج",
+    kindSurvey: "استبيان",
+    kindList: "قائمة / تسجيل",
+  },
+  consents: {
+    title: "الموافقات والأذونات",
+    empty: "لا توجد طلبات موافقة لأطفالك الآن.",
+    approve: "موافقة",
+    deny: "رفض",
+    statusPending: "معلّق",
+    statusApproved: "موافق عليه",
+    statusDenied: "مرفوض",
   },
   messages: {
     title: "الرسائل",
