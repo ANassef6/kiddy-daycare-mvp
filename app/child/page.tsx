@@ -1,8 +1,8 @@
-import Link from "next/link";
 import { requireSession } from "@/lib/require";
 import { familiesForAccount, todayStatus } from "@/lib/store";
 import { i18nForAccount } from "@/lib/i18n-session";
 import { tr } from "@/lib/i18n";
+import ChildCard from "@/components/ChildCard";
 
 export const dynamic = "force-dynamic";
 
@@ -38,7 +38,7 @@ export default async function MyChildrenPage() {
         {withStatus.map(({ child, status }: any) => {
           const seen = status.lastEvent?.type === "in";
           return (
-            <Link key={child.id} href={`/child/${child.id}`} className="card" style={{ color: "var(--color-text)" }}>
+            <ChildCard key={child.id} href={`/child/${child.id}`}>
               <div className="status-card">
                 <div>
                   <div style={{ fontWeight: 700, fontSize: 18 }}>
@@ -61,7 +61,7 @@ export default async function MyChildrenPage() {
                     : t("attendees.checkedOutAt", { time: time(status.checkedOut?.recorded_at) })}
                 </div>
               )}
-            </Link>
+            </ChildCard>
           );
         })}
       </div>

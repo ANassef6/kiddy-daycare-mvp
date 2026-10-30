@@ -1,0 +1,362 @@
+{
+  "label": "prefix-stalled-prefetch",
+  "events": [
+    {
+      "ms": 0,
+      "name": "login-done",
+      "detail": "http://sunshine-daycare.daycare.test:3098/child"
+    },
+    {
+      "ms": 19,
+      "name": "detail-rsc-start",
+      "detail": "path=/child/mvv246s7-v6p688s0 prefetch=1 pre-tap=true"
+    },
+    {
+      "ms": 20,
+      "name": "detail-rsc-start",
+      "detail": "path=/child/mvv246tq-8snobsla prefetch=1 pre-tap=true"
+    },
+    {
+      "ms": 103,
+      "name": "detail-rsc-start",
+      "detail": "path=/child/mvv246s7-v6p688s0 prefetch=1 pre-tap=true"
+    },
+    {
+      "ms": 104,
+      "name": "detail-rsc-start",
+      "detail": "path=/child/mvv246tq-8snobsla prefetch=1 pre-tap=true"
+    },
+    {
+      "ms": 136,
+      "name": "child-list-rendered"
+    },
+    {
+      "ms": 178,
+      "name": "tapping-card",
+      "detail": "Ella NguyenToddlersNot checked in yet"
+    },
+    {
+      "ms": 430,
+      "name": "mid-window-screenshot"
+    },
+    {
+      "ms": 8136,
+      "name": "detail-rsc-end",
+      "detail": "path=/child/mvv246s7-v6p688s0 status=200"
+    },
+    {
+      "ms": 8143,
+      "name": "detail-rsc-end",
+      "detail": "path=/child/mvv246tq-8snobsla status=200"
+    },
+    {
+      "ms": 8154,
+      "name": "detail-rsc-start",
+      "detail": "path=/child/mvv246s7-v6p688s0 prefetch=0 pre-tap=false"
+    },
+    {
+      "ms": 8196,
+      "name": "detail-rsc-end",
+      "detail": "path=/child/mvv246s7-v6p688s0 status=200"
+    },
+    {
+      "ms": 8787,
+      "name": "detail-rsc-start",
+      "detail": "path=/child/mvv246s7-v6p688s0 prefetch=1 pre-tap=false"
+    },
+    {
+      "ms": 8788,
+      "name": "detail-rsc-start",
+      "detail": "path=/child/mvv246tq-8snobsla prefetch=1 pre-tap=false"
+    },
+    {
+      "ms": 8863,
+      "name": "warm-tap",
+      "detail": "Leo NguyenPreschoolNot checked in yet"
+    },
+    {
+      "ms": 12904,
+      "name": "warm-done",
+      "detail": "{}"
+    },
+    {
+      "ms": 12952,
+      "name": "screenshot",
+      "detail": "/tmp/paperclip-run-kid-367-0b80d769-396-m7KKaG/opencode/evidence-prefix-stalled-prefetch/after-tap-prefix-stalled-prefetch.png"
+    }
+  ],
+  "measurements": {
+    "prefetchesBeforeTap": 4,
+    "tUrlChange": 8504,
+    "tChildRendered": 8504
+  },
+  "t_ref": 1793371280468,
+  "midCaptured": true,
+  "samples": [
+    {
+      "atMs": 200,
+      "url": "/child",
+      "skeleton": false,
+      "childVisible": false,
+      "urlChanged": false
+    },
+    {
+      "atMs": 399,
+      "url": "/child",
+      "skeleton": false,
+      "childVisible": false,
+      "urlChanged": false
+    },
+    {
+      "atMs": 601,
+      "url": "/child",
+      "skeleton": false,
+      "childVisible": false,
+      "urlChanged": false
+    },
+    {
+      "atMs": 1001,
+      "url": "/child",
+      "skeleton": false,
+      "childVisible": false,
+      "urlChanged": false
+    },
+    {
+      "atMs": 2001,
+      "url": "/child",
+      "skeleton": false,
+      "childVisible": false,
+      "urlChanged": false
+    },
+    {
+      "atMs": 3001,
+      "url": "/child",
+      "skeleton": false,
+      "childVisible": false,
+      "urlChanged": false
+    },
+    {
+      "atMs": 5000,
+      "url": "/child",
+      "skeleton": false,
+      "childVisible": false,
+      "urlChanged": false
+    },
+    {
+      "atMs": 7502,
+      "url": "/child",
+      "skeleton": false,
+      "childVisible": false,
+      "urlChanged": false
+    },
+    {
+      "atMs": 8500,
+      "url": "/child/mvv246s7-v6p688s0",
+      "skeleton": false,
+      "childVisible": true,
+      "urlChanged": true
+    }
+  ],
+  "warmSamples": [
+    {
+      "atMs": 103,
+      "url": "/child",
+      "skeleton": false
+    },
+    {
+      "atMs": 204,
+      "url": "/child",
+      "skeleton": false
+    },
+    {
+      "atMs": 303,
+      "url": "/child",
+      "skeleton": false
+    },
+    {
+      "atMs": 404,
+      "url": "/child",
+      "skeleton": false
+    },
+    {
+      "atMs": 503,
+      "url": "/child",
+      "skeleton": false
+    },
+    {
+      "atMs": 604,
+      "url": "/child",
+      "skeleton": false
+    },
+    {
+      "atMs": 703,
+      "url": "/child",
+      "skeleton": false
+    },
+    {
+      "atMs": 802,
+      "url": "/child",
+      "skeleton": false
+    },
+    {
+      "atMs": 904,
+      "url": "/child",
+      "skeleton": false
+    },
+    {
+      "atMs": 1004,
+      "url": "/child",
+      "skeleton": false
+    },
+    {
+      "atMs": 1103,
+      "url": "/child",
+      "skeleton": false
+    },
+    {
+      "atMs": 1204,
+      "url": "/child",
+      "skeleton": false
+    },
+    {
+      "atMs": 1303,
+      "url": "/child",
+      "skeleton": false
+    },
+    {
+      "atMs": 1404,
+      "url": "/child",
+      "skeleton": false
+    },
+    {
+      "atMs": 1503,
+      "url": "/child",
+      "skeleton": false
+    },
+    {
+      "atMs": 1604,
+      "url": "/child",
+      "skeleton": false
+    },
+    {
+      "atMs": 1703,
+      "url": "/child",
+      "skeleton": false
+    },
+    {
+      "atMs": 1803,
+      "url": "/child",
+      "skeleton": false
+    },
+    {
+      "atMs": 1903,
+      "url": "/child",
+      "skeleton": false
+    },
+    {
+      "atMs": 2003,
+      "url": "/child",
+      "skeleton": false
+    },
+    {
+      "atMs": 2104,
+      "url": "/child",
+      "skeleton": false
+    },
+    {
+      "atMs": 2203,
+      "url": "/child",
+      "skeleton": false
+    },
+    {
+      "atMs": 2303,
+      "url": "/child",
+      "skeleton": false
+    },
+    {
+      "atMs": 2404,
+      "url": "/child",
+      "skeleton": false
+    },
+    {
+      "atMs": 2503,
+      "url": "/child",
+      "skeleton": false
+    },
+    {
+      "atMs": 2603,
+      "url": "/child",
+      "skeleton": false
+    },
+    {
+      "atMs": 2704,
+      "url": "/child",
+      "skeleton": false
+    },
+    {
+      "atMs": 2803,
+      "url": "/child",
+      "skeleton": false
+    },
+    {
+      "atMs": 2903,
+      "url": "/child",
+      "skeleton": false
+    },
+    {
+      "atMs": 3003,
+      "url": "/child",
+      "skeleton": false
+    },
+    {
+      "atMs": 3103,
+      "url": "/child",
+      "skeleton": false
+    },
+    {
+      "atMs": 3204,
+      "url": "/child",
+      "skeleton": false
+    },
+    {
+      "atMs": 3304,
+      "url": "/child",
+      "skeleton": false
+    },
+    {
+      "atMs": 3403,
+      "url": "/child",
+      "skeleton": false
+    },
+    {
+      "atMs": 3504,
+      "url": "/child",
+      "skeleton": false
+    },
+    {
+      "atMs": 3604,
+      "url": "/child",
+      "skeleton": false
+    },
+    {
+      "atMs": 3703,
+      "url": "/child",
+      "skeleton": false
+    },
+    {
+      "atMs": 3803,
+      "url": "/child",
+      "skeleton": false
+    },
+    {
+      "atMs": 3903,
+      "url": "/child",
+      "skeleton": false
+    },
+    {
+      "atMs": 4003,
+      "url": "/child",
+      "skeleton": false
+    }
+  ]
+}

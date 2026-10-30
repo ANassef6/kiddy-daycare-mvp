@@ -302,6 +302,11 @@ describe("the owner-facing invoice notification feed", () => {
       createdAt: daysAgoIso(40),
     });
     // A 10-days-out pending invoice is not yet a warning (and not recent).
+    // The cycle month is a fixed value that can never collide with the
+    // soon-invoice's month above: when the test runs near a month end,
+    // +2 days and +10 days land in the same calendar month and would
+    // otherwise violate the (institute_id, cycle_month) UNIQUE constraint.
+    // The feed logic under test keys off dueDate, not the cycle month.
     await seedInvoice({
       id: "inv-246-far",
       cycleMonth: "2030-01",
