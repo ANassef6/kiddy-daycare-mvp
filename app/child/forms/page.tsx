@@ -1,26 +1,42 @@
 import { requireFamilyPage } from "@/lib/require";
 import { listForms, responsesByAccount, getForm } from "@/lib/store";
-import { firstInstituteId, safeJson } from "@/lib/helpers";
+import { firstInstituteId, safeJson, cap } from "@/lib/helpers";
 import { submitFormAction } from "@/lib/actions";
+import { i18nForAccount } from "@/lib/i18n-session";
+import { tr } from "@/lib/i18n";
 
 export const dynamic = "force-dynamic";
 type Field = { id: string; label: string; type: string; required?: boolean; options?: string[] };
 
+// KID-368 (DEF-004): localize the form-template kind coming from the portal
+// builder enum (form | survey | list); unknown kinds keep the capitalized raw
+// value so nothing silently loses meaning.
+function formKindLabel(kind: string, t: (key: string) => string): string {
+  switch (kind) {
+    case "form": return t("forms.kindForm");
+    case "survey": return t("forms.kindSurvey");
+    case "list": return t("forms.kindList");
+    default: return cap(kind);
+  }
+}
+
 export default async function ParentFormsPage({ searchParams }: { searchParams: { sent?: string; open?: string } }) {
   const session = await requireFamilyPage("/child/forms");
+  const { dict } = await i18nForAccount(session.accountId);
+  const t = (key: string, vars?: Record<string, string | number>) => tr(dict, key, vars);
   const instituteId = await firstInstituteId();
-  if (!instituteId) return <p className="muted">No daycare configured yet.</p>;
+  if (!instituteId) return <p className="muted">{t("forms.noInstitute")}</p>;
   const [forms, mine] = await Promise.all([listForms(instituteId), responsesByAccount(session.accountId)]);
   const openId = searchParams.open || searchParams.sent;
 
   return (
     <div>
-      <h1 className="title">Forms &amp; surveys</h1>
-      <div className="subtitle">Answer questions from the daycare — surveys, permission lists, and more.</div>
+      <h1 className="title">{t("forms.title")}</h1>
+      <div className="subtitle">{t("forms.subtitle")}</div>
 
-      {searchParams.sent && <p className="badge badge-green mb-4" style={{ display: "inline-block" }}>✅ Response sent. Thank you!</p>}
+      {searchParams.sent && <p className="badge badge-green mb-4" style={{ display: "inline-block" }}>{t("forms.sent")}</p>}
 
-      {forms.length === 0 && <p className="muted">No forms to complete right now.</p>}
+      {forms.length === 0 && <p className="muted">{t("forms.empty")}</p>}
       {forms.map((f: any) => {
         const fields = safeJson<Field[]>(f.fields_json, []);
         return (
@@ -28,10 +44,10 @@ export default async function ParentFormsPage({ searchParams }: { searchParams: 
             <div className="status-card">
               <div>
                 <div style={{ fontWeight: 700, fontSize: 17 }}>{f.title}</div>
-                <div className="muted small">{f.kind.toUpperCase()} · {f.response_count} response{f.response_count === 1 ? "" : "s"} so far{f.description ? ` — ${f.description}` : ""}</div>
+                <div className="muted small" dir="auto">{formKindLabel(String(f.kind ?? "form"), t)} · {t("forms.responsesSoFar", { count: f.response_count })}{f.description ? ` — ${f.description}` : ""}</div>
               </div>
               {fields.length > 0 && openId !== f.id && (
-                <a className="btn btn-primary" href={`/child/forms?open=${f.id}`}>Fill in</a>
+                <a className="btn btn-primary" href={`/child/forms?open=${f.id}`}>{t("forms.fillIn")}</a>
               )}
             </div>
             {fields.length > 0 && openId === f.id && (
@@ -51,31 +67,29 @@ export default async function ParentFormsPage({ searchParams }: { searchParams: 
                       </select>
                     ) : field.type === "checkbox" ? (
                       <label className="row small" style={{ alignItems: "center", gap: 8 }}>
-                        <input type="checkbox" name={`field_${i}`} value="yes" /> Yes
+                        <input type="checkbox" name={`field_${i}`} value="yes" /> {t("forms.yes")}
                       </label>
                     ) : (
                       <input className="input" name={`field_${i}`} required={field.required} placeholder={field.label} />
                     )}
                   </div>
                 ))}
-                <button className="btn btn-primary" type="submit">Submit</button>{" "}
-                <a className="btn btn-ghost" href="/child/forms">Cancel</a>
+                <button className="btn btn-primary" type="submit">{t("forms.submit")}</button>{" "}
+                <a className="btn btn-ghost" href="/child/forms">{t("common.cancel")}</a>
               </form>
             )}
           </div>
         );
       })}
 
-      <h3 className="subtitle mt-4">My submissions</h3>
-      {mine.length === 0 && <p className="muted small">You haven&apos;t submitted any forms yet.</p>}
+      <h3 className="subtitle mt-4">{t("forms.mySubmissions")}</h3>
+      {mine.length === 0 && <p className="muted small">{t("forms.noSubmissions")}</p>}
       {mine.map((r: any) => (
         <div className="list-item small" key={r.id}>
-          <div><strong>{r.form_title}</strong> <span className="muted">({cap(r.kind)})</span></div>
-          <span className="badge badge-green">Submitted</span>
+          <div dir="auto"><strong>{r.form_title}</strong> <span className="muted">({formKindLabel(String(r.form_kind ?? r.kind ?? "form"), t)})</span></div>
+          <span className="badge badge-green">{t("forms.submitted")}</span>
         </div>
       ))}
     </div>
   );
 }
-
-function cap(s: string) { return s.charAt(0).toUpperCase() + s.slice(1); }

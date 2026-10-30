@@ -1,13 +1,17 @@
 import { requireFamilyPage } from "@/lib/require";
 import { listEvents, eventMedia, listVideos } from "@/lib/store";
 import { firstInstituteId, cap, fmtTime } from "@/lib/helpers";
+import { i18nForAccount } from "@/lib/i18n-session";
+import { tr } from "@/lib/i18n";
 
 export const dynamic = "force-dynamic";
 
 export default async function ParentEventsPage() {
-  await requireFamilyPage("/child/events");
+  const session = await requireFamilyPage("/child/events");
+  const { dict } = await i18nForAccount(session.accountId);
+  const t = (key: string, vars?: Record<string, string | number>) => tr(dict, key, vars);
   const instituteId = await firstInstituteId();
-  if (!instituteId) return <p className="muted">No daycare configured yet.</p>;
+  if (!instituteId) return <p className="muted">{t("events.noInstitute")}</p>;
 
   const [events, videos] = await Promise.all([listEvents(instituteId, true), listVideos(instituteId)]);
   const withMedia = await Promise.all(
@@ -16,11 +20,11 @@ export default async function ParentEventsPage() {
 
   return (
     <div>
-      <h1 className="title">Events</h1>
-      <div className="subtitle">Daycare events and recent videos for your family.</div>
+      <h1 className="title">{t("events.title")}</h1>
+      <div className="subtitle">{t("events.subtitle")}</div>
 
-      <h3 className="subtitle">Upcoming events</h3>
-      {withMedia.length === 0 && <p className="muted small mb-4">No upcoming events right now.</p>}
+      <h3 className="subtitle">{t("events.upcoming")}</h3>
+      {withMedia.length === 0 && <p className="muted small mb-4">{t("events.noUpcoming")}</p>}
       <div className="grid mb-4">
         {withMedia.map((e: any) => (
           <div className="card" key={e.id}>
@@ -42,8 +46,8 @@ export default async function ParentEventsPage() {
         ))}
       </div>
 
-      <h3 className="subtitle">Videos</h3>
-      {videos.length === 0 && <p className="muted small">No videos shared yet.</p>}
+      <h3 className="subtitle">{t("events.videos")}</h3>
+      {videos.length === 0 && <p className="muted small">{t("events.noVideos")}</p>}
       <div className="grid">
         {videos.map((v: any) => (
           <div className="card" key={v.id}>
