@@ -286,7 +286,10 @@ describe("the owner-facing invoice notification feed", () => {
   it("warns while the owner can still act: due within 3 days and overdue", async () => {
     await seedInvoice({
       id: "inv-246-soon",
-      cycleMonth: daysAheadIsoDate(2).slice(0, 7),
+      // Fixed months: run-date-relative cycle months collide on the unique
+      // (institute_id, cycle_month) index when the +2d and +10d dates cross
+      // a month boundary (e.g. Oct 30: both land in November).
+      cycleMonth: "2026-12",
       dueDate: daysAheadIsoDate(2),
       status: "pending",
       createdAt: daysAgoIso(30),
@@ -301,7 +304,7 @@ describe("the owner-facing invoice notification feed", () => {
     // A 10-days-out pending invoice is not yet a warning (and not recent).
     await seedInvoice({
       id: "inv-246-far",
-      cycleMonth: daysAheadIsoDate(10).slice(0, 7),
+      cycleMonth: "2030-01",
       dueDate: daysAheadIsoDate(10),
       status: "pending",
       createdAt: daysAgoIso(30),
@@ -309,7 +312,7 @@ describe("the owner-facing invoice notification feed", () => {
     const feed = await recentActivityFeed(sunshineIid, ownerId);
     const invoicing = feed.filter((i) => i.id.startsWith("dinv-"));
     const titles = invoicing.map((i) => i.title);
-    expect(titles).toContain(`Invoice due soon — ${daysAheadIsoDate(2).slice(0, 7)}`);
+    expect(titles).toContain("Invoice due soon — 2026-12");
     expect(titles).toContain("Overdue invoice — 2026-09");
     // The overdue warning is not bound to the creation window: the 40-day-old
     // creation never flags "new" — it keeps warning until paid.

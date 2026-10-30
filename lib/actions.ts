@@ -62,7 +62,6 @@ import {
   toggleLike,
   saveWorkingHours,
   checkInAllowed,
-  runAutoCheckoutSweep,
   createDaycare,
   setInstituteActive,
   getInstitute,
@@ -1776,18 +1775,6 @@ export async function saveWorkingHoursAction(formData: FormData) {
   }
   await saveWorkingHours(String(instituteId), week);
   return { ok: true, days: Object.keys(week).length };
-}
-
-// KID-58: run the auto check-out sweep now (also runs when attendance
-// surfaces load). Kept as an action so it can be triggered from the UI or a
-// scheduler dispatcher.
-export async function runAttendanceSweepAction() {
-  await ensureSchema();
-  const instituteId = await firstInstituteId();
-  const result = instituteId
-    ? await runAutoCheckoutSweep(String(instituteId))
-    : { children: [], staff: [], at: "", reason: null, cutoff: null };
-  redirect(`/portal/attendance?sweep=1&children=${result.children.length}`);
 }
 
 export async function submitContactAction(formData: FormData) {
