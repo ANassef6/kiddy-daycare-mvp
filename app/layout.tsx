@@ -5,6 +5,7 @@ import { getBranding } from "@/lib/theme";
 import { readSessionFromCookieValue } from "@/lib/auth";
 import { ensureSeeded } from "@/lib/bootstrap";
 import { LANG_COOKIE, dirFor, localeOf, type Locale } from "@/lib/i18n";
+import ChatwootWidget from "@/components/ChatwootWidget";
 
 export const metadata: Metadata = {
   title: {
@@ -85,6 +86,11 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         {/* #1: logo URL available as data attribute for client components */}
         <div data-brand={metaBrand.name} data-logo={metaBrand.logoUrl ?? ""} style={{ display: "none" }} />
         {children}
+        {/* KID-306: env-configured Chatwoot support widget (bottom-right,
+            Chatwoot default). Renders nothing (no request, no bubble) unless
+            both NEXT_PUBLIC_CHATWOOT_* vars are set. Client boundary lives
+            inside the component; the server layout above is untouched. */}
+        <ChatwootWidget />
       </body>
     </html>
   );
