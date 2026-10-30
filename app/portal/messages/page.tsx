@@ -30,7 +30,7 @@ export default async function PortalMessagesPage({
   const { dict } = await i18nForAccount(session.accountId);
   const t = (key: string, vars?: Record<string, string | number>) => tr(dict, key, vars);
   const instituteId = await firstInstituteId();
-  if (!instituteId) return <p className="muted">No institute configured.</p>;
+  if (!instituteId) return <p className="muted">{t("learning.noInstitute")}</p>;
 
   const [parents, channels, conversations, threads, totalUnread] = await Promise.all([
     parentAccountsScoped(instituteId, session.accountId),

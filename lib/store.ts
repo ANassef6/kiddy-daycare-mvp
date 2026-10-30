@@ -8,6 +8,7 @@ import {
   closeCutoff,
   type WorkingWeek,
 } from "./working-hours";
+import { feedCopyFor, type FeedCopy } from "./i18n";
 
 // ---------- Institute / branding (white-label) ----------
 export async function getInstitute(instituteId: string): Promise<Row | undefined> {
@@ -2814,7 +2815,8 @@ export async function ownerBillingFeedForInstance(
   instituteId: string,
   accountId: string,
   sinceIso: string,
-  limit: number
+  limit: number,
+  copy: FeedCopy = feedCopyFor("en")
 ): Promise<ActivityItem[]> {
   const acct = await queryGet("SELECT role FROM account WHERE id = ?", accountId);
   if (!acct || String(acct.role) !== "owner") return [];
@@ -2852,7 +2854,7 @@ export async function ownerBillingFeedForInstance(
     const status = String(r.status ?? "pending");
     const dueDate = String(r.due_date ?? "").slice(0, 10);
     const amountEgp = `${Number(r.total_amount ?? 0)} ${String(r.currency ?? "EGP")}`;
-    const body = `Total ${amountEgp} · due ${dueDate}`;
+    const body = copy.invoiceBody(amountEgp, dueDate);
     const overdue = status === "overdue";
     const dueSoon = !overdue && status === "pending" && dueDate <= dueCutoffIso.slice(0, 10);
     if (!overdue && !dueSoon && String(r.created_at ?? "") < sinceIso) continue;
@@ -2861,12 +2863,12 @@ export async function ownerBillingFeedForInstance(
       // The "billing" type maps to the existing activity pref + 💳 feed icon.
       type: "billing",
       title: overdue
-        ? `Overdue invoice — ${cycle}`
+        ? copy.invoiceOverdue(cycle)
         : dueSoon
-          ? `Invoice due soon — ${cycle}`
-          : `New invoice — ${cycle}`,
-      body: overdue ? `${body} — the daycare is blocked while this stays unpaid` : body,
-      meta: statusMeta(status, overdue, r),
+          ? copy.invoiceDueSoon(cycle)
+          : copy.invoiceNew(cycle),
+      body: overdue ? copy.invoiceOverdueBody(body) : body,
+      meta: statusMeta(status, overdue, r, copy),
       timestamp: String(r.created_at ?? ""),
       link: "/portal/account-billing",
     });
@@ -2878,20 +2880,22 @@ export async function ownerBillingFeedForInstance(
 function statusMeta(
   status: string,
   overdue: boolean,
-  r: Record<string, unknown>
+  r: Record<string, unknown>,
+  copy: FeedCopy
 ): string {
   if (status === "paid") {
     const paidAt = String(r.paid_at ?? "");
-    return `Paid · ${paidAt ? paidAt.slice(0, 10) : ""}`;
+    return copy.invoicePaidMeta(paidAt ? paidAt.slice(0, 10) : "");
   }
-  if (overdue) return "Overdue — pay now";
-  return "Pending";
+  if (overdue) return copy.invoiceOverdueMeta();
+  return copy.invoicePendingMeta();
 }
 
 export async function recentActivityFeed(
   instituteId: string,
   accountId: string,
-  limit = 50
+  limit = 50,
+  copy: FeedCopy = feedCopyFor("en")
 ): Promise<ActivityItem[]> {
   const allowedRoomIds = await scopedRoomIds(instituteId, accountId);
   const roomFilter =
@@ -2952,18 +2956,18 @@ export async function recentActivityFeed(
   // and overdue warnings) — scoped to the exact owner account role and
   // honoring the "billing" notification preference. Every other feed source
   // below is role-agnostic and unchanged.
-  const ownerBilling = await ownerBillingFeedForInstance(instituteId, accountId, sinceIso, limit);
+  const ownerBilling = await ownerBillingFeedForInstance(instituteId, accountId, sinceIso, limit, copy);
   items.push(...ownerBilling);
 
   for (const n of newsfeed.slice(0, limit)) {
     items.push({
       id: String(n.id),
       type: "newsfeed",
-      title: String(n.author_name ?? "Newsfeed"),
+      title: String(n.author_name ?? copy.newsfeedFallback()),
       body: String(n.body ?? ""),
       timestamp: String(n.created_at),
       link: "/portal/newsfeed",
-      meta: `${n.comment_count ?? 0} comments · ${n.like_count ?? 0} likes`,
+      meta: copy.newsMeta(Number(n.comment_count ?? 0), Number(n.like_count ?? 0)),
     });
   }
 
@@ -2975,7 +2979,7 @@ export async function recentActivityFeed(
       body: String(h.description ?? ""),
       timestamp: String(h.created_at),
       link: "/portal/learning/homework",
-      meta: h.due_date ? `Due ${String(h.due_date).slice(0, 10)}` : undefined,
+      meta: h.due_date ? copy.due(String(h.due_date).slice(0, 10)) : undefined,
     });
   }
 
@@ -2983,11 +2987,11 @@ export async function recentActivityFeed(
     items.push({
       id: String(s.id),
       type: "supplies",
-      title: `Supplies: ${String(s.title)}`,
-      body: `${s.quantity ?? 1} ${String(s.unit ?? "pcs")}${s.notes ? ` — ${String(s.notes)}` : ""}`,
+      title: copy.suppliesTitle(String(s.title)),
+      body: copy.suppliesBody(String(s.quantity ?? 1), String(s.unit ?? "pcs"), s.notes ? ` — ${String(s.notes)}` : ""),
       timestamp: String(s.created_at),
       link: "/portal/supplies",
-      meta: `Status: ${String(s.status ?? "needed")}`,
+      meta: copy.suppliesMeta(copy.supplyStatusLabel(String(s.status ?? "needed"))),
     });
   }
 
@@ -2996,11 +3000,11 @@ export async function recentActivityFeed(
     items.push({
       id: String(b.id),
       type: "billing",
-      title: `Billing: ${String(b.description)}`,
+      title: copy.billingTitle(String(b.description)),
       body: `${b.first_name} ${b.last_name}`,
       timestamp: String(b.created_at),
       link: "/portal/finance",
-      meta: `${amount.toFixed(2)} ${String(b.currency ?? "CAD")} · ${String(b.status ?? "pending")}`,
+      meta: copy.billingMeta(amount.toFixed(2), String(b.currency ?? "CAD"), copy.billingStatusLabel(String(b.status ?? "pending"))),
     });
   }
 
@@ -3008,7 +3012,10 @@ export async function recentActivityFeed(
     items.push({
       id: String(a.id),
       type: "attendance",
-      title: `${a.type === "in" ? "Checked in" : "Checked out"}: ${a.first_name} ${a.last_name}`,
+      title:
+        a.type === "in"
+          ? copy.checkedInTitle(`${a.first_name} ${a.last_name}`)
+          : copy.checkedOutTitle(`${a.first_name} ${a.last_name}`),
       timestamp: String(a.recorded_at),
       link: "/portal/attendance",
       meta: new Date(String(a.recorded_at)).toLocaleString(),
@@ -3019,11 +3026,11 @@ export async function recentActivityFeed(
     items.push({
       id: String(i.id),
       type: "incidents",
-      title: `Incident: ${i.first_name} ${i.last_name}`,
+      title: copy.incidentTitle(`${i.first_name} ${i.last_name}`),
       body: String(i.description ?? ""),
       timestamp: String(i.created_at),
       link: "/portal/incidents",
-      meta: `Reported by ${String(i.reported_by ?? "")}`,
+      meta: copy.reportedBy(String(i.reported_by ?? "")),
     });
   }
 

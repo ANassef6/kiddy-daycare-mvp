@@ -1303,7 +1303,7 @@
   "audience": "staff",
   "area": "Performance",
   "title": "مراجعة مؤشرات أداء الموظفين",
-  "body": "**الجمهور:** الموظفون والمسؤولون. **المتطلبات:** تسجيل الدخول بحساب موظف أو مسؤول، وأن يكون هناك موظف واحد على الأقل.\n\n١. افتح **Performance indicators** (Portal → Tools → Performance).\n\n٢. اختر **Staff member** من القائمة المنسدلة.\n\n٣. عيّن تاريخي **From** و **To** (الافتراضي: بداية السنة → اليوم).\n\n٤. اضغط **Apply**.\n\n٥. راجع أشرطة **Communication**: Posts، Media، Messages.\n\n٦. راجع أشرطة **Child development**: Observations، Assessments، 2 Years Checks.\n\n٧. استخدم الروابط: **Report center**، **Development tracking**، **Staff & access control**.\n\n**حل المشكلات**\n\n- لا تظهر مؤشرات: اختر موظفًا ثم اضغط **Apply** (\"Pick a staff member to see their indicators.\").\n\nملاحظة: تُعرض بعض عناصر هذه الشاشة بالإنجليزية حتى في الوضع العربي.\n\n**ذات صلة:** تصدير تقرير من مركز التقارير · إضافة عضو فريق وضبط الصلاحيات",
+  "body": "**الجمهور:** الموظفون والمسؤولون. **المتطلبات:** تسجيل الدخول بحساب موظف أو مسؤول، وأن يكون هناك موظف واحد على الأقل.\n\n١. افتح **Performance indicators** (Portal → Tools → Performance).\n\n٢. اختر **Staff member** من القائمة المنسدلة.\n\n٣. عيّن تاريخي **From** و **To** (الافتراضي: بداية السنة → اليوم).\n\n٤. اضغط **Apply**.\n\n٥. راجع أشرطة **Communication**: Posts، Media، Messages.\n\n٦. راجع أشرطة **Child development**: Observations، Assessments، 2 Years Checks.\n\n٧. استخدم الروابط: **Report center**، **Development tracking**، **Staff & access control**.\n\n**حل المشكلات**\n\n- لا تظهر مؤشرات: اختر موظفًا ثم اضغط **Apply** (\"Pick a staff member to see their indicators.\").\n\n**ذات صلة:** تصدير تقرير من مركز التقارير · إضافة عضو فريق وضبط الصلاحيات",
   "keywords": [
    "performance",
    "staff",
@@ -1421,7 +1421,7 @@
   "audience": "staff",
   "area": "Supplies",
   "title": "طلب مستلزمات",
-  "body": "**الجمهور:** الموظفون والمسؤولون. **المتطلبات:** تسجيل الدخول بحساب موظف أو مسؤول.\n\n١. افتح **Supplies** في الشريط الجانبي.\n\n٢. ضمن **Request supplies**، املأ:\n\n- **Item** (مطلوب)، مثال \"Diapers, spare cloth\".\n- **Qty** و **Unit**.\n- **Notes for parents** (اختياري).\n\n٣. اضغط **Request**. النتيجة المتوقعة: بطاقة جديدة تعرض \"Item × qty unit\" مع الحالة **Needed**.\n\n٤. لتسجيل التقدم، استخدم القائمة المنسدلة (**Needed** / **Fulfilled**) ثم اضغط **Update**.\n\nيتم إشعار أولياء الأمور بتحديثات المستلزمات عبر موجز الأخبار.\n\n**حل المشكلات**\n\n- لا توجد طلبات مستلزمات بعد: تظهر \"No supply requests yet.\"\n\nملاحظة: تُعرض بعض عناصر هذه الشاشة بالإنجليزية حتى في الوضع العربي.\n\n**ذات صلة:** نشر تحديث في موجز الأخبار",
+  "body": "**الجمهور:** الموظفون والمسؤولون. **المتطلبات:** تسجيل الدخول بحساب موظف أو مسؤول.\n\n١. افتح **Supplies** في الشريط الجانبي.\n\n٢. ضمن **Request supplies**، املأ:\n\n- **Item** (مطلوب)، مثال \"Diapers, spare cloth\".\n- **Qty** و **Unit**.\n- **Notes for parents** (اختياري).\n\n٣. اضغط **Request**. النتيجة المتوقعة: بطاقة جديدة تعرض \"Item × qty unit\" مع الحالة **Needed**.\n\n٤. لتسجيل التقدم، استخدم القائمة المنسدلة (**Needed** / **Fulfilled**) ثم اضغط **Update**.\n\nيتم إشعار أولياء الأمور بتحديثات المستلزمات عبر موجز الأخبار.\n\n**حل المشكلات**\n\n- لا توجد طلبات مستلزمات بعد: تظهر \"No supply requests yet.\"\n\n**ذات صلة:** نشر تحديث في موجز الأخبار",
   "keywords": [
    "supplies",
    "inventory",
@@ -1457,7 +1457,7 @@
   "audience": "staff",
   "area": "Rooms",
   "title": "إضافة غرفة",
-  "body": "**الجمهور:** الموظفون والمسؤولون. **المتطلبات:** تسجيل الدخول بحساب مسؤول.\n\n١. افتح **Rooms** في الشريط الجانبي.\n\n٢. في النموذج، املأ:\n\n- **Room name** (مطلوب)، مثال \"Toddlers\".\n- **Capacity** (اختياري).\n- **Colour** (منتقي ألوان، افتراضي أزرق).\n\n٣. اضغط **Add room**. النتيجة المتوقعة: بطاقة غرفة جديدة مع نقطة اللون والسعه و\"0 children\".\n\n٤. اضغط بطاقة الغرفة لعرض الأطفال المُسنَدين وتعديل الإعدادات.\n\n٥. في **Room settings**، حدّث **Name** و **Capacity** و **Colour** ثم اضغط **Save settings**.\n\nيُسنَد الأطفال إلى غرفة من صفحة **Children** عند إضافة أو تعديل طفل. الموظفون يرون فقط الغرف المُسنَدة إليهم.\n\n**حل المشكلات**\n\n- موظف لا يرى غرفة: المسؤولون يسنّدون الغرف للموظفين في صفحة Staff.\n\nملاحظة: تُعرض بعض عناصر هذه الشاشة بالإنجليزية حتى في الوضع العربي.\n\n**ذات صلة:** إضافة ملف طفل · إضافة عضو فريق وضبط الصلاحيات",
+  "body": "**الجمهور:** الموظفون والمسؤولون. **المتطلبات:** تسجيل الدخول بحساب مسؤول.\n\n١. افتح **Rooms** في الشريط الجانبي.\n\n٢. في النموذج، املأ:\n\n- **Room name** (مطلوب)، مثال \"Toddlers\".\n- **Capacity** (اختياري).\n- **Colour** (منتقي ألوان، افتراضي أزرق).\n\n٣. اضغط **Add room**. النتيجة المتوقعة: بطاقة غرفة جديدة مع نقطة اللون والسعه و\"0 children\".\n\n٤. اضغط بطاقة الغرفة لعرض الأطفال المُسنَدين وتعديل الإعدادات.\n\n٥. في **Room settings**، حدّث **Name** و **Capacity** و **Colour** ثم اضغط **Save settings**.\n\nيُسنَد الأطفال إلى غرفة من صفحة **Children** عند إضافة أو تعديل طفل. الموظفون يرون فقط الغرف المُسنَدة إليهم.\n\n**حل المشكلات**\n\n- موظف لا يرى غرفة: المسؤولون يسنّدون الغرف للموظفين في صفحة Staff.\n\n**ذات صلة:** إضافة ملف طفل · إضافة عضو فريق وضبط الصلاحيات",
   "keywords": [
    "room",
    "classroom",
@@ -1493,7 +1493,7 @@
   "audience": "staff",
   "area": "Messaging",
   "title": "قراءة رسائل البوابة وإرسالها",
-  "body": "**الجمهور:** الموظفون والمسؤولون. **المتطلبات:** تسجيل الدخول بحساب موظف أو مسؤول.\n\nقراءة الرسائل:١. افتح **Messages** (شريط البوابة العلوي).٢. تصفح المحادثات/السلاسل في العمود الأيسر؛ يظهر عدد غير المقروء والشارة.٣. استخدم صندوق البحث للتصفية حسب اسم المشارك أو آخر رسالة؛ بدّل **Unread** لإظهار غير المقروء فقط.٤. اضغط محادثة أو سلسلة للقراءة؛ اكتب ردًا ثم اضغط **Send**.\n\nإرسال رسالة جديدة:١. اضغط زر ✎ (رسالة جديدة).٢. اختر المستلمين:\n\n- **Classroom channels** (خانة اختيار + **Audience**: Whole / Children / Staff).\n- **Parents** (خانات اختيار).٣. اختياري: أرفق ملفًا، أو tick **Group message**.٤. اكتب الرسالة ثم اضغط **Send**.\n\nتظهر الأخطاء كبانر: \"norecipients\" (لم يُختر مستلم) أو \"attachment\" (مشكلة مرفق).\n\n**حل المشكلات**\n\n- لا يظهر أولياء الأمور: تأكد من أن الأطفال مسجّلون في صفوف لديها أولياء أمور مرتبطون.\n- فشل المرفق: أزل الملف وأعد المحاولة، أو تحقق من حجم الملف.\n\nملاحظة: تُعرض بعض عناصر هذه الشاشة بالإنجليزية حتى في الوضع العربي.\n\n**ذات صلة:** إرسال رسالة إلى فريق طفلك (جانب ولي الأمر)",
+  "body": "**الجمهور:** الموظفون والمسؤولون. **المتطلبات:** تسجيل الدخول بحساب موظف أو مسؤول.\n\nقراءة الرسائل:١. افتح **Messages** (شريط البوابة العلوي).٢. تصفح المحادثات/السلاسل في العمود الأيسر؛ يظهر عدد غير المقروء والشارة.٣. استخدم صندوق البحث للتصفية حسب اسم المشارك أو آخر رسالة؛ بدّل **Unread** لإظهار غير المقروء فقط.٤. اضغط محادثة أو سلسلة للقراءة؛ اكتب ردًا ثم اضغط **Send**.\n\nإرسال رسالة جديدة:١. اضغط زر ✎ (رسالة جديدة).٢. اختر المستلمين:\n\n- **Classroom channels** (خانة اختيار + **Audience**: Whole / Children / Staff).\n- **Parents** (خانات اختيار).٣. اختياري: أرفق ملفًا، أو tick **Group message**.٤. اكتب الرسالة ثم اضغط **Send**.\n\nتظهر الأخطاء كبانر: \"norecipients\" (لم يُختر مستلم) أو \"attachment\" (مشكلة مرفق).\n\n**حل المشكلات**\n\n- لا يظهر أولياء الأمور: تأكد من أن الأطفال مسجّلون في صفوف لديها أولياء أمور مرتبطون.\n- فشل المرفق: أزل الملف وأعد المحاولة، أو تحقق من حجم الملف.\n\n**ذات صلة:** إرسال رسالة إلى فريق طفلك (جانب ولي الأمر)",
   "keywords": [
    "message",
    "inbox",
@@ -1529,7 +1529,7 @@
   "audience": "staff",
   "area": "Notifications",
   "title": "إدارة تفضيلات الإشعارات",
-  "body": "**الجمهور:** الموظفون والمسؤولون. **المتطلبات:** تسجيل الدخول بحساب موظف أو مسؤول.\n\n١. افتح **Notifications** في الشريط الجانبي، ثم اضغط **Manage preferences** (أو افتح **Account settings**).\n\n٢. في **Account settings**، ابحث عن جدول **Notification preferences**.\n\n٣. لكل نشاط (Newsfeed posts، Homework، Supplies، Billing، Attendance، Incidents، Messages)، حدد **Email** و/أو **In-app**.\n\n٤. اضغط **Save preferences**. النتيجة المتوقعة: تأكيد \"Preferences saved.\".\n\nتسرد صفحة **Notifications** النشاط الأخير (موجز الأخبار، واجب منزلي، مستلزمات، فوترة، حضور، حوادث).\n\n**حل المشكلات**\n\n- لم تُحفظ التفضيلات: تأكد من الضغط على **Save preferences** بعد تغيير الخانات.\n\nملاحظة: تُعرض بعض عناصر هذه الشاشة بالإنجليزية حتى في الوضع العربي.\n\n**ذات صلة:** تغيير إعدادات حسابك ولغة التطبيق",
+  "body": "**الجمهور:** الموظفون والمسؤولون. **المتطلبات:** تسجيل الدخول بحساب موظف أو مسؤول.\n\n١. افتح **Notifications** في الشريط الجانبي، ثم اضغط **Manage preferences** (أو افتح **Account settings**).\n\n٢. في **Account settings**، ابحث عن جدول **Notification preferences**.\n\n٣. لكل نشاط (Newsfeed posts، Homework، Supplies، Billing، Attendance، Incidents، Messages)، حدد **Email** و/أو **In-app**.\n\n٤. اضغط **Save preferences**. النتيجة المتوقعة: تأكيد \"Preferences saved.\".\n\nتسرد صفحة **Notifications** النشاط الأخير (موجز الأخبار، واجب منزلي، مستلزمات، فوترة، حضور، حوادث).\n\n**حل المشكلات**\n\n- لم تُحفظ التفضيلات: تأكد من الضغط على **Save preferences** بعد تغيير الخانات.\n\n**ذات صلة:** تغيير إعدادات حسابك ولغة التطبيق",
   "keywords": [
    "notifications",
    "preferences",
@@ -1605,7 +1605,7 @@
   "audience": "staff",
   "area": "Center settings",
   "title": "ضبط إعدادات المركز والهوية",
-  "body": "**الجمهور:** الموظفون والمسؤولون. **المتطلبات:** تسجيل الدخول بحساب مسؤول (الموظفون يُعاد توجيههم إلى لوحة المعلومات).\n\n١. افتح **Settings** (Portal → Tools → Settings) — \"Settings — center configuration\".\n\n٢. **اللغة:** اختر لغة التطبيق في بطاقة اللغة.\n\n٣. **ساعات العمل:** عيّن أوقات الفتح/الإغلاق لكل يوم، ثم اضغط **Save working hours**. (اليوم بدون أوقات مغلق؛ أي شخص لا يزال مسجّلاً بعد ٣ ساعات من الإغلاق يُسجَّل خروجه تلقائيًا.)\n\n٤. **Center details:** أدخل **Center name** و **Contact** و **Address**، ثم اضغط **Save center details**.\n\n٥. **Logo & brand image:** ارفع شعارًا وصورة هوية.\n\n٦. **Branding:** عيّن **Daycare name** و **Primary color** و **Accent color** و **Font** (Inter / Nunito / Poppins / Georgia)، ثم اضغط **Save branding**. تعرض بطاقة المعاينة النتيجة.\n\n**حل المشكلات**\n\n- تمت إعادة توجيهك إلى لوحة المعلومات: هذه الصفحة للمسؤولين فقط.\n\nملاحظة: تُعرض بعض عناصر هذه الشاشة بالإنجليزية حتى في الوضع العربي.\n\n**ذات صلة:** ضبط ساعات العمل بالمركز · إضافة غرفة",
+  "body": "**الجمهور:** الموظفون والمسؤولون. **المتطلبات:** تسجيل الدخول بحساب مسؤول (الموظفون يُعاد توجيههم إلى لوحة المعلومات).\n\n١. افتح **Settings** (Portal → Tools → Settings) — \"Settings — center configuration\".\n\n٢. **اللغة:** اختر لغة التطبيق في بطاقة اللغة.\n\n٣. **ساعات العمل:** عيّن أوقات الفتح/الإغلاق لكل يوم، ثم اضغط **Save working hours**. (اليوم بدون أوقات مغلق؛ أي شخص لا يزال مسجّلاً بعد ٣ ساعات من الإغلاق يُسجَّل خروجه تلقائيًا.)\n\n٤. **Center details:** أدخل **Center name** و **Contact** و **Address**، ثم اضغط **Save center details**.\n\n٥. **Logo & brand image:** ارفع شعارًا وصورة هوية.\n\n٦. **Branding:** عيّن **Daycare name** و **Primary color** و **Accent color** و **Font** (Inter / Nunito / Poppins / Georgia)، ثم اضغط **Save branding**. تعرض بطاقة المعاينة النتيجة.\n\n**حل المشكلات**\n\n- تمت إعادة توجيهك إلى لوحة المعلومات: هذه الصفحة للمسؤولين فقط.\n\n**ذات صلة:** ضبط ساعات العمل بالمركز · إضافة غرفة",
   "keywords": [
    "center details",
    "logo",
@@ -1677,7 +1677,7 @@
   "audience": "staff",
   "area": "Consents",
   "title": "إرسال طلب موافقة إلى أولياء الأمور",
-  "body": "**الجمهور:** الموظفون والمسؤولون. **المتطلبات:** تسجيل الدخول بحساب موظف أو مسؤول.\n\n١. افتح **Consents** (Portal → Tools → Consents).\n\n٢. املأ **Title** (مطلوب).\n\n٣. اختر **Child** (اختياري): \"All / general\" أو طفل محدد.\n\n٤. املأ **Details**.\n\n٥. اضغط **Send consent request**.النتيجة المتوقعة: صف جديد مع حالته (pending / approved / denied).\n\nيوافق أولياء الأمور أو يرفضون الطلب من بوابتهم.\n\n**حل المشكلات**\n\n- (لم تُلاحظ حالات فشل)\n\nملاحظة: تُعرض بعض عناصر هذه الشاشة بالإنجليزية حتى في الوضع العربي.\n\n**ذات صلة:** الموافقة على طلب موافقة أو رفضه (جانب ولي الأمر)",
+  "body": "**الجمهور:** الموظفون والمسؤولون. **المتطلبات:** تسجيل الدخول بحساب موظف أو مسؤول.\n\n١. افتح **Consents** من الشريط الجانبي (**Children → Consents**)، أو من بطاقة **موافقات معلّقة** في لوحة المعلومات (زر **فتح الموافقات ←**).\n\n٢. املأ **Title** (مطلوب).\n\n٣. اختر **Child** (اختياري): \"All / general\" أو طفل محدد.\n\n٤. املأ **Details**.\n\n٥. اضغط **Send consent request**.النتيجة المتوقعة: صف جديد مع حالته (pending / approved / denied).\n\nيوافق أولياء الأمور أو يرفضون الطلب من بوابتهم.\n\n**حل المشكلات**\n\n- (لم تُلاحظ حالات فشل)\n\n**ذات صلة:** الموافقة على طلب موافقة أو رفضه (جانب ولي الأمر)",
   "keywords": [
    "consent",
    "request",
@@ -1695,7 +1695,7 @@
   "audience": "staff",
   "area": "Consents",
   "title": "Send a consent request to parents",
-  "body": "**Audience:** Staff & admin. **Prerequisites:** you are signed in with a staff or admin account.\n\n1. Open **Consents** (Portal → Tools → Consents).\n2. Fill in **Title** (required).\n3. Choose a **Child** (optional): \"All / general\" or a specific child.\n4. Fill in **Details**.\n5. Click **Send consent request**.Expected: a new row appears with its status (pending / approved / denied).\n\nParents approve or deny the request from their portal.\n\n**Troubleshooting**\n\n- (none observed)\n\n**Related:** Approve or deny a consent request (parent)",
+  "body": "**Audience:** Staff & admin. **Prerequisites:** you are signed in with a staff or admin account.\n\n1. Open **Consents** under **Children → Consents** in the sidebar (the dashboard's **Pending consents** card opens the same page).\n2. Fill in **Title** (required).\n3. Choose a **Child** (optional): \"All / general\" or a specific child.\n4. Fill in **Details**.\n5. Click **Send consent request**.Expected: a new row appears with its status (pending / approved / denied).\n\nParents approve or deny the request from their portal.\n\n**Troubleshooting**\n\n- (none observed)\n\n**Related:** Approve or deny a consent request (parent)",
   "keywords": [
    "consent",
    "request",
@@ -1713,7 +1713,7 @@
   "audience": "staff",
   "area": "Events",
   "title": "إضافة فعالية",
-  "body": "**الجمهور:** الموظفون والمسؤولون. **المتطلبات:** تسجيل الدخول بحساب موظف أو مسؤول.\n\n١. افتح **Events** (Portal → Tools → Events).\n\n٢. ضمن **Add an event**، املأ:\n\n- **Title** (مطلوب).\n- **Date** (مطلوب).\n- **Start** و **End** (أوقات اختيارية).\n- **Location** (اختياري).\n- **Description** (اختياري).\n\n٣. اضغط **Add event**. النتيجة المتوقعة: بطاقة فعالية مع شارة التاريخ والوقت والموقع والوصف.\n\n٤. لإرفاق صور/فيديو، افتح رابط الفعالية مع `?open=` واستخدم **Attach**.\n\n٥. تظهر الفعالية أيضًا في صفحة **Calendar** للموظفين.\n\nيرى أولياء الأمور الفعاليات القادمة في بوابتهم.\n\n**حل المشكلات**\n\n- (لم تُلاحظ حالات فشل)\n\nملاحظة: تُعرض بعض عناصر هذه الشاشة بالإنجليزية حتى في الوضع العربي.\n\n**ذات صلة:** رؤية الفعاليات القادمة ومشاهدة الفيديو (جانب ولي الأمر)",
+  "body": "**الجمهور:** الموظفون والمسؤولون. **المتطلبات:** تسجيل الدخول بحساب موظف أو مسؤول.\n\n١. افتح **Events** من الشريط الجانبي (**Home → Events**)، وهو مرتبط أيضًا من صفحتي التقويم والأنشطة.\n\n٢. ضمن **Add an event**، املأ:\n\n- **Title** (مطلوب).\n- **Date** (مطلوب).\n- **Start** و **End** (أوقات اختيارية).\n- **Location** (اختياري).\n- **Description** (اختياري).\n\n٣. اضغط **Add event**. النتيجة المتوقعة: بطاقة فعالية مع شارة التاريخ والوقت والموقع والوصف.\n\n٤. لإرفاق صور/فيديو، افتح رابط الفعالية مع `?open=` واستخدم **Attach**.\n\n٥. تظهر الفعالية أيضًا في صفحة **Calendar** للموظفين.\n\nيرى أولياء الأمور الفعاليات القادمة في بوابتهم.\n\n**حل المشكلات**\n\n- (لم تُلاحظ حالات فشل)\n\n**ذات صلة:** رؤية الفعاليات القادمة ومشاهدة الفيديو (جانب ولي الأمر)",
   "keywords": [
    "event",
    "add event",
@@ -1731,7 +1731,7 @@
   "audience": "staff",
   "area": "Events",
   "title": "Add an event",
-  "body": "**Audience:** Staff & admin. **Prerequisites:** you are signed in with a staff or admin account.\n\n1. Open **Events** (Portal → Tools → Events).\n2. Under **Add an event**, fill in:\n   - **Title** (required).\n   - **Date** (required).\n   - **Start** and **End** (optional times).\n   - **Location** (optional).\n   - **Description** (optional).\n3. Click **Add event**. Expected: an event card appears with the date badge, time, location, and description.\n4. To attach photos/videos, open the event link with `?open=` and use **Attach**.\n5. The event also appears on the **Calendar** page for staff.\n\nParents see upcoming events on their portal.\n\n**Troubleshooting**\n\n- (none observed)\n\n**Related:** See upcoming events and watch videos (parent)",
+  "body": "**Audience:** Staff & admin. **Prerequisites:** you are signed in with a staff or admin account.\n\n1. Open **Events** under **Home → Events** in the sidebar (also linked from the Calendar and Activities pages).\n2. Under **Add an event**, fill in:\n   - **Title** (required).\n   - **Date** (required).\n   - **Start** and **End** (optional times).\n   - **Location** (optional).\n   - **Description** (optional).\n3. Click **Add event**. Expected: an event card appears with the date badge, time, location, and description.\n4. To attach photos/videos, open the event link with `?open=` and use **Attach**.\n5. The event also appears on the **Calendar** page for staff.\n\nParents see upcoming events on their portal.\n\n**Troubleshooting**\n\n- (none observed)\n\n**Related:** See upcoming events and watch videos (parent)",
   "keywords": [
    "event",
    "add event",

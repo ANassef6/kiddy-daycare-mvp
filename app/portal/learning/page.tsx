@@ -1,11 +1,11 @@
 import { requireSession } from "@/lib/require";
 import { listObservations, listChildren } from "@/lib/store";
 import { curriculumTree, ensureCurriculumSeeded } from "@/lib/curriculum";
-import { firstInstituteId, cap } from "@/lib/helpers";
+import { firstInstituteId } from "@/lib/helpers";
 import { queryGet } from "@/lib/db";
 import ObservationModalTrigger from "@/components/ObservationModalTrigger";
 import { i18nForAccount } from "@/lib/i18n-session";
-import { tr } from "@/lib/i18n";
+import { fmtDateTimeFor, tr } from "@/lib/i18n";
 
 export const dynamic = "force-dynamic";
 
@@ -13,6 +13,14 @@ export default async function PortalLearningPage() {
   const session = requireSession();
   const { locale, dict } = await i18nForAccount(session.accountId);
   const t = (key: string, vars?: Record<string, string | number>) => tr(dict, key, vars);
+  // KID-221: the kind badge showed the raw DB enum ("observation" etc.) in
+  // whatever locale the account chose. Translate through the dictionaries and
+  // keep the raw value as fallback for unknown kinds.
+  const kindLabel = (kind: string) => {
+    if (!kind) return "";
+    const v = tr(dict, kind === "assessment" ? "learning.assessment" : "learning.observation");
+    return v || kind.charAt(0).toUpperCase() + kind.slice(1);
+  };
   // KID-47 fix: seeding must never 500 the page on the live DB — a seeding
   // hiccup falls back to whatever curriculum already exists (dev pages already
   // use this pattern).
@@ -52,8 +60,8 @@ export default async function PortalLearningPage() {
         {observations.map((o: any) => (
           <div className="list-item" key={o.id}>
             <div className="small">
-              <span className="badge">{cap(o.kind)}</span>{" "}
-              <strong>{o.first_name} {o.last_name}</strong> · {cap(o.recorded_at ?? o.created_at)}
+              <span className="badge">{kindLabel(String(o.kind ?? ""))}</span>{" "}
+              <strong>{o.first_name} {o.last_name}</strong> · {fmtDateTimeFor(locale, o.recorded_at ?? o.created_at)}
               {o.title ? ` — ${o.title}` : ""}
               {(o.learning_point_name || o.age_group || o.milestone_name) && (
                 <div className="mt-1" style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState, useEffect, useRef, useCallback } from "react";
+import { tr, type Dict } from "@/lib/i18n";
 
 export type PickerChild = {
   id: string;
@@ -20,6 +21,11 @@ type Props = {
   channelName?: string;
   roomName?: string;
   placeholder?: string;
+  // KID-221: the picker used to render English-only labels ("Center
+  // (everyone)", "My classrooms", the child counts and the empty states)
+  // inside an Arabic shell. Every caller passes the active locale dictionary
+  // and every visible string goes through it.
+  dict: Dict;
 };
 
 // KID-53 #1 / KID-104 #6: recipients picker with pre-defined channels. The
@@ -35,8 +41,10 @@ export default function RecipientsPicker({
   childName = "childIds",
   channelName = "recipientChannel",
   roomName = "recipientRoomIds",
-  placeholder = "Choose recipients…",
+  dict,
+  placeholder,
 }: Props) {
+  const t = (key: string, vars?: Record<string, string | number>) => tr(dict, key, vars);
   const [channel, setChannel] = useState("");
   const [roomIds, setRoomIds] = useState<string[]>([]);
   const [query, setQuery] = useState("");
@@ -86,12 +94,16 @@ export default function RecipientsPicker({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const channelLabel = channel === "center" ? "Center (everyone)"
+  const channelLabel = channel === "center" ? t("picker.pickerCenterEveryone")
     : channel === "rooms" && roomIds.length > 0
-    ? `Classrooms: ${visibleRooms.filter((r) => roomIds.includes(r.id)).map((r) => r.name).join(", ")}`
+    ? t("picker.pickerChannelsClassrooms", { rooms: visibleRooms.filter((r) => roomIds.includes(r.id)).map((r) => r.name).join(", ") })
     : "";
 
-  const label = channelLabel || (selected.size === 0 ? placeholder : `${selected.size} child${selected.size > 1 ? "ren" : ""} selected`);
+  const label = channelLabel || (selected.size === 0
+    ? (placeholder ?? t("picker.pickerChoose"))
+    : selected.size === 1
+      ? t("picker.pickerSelectedOne", { count: selected.size })
+      : t("picker.pickerSelectedMany", { count: selected.size }));
 
   return (
     <div ref={ref} style={{ position: "relative" }}>
@@ -135,7 +147,7 @@ export default function RecipientsPicker({
           }}
         >
           <div style={{ padding: "8px 12px", borderBottom: "1px solid var(--color-border)" }}>
-            <div className="small muted" style={{ fontWeight: 700, marginBottom: 6 }}>Pre-defined channels</div>
+            <div className="small muted" style={{ fontWeight: 700, marginBottom: 6 }}>{t("picker.pickerPredefined")}</div>
             {isAdmin && (
               <label
                 style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 0", cursor: "pointer", fontSize: 14 }}
@@ -149,7 +161,7 @@ export default function RecipientsPicker({
                   onChange={() => pickChannel("center", [])}
                   style={{ accentColor: "var(--brand-primary)" }}
                 />
-                Center — everyone in the daycare
+                {t("picker.pickerCenterEveryoneInDaycare")}
               </label>
             )}
             <label
@@ -165,10 +177,10 @@ export default function RecipientsPicker({
                 style={{ accentColor: "var(--brand-primary)" }}
               />
               {isAdmin
-                ? "All classrooms"
+                ? t("picker.pickerAllClassrooms")
                 : visibleRooms.length
-                ? "My classrooms"
-                : "My classrooms (none assigned yet)"}
+                ? t("picker.pickerMyClassrooms")
+                : t("picker.pickerMyClassroomsNone")}
             </label>
             {channel === "rooms" && visibleRooms.length > 1 && (
               <div style={{ padding: "4px 0 6px 26px", display: "flex", flexDirection: "column", gap: 4 }}>
@@ -193,7 +205,7 @@ export default function RecipientsPicker({
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search children…"
+            placeholder={t("picker.pickerSearchChildren")}
             autoFocus
             style={{
               width: "100%",
@@ -208,11 +220,11 @@ export default function RecipientsPicker({
           />
           {visibleChildren.length === 0 && (
             <div style={{ padding: "8px 12px", fontSize: 13, color: "var(--color-muted)" }}>
-              No children {isAdmin ? "" : "in your classrooms"} yet.
+              {isAdmin ? t("picker.pickerNoChildrenAll") : t("picker.pickerNoChildrenRooms")}
             </div>
           )}
           {filtered.length === 0 && visibleChildren.length > 0 && (
-            <div style={{ padding: "8px 12px", fontSize: 13, color: "var(--color-muted)" }}>No children found</div>
+            <div style={{ padding: "8px 12px", fontSize: 13, color: "var(--color-muted)" }}>{t("picker.pickerNoChildrenFound")}</div>
           )}
           {filtered.map((c) => (
             <label

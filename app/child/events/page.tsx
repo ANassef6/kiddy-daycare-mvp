@@ -1,32 +1,47 @@
 import { requireFamilyPage } from "@/lib/require";
 import { listEvents, eventMedia, listVideos } from "@/lib/store";
-import { firstInstituteId, cap, fmtTime } from "@/lib/helpers";
+import { firstInstituteId } from "@/lib/helpers";
+import { i18nForAccount } from "@/lib/i18n-session";
+import { fmtTimeFor, tr } from "@/lib/i18n";
 
 export const dynamic = "force-dynamic";
 
+// KID-221: the parent's events/videos page was English-only (heading,
+// subtitle, "Videos" section, empty states). Localized; event day names come
+// from the DB ("saturday" etc.) so they go through a weekday map per locale.
+const WEEKDAYS = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
+
 export default async function ParentEventsPage() {
-  await requireFamilyPage("/child/events");
+  const session = await requireFamilyPage("/child/events");
+  const { locale, dict } = await i18nForAccount(session.accountId);
+  const t = (key: string, vars?: Record<string, string | number>) => tr(dict, key, vars);
   const instituteId = await firstInstituteId();
-  if (!instituteId) return <p className="muted">No daycare configured yet.</p>;
+  if (!instituteId) return <p className="muted">{t("events.noDaycare")}</p>;
 
   const [events, videos] = await Promise.all([listEvents(instituteId, true), listVideos(instituteId)]);
   const withMedia = await Promise.all(
     events.map(async (e: any) => ({ ...e, media: await eventMedia(e.id) }))
   );
+  const weekdayLabel = (raw: unknown) => {
+    const idx = WEEKDAYS.indexOf(String(raw ?? "").toLowerCase());
+    if (idx < 0) return String(raw ?? "");
+    const d = new Date(Date.UTC(2026, 9, 4 + idx));
+    return new Intl.DateTimeFormat(locale === "ar" ? "ar-EG" : "en-GB", { weekday: "long" }).format(d);
+  };
 
   return (
     <div>
-      <h1 className="title">Events</h1>
-      <div className="subtitle">Daycare events and recent videos for your family.</div>
+      <h1 className="title">{t("events.title")}</h1>
+      <div className="subtitle">{t("events.parentSubtitle")}</div>
 
-      <h3 className="subtitle">Upcoming events</h3>
-      {withMedia.length === 0 && <p className="muted small mb-4">No upcoming events right now.</p>}
+      <h3 className="subtitle">{t("events.upcoming")}</h3>
+      {withMedia.length === 0 && <p className="muted small mb-4">{t("events.noUpcoming")}</p>}
       <div className="grid mb-4">
         {withMedia.map((e: any) => (
           <div className="card" key={e.id}>
-            <div className="badge" style={{ marginBottom: 8 }}>{cap(e.event_date)}</div>
+            <div className="badge" style={{ marginBottom: 8 }}>{weekdayLabel(e.event_date)}</div>
             <div style={{ fontWeight: 700, fontSize: 17 }}>{e.title}</div>
-            {e.start_time && <div className="muted small">{fmtTime(e.start_time)}{e.end_time ? ` – ${fmtTime(e.end_time)}` : ""}</div>}
+            {e.start_time && <div className="muted small">{fmtTimeFor(locale, e.start_time)}{e.end_time ? ` – ${fmtTimeFor(locale, e.end_time)}` : ""}</div>}
             {e.location && <div className="muted small">📍 {e.location}</div>}
             {e.description && <p className="small mt-2">{e.description}</p>}
             {e.media.length > 0 && (
@@ -42,8 +57,8 @@ export default async function ParentEventsPage() {
         ))}
       </div>
 
-      <h3 className="subtitle">Videos</h3>
-      {videos.length === 0 && <p className="muted small">No videos shared yet.</p>}
+      <h3 className="subtitle">{t("events.videosTitle")}</h3>
+      {videos.length === 0 && <p className="muted small">{t("events.noVideos")}</p>}
       <div className="grid">
         {videos.map((v: any) => (
           <div className="card" key={v.id}>

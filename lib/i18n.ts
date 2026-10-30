@@ -350,6 +350,11 @@ export const en = {
     recentNewsfeed: "Recent newsfeed posts",
     noPostsYet: "No posts yet.",
     admin: "Admin",
+    // KID-221: the compose-form leftovers that kept the activities page
+    // mixed-language in Arabic mode.
+    recipients: "Recipients",
+    titlePlaceholder: "e.g. Water play morning",
+    locationPlaceholder: "e.g. Garden",
   },
   settings: {
     title: "Settings — center configuration",
@@ -387,6 +392,21 @@ export const en = {
       "A day with no open/close time is closed — nobody can check in that day. Anyone still checked in 3 hours after closing is automatically checked out by the system. Leave every day closed/blank to keep the center unrestricted.",
     workingHoursSaved:
       "Working hours saved — the center's check-in gate and auto check-out now use these.",
+    // KID-221: the center-details placeholders kept the Arabic page speaking
+    // English inside its form fields.
+    centerNamePlaceholder: "e.g. Sunshine Daycare",
+    contactPlaceholder: "Phone / email, e.g. +20 100 000 0000",
+    addressPlaceholder: "Street, district, city",
+    // KID-221: the working-hours table showed English DAY_LABELS inside the
+    // Arabic shell; the editor now receives these per-locale labels.
+    daySunday: "Sunday",
+    dayMonday: "Monday",
+    dayTuesday: "Tuesday",
+    dayWednesday: "Wednesday",
+    dayThursday: "Thursday",
+    dayFriday: "Friday",
+    daySaturday: "Saturday",
+    today: "today",
   },
   account: {
     settingsTitle: "Account settings",
@@ -718,6 +738,263 @@ export const en = {
     priorityLow: "Low",
     duplicateError: "An open request with the same title already exists for your daycare.",
     invalidError: "Please fill in both a title and a description.",
+  },
+  // KID-221: the Consents surface (staff/admin creator page under Children +
+  // the parent's approve/deny page). Both surfaces share the status labels.
+  consents: {
+    title: "Consents",
+    newConsent: "New consent request",
+    titleLabel: "Title",
+    childOptional: "Child (optional)",
+    childAll: "All / general",
+    details: "Details",
+    send: "Send consent request",
+    noConsents: "No consent requests yet.",
+    statusPending: "Pending",
+    statusApproved: "Approved",
+    statusDenied: "Denied",
+    noInstitute: "No institute configured.",
+    // parent surface
+    approvalsTitle: "Consents & approvals",
+    noRequests: "No consent requests for your children right now.",
+    approve: "Approve",
+    deny: "Deny",
+  },
+  // KID-221: the Events surface (staff/admin create page under Home + the
+  // parent's events/videos page).
+  events: {
+    title: "Events",
+    addEvent: "Add an event",
+    titleLabel: "Title",
+    dateLabel: "Date",
+    startLabel: "Start",
+    endLabel: "End",
+    locationLabel: "Location",
+    locationPlaceholder: "e.g. Main gym / Field trip",
+    descriptionLabel: "Description",
+    addBtn: "Add event",
+    mediaCount: "{count} media",
+    mediaUrlPlaceholder: "Media URL (photo/video)",
+    photo: "Photo",
+    video: "Video",
+    attach: "Attach",
+    noInstitute: "No institute configured.",
+    // parent surface
+    parentSubtitle: "Daycare events and recent videos for your family.",
+    upcoming: "Upcoming events",
+    noUpcoming: "No upcoming events right now.",
+    videosTitle: "Videos",
+    noVideos: "No videos shared yet.",
+    noDaycare: "No daycare configured yet.",
+  },
+  // KID-221: Rooms (sidebar Tools) — list + admin create form.
+  rooms: {
+    title: "Rooms",
+    roomName: "Room name",
+    roomNamePlaceholder: "e.g. Toddlers",
+    capacity: "Capacity",
+    colour: "Colour",
+    addRoom: "Add room",
+    capacityOf: "Capacity: {n}",
+    childrenCount: "{count} children",
+    childCount: "1 child",
+    viewHint: "Click to view & edit settings →",
+    noRooms: "No rooms yet.",
+  },
+  // KID-221: Supplies (sidebar Tools).
+  supplies: {
+    title: "Supplies",
+    subtitle:
+      "Staff register supplies required from parents (tools, cloth, food, etc.) with quantities. Parents are notified of updates via the newsfeed.",
+    requestTitle: "Request supplies",
+    item: "Item",
+    itemPlaceholder: "e.g. Diapers, spare cloth",
+    qty: "Qty",
+    unit: "Unit",
+    notesForParents: "Notes for parents",
+    notesPlaceholder: "Size, brand, drop-off…",
+    request: "Request",
+    noRequests: "No supply requests yet.",
+    needed: "Needed",
+    fulfilled: "Fulfilled",
+    update: "Update",
+    noInstitute: "No institute configured.",
+  },
+  // KID-221: staff Performance (sidebar Tools).
+  performance: {
+    title: "Performance indicators",
+    subtitle: "Staff communication & child-development activity over the selected period.",
+    staffMember: "Staff member",
+    from: "From",
+    to: "To",
+    apply: "Apply",
+    lastUpdated: "Last updated {when}",
+    pickStaff: "Pick a staff member to see their indicators.",
+    communication: "Communication — {name}",
+    childDevelopment: "Child development — {name}",
+    since: "since {from}",
+    until: "until {to}",
+    metricPosts: "Posts",
+    metricMedia: "Media",
+    metricMessages: "Messages",
+    metricObservations: "Observations",
+    metricAssessments: "Assessments",
+    metricTwoYearChecks: "2 Years Checks",
+    deepDives: "Deep dives",
+    diveReports: "Report center",
+    diveReportsHint: "Generate and export center-wide reports.",
+    diveDev: "Development tracking",
+    diveDevHint: "Review each child's learning milestones and goals.",
+    diveStaff: "Staff & access control",
+    diveStaffHint: "Manage the team behind the indicators.",
+    staffFallback: "Staff",
+    noInstitute: "No institute configured.",
+  },
+  // KID-221: Report center (sidebar Tools — tables, stats and filters).
+  reportCenter: {
+    title: "Report center",
+    subtitle: "Center-wide analytics and staff performance dashboards.",
+    quickAccess: "Quick access — downloadable reports (billing, attendance, smart lists)",
+    dlBilling: "Billing Excel (CSV)",
+    dlAttendance: "Attendance Excel (CSV)",
+    dlChildren: "Children smart-list (CSV)",
+    filteredAnchor: "Filtered reports ↓",
+    overview: "Center overview",
+    colChildren: "Children",
+    colCheckedIn: "Checked in now",
+    colDailyReports: "Daily reports",
+    colCoverage: "Report coverage / child",
+    colCheckIns: "Total check-ins (all time)",
+    colObservations: "Learning observations",
+    colNewsfeed: "Newsfeed posts",
+    colPhotosVideos: "Photos & videos",
+    colIncidents: "Incident reports",
+    colConsents: "Consents answered",
+    roomsTitle: "Rooms",
+    thRoom: "Room",
+    thCapacity: "Capacity",
+    thEnrolled: "Enrolled",
+    thPerChild: "Per-child daily reports",
+    perfTitle: "Staff performance",
+    thStaff: "Staff",
+    thRole: "Role",
+    thReportsAuthored: "Reports authored",
+    thCheckIns: "Check-ins",
+    thIncidents: "Incidents logged",
+    thObservations: "Observations",
+    noStaff: "No staff accounts yet.",
+    paceNote: "Per-day report pace across center: {n} report(s) per child recorded to date.",
+    filtersTitle: "Filtered reports — billing section (filter by child, time frame, invoice status)",
+    childName: "Child name",
+    childNamePlaceholder: "e.g. Ella",
+    from: "From",
+    to: "To",
+    status: "Status",
+    any: "Any",
+    pending: "Pending",
+    paid: "Paid",
+    sickDaily: "Sick (daily)",
+    runFilter: "Run filter",
+    dlBillingFiltered: "Download billing Excel (CSV)",
+    dlAttendanceFiltered: "Download attendance Excel (CSV)",
+    dailyTitle: "Daily reports section",
+    thDate: "Date",
+    thChild: "Child",
+    thMood: "Mood",
+    thSummary: "Summary",
+    thSick: "Sick",
+    sickBadge: "Sick",
+    noMatches: "No reports match these filters.",
+    inScope: "{count} children in scope.",
+    noInstitute: "No institute configured.",
+  },
+  // KID-221: Homework (sidebar Learning).
+  homework: {
+    title: "Homework",
+    subtitle: "Assign take-home tasks to a child. Families see them in the parent app newsfeed thread.",
+    assignTitle: "Assign homework",
+    child: "Child",
+    allChildren: "All children",
+    dueDate: "Due date",
+    titleLabel: "Title",
+    titlePlaceholder: "e.g. Read 10 pages",
+    instructions: "Instructions",
+    instructionsPlaceholder: "Reading, practice papers, show-and-tell…",
+    assign: "Assign",
+    noHomework: "No homework assigned yet.",
+    forChild: "for {name}",
+    forAll: "for all children",
+    dueOn: "due {date}",
+    noInstitute: "No institute configured.",
+  },
+  // KID-221: the in-app notification feed strings. The feed itself is built
+  // in lib/store (recentActivityFeed) — it receives FeedCopy for the active
+  // locale so a notification row never renders the English template inside an
+  // Arabic shell. Keyed by template, interpolated with {vars}.
+  feed: {
+    newsMeta: "{comments} comments · {likes} likes",
+    newsfeedFallback: "Newsfeed",
+    due: "Due {date}",
+    suppliesTitle: "Supplies: {title}",
+    suppliesBody: "{qty} {unit}{notes}",
+    suppliesMeta: "Status: {status}",
+    billingTitle: "Billing: {description}",
+    billingMeta: "{amount} {currency} · {status}",
+    checkedInTitle: "Checked in: {name}",
+    checkedOutTitle: "Checked out: {name}",
+    incidentTitle: "Incident: {name}",
+    reportedBy: "Reported by {name}",
+    invoiceBody: "Total {amount} · due {date}",
+    invoiceOverdue: "Overdue invoice — {cycle}",
+    invoiceDueSoon: "Invoice due soon — {cycle}",
+    invoiceNew: "New invoice — {cycle}",
+    invoiceOverdueBody: "{body} — the daycare is blocked while this stays unpaid",
+    invoicePaidMeta: "Paid · {date}",
+    invoiceOverdueMeta: "Overdue — pay now",
+    invoicePendingMeta: "Pending",
+  },
+  // KID-221: the staff newsfeed composer (Home group) — it had no localized
+  // keys and spoke English inside the translated shell.
+  newsfeed: {
+    composerTitle: "New post — composer (recipients + attachment)",
+    postUpdate: "Post an update",
+    writeHere: "Click here and write…",
+    attachmentDevice: "Attachment (from your device)",
+    attachmentLimit: "Max ~2.5 MB. Stored with the post.",
+  },
+  // KID-221: parent-surface strings that had no localized key yet.
+  parent: {
+    notificationsJustNow: "just now",
+    notificationsMinutesAgo: "{count}m ago",
+    notificationsHoursAgo: "{count}h ago",
+    notificationsDaysAgo: "{count}d ago",
+    pickerChoose: "Choose recipients…",
+    pickerCenterEveryone: "Center (everyone)",
+    pickerChannelsClassrooms: "Classrooms: {rooms}",
+    pickerSelectedOne: "{count} child selected",
+    pickerSelectedMany: "{count} children selected",
+    pickerPredefined: "Pre-defined channels",
+    pickerCenterEveryoneInDaycare: "Center — everyone in the daycare",
+    pickerAllClassrooms: "All classrooms",
+    pickerMyClassrooms: "My classrooms",
+    pickerMyClassroomsNone: "My classrooms (none assigned yet)",
+    pickerSearchChildren: "Search children…",
+    pickerNoChildrenAll: "No children yet.",
+    pickerNoChildrenRooms: "No children in your classrooms yet.",
+    pickerNoChildrenFound: "No children found",
+    driveSubtitle: "Documents, forms, and media shared with your family by the daycare.",
+    driveNothing: "Nothing shared yet.",
+    driveOpen: "Open",
+    driveAllChildren: "all children",
+    driveKb: "{kb} KB",
+    newsfeedTitle: "Newsfeed",
+    newsfeedNothing: "Nothing posted for your children yet.",
+    newsfeedFor: "for {name}",
+    newsfeedMeta: "{likes} likes · {comments} comments",
+    newsfeedCommentAction: "Comment",
+    newsfeedCommentPlaceholder: "Add a comment…",
+    incidentsNothing: "No incident reports for your children.",
+    incidentsPendingAck: "Pending acknowledgement",
   },
   // KID-260: Help Center chrome. The EN/AR toggle here is the HELP language,
   // independent of the account app language (it defaults to it).
@@ -1061,6 +1338,11 @@ export const ar = {
     recentNewsfeed: "أحدث منشورات الأخبار",
     noPostsYet: "لا توجد منشورات بعد.",
     admin: "المشرف",
+    // KID-221: بقايا نموذج الإنشاء التي كانت تُبقي صفحة الأنشطة مختلطة اللغة
+    // في الوضع العربي.
+    recipients: "المستلمون",
+    titlePlaceholder: "مثلًا: صباح اللعب بالماء",
+    locationPlaceholder: "مثلًا: الحديقة",
   },
   settings: {
     title: "الإعدادات — إعدادات المركز",
@@ -1098,6 +1380,21 @@ export const ar = {
       "اليوم الذي لا يحتوي على وقت فتح/إغلاق يُعد يومًا مغلقًا — لا يمكن لأحد تسجيل الدخول فيه. أي شخص ما زال مسجّل دخوله بعد مرور ٣ ساعات على الإغلاق يتم تسجيل خروجه تلقائيًا. اترك كل الأيام مغلقة/فارغة لإبقاء المركز دون قيود.",
     workingHoursSaved:
       "تم حفظ ساعات العمل — أصبحت بوابة تسجيل الدخول والخروج التلقائي تستخدمها الآن.",
+    // KID-221: بقايا النماذج التوضيحية كانت تجعل محتويات نماذج صفحة الإعدادات
+    // تتحدث بالإنجليزية.
+    centerNamePlaceholder: "مثلًا: روضة الشمس",
+    contactPlaceholder: "هاتف / بريد، مثلًا +20 100 000 0000",
+    addressPlaceholder: "الشارع، الحي، المدينة",
+    // KID-221: جدول ساعات العمل كان يعرض أسماء الأيام بالإنجليزية داخل
+    // الهيكل العربي؛ يستقبل المحرّر هذه التسميات بحسب اللغة.
+    daySunday: "الأحد",
+    dayMonday: "الاثنين",
+    dayTuesday: "الثلاثاء",
+    dayWednesday: "الأربعاء",
+    dayThursday: "الخميس",
+    dayFriday: "الجمعة",
+    daySaturday: "السبت",
+    today: "اليوم",
   },
   account: {
     settingsTitle: "إعدادات الحساب",
@@ -1377,6 +1674,263 @@ export const ar = {
     duplicateError: "هناك طلب مفتوح بنفس العنوان لروضتكم بالفعل.",
     invalidError: "املأ العنوان والوصف معًا من فضلك.",
   },
+  // KID-221: سطح الموافقات (صفحة الإنشاء للفريق تحت الأطفال + صفحة
+  // الموافقة/الرفض لولي الأمر). كلا السطحين يتشارك تصنيفات الحالة.
+  consents: {
+    title: "الموافقات",
+    newConsent: "طلب موافقة جديد",
+    titleLabel: "العنوان",
+    childOptional: "الطفل (اختياري)",
+    childAll: "الكل / عام",
+    details: "التفاصيل",
+    send: "إرسال طلب الموافقة",
+    noConsents: "لا توجد طلبات موافقة بعد.",
+    statusPending: "معلّق",
+    statusApproved: "موافق عليه",
+    statusDenied: "مرفوض",
+    noInstitute: "لم يتم إعداد أي مركز.",
+    // سطح ولي الأمر
+    approvalsTitle: "الموافقات والاعتمادات",
+    noRequests: "لا توجد طلبات موافقة لأطفالك الآن.",
+    approve: "موافقة",
+    deny: "رفض",
+  },
+  // KID-221: سطح الفعاليات (صفحة الإنشاء للفريق تحت الرئيسية + صفحة
+  // الفعاليات والفيديوهات لولي الأمر).
+  events: {
+    title: "الفعاليات",
+    addEvent: "إضافة فعالية",
+    titleLabel: "العنوان",
+    dateLabel: "التاريخ",
+    startLabel: "البداية",
+    endLabel: "النهاية",
+    locationLabel: "المكان",
+    locationPlaceholder: "مثلًا: الصالة الكبرى / رحلة ميدانية",
+    descriptionLabel: "الوصف",
+    addBtn: "إضافة الفعالية",
+    mediaCount: "{count} وسائط",
+    mediaUrlPlaceholder: "رابط الوسيط (صورة/فيديو)",
+    photo: "صورة",
+    video: "فيديو",
+    attach: "إرفاق",
+    noInstitute: "لم يتم إعداد أي مركز.",
+    // سطح ولي الأمر
+    parentSubtitle: "فعاليات الروضة والفيديوهات الحديثة لعائلتكم.",
+    upcoming: "الفعاليات القادمة",
+    noUpcoming: "لا توجد فعاليات قادمة الآن.",
+    videosTitle: "الفيديوهات",
+    noVideos: "لم تُشارك فيديوهات بعد.",
+    noDaycare: "لم يتم إعداد أي روضة بعد.",
+  },
+  // KID-221: الفصول (قائمة الأدوات الجانبية) — القائمة ونموذج الإضافة للمشرف.
+  rooms: {
+    title: "الفصول",
+    roomName: "اسم الفصل",
+    roomNamePlaceholder: "مثلًا: الحضّانة",
+    capacity: "السعة",
+    colour: "اللون",
+    addRoom: "إضافة فصل",
+    capacityOf: "السعة: {n}",
+    childrenCount: "{count} أطفال",
+    childCount: "طفل واحد",
+    viewHint: "اضغط لعرض الإعدادات وتعديلها →",
+    noRooms: "لا توجد فصول بعد.",
+  },
+  // KID-221: المستلزمات (قائمة الأدوات الجانبية).
+  supplies: {
+    title: "المستلزمات",
+    subtitle:
+      "يسجّل الفريق المستلزمات المطلوبة من أولياء الأمور (أدوات، قماش، طعام، إلخ) بالكميات. يُبلَّغ أولياء الأمور بالتحديثات عبر الأخبار.",
+    requestTitle: "طلب مستلزمات",
+    item: "الصنف",
+    itemPlaceholder: "مثلًا: حفّاضات، قماش احتياطي",
+    qty: "الكمية",
+    unit: "الوحدة",
+    notesForParents: "ملاحظات لأولياء الأمور",
+    notesPlaceholder: "المقاس، الماركة، موضع التسليم…",
+    request: "طلب",
+    noRequests: "لا توجد طلبات مستلزمات بعد.",
+    needed: "مطلوب",
+    fulfilled: "تم توفيره",
+    update: "تحديث",
+    noInstitute: "لم يتم إعداد أي مركز.",
+  },
+  // KID-221: أداء الفريق (قائمة الأدوات الجانبية).
+  performance: {
+    title: "مؤشرات الأداء",
+    subtitle: "نشاط تواصل الفريق وتطوّر الأطفال خلال الفترة المحددة.",
+    staffMember: "عضو الفريق",
+    from: "من",
+    to: "إلى",
+    apply: "تطبيق",
+    lastUpdated: "آخر تحديث {when}",
+    pickStaff: "اختر عضو فريق لعرض مؤشراته.",
+    communication: "التواصل — {name}",
+    childDevelopment: "تطوّر الأطفال — {name}",
+    since: "منذ {from}",
+    until: "حتى {to}",
+    metricPosts: "المنشورات",
+    metricMedia: "الوسائط",
+    metricMessages: "الرسائل",
+    metricObservations: "الملاحظات",
+    metricAssessments: "التقييمات",
+    metricTwoYearChecks: "فحوصات السنتين",
+    deepDives: "استعراض تفصيلي",
+    diveReports: "مركز التقارير",
+    diveReportsHint: "أنشئ وصدّر تقارير على مستوى المركز.",
+    diveDev: "متابعة التطوّر",
+    diveDevHint: "استعرض إنجازات وأهداف التعلّم لكل طفل.",
+    diveStaff: "الفريق وصلاحيات الوصول",
+    diveStaffHint: "أبرز إدارة الفريق الذي يقف خلف المؤشرات.",
+    staffFallback: "الفريق",
+    noInstitute: "لم يتم إعداد أي مركز.",
+  },
+  // KID-221: مركز التقارير (قائمة الأدوات الجانبية — الجداول والإحصاءات والفلاتر).
+  reportCenter: {
+    title: "مركز التقارير",
+    subtitle: "تحليلات على مستوى المركز ولوحات أداء الفريق.",
+    quickAccess: "وصول سريع — تقارير قابلة للتنزيل (الفواتير، الحضور، القوائم الذكية)",
+    dlBilling: "فواتير Excel (CSV)",
+    dlAttendance: "حضور Excel (CSV)",
+    dlChildren: "القائمة الذكية للأطفال (CSV)",
+    filteredAnchor: "التقارير المفلترة ↓",
+    overview: "نظرة عامة على المركز",
+    colChildren: "الأطفال",
+    colCheckedIn: "الحاضرون الآن",
+    colDailyReports: "التقارير اليومية",
+    colCoverage: "تغطية التقارير لكل طفل",
+    colCheckIns: "إجمالي تسجيلات الحضور (كل الوقت)",
+    colObservations: "ملاحظات التعلّم",
+    colNewsfeed: "منشورات الأخبار",
+    colPhotosVideos: "الصور والفيديوهات",
+    colIncidents: "تقارير الحوادث",
+    colConsents: "الموافقات المجاوبة",
+    roomsTitle: "الفصول",
+    thRoom: "الفصل",
+    thCapacity: "السعة",
+    thEnrolled: "المسجلون",
+    thPerChild: "تقارير يومية لكل طفل",
+    perfTitle: "أداء الفريق",
+    thStaff: "الموظف",
+    thRole: "الدور",
+    thReportsAuthored: "تقارير منشورة",
+    thCheckIns: "تسجيلات الحضور",
+    thIncidents: "حوادث مسجّلة",
+    thObservations: "الملاحظات",
+    noStaff: "لا توجد حسابات فريق بعد.",
+    paceNote: "وتيرة التقارير اليومية في المركز: {n} تقرير لكل طفل حتى الآن.",
+    filtersTitle: "التقارير المفلترة — قسم الفواتير (فلترة بالطفل والفترة وحالة الفاتورة)",
+    childName: "اسم الطفل",
+    childNamePlaceholder: "مثلًا: إيلا",
+    from: "من",
+    to: "إلى",
+    status: "الحالة",
+    any: "الكل",
+    pending: "معلّقة",
+    paid: "مدفوعة",
+    sickDaily: "مريض (يومي)",
+    runFilter: "تشغيل الفلتر",
+    dlBillingFiltered: "تنزيل فواتير Excel (CSV)",
+    dlAttendanceFiltered: "تنزيل حضور Excel (CSV)",
+    dailyTitle: "قسم التقارير اليومية",
+    thDate: "التاريخ",
+    thChild: "الطفل",
+    thMood: "المزاج",
+    thSummary: "الملخص",
+    thSick: "مريض",
+    sickBadge: "مريض",
+    noMatches: "لا توجد تقارير تطابق هذه الفلاتر.",
+    inScope: "{count} أطفال في النطاق.",
+    noInstitute: "لم يتم إعداد أي مركز.",
+  },
+  // KID-221: الواجبات (قائمة التعلّم).
+  homework: {
+    title: "الواجبات",
+    subtitle: "عيّن مهامًا منزلية لطفل. تراها العائلات في سلسلة الأخبار داخل تطبيق ولي الأمر.",
+    assignTitle: "إسناد واجب",
+    child: "الطفل",
+    allChildren: "كل الأطفال",
+    dueDate: "تاريخ التسليم",
+    titleLabel: "العنوان",
+    titlePlaceholder: "مثلًا: اقرأ 10 صفحات",
+    instructions: "التوجيهات",
+    instructionsPlaceholder: "قراءة، أوراق تدريب، عرض وتأدية…",
+    assign: "إسناد",
+    noHomework: "لم يُسند أي واجب بعد.",
+    forChild: "لـ {name}",
+    forAll: "لكل الأطفال",
+    dueOn: "الاستحقاق {date}",
+    noInstitute: "لم يتم إعداد أي مركز.",
+  },
+  // KID-221: نصوص شريط الإشعارات داخل التطبيق. يُبنى الشريط نفسه في
+  // lib/store (recentActivityFeed) — ويستقبل FeedCopy للغة النشطة حتى لا
+  // يعرض أي سطر إشعار القالب الإنجليزي داخل هيكل عربي. المفاتيح قوالب
+  // تُستوفى بـ {vars}.
+  feed: {
+    newsMeta: "{comments} تعليقات · {likes} إعجابات",
+    newsfeedFallback: "الأخبار",
+    due: "الاستحقاق {date}",
+    suppliesTitle: "المستلزمات: {title}",
+    suppliesBody: "{qty} {unit}{notes}",
+    suppliesMeta: "الحالة: {status}",
+    billingTitle: "الفواتير: {description}",
+    billingMeta: "{amount} {currency} · {status}",
+    checkedInTitle: "سجّل الحضور: {name}",
+    checkedOutTitle: "سجّل الانصراف: {name}",
+    incidentTitle: "حادث: {name}",
+    reportedBy: "بلّغ عنه {name}",
+    invoiceBody: "الإجمالي {amount} · الاستحقاق {date}",
+    invoiceOverdue: "فاتورة متأخرة — {cycle}",
+    invoiceDueSoon: "فاتورة تستحق قريبًا — {cycle}",
+    invoiceNew: "فاتورة جديدة — {cycle}",
+    invoiceOverdueBody: "{body} — الروضة موقوفة طالما الفاتورة غير مسددة",
+    invoicePaidMeta: "مدفوعة · {date}",
+    invoiceOverdueMeta: "متأخرة — سدّدها الآن",
+    invoicePendingMeta: "معلّقة",
+  },
+  // KID-221: محرّر الأخبار الخاص بالفريق (قائمة الرئيسية) — لم تكن له مفاتيح
+  // مترجمة وكان يتحدث بالإنجليزية داخل الهيكل المترجم.
+  newsfeed: {
+    composerTitle: "منشور جديد — المحرّر (المستلمون + المرفق)",
+    postUpdate: "انشر تحديثًا",
+    writeHere: "اضغط هنا واكتب…",
+    attachmentDevice: "مرفق (من جهازك)",
+    attachmentLimit: "بحد أقصى ~2.5 ميجابايت. يُحفظ مع المنشور.",
+  },
+  // KID-221: نصوص سطح ولي الأمر التي لم يكن لها مفتاح مترجم.
+  parent: {
+    notificationsJustNow: "الآن",
+    notificationsMinutesAgo: "قبل {count} د",
+    notificationsHoursAgo: "قبل {count} س",
+    notificationsDaysAgo: "قبل {count} يوم",
+    pickerChoose: "اختر المستلمين…",
+    pickerCenterEveryone: "المركز (الجميع)",
+    pickerChannelsClassrooms: "الفصول: {rooms}",
+    pickerSelectedOne: "{count} طفل مختار",
+    pickerSelectedMany: "{count} أطفال مختارون",
+    pickerPredefined: "قنوات محددة مسبقًا",
+    pickerCenterEveryoneInDaycare: "المركز — الجميع في الروضة",
+    pickerAllClassrooms: "كل الفصول",
+    pickerMyClassrooms: "فصولي",
+    pickerMyClassroomsNone: "فصولي (لم يُخصص أي فصل بعد)",
+    pickerSearchChildren: "ابحث في الأطفال…",
+    pickerNoChildrenAll: "لا يوجد أطفال بعد.",
+    pickerNoChildrenRooms: "لا يوجد أطفال في فصولك بعد.",
+    pickerNoChildrenFound: "لم يُعثر على أطفال.",
+    driveSubtitle: "المستندات والنماذج والوسائط التي شاركتها الروضة مع عائلتكم.",
+    driveNothing: "لم يُشارك شيء بعد.",
+    driveOpen: "فتح",
+    driveAllChildren: "كل الأطفال",
+    driveKb: "{kb} كيلوبايت",
+    newsfeedTitle: "الأخبار",
+    newsfeedNothing: "لم تُنشر منشورات لأطفالك بعد.",
+    newsfeedFor: "لـ {name}",
+    newsfeedMeta: "{likes} إعجابات · {comments} تعليقات",
+    newsfeedCommentAction: "تعليق",
+    newsfeedCommentPlaceholder: "أضف تعليقًا…",
+    incidentsNothing: "لا توجد تقارير حوادث لأطفالك.",
+    incidentsPendingAck: "بانتظار الإقرار",
+  },
   // KID-246: page "فواتير الحساب" الخاصة بمالك الروضة — الخطة والأسعار
   // للعرض فقط هنا (فريق المنصّة يديرها)، وسجل الفواتير هو سجلات
   // daycare_invoice نفسها التي تغذّي قائمة المنصّة.
@@ -1495,4 +2049,138 @@ export function keysOf(enDict: Dict, prefix = ""): string[] {
     else out.push(key);
   }
   return out;
+}
+
+// ---------------------------------------------------------------------------
+// KID-221: locale-aware formatting helpers. Pages used to reach for
+// toDateString()/toLocaleString() (always English) inside an already
+// translated shell — that is the "mixed-language page" the KID-191 QA
+// captured. Every user-visible date/time goes through these instead.
+
+function intlLocale(locale: Locale): string {
+  return locale === "ar" ? "ar-EG" : "en-GB";
+}
+
+function toDateOr(v: unknown): Date | null {
+  if (!v) return null;
+  try {
+    const d = new Date(String(v));
+    return Number.isNaN(d.getTime()) ? null : d;
+  } catch {
+    return null;
+  }
+}
+
+// "30 Oct 2026" / "٣٠ أكتوبر ٢٠٢٦" — ☀ for an unknown value returns "—".
+export function fmtDateFor(locale: Locale, v: unknown): string {
+  const d = toDateOr(v);
+  if (!d) return "—";
+  try {
+    return new Intl.DateTimeFormat(intlLocale(locale), {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+    }).format(d);
+  } catch {
+    return d.toDateString();
+  }
+}
+
+// "8:05 PM" / "٨:٠٥ م"
+export function fmtTimeFor(locale: Locale, v: unknown): string {
+  const d = toDateOr(v);
+  if (!d) return "—";
+  try {
+    return new Intl.DateTimeFormat(intlLocale(locale), {
+      hour: "2-digit",
+      minute: "2-digit",
+    }).format(d);
+  } catch {
+    return d.toLocaleTimeString();
+  }
+}
+
+// "30 Oct 2026, 8:05 PM" / "٣٠ أكتوبر ٢٠٢٦، ٨:٠٥ م"
+export function fmtDateTimeFor(locale: Locale, v: unknown): string {
+  const d = toDateOr(v);
+  if (!d) return "—";
+  try {
+    return new Intl.DateTimeFormat(intlLocale(locale), {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    }).format(d);
+  } catch {
+    return d.toLocaleString();
+  }
+}
+
+// KID-221: the in-app notification feed strings feedCopy, built per locale so
+// lib/store's recentActivityFeed never emits its English templates inside an
+// Arabic shell. Defaults to English at call sites that have no session locale.
+export type FeedCopy = {
+  newsMeta: (comments: number, likes: number) => string;
+  newsfeedFallback: () => string;
+  due: (date: string) => string;
+  suppliesTitle: (title: string) => string;
+  suppliesBody: (qty: string, unit: string, notes: string) => string;
+  suppliesMeta: (status: string) => string;
+  billingTitle: (description: string) => string;
+  billingMeta: (amount: string, currency: string, status: string) => string;
+  checkedInTitle: (name: string) => string;
+  checkedOutTitle: (name: string) => string;
+  incidentTitle: (name: string) => string;
+  reportedBy: (name: string) => string;
+  invoiceBody: (amount: string, date: string) => string;
+  invoiceOverdue: (cycle: string) => string;
+  invoiceDueSoon: (cycle: string) => string;
+  invoiceNew: (cycle: string) => string;
+  invoiceOverdueBody: (body: string) => string;
+  invoicePaidMeta: (date: string) => string;
+  invoiceOverdueMeta: () => string;
+  invoicePendingMeta: () => string;
+  // status label resolvers for the raw DB enums that surface in the feed.
+  supplyStatusLabel: (status: string) => string;
+  billingStatusLabel: (status: string) => string;
+};
+
+export function feedCopyFor(locale: Locale): FeedCopy {
+  const dict = getDictionary(locale);
+  const t = (key: string, vars?: Record<string, string | number>) => tr(dict, key, vars);
+  return {
+    newsMeta: (comments, likes) => t("feed.newsMeta", { comments, likes }),
+    newsfeedFallback: () => t("feed.newsfeedFallback"),
+    due: (date) => t("feed.due", { date }),
+    suppliesTitle: (title) => t("feed.suppliesTitle", { title }),
+    suppliesBody: (qty, unit, notes) => t("feed.suppliesBody", { qty, unit, notes }),
+    suppliesMeta: (status) => t("feed.suppliesMeta", { status }),
+    billingTitle: (description) => t("feed.billingTitle", { description }),
+    billingMeta: (amount, currency, status) => t("feed.billingMeta", { amount, currency, status }),
+    checkedInTitle: (name) => t("feed.checkedInTitle", { name }),
+    checkedOutTitle: (name) => t("feed.checkedOutTitle", { name }),
+    incidentTitle: (name) => t("feed.incidentTitle", { name }),
+    reportedBy: (name) => t("feed.reportedBy", { name }),
+    invoiceBody: (amount, date) => t("feed.invoiceBody", { amount, date }),
+    invoiceOverdue: (cycle) => t("feed.invoiceOverdue", { cycle }),
+    invoiceDueSoon: (cycle) => t("feed.invoiceDueSoon", { cycle }),
+    invoiceNew: (cycle) => t("feed.invoiceNew", { cycle }),
+    invoiceOverdueBody: (body) => t("feed.invoiceOverdueBody", { body }),
+    invoicePaidMeta: (date) => t("feed.invoicePaidMeta", { date }),
+    invoiceOverdueMeta: () => t("feed.invoiceOverdueMeta"),
+    invoicePendingMeta: () => t("feed.invoicePendingMeta"),
+    supplyStatusLabel: (status) =>
+      status === "fulfilled"
+        ? t("supplies.fulfilled")
+        : status === "needed"
+          ? t("supplies.needed")
+          : status,
+    billingStatusLabel: (status) =>
+      status === "paid"
+        ? t("accountBilling.statusPaid")
+        : status === "overdue"
+          ? t("accountBilling.statusOverdue")
+          : t("accountBilling.statusPending"),
+  };
 }

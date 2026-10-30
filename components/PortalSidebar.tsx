@@ -25,6 +25,11 @@ export function portalNav(dict: Dict, role?: string): NavGroup[] {
         { label: t("nav.dashboard"), href: "/portal/dashboard" },
         { label: t("nav.newsFeed"), href: "/portal/newsfeed" },
         { label: t("nav.calendar"), href: "/portal/calendar" },
+        // KID-221: Events was the checkout gap from the KID-191 docs QA —
+        // reachable only via a Calendar / Activities link and (wrongly
+        // authored twice) under Home in the articles. It now has its stable
+        // sidebar location, still inside the Home group it belongs to.
+        { label: t("nav.events"), href: "/portal/events" },
         { label: t("nav.parentDrive"), href: "/portal/drive" },
       ],
     },
@@ -34,6 +39,10 @@ export function portalNav(dict: Dict, role?: string): NavGroup[] {
       items: [
         { label: t("nav.childProfile"), href: "/portal/children" },
         { label: t("nav.attendance"), href: "/portal/attendance" },
+        // KID-221: Consents used to be reachable only through the dashboard
+        // card. The Children group is its intended home (child-linked
+        // approvals, KID-103 classroom-scoped); the dashboard card link stays.
+        { label: t("nav.childrenConsents"), href: "/portal/consents" },
       ],
     },
     {
