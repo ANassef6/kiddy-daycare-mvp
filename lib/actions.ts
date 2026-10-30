@@ -3,7 +3,7 @@
 import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
-import { LANG_COOKIE, tenancyDisabledMessage, type TenancyDisabledReason } from "@/lib/i18n";
+import { LANG_COOKIE, tenancyDisabledMessage, getDictionary, localeOf, tr, type Locale, type TenancyDisabledReason } from "@/lib/i18n";
 import {
   createAccount,
   findAccountByEmail,
@@ -165,6 +165,14 @@ async function gateLocale(accountLanguage: unknown): Promise<string> {
   return String(accountLanguage ?? "en");
 }
 
+// KID-368 (DEF-004): every /login-facing error the action returns is worded
+// in the visitor's language — including the plain bad-credentials path,
+// where there is no account to read a preference from (cookie or English).
+async function gateMessage(key: string, accountLanguage: unknown): Promise<string> {
+  const lang = await gateLocale(accountLanguage);
+  return tr(getDictionary(localeOf(lang) as Locale), key);
+}
+
 async function tenancyDisabledError(
   accountId: string,
   role: string,
@@ -222,7 +230,7 @@ export async function loginAction(formData: FormData) {
   // password was stored locally too).
   const account = await findAccountByEmail(email);
   if (!account || !verifyPassword(password, account.password_hash)) {
-    return { error: "Invalid email or password." };
+    return { error: await gateMessage("auth.invalidEmailPassword", null) };
   }
   // KID-86 item 9: apply any reached last-dates before letting the session in.
   try {
@@ -231,7 +239,7 @@ export async function loginAction(formData: FormData) {
     console.error("Login withdrawal sweep failed:", err);
   }
   if (await isAccountAccessWithdrawn(account.id)) {
-    return { error: "This account's access has been withdrawn." };
+    return { error: await gateMessage("login.withdrawn", account.language) };
   }
   // KID-199.3: disabled daycare gate (staff + parents; platform operator exempt).
   const disabledGate = await tenancyDisabledError(String(account.id), String(account.role), account.language);
@@ -245,7 +253,7 @@ export async function loginAction(formData: FormData) {
     const { familyAccessForAccount } = await import("@/lib/store");
     const access = await familyAccessForAccount(account.id);
     if (access === "no_access") {
-      return { error: "This account's access is currently disabled. Contact your daycare admin." };
+      return { error: await gateMessage("login.noAccess", account.language) };
     }
   }
   await setSession(account.email);

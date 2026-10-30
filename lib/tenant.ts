@@ -38,11 +38,27 @@
 //
 // `instituteIdsForAccount` (KID-152) stays untouched as the parent-side
 // tenancy definition; this module only consumes it.
-import { headers } from "next/headers";
+import { headers, cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { isPlatformOperatorRole } from "./platform";
 import { primaryInstituteIdForAccount, instituteIdBySubdomain, tenancyInstitutesForAccount } from "./store";
 import { splitSubdomainHost, subdomainUrl } from "./subdomain";
+import { LANG_COOKIE, getDictionary, localeOf, tr, type Locale } from "./i18n";
+
+// KID-368 (DEF-004): the login host gate's wording follows the visitor's
+// language — the kiddy_lang cookie wins (same precedence as app/layout.tsx
+// resolveLocale); pre-login there is no session preference to fall back on.
+function loginGateDict(): { lang: Locale; t: (key: string, vars?: Record<string, string | number>) => string } {
+  let lang: Locale = "en";
+  try {
+    const v = cookies().get(LANG_COOKIE)?.value;
+    if (v) lang = localeOf(v);
+  } catch {
+    // no request scope (tests) — stays English
+  }
+  const dict = getDictionary(lang);
+  return { lang, t: (key, vars) => tr(dict, key, vars) };
+}
 
 /** Legacy fallback: the first-created institute. Still right for public pages
  *  (login/landing branding) and single-institute deployments on generic hosts.
@@ -197,11 +213,14 @@ export async function loginHostGate(
   if (tenancy.some((i) => String(i.id) === hostIid)) return null;
   const ownName = tenancy[0]?.name ? String(tenancy[0].name) : "";
   const ownUrl = tenancy[0]?.subdomain ? subdomainUrl(String(tenancy[0].subdomain)) : "";
+  // KID-368 (DEF-004): localized wording; the daycare's own name and URL are
+  // proper nouns interpolated as data.
+  const { t } = loginGateDict();
   if (ownName && ownUrl) {
-    return { error: `This account belongs to ${ownName}. Sign in at ${ownUrl} instead.` };
+    return { error: t("login.wrongTenantHome", { name: ownName, url: ownUrl }) };
   }
   if (ownName) {
-    return { error: `This account belongs to ${ownName} — it is not the daycare for this address.` };
+    return { error: t("login.wrongTenantOwn", { name: ownName }) };
   }
-  return { error: "This account is not the daycare for this address." };
+  return { error: t("login.wrongTenant") };
 }
