@@ -1,10 +1,22 @@
 import { requireFamilyPage } from "@/lib/require";
 import { listEvents, eventMedia, listVideos } from "@/lib/store";
-import { firstInstituteId, cap, fmtTime } from "@/lib/helpers";
+import { firstInstituteId, cap } from "@/lib/helpers";
 import { i18nForAccount } from "@/lib/i18n-session";
 import { tr } from "@/lib/i18n";
 
 export const dynamic = "force-dynamic";
+
+// KID-368: event start/end times are stored as bare "HH:MM(…)" wall-clock
+// strings and the shared fmtTime feeds them straight to `new Date(...)`,
+// which renders "Invalid Date" on the live tab. Parse the bare time first;
+// real ISO timestamps keep the locale time formatting.
+function prettyEventTime(v: unknown): string {
+  if (!v) return "";
+  const m = String(v).match(/^(\d{1,2}):(\d{2})/);
+  if (m) return `${m[1].padStart(2, "0")}:${m[2]}`;
+  const d = new Date(String(v));
+  return Number.isNaN(d.getTime()) ? String(v) : d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+}
 
 export default async function ParentEventsPage() {
   const session = await requireFamilyPage("/child/events");
@@ -30,7 +42,7 @@ export default async function ParentEventsPage() {
           <div className="card" key={e.id}>
             <div className="badge" style={{ marginBottom: 8 }}>{cap(e.event_date)}</div>
             <div style={{ fontWeight: 700, fontSize: 17 }}>{e.title}</div>
-            {e.start_time && <div className="muted small">{fmtTime(e.start_time)}{e.end_time ? ` – ${fmtTime(e.end_time)}` : ""}</div>}
+            {e.start_time && <div className="muted small">{prettyEventTime(e.start_time)}{e.end_time ? ` – ${prettyEventTime(e.end_time)}` : ""}</div>}
             {e.location && <div className="muted small">📍 {e.location}</div>}
             {e.description && <p className="small mt-2">{e.description}</p>}
             {e.media.length > 0 && (
