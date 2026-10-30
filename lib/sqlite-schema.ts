@@ -970,7 +970,7 @@ export function sqliteSchema(db: any): void {
               )
               OR (
                 (SELECT COUNT(*) FROM institute) = 1
-                AND s.institute_id = (SELECT id FROM institute LIMIT 1)
+                AND s.institute_id = (SELECT id FROM institute ORDER BY created_at LIMIT 1)
               )
             )
           ORDER BY s.created_at ASC, s.id ASC
