@@ -55,7 +55,7 @@ parent issue KID-305 — do not invent per-tenant routing around this doc.
 
 | Var | Dev / QA | Production |
 | --- | --------- | ---------- |
-| `NEXT_PUBLIC_CHATWOOT_BASE_URL` | `http://100.71.115.5:3000` (board's Chatwoot; plain HTTP over Tailscale) | _blank — pending the user's answer on KID-305. Must be an **HTTPS**-reachable Chatwoot origin (deployment step, not a code change) |
+| `NEXT_PUBLIC_CHATWOOT_BASE_URL` | `http://100.71.115.5:3000` (board's Chatwoot; plain HTTP over Tailscale) | **Answered on KID-305: `http://100.71.115.5:3000`, one shared inbox.** Caveat: plain HTTP over Tailscale works for dev/QA/tailnet traffic, but kiddyapp.net is publicly served over HTTPS where the browser blocks the HTTP widget script as mixed content — provide an operator-provided **HTTPS**-reachable Chatwoot origin before enabling the widget in production (deployment step, not a code change) |
 | `NEXT_PUBLIC_CHATWOOT_WEBSITE_TOKEN` | Board's shared website-inbox token (single shared platform inbox, confirmed by the board) | Set by the operator in the deploy env. Never paste the production token into docs, tickets, or chat |
 
 **Mixed-content warning:** browsers block a plain-HTTP widget script on an
