@@ -1610,7 +1610,14 @@ export const ar = {
 
 export type Dict = typeof en;
 
+// KID-403: the Help Center client island only renders help.* chrome copy, so it
+// receives just this slice per language instead of two full dictionaries —
+// typed against the EN source, so a missing key is a compile error.
+export type HelpCopy = typeof en.help;
+
 export const dictionaries: Record<Locale, Dict> = { en, ar };
+
+export const helpCopy: Record<Locale, HelpCopy> = { en: en.help, ar: ar.help };
 
 const MISSING_MARKER = "MISSING:";
 
