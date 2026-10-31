@@ -3,7 +3,7 @@ import { ticketsForAccount } from "@/lib/store";
 import { cap } from "@/lib/helpers";
 import { createSupportTicketAction } from "@/lib/actions";
 import { i18nForAccount } from "@/lib/i18n-session";
-import { tr } from "@/lib/i18n";
+import { getDictionary, helpCopy, tr } from "@/lib/i18n";
 import { helpLanguageForRequest } from "@/lib/help-lang";
 import {
   HELP_ARTICLES,
@@ -17,14 +17,19 @@ export const dynamic = "force-dynamic";
 // KID-260: the parent Help & support landing is now the Knowledge Base (Wren's
 // articles, search bar, EN/AR toggle) with the support-ticket form preserved
 // below as the human escalation path. The old hardcoded FAQ block is gone.
+//
+// KID-403: the whole surface chrome (title, KB copy, support form, requests
+// list) speaks the help language — the same resolved value that picks the
+// article set and the direction — not the account's app language.
 export default async function ParentSupportPage({
   searchParams,
 }: {
   searchParams: { [key: string]: string | string[] | undefined };
 }) {
   const session = await requireFamilyPage("/child/support");
-  const { dict, locale } = await i18nForAccount(session.accountId);
+  const { locale } = await i18nForAccount(session.accountId);
   const language = await helpLanguageForRequest(searchParams.lang, locale);
+  const dict = getDictionary(language);
   const audiences = helpAudiencesForRole(session.role);
   const articles = [...visibleHelpArticles(HELP_ARTICLES, audiences, "en"), ...visibleHelpArticles(HELP_ARTICLES, audiences, "ar")];
   const tickets = await ticketsForAccount(session.accountId);
@@ -35,7 +40,7 @@ export default async function ParentSupportPage({
 
       <HelpCenter
         articles={articles}
-        dict={dict}
+        dicts={helpCopy}
         defaultLanguage={language}
         mode="family"
         basePath="/child/support"

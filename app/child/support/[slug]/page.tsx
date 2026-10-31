@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { requireFamilyPage } from "@/lib/require";
 import { i18nForAccount } from "@/lib/i18n-session";
-import { tr } from "@/lib/i18n";
+import { getDictionary, tr } from "@/lib/i18n";
 import { helpLanguageForRequest } from "@/lib/help-lang";
 import {
   HELP_ARTICLES,
@@ -17,6 +17,10 @@ export const dynamic = "force-dynamic";
 // enforced again here on direct URL access: a family viewer cannot open a
 // staff- or owner-only article URL, and nothing drafts or unpublished renders
 // (both degrade to a not-found, consistent with the /child page family gates).
+//
+// KID-403: the detail chrome (back link, toggle labels, related header, exit
+// button) speaks the help language — the same resolved value that picks the
+// article record and the direction — not the account's app language.
 export default async function ParentSupportArticlePage({
   params,
   searchParams,
@@ -25,8 +29,9 @@ export default async function ParentSupportArticlePage({
   searchParams: { [key: string]: string | string[] | undefined };
 }) {
   const session = await requireFamilyPage(`/child/support/${params.slug}`);
-  const { dict, locale } = await i18nForAccount(session.accountId);
+  const { locale } = await i18nForAccount(session.accountId);
   const language = await helpLanguageForRequest(searchParams.lang, locale);
+  const dict = getDictionary(language);
   const audiences = helpAudiencesForRole(session.role);
   const article = helpArticleBySlug(HELP_ARTICLES, params.slug, audiences, language);
   if (!article) notFound();

@@ -10,9 +10,18 @@
 // The help language is independent of the account app language and defaults to
 // it; the choice persists through localStorage + a cookie (the cookie keeps the
 // server-rendered article detail pages in the same language).
+//
+// KID-403: the chrome copy (title, subtitle, search label/placeholder, results
+// count, empty state) follows the selected help language too — the page hands
+// over both dictionaries and the chrome strings resolve from the language state
+// at render time, so they flip together with the article set and the direction.
+// The toggle also syncs the URL (?lang=) via router.replace (cookie already
+// written), which re-renders the server chrome (page title, support form)
+// in the same language on the next flight.
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
-import { tr, type Dict } from "@/lib/i18n";
+import { type HelpCopy } from "@/lib/i18n";
 import {
   articlesByArea,
   HELP_LANG_COOKIE,
@@ -32,7 +41,10 @@ export function persistHelpLanguage(language: HelpLanguage) {
 
 export type HelpCenterProps = {
   articles: readonly HelpArticle[];
-  dict: Dict;
+  // KID-403: chrome copy per help language — the component picks the entry
+  // matching the current language state so the chrome always matches the
+  // rendered article set and direction.
+  dicts: { en: HelpCopy; ar: HelpCopy };
   defaultLanguage: HelpLanguage;
   // "family" sends the no-result exit to the on-page support request form;
   // "staff" sends it to the ticket inbox.
@@ -43,18 +55,27 @@ export type HelpCenterProps = {
 
 export default function HelpCenter({
   articles,
-  dict,
+  dicts,
   defaultLanguage,
   mode,
   basePath,
   inboxHref,
 }: HelpCenterProps) {
+  const router = useRouter();
   const [language, setLanguage] = useState<HelpLanguage>(defaultLanguage);
   const [query, setQuery] = useState("");
+  const copy = dicts[language];
 
-  const selectLanguage = (language: HelpLanguage) => {
-    setLanguage(language);
-    persistHelpLanguage(language);
+  const selectLanguage = (next: HelpLanguage) => {
+    if (next === language) return;
+    setLanguage(next);
+    persistHelpLanguage(next);
+    // KID-403: keep the URL in step with the chosen help language so the
+    // server-resolved chrome dictionary (page title, support form, the dict
+    // props on the next flight) follows the same value the article set uses.
+    const params = new URLSearchParams(window.location.search);
+    params.set("lang", next);
+    router.replace(`${basePath}?${params.toString()}`, { scroll: false });
   };
 
   const langArticles = useMemo(
@@ -70,6 +91,12 @@ export default function HelpCenter({
   const compactQuery = query.trim();
   const dir = language === "ar" ? "rtl" : "ltr";
 
+  // Direct property access on the typed HelpCopy slice (the template vars are
+  // interpolated the same way tr() does it).
+  const resultsCount = (count: number) => copy.resultsCount.replaceAll("{count}", String(count));
+  const noResultsTitle = (queryText: string) =>
+    copy.noResultsTitle.replaceAll("{query}", queryText);
+
   const articleHref = (article: HelpArticle) =>
     `${basePath}/${article.slug}?lang=${language}`;
 
@@ -78,16 +105,16 @@ export default function HelpCenter({
       <div className="row" style={{ justifyContent: "space-between", alignItems: "flex-start", gap: 12 }}>
         <div>
           <h3 className="subtitle" style={{ marginBottom: 2 }}>
-            {tr(dict, "help.title")}
+            {copy.title}
           </h3>
           <p className="small muted" style={{ marginTop: 0 }}>
-            {tr(dict, "help.subtitle")}
+            {copy.subtitle}
           </p>
         </div>
         <div
           className="help-lang-toggle"
           role="group"
-          aria-label={tr(dict, "help.langLabel")}
+          aria-label={copy.langLabel}
           style={{ display: "flex", gap: 6, flexShrink: 0 }}
         >
           {(["en", "ar"] as HelpLanguage[]).map((code) => (
@@ -101,7 +128,7 @@ export default function HelpCenter({
               onClick={() => selectLanguage(code)}
               style={{ padding: "4px 10px", fontSize: 13 }}
             >
-              {tr(dict, code === "en" ? "help.langEn" : "help.langAr")}
+              {code === "en" ? copy.langEn : copy.langAr}
             </button>
           ))}
         </div>
@@ -109,21 +136,21 @@ export default function HelpCenter({
 
       <div className="field">
         <label className="label" htmlFor="help-search-input">
-          {tr(dict, "help.searchLabel")}
+          {copy.searchLabel}
         </label>
         <input
           id="help-search-input"
           className="input"
           type="search"
           value={query}
-          placeholder={tr(dict, "help.searchPlaceholder")}
+          placeholder={copy.searchPlaceholder}
           onChange={(event) => setQuery(event.target.value)}
         />
       </div>
 
       {compactQuery && (
         <p className="small muted" data-testid="help-results-count">
-          {tr(dict, "help.resultsCount", { count: ranked.length })}
+          {resultsCount(ranked.length)}
         </p>
       )}
 
@@ -140,20 +167,20 @@ export default function HelpCenter({
           {ranked.length === 0 && (
             <div className="card help-empty-state" data-testid="help-empty-state">
               <p className="small" style={{ fontWeight: 700, marginBottom: 4 }}>
-                {tr(dict, "help.noResultsTitle", { query: compactQuery })}
+                {noResultsTitle(compactQuery)}
               </p>
               <p className="small muted" style={{ marginTop: 0 }}>
-                {tr(dict, "help.noResultsHint")}
+                {copy.noResultsHint}
               </p>
               {mode === "staff" ? (
                 inboxHref && (
                   <Link className="btn btn-ghost" href={inboxHref}>
-                    {tr(dict, "help.contactSupport")}
+                    {copy.contactSupport}
                   </Link>
                 )
               ) : (
                 <a className="btn btn-ghost" href={inboxHref ?? "#support-form"}>
-                  {tr(dict, "help.sendRequest")}
+                  {copy.sendRequest}
                 </a>
               )}
             </div>
@@ -176,7 +203,7 @@ export default function HelpCenter({
             </div>
           ))}
           {langArticles.length === 0 && (
-            <p className="small muted">{tr(dict, "help.resultsCount", { count: 0 })}</p>
+            <p className="small muted">{resultsCount(0)}</p>
           )}
         </div>
       )}
