@@ -34,7 +34,9 @@ describe("bundled article set (contract)", () => {
 
   it("every record carries the contract fields and a Notion source", () => {
     for (const article of HELP_ARTICLES) {
-      expect(article.id).toMatch(/^A-(PAR|PUB|STA)-\d{2}$/);
+      // KID-388: Wren's authoritative bundle adds the CAR/PKU series
+      // alongside PAR/PUB/STA.
+      expect(article.id).toMatch(/^A-(PAR|PUB|STA|CAR|PKU)-\d{2}$/);
       expect(article.slug.length).toBeGreaterThan(0);
       expect(["en", "ar"]).toContain(article.language);
       expect(["parent", "staff", "carer", "owner", "public"]).toContain(article.audience);

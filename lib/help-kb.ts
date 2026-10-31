@@ -20,14 +20,6 @@ export type HelpLanguage = (typeof HELP_LANGUAGES)[number];
 export const HELP_AUDIENCES = ["parent", "staff", "carer", "owner", "public"] as const;
 export type HelpAudience = (typeof HELP_AUDIENCES)[number];
 
-// KID-223: the AR query "عرض الحضور" must rank A-STA-06 (staff attendance)
-// first. The Notion row for that pair does not carry the phrase verbatim, so
-// the supplemental keyword ships here (Wren's KID-261 bundle supersedes this
-// map when it lands — the map only fills verified-in-app search gaps).
-const SUPPLEMENTAL_KEYWORDS: Record<string, Record<HelpLanguage, string[]>> = {
-  "A-STA-06": { en: [], ar: ["عرض الحضور"] },
-};
-
 export type HelpArticle = {
   id: string;
   slug: string;
@@ -41,21 +33,7 @@ export type HelpArticle = {
   source: string;
 };
 
-export const HELP_ARTICLES: HelpArticle[] = mergeSupplementalKeywords(
-  articlesJson as HelpArticle[],
-);
-
-function mergeSupplementalKeywords(articles: HelpArticle[]): HelpArticle[] {
-  for (const article of articles) {
-    const extra = SUPPLEMENTAL_KEYWORDS[article.id]?.[article.language];
-    if (extra) {
-      const keywords = new Set(article.keywords);
-      for (const keyword of extra) keywords.add(keyword);
-      article.keywords = [...keywords];
-    }
-  }
-  return articles;
-}
+export const HELP_ARTICLES: HelpArticle[] = articlesJson as HelpArticle[];
 
 // Help Center language preference. Held in localStorage + a (non-httpOnly)
 // cookie so the server-rendered article detail pages can render the language
