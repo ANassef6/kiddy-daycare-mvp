@@ -3,20 +3,17 @@ import { ticketsForAccount } from "@/lib/store";
 import { cap } from "@/lib/helpers";
 import { createSupportTicketAction } from "@/lib/actions";
 import { i18nForAccount } from "@/lib/i18n-session";
-import { getDictionary, helpCopy, tr } from "@/lib/i18n";
-import { helpLanguageForRequest } from "@/lib/help-lang";
-import {
-  HELP_ARTICLES,
-  helpAudiencesForRole,
-  visibleHelpArticles,
-} from "@/lib/help-kb";
+import { getDictionary, tr } from "@/lib/i18n";
+import { helpLanguageForRequest } from "@/lib/help-lang-server";
+import { helpAudiencesForRole, loadHelpCenter, searchHelpCenter } from "@/lib/help-chatwoot";
 import HelpCenter from "@/components/HelpCenter";
 
 export const dynamic = "force-dynamic";
 
-// KID-260: the parent Help & support landing is now the Knowledge Base (Wren's
-// articles, search bar, EN/AR toggle) with the support-ticket form preserved
-// below as the human escalation path. The old hardcoded FAQ block is gone.
+// KID-260: the parent Help & support landing is the Chatwoot knowledge base
+// (KID-428; search bar, EN/AR toggle) with the support-ticket form preserved
+// below as the human escalation path. The old hardcoded FAQ block, the
+// KID-388 bundled article set and the Notion export behind it are all gone.
 //
 // KID-403: the whole surface chrome (title, KB copy, support form, requests
 // list) speaks the help language — the same resolved value that picks the
@@ -31,7 +28,10 @@ export default async function ParentSupportPage({
   const language = await helpLanguageForRequest(searchParams.lang, locale);
   const dict = getDictionary(language);
   const audiences = helpAudiencesForRole(session.role);
-  const articles = [...visibleHelpArticles(HELP_ARTICLES, audiences, "en"), ...visibleHelpArticles(HELP_ARTICLES, audiences, "ar")];
+  const query = typeof searchParams.q === "string" ? searchParams.q : undefined;
+
+  const list = query ? null : await loadHelpCenter(language, audiences);
+  const search = query ? await searchHelpCenter(query, language, audiences) : null;
   const tickets = await ticketsForAccount(session.accountId);
 
   return (
@@ -39,12 +39,13 @@ export default async function ParentSupportPage({
       <h1 className="title">{tr(dict, "help.title")}</h1>
 
       <HelpCenter
-        articles={articles}
-        dicts={helpCopy}
-        defaultLanguage={language}
-        mode="family"
+        groups={list && list.ok ? list.groups : null}
+        language={language}
+        copy={dict.help}
         basePath="/child/support"
-        inboxHref="#support-form"
+        requestFormHref="#support-form"
+        query={query}
+        searchResults={search && search.ok ? search.results : null}
       />
 
       <div className="grid mt-4" id="support-form">

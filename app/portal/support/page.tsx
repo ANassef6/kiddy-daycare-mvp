@@ -1,24 +1,17 @@
-import Link from "next/link";
 import { requireSession } from "@/lib/require";
 import { i18nForAccount } from "@/lib/i18n-session";
-import { getDictionary, helpCopy, tr } from "@/lib/i18n";
-import { helpLanguageForRequest } from "@/lib/help-lang";
-import {
-  HELP_ARTICLES,
-  helpAudiencesForRole,
-  visibleHelpArticles,
-} from "@/lib/help-kb";
+import { getDictionary, tr } from "@/lib/i18n";
+import { helpLanguageForRequest } from "@/lib/help-lang-server";
+import { helpAudiencesForRole, loadHelpCenter, searchHelpCenter } from "@/lib/help-chatwoot";
 import HelpCenter from "@/components/HelpCenter";
 
 export const dynamic = "force-dynamic";
 
 // KID-260: the account-menu "Help & Support" entry lands here — the staff
-// Knowledge Base (Wren's articles, search bar, EN/AR toggle, role-filtered).
-// The ticket inbox stays reachable below as the human escalation path.
-//
-// KID-403: the page chrome speaks the help language — the same resolved value
-// that picks the article set and the direction — not the account's app
-// language, so an Arabic help page never renders English chrome around it.
+// knowledge base from the Chatwoot help center (KID-428), role-filtered. The
+// ticket inbox keeps its own route (/portal/support-inbox); this page no
+// longer advertises it (KID-428 acceptance: no "open the support inbox"
+// button). The page chrome speaks the help language (KID-403).
 export default async function PortalSupportPage({
   searchParams,
 }: {
@@ -29,22 +22,22 @@ export default async function PortalSupportPage({
   const language = await helpLanguageForRequest(searchParams.lang, locale);
   const dict = getDictionary(language);
   const audiences = helpAudiencesForRole(session.role);
-  const articles = [...visibleHelpArticles(HELP_ARTICLES, audiences, "en"), ...visibleHelpArticles(HELP_ARTICLES, audiences, "ar")];
+  const query = typeof searchParams.q === "string" ? searchParams.q : undefined;
+
+  const list = query ? null : await loadHelpCenter(language, audiences);
+  const search = query ? await searchHelpCenter(query, language, audiences) : null;
 
   return (
     <div>
       <h1 className="title">{tr(dict, "topbar.helpSupport")}</h1>
       <HelpCenter
-        articles={articles}
-        dicts={helpCopy}
-        defaultLanguage={language}
-        mode="staff"
+        groups={list && list.ok ? list.groups : null}
+        language={language}
+        copy={dict.help}
         basePath="/portal/support"
-        inboxHref="/portal/support-inbox"
+        query={query}
+        searchResults={search && search.ok ? search.results : null}
       />
-      <p style={{ marginTop: 12 }}>
-        <Link href="/portal/support-inbox">{tr(dict, "help.inboxLink")}</Link>
-      </p>
     </div>
   );
 }

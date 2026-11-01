@@ -1090,10 +1090,13 @@ export const en = {
     formMessage: "Message",
     requestSent: "Sent. The daycare will reply here and by chat.",
     requestIntro: "Questions about your child's day, billing, or the app? Send a message below.",
-    inboxLink: "Open the support inbox",
     backToList: "All articles",
     articleRelated: "Related articles",
     articleContactExit: "Still stuck? Contact support",
+    // KID-428: Chatwoot-backed view states (the bundled article set is gone).
+    unavailableTitle: "The help center is temporarily unavailable",
+    unavailableHint:
+      "The articles load from our docs service. Try again soon — meanwhile you can chat with us from the support bubble or send a request below.",
   },
 };
 
@@ -2117,10 +2120,13 @@ export const ar = {
     formMessage: "الرسالة",
     requestSent: "تم الإرسال. سترد الروضة هنا وفي المحادثة.",
     requestIntro: "أسئلة عن يوم طفلك أو الفواتير أو التطبيق؟ أرسل رسالتك أدناه.",
-    inboxLink: "فتح صندوق طلبات الدعم",
     backToList: "كل المقالات",
     articleRelated: "مقالات ذات صلة",
     articleContactExit: "لم تحصل على ما تحتاج؟ تواصل مع الدعم",
+    // KID-428: Chatwoot-backed view states (the bundled article set is gone).
+    unavailableTitle: "مركز المساعدة غير متاح مؤقتًا",
+    unavailableHint:
+      "تُحمَّل المقالات من خدمة التوثيق لدينا. حاول مرة أخرى بعد قليل — ويمكنك التحدث معنا عبر فقاعة الدعم أو إرسال طلب في الأسفل.",
   },
 };
 
