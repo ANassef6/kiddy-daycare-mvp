@@ -4,6 +4,7 @@ import { requireSession } from "@/lib/require";
 import { staffIdForAccount } from "@/lib/auth";
 import { isAdminRole } from "@/lib/role";
 import { getRoom, roomChildren, staffRooms } from "@/lib/store";
+import { firstInstituteId } from "@/lib/helpers";
 import { updateRoomAction } from "@/lib/actions";
 
 export const dynamic = "force-dynamic";
@@ -12,6 +13,12 @@ export default async function PortalRoomDetailPage({ params }: { params: { id: s
   const session = requireSession();
   const room = await getRoom(params.id);
   if (!room) notFound();
+  // KID-372: the raw room id in the URL is not authorization — admins could
+  // open and list the children of ANOTHER center's room. The room must
+  // belong to the request tenant; the legacy first-institute fallback
+  // (empty instance id) never renders tenant data.
+  const requestIid = await firstInstituteId();
+  if (!requestIid || String(room.institute_id ?? "") !== requestIid) notFound();
 
   // KID-105 #16: staff can only open rooms they are assigned to.
   if (!isAdminRole(session.role)) {

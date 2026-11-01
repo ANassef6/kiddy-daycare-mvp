@@ -252,6 +252,11 @@ export const en = {
     likesAndComments: "{likes} likes · {comments} comments",
     addCommentPlaceholder: "Add a comment…",
     comment: "Comment",
+    composerTitle: "New post — composer (recipients + attachment)",
+    postUpdate: "Post an update",
+    writeHere: "Click here and write…",
+    attachmentDevice: "Attachment (from your device)",
+    attachmentLimit: "Max ~2.5 MB. Stored with the post.",
   },
   // KID-368 (DEF-004): /child/events strings.
   events: {
@@ -262,6 +267,23 @@ export const en = {
     noInstitute: "No daycare configured yet.",
     videos: "Videos",
     noVideos: "No videos shared yet.",
+    addEvent: "Add an event",
+    titleLabel: "Title",
+    dateLabel: "Date",
+    startLabel: "Start",
+    endLabel: "End",
+    locationLabel: "Location",
+    locationPlaceholder: "e.g. Main gym / Field trip",
+    descriptionLabel: "Description",
+    addBtn: "Add event",
+    mediaCount: "{count} media",
+    mediaUrlPlaceholder: "Media URL (photo/video)",
+    photo: "Photo",
+    video: "Video",
+    attach: "Attach",
+    parentSubtitle: "Daycare events and recent videos for your family.",
+    videosTitle: "Videos",
+    noDaycare: "No daycare configured yet.",
   },
   // KID-368 (DEF-004): /child/drive strings. The drive kind labels mirror the
   // portal upload form's enum (file | pdf | photo | video) with a safe EN
@@ -308,6 +330,16 @@ export const en = {
     statusPending: "Pending",
     statusApproved: "Approved",
     statusDenied: "Denied",
+    newConsent: "New consent request",
+    titleLabel: "Title",
+    childOptional: "Child (optional)",
+    childAll: "All / general",
+    details: "Details",
+    send: "Send consent request",
+    noConsents: "No consent requests yet.",
+    noInstitute: "No institute configured.",
+    approvalsTitle: "Consents & approvals",
+    noRequests: "No consent requests for your children right now.",
   },
   messages: {
     title: "Messages",
@@ -832,52 +864,8 @@ export const en = {
   },
   // KID-221: the Consents surface (staff/admin creator page under Children +
   // the parent's approve/deny page). Both surfaces share the status labels.
-  consents: {
-    title: "Consents",
-    newConsent: "New consent request",
-    titleLabel: "Title",
-    childOptional: "Child (optional)",
-    childAll: "All / general",
-    details: "Details",
-    send: "Send consent request",
-    noConsents: "No consent requests yet.",
-    statusPending: "Pending",
-    statusApproved: "Approved",
-    statusDenied: "Denied",
-    noInstitute: "No institute configured.",
-    // parent surface
-    approvalsTitle: "Consents & approvals",
-    noRequests: "No consent requests for your children right now.",
-    approve: "Approve",
-    deny: "Deny",
-  },
   // KID-221: the Events surface (staff/admin create page under Home + the
   // parent's events/videos page).
-  events: {
-    title: "Events",
-    addEvent: "Add an event",
-    titleLabel: "Title",
-    dateLabel: "Date",
-    startLabel: "Start",
-    endLabel: "End",
-    locationLabel: "Location",
-    locationPlaceholder: "e.g. Main gym / Field trip",
-    descriptionLabel: "Description",
-    addBtn: "Add event",
-    mediaCount: "{count} media",
-    mediaUrlPlaceholder: "Media URL (photo/video)",
-    photo: "Photo",
-    video: "Video",
-    attach: "Attach",
-    noInstitute: "No institute configured.",
-    // parent surface
-    parentSubtitle: "Daycare events and recent videos for your family.",
-    upcoming: "Upcoming events",
-    noUpcoming: "No upcoming events right now.",
-    videosTitle: "Videos",
-    noVideos: "No videos shared yet.",
-    noDaycare: "No daycare configured yet.",
-  },
   // KID-221: Rooms (sidebar Tools) — list + admin create form.
   rooms: {
     title: "Rooms",
@@ -1046,13 +1034,6 @@ export const en = {
   },
   // KID-221: the staff newsfeed composer (Home group) — it had no localized
   // keys and spoke English inside the translated shell.
-  newsfeed: {
-    composerTitle: "New post — composer (recipients + attachment)",
-    postUpdate: "Post an update",
-    writeHere: "Click here and write…",
-    attachmentDevice: "Attachment (from your device)",
-    attachmentLimit: "Max ~2.5 MB. Stored with the post.",
-  },
   // KID-221: parent-surface strings that had no localized key yet.
   parent: {
     notificationsJustNow: "just now",
@@ -1327,6 +1308,11 @@ export const ar = {
     likesAndComments: "{likes} إعجاب · {comments} تعليق",
     addCommentPlaceholder: "أضف تعليقًا…",
     comment: "تعليق",
+    composerTitle: "منشور جديد — المحرّر (المستلمون + المرفق)",
+    postUpdate: "انشر تحديثًا",
+    writeHere: "اضغط هنا واكتب…",
+    attachmentDevice: "مرفق (من جهازك)",
+    attachmentLimit: "بحد أقصى ~2.5 ميجابايت. يُحفظ مع المنشور.",
   },
   events: {
     title: "الفعاليات",
@@ -1336,6 +1322,23 @@ export const ar = {
     noInstitute: "لم تُهيّأ أي روضة بعد.",
     videos: "الفيديوهات",
     noVideos: "لا توجد فيديوهات مشارَكة بعد.",
+    addEvent: "إضافة فعالية",
+    titleLabel: "العنوان",
+    dateLabel: "التاريخ",
+    startLabel: "البداية",
+    endLabel: "النهاية",
+    locationLabel: "المكان",
+    locationPlaceholder: "مثلًا: الصالة الكبرى / رحلة ميدانية",
+    descriptionLabel: "الوصف",
+    addBtn: "إضافة الفعالية",
+    mediaCount: "{count} وسائط",
+    mediaUrlPlaceholder: "رابط الوسيط (صورة/فيديو)",
+    photo: "صورة",
+    video: "فيديو",
+    attach: "إرفاق",
+    parentSubtitle: "فعاليات الروضة والفيديوهات الحديثة لعائلتكم.",
+    videosTitle: "الفيديوهات",
+    noDaycare: "لم يتم إعداد أي روضة بعد.",
   },
   drive: {
     title: "الملفات المشتركة",
@@ -1373,6 +1376,16 @@ export const ar = {
     statusPending: "معلّق",
     statusApproved: "موافق عليه",
     statusDenied: "مرفوض",
+    newConsent: "طلب موافقة جديد",
+    titleLabel: "العنوان",
+    childOptional: "الطفل (اختياري)",
+    childAll: "الكل / عام",
+    details: "التفاصيل",
+    send: "إرسال طلب الموافقة",
+    noConsents: "لا توجد طلبات موافقة بعد.",
+    noInstitute: "لم يتم إعداد أي مركز.",
+    approvalsTitle: "الموافقات والاعتمادات",
+    noRequests: "لا توجد طلبات موافقة لأطفالك الآن.",
   },
   messages: {
     title: "الرسائل",
@@ -1842,52 +1855,8 @@ export const ar = {
   },
   // KID-221: سطح الموافقات (صفحة الإنشاء للفريق تحت الأطفال + صفحة
   // الموافقة/الرفض لولي الأمر). كلا السطحين يتشارك تصنيفات الحالة.
-  consents: {
-    title: "الموافقات",
-    newConsent: "طلب موافقة جديد",
-    titleLabel: "العنوان",
-    childOptional: "الطفل (اختياري)",
-    childAll: "الكل / عام",
-    details: "التفاصيل",
-    send: "إرسال طلب الموافقة",
-    noConsents: "لا توجد طلبات موافقة بعد.",
-    statusPending: "معلّق",
-    statusApproved: "موافق عليه",
-    statusDenied: "مرفوض",
-    noInstitute: "لم يتم إعداد أي مركز.",
-    // سطح ولي الأمر
-    approvalsTitle: "الموافقات والاعتمادات",
-    noRequests: "لا توجد طلبات موافقة لأطفالك الآن.",
-    approve: "موافقة",
-    deny: "رفض",
-  },
   // KID-221: سطح الفعاليات (صفحة الإنشاء للفريق تحت الرئيسية + صفحة
   // الفعاليات والفيديوهات لولي الأمر).
-  events: {
-    title: "الفعاليات",
-    addEvent: "إضافة فعالية",
-    titleLabel: "العنوان",
-    dateLabel: "التاريخ",
-    startLabel: "البداية",
-    endLabel: "النهاية",
-    locationLabel: "المكان",
-    locationPlaceholder: "مثلًا: الصالة الكبرى / رحلة ميدانية",
-    descriptionLabel: "الوصف",
-    addBtn: "إضافة الفعالية",
-    mediaCount: "{count} وسائط",
-    mediaUrlPlaceholder: "رابط الوسيط (صورة/فيديو)",
-    photo: "صورة",
-    video: "فيديو",
-    attach: "إرفاق",
-    noInstitute: "لم يتم إعداد أي مركز.",
-    // سطح ولي الأمر
-    parentSubtitle: "فعاليات الروضة والفيديوهات الحديثة لعائلتكم.",
-    upcoming: "الفعاليات القادمة",
-    noUpcoming: "لا توجد فعاليات قادمة الآن.",
-    videosTitle: "الفيديوهات",
-    noVideos: "لم تُشارك فيديوهات بعد.",
-    noDaycare: "لم يتم إعداد أي روضة بعد.",
-  },
   // KID-221: الفصول (قائمة الأدوات الجانبية) — القائمة ونموذج الإضافة للمشرف.
   rooms: {
     title: "الفصول",
@@ -2056,13 +2025,6 @@ export const ar = {
   },
   // KID-221: محرّر الأخبار الخاص بالفريق (قائمة الرئيسية) — لم تكن له مفاتيح
   // مترجمة وكان يتحدث بالإنجليزية داخل الهيكل المترجم.
-  newsfeed: {
-    composerTitle: "منشور جديد — المحرّر (المستلمون + المرفق)",
-    postUpdate: "انشر تحديثًا",
-    writeHere: "اضغط هنا واكتب…",
-    attachmentDevice: "مرفق (من جهازك)",
-    attachmentLimit: "بحد أقصى ~2.5 ميجابايت. يُحفظ مع المنشور.",
-  },
   // KID-221: نصوص سطح ولي الأمر التي لم يكن لها مفتاح مترجم.
   parent: {
     notificationsJustNow: "الآن",
