@@ -210,11 +210,15 @@ describe("KID-403: help chrome follows the help language on the parent surface",
 });
 
 describe("KID-403: help chrome follows the help language on the staff surface", () => {
-  it("EN owner + ?lang=ar → Arabic chrome on the KB list and inbox link", async () => {
+  it("EN owner + ?lang=ar → Arabic chrome on the KB list, no support-inbox button", async () => {
     await setAccountLanguage(staffAccountId, "en");
     const html = await renderPortalSupport({ lang: "ar" });
     expect(html).toContain(tr(ar, "topbar.helpSupport"));
-    expect(html).toContain(tr(ar, "help.inboxLink"));
+    // KID-427: the "open the support inbox" button is removed on both
+    // languages — the page's only inbox affordance left is the HelpCenter
+    // no-result contact link.
+    expect(html).not.toContain("Open the support inbox");
+    expect(html).not.toContain("فتح صندوق طلبات الدعم");
     for (const piece of ["Help & Support", "Open the support inbox"]) {
       expect(html).not.toContain(piece);
     }
@@ -234,7 +238,8 @@ describe("KID-403: help chrome follows the help language on the staff surface", 
     const html = await renderPortalSupport();
     // The h1 renders the ampersand HTML-escaped in static markup.
     expect(html).toContain("Help &amp; Support");
-    expect(html).toContain(tr(en, "help.inboxLink"));
+    // KID-427: the removed button stays removed on the EN page too.
+    expect(html).not.toContain("Open the support inbox");
     expect(html).not.toContain(tr(ar, "topbar.helpSupport"));
   });
 });

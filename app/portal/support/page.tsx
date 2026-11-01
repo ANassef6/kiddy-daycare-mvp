@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { requireSession } from "@/lib/require";
 import { i18nForAccount } from "@/lib/i18n-session";
 import { getDictionary, helpCopy, tr } from "@/lib/i18n";
@@ -14,8 +13,8 @@ export const dynamic = "force-dynamic";
 
 // KID-260: the account-menu "Help & Support" entry lands here — the staff
 // Knowledge Base (Wren's articles, search bar, EN/AR toggle, role-filtered).
-// The ticket inbox stays reachable below as the human escalation path.
-//
+// KID-427: the "open the support inbox" button is gone (board directive,
+// KID-425); the HelpCenter no-result state still points staff at the inbox.
 // KID-403: the page chrome speaks the help language — the same resolved value
 // that picks the article set and the direction — not the account's app
 // language, so an Arabic help page never renders English chrome around it.
@@ -42,9 +41,6 @@ export default async function PortalSupportPage({
         basePath="/portal/support"
         inboxHref="/portal/support-inbox"
       />
-      <p style={{ marginTop: 12 }}>
-        <Link href="/portal/support-inbox">{tr(dict, "help.inboxLink")}</Link>
-      </p>
     </div>
   );
 }
