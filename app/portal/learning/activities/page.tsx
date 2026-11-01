@@ -54,18 +54,19 @@ export default async function PortalActivitiesPage() {
         <h3 className="subtitle">{t("activities.newActivity")}</h3>
         <input type="hidden" name="returnTo" value="/portal/learning/activities" />
         <div className="row">
-          <div className="col field"><label className="label">{t("activities.titleLabel")}</label><input className="input" name="title" required placeholder="e.g. Water play morning" /></div>
+          <div className="col field"><label className="label">{t("activities.titleLabel")}</label><input className="input" name="title" required placeholder={t("activities.titlePlaceholder")} /></div>
           <div className="col field"><label className="label">{t("activities.dateLabel")}</label><input className="input" name="eventDate" type="date" required /></div>
         </div>
         <div className="row">
           <div className="col field"><label className="label">{t("activities.start")}</label><input className="input" name="startTime" type="time" /></div>
           <div className="col field"><label className="label">{t("activities.end")}</label><input className="input" name="endTime" type="time" /></div>
-          <div className="col field"><label className="label">{t("common.location")}</label><input className="input" name="location" placeholder="e.g. Garden" /></div>
+          <div className="col field"><label className="label">{t("common.location")}</label><input className="input" name="location" placeholder={t("activities.locationPlaceholder")} /></div>
         </div>
         <div className="field"><label className="label">{t("activities.description")}</label><textarea className="textarea" name="description" placeholder={t("activities.whatWillChildrenDo")} /></div>
         <div className="field" style={{ maxWidth: 480 }}>
-          <label className="label">Recipients</label>
+          <label className="label">{t("activities.recipients")}</label>
           <RecipientsPicker
+            dict={dict}
             childOptions={children.map((c: any) => ({ id: String(c.id), first_name: String(c.first_name), last_name: String(c.last_name), room_id: c.room_id ? String(c.room_id) : null, room_name: c.room_name ? String(c.room_name) : null }))}
             rooms={rooms.map((r) => ({ id: String(r.id), name: String(r.name) }))}
             role={session.role}

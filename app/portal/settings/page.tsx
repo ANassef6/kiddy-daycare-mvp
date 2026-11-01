@@ -52,6 +52,12 @@ export default async function PortalSettingsPage() {
             save: tr(dict, "settings.saveWorkingHours"),
             help: tr(dict, "settings.workingHoursHelp"),
             saved: tr(dict, "settings.workingHoursSaved"),
+            // KID-221: localized day names (Sunday first, matching DAY_LABELS)
+            // + the "today" marker so the table follows the account locale.
+            dayLabels: [
+              "daySunday", "dayMonday", "dayTuesday", "dayWednesday", "dayThursday", "dayFriday", "daySaturday",
+            ].map((k) => tr(dict, `settings.${k}`)),
+            today: tr(dict, "settings.today"),
           }}
         />
       </div>
@@ -59,10 +65,10 @@ export default async function PortalSettingsPage() {
       <form className="card mb-4" action={saveCenterDetailsAction}>
         <h3 className="subtitle">{tr(dict, "settings.centerDetails")}</h3>
         <div className="row">
-          <div className="col field"><label className="label">{tr(dict, "settings.centerName")}</label><input className="input" name="name" defaultValue={institute?.name ?? ""} placeholder="e.g. Sunshine Daycare" /></div>
-          <div className="col field"><label className="label">{tr(dict, "settings.contact")}</label><input className="input" name="contact" defaultValue={String(institute?.contact ?? "")} placeholder="Phone / email, e.g. +20 100 000 0000" /></div>
+          <div className="col field"><label className="label">{tr(dict, "settings.centerName")}</label><input className="input" name="name" defaultValue={institute?.name ?? ""} placeholder={tr(dict, "settings.centerNamePlaceholder")} /></div>
+          <div className="col field"><label className="label">{tr(dict, "settings.contact")}</label><input className="input" name="contact" defaultValue={String(institute?.contact ?? "")} placeholder={tr(dict, "settings.contactPlaceholder")} /></div>
         </div>
-        <div className="field"><label className="label">{tr(dict, "settings.address")}</label><input className="input" name="address" defaultValue={String(institute?.address ?? "")} placeholder="Street, district, city" /></div>
+        <div className="field"><label className="label">{tr(dict, "settings.address")}</label><input className="input" name="address" defaultValue={String(institute?.address ?? "")} placeholder={tr(dict, "settings.addressPlaceholder")} /></div>
         <button className="btn btn-primary" type="submit">{tr(dict, "settings.saveCenterDetails")}</button>
       </form>
 

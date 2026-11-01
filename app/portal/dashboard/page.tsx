@@ -12,13 +12,14 @@ import {
   runAutoCheckoutSweep,
 } from "@/lib/store";
 import { i18nForAccount } from "@/lib/i18n-session";
+import { fmtDateFor, fmtTimeFor } from "@/lib/i18n";
 import { tr } from "@/lib/i18n";
 
 export const dynamic = "force-dynamic";
 
 export default async function PortalDashboard() {
   const session = requireSession();
-  const { dict } = await i18nForAccount(session.accountId);
+  const { locale, dict } = await i18nForAccount(session.accountId);
   const instituteId = await resolveTenantInstituteId();
   if (!instituteId) {
     return (
@@ -69,7 +70,7 @@ export default async function PortalDashboard() {
                   {c.first_name} {c.last_name}
                 </Link>
                 <span className="small muted">
-                  {c.room_name ?? tr(dict, "dashboard.noRoom")} · {time(c.checked_in_at)}
+                  {c.room_name ?? tr(dict, "dashboard.noRoom")} · {fmtTimeFor(locale, c.checked_in_at)}
                 </span>
               </div>
             ))
@@ -94,7 +95,7 @@ export default async function PortalDashboard() {
           {latestReport ? (
             <p className="small mt-1">
               <strong>{latestReport.first_name} {latestReport.last_name}</strong> —{" "}
-              {new Date(String(latestReport.report_date)).toDateString()}
+              {fmtDateFor(locale, latestReport.report_date)}
             </p>
           ) : (
             <p className="muted small mt-1">{tr(dict, "dashboard.noneYetToday")}</p>
@@ -113,9 +114,4 @@ export default async function PortalDashboard() {
       </div>
     </div>
   );
-}
-
-function time(v?: unknown) {
-  if (!v) return "—";
-  return new Date(String(v)).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 }

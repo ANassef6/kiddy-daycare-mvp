@@ -4,6 +4,10 @@ import { useState, useTransition } from "react";
 import { saveWorkingHoursAction } from "@/lib/actions";
 import { DAY_LABELS } from "@/lib/working-hours";
 
+// KID-221: the visible day names and the "· today" marker are localized by
+// the caller (t.dayLabels joins the DAY_LABELS order — Sunday first); the
+// DAY_LABELS constants stay the storage/code reference only.
+
 // Per-day open/close editor for the Settings tab (KID-55 item 3 / KID-58).
 // A checked "Closed" row disables its time inputs; saving persists to the
 // institute's opening-hours config, which drives the check-in gate and the
@@ -21,6 +25,10 @@ export function WorkingHoursEditor({
     save: string;
     help: string;
     saved: string;
+    // KID-221: localized day names (Sunday first, same order as DAY_LABELS)
+    // and the "today" marker.
+    dayLabels: string[];
+    today: string;
   };
 }) {
   const [pending, start] = useTransition();
@@ -58,9 +66,9 @@ export function WorkingHoursEditor({
             return (
               <tr key={key}>
                 <td>
-                  <strong>{label}</strong>
+                  <strong>{t.dayLabels[i] ?? label}</strong>
                   {key === String(new Date().getDay()) && (
-                    <span className="small muted"> · today</span>
+                    <span className="small muted"> · {t.today}</span>
                   )}
                 </td>
                 <td>
