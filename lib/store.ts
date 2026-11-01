@@ -1619,6 +1619,34 @@ export async function isChildInScope(instituteId: string, accountId: string, chi
   return roomIds.includes(String(child.room_id ?? ""));
 }
 
+// KID-372: the /child parent surface authorizes by raw child id (the portal
+// twin keeps its own KID-103 check). A family-linked account (parent,
+// relative contact, carer) passes ONLY through its own family_member row —
+// a forged id can never borrow the child's tenancy — and staff of the same
+// centre keep the KID-103 classroom rule. The child must belong to the given
+// institute first: the legacy first-institute fallback can never authorize a
+// child that is not in the request tenant (fail closed, empty institute too).
+export async function isChildVisibleToAccount(
+  instituteId: string,
+  accountId: string,
+  childId: string
+): Promise<boolean> {
+  if (!instituteId) return false;
+  const child = await queryGet("SELECT institute_id FROM child WHERE id = ? LIMIT 1", childId);
+  if (!child || String(child.institute_id ?? "") !== instituteId) return false;
+  const family = await queryGet(
+    "SELECT 1 AS ok FROM family_member WHERE account_id = ? AND child_id = ? LIMIT 1",
+    accountId,
+    childId
+  );
+  if (family) return true;
+  const { isAdminRole } = await import("./role");
+  const acct = await queryGet("SELECT staff_id, role FROM account WHERE id = ? LIMIT 1", accountId);
+  const staffId = acct?.staff_id ? String(acct.staff_id) : null;
+  if (!staffId && !isAdminRole(String(acct?.role ?? ""))) return false;
+  return isChildInScope(instituteId, accountId, childId);
+}
+
 // KID-103: rooms visible to the account (all for admins/owners, assigned only
 // for staff).
 export async function listRoomsScoped(instituteId: string, accountId: string): Promise<Row[]> {

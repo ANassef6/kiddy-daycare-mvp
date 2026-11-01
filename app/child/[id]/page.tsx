@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { requireSession } from "@/lib/require";
 import {
   getChild,
+  isChildVisibleToAccount,
   todayStatus,
   reportFor,
   listContacts,
@@ -14,6 +15,8 @@ import { CheckInButton } from "@/components/CheckInButton";
 import Avatar from "@/components/Avatar";
 import ContactBadges from "@/components/ContactBadges";
 import { getBranding } from "@/lib/theme";
+import { firstInstituteId } from "@/lib/helpers";
+import { isPlatformOperatorRole } from "@/lib/platform";
 import { toggleLikeAction } from "@/lib/actions";
 import { i18nForAccount } from "@/lib/i18n-session";
 import { tr } from "@/lib/i18n";
@@ -26,6 +29,19 @@ export default async function ChildDetailPage({ params }: { params: { id: string
   const t = (key: string, vars?: Record<string, string | number>) => tr(dict, key, vars);
   const child = await getChild(params.id);
   if (!child) notFound();
+
+  // KID-372: a raw child id in the URL is not authorization. The portal twin
+  // (app/portal/children/[id]/page.tsx) refuses out-of-scope children; this
+  // parent surface used to render today's report, statuses, contacts and
+  // incidents for ANY child id. Parents pass only through their own family
+  // link, staff through the KID-103 classroom scope (lib/store.ts), and the
+  // legacy first-institute fallback (empty request tenant) never renders a
+  // child — fail closed exactly like the kid152/kid212 refusals.
+  const requestIid = await firstInstituteId();
+  const visible = requestIid
+    ? await isChildVisibleToAccount(requestIid, session.accountId, String(child.id))
+    : false;
+  if (!visible && !(isPlatformOperatorRole(session.role) && requestIid)) notFound();
 
   const today = new Date().toISOString().slice(0, 10);
   const status = await todayStatus(child.id);

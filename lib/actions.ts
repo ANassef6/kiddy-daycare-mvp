@@ -1004,6 +1004,55 @@ async function assertChildInScope(childId: string, me: SessionCookie): Promise<v
   }
 }
 
+// KID-372 (cross-tenant authorize-by-id): shared-resource actions authorize
+// by a RAW resource id taken from a form field. The id alone is not
+// authorization — single-centre-era code accepted any id from any caller,
+// including anonymous POSTs riding the legacy first-institute fallback. The
+// guards below hold a real session and match the resource's institute
+// against the REQUEST tenant (lib/tenant.ts), never the fallback. A missing
+// row or a foreign institute is refused fail closed: no write, no read, no
+// newsfeed side effect. The redirect target is /login?error=wrong-tenant —
+// the kid152/kid212 wording, rendered on /login in both locales.
+const KID372_TENANT_REFUSAL = "/login?error=wrong-tenant";
+
+// Anonymous is not a guard: a POST with no session is bounced to /login
+// (same treatment requirePlatformOperator gives non-operators) instead of
+// surfacing as a thrown "not signed in" digest.
+function requireAuthSession(): SessionCookie {
+  try {
+    return authAccount();
+  } catch (err) {
+    if (err instanceof Error && err.message === "not signed in") redirect("/login");
+    throw err;
+  }
+}
+
+// Refuses unless the row found by its raw id belongs to the request tenant.
+// An empty request tenant (cross-tenant session, operator on the apex,
+// unknown host) is ALWAYS a refusal — the legacy fallback must never
+// authorize an id-based access. `table`/`joins`/columns are literal strings
+// from this file only, never user input; the id is the bound parameter.
+async function assertInstituteOwned(
+  me: SessionCookie,
+  table: string,
+  id: string,
+  where: string,
+  joins = "",
+  idPredicate: string = "id"
+): Promise<void> {
+  const instituteId = await firstInstituteId();
+  const row = instituteId
+    ? await queryGet(
+        `SELECT ${where} AS institute_id FROM ${table}${joins ? ` ${joins}` : ""} WHERE ${idPredicate} = ? LIMIT 1`,
+        id
+      )
+    : undefined;
+  if (!instituteId || !row || String(row.institute_id ?? "") !== instituteId) {
+    console.error(`KID-372 refused cross-tenant ${table} access by raw id:`, me.email);
+    redirect(KID372_TENANT_REFUSAL);
+  }
+}
+
 // KID-112: enforces the contact-relationship access ladder server-side.
 // Staff/admin account roles are unaffected; parent-role accounts are gated by
 // their most-permissive family_member link (parent > family > pickup).
@@ -1414,9 +1463,12 @@ export async function addRoomAction(formData: FormData) {
 
 // #6 room settings: name / colour / capacity.
 export async function updateRoomAction(formData: FormData) {
-  await requireAdmin();
+  const me = await requireAdmin();
   await ensureSchema();
   const roomId = String(formData.get("roomId") ?? "");
+  // KID-372: the admin gate alone let an admin EDIT another center's room by
+  // raw id — the room must belong to the request tenant.
+  if (roomId) await assertInstituteOwned(me, "room", roomId, "institute_id");
   const capacityRaw = String(formData.get("capacity") ?? "").trim();
   await updateRoom(roomId, {
     name: String(formData.get("name") ?? ""),
@@ -1931,6 +1983,10 @@ export async function submitFormAction(formData: FormData) {
 }
 
 export async function createTagAction(formData: FormData) {
+  // KID-372: this action had no session guard and requireInstitute() fell
+  // back to the first-created institute — an unauthenticated POST wrote a tag
+  // into that daycare. Tags belong to the signed-in session's request tenant.
+  const me = requireAuthSession();
   const instituteId = await requireInstitute();
   if (instituteId) {
     await createTag(
@@ -1938,6 +1994,9 @@ export async function createTagAction(formData: FormData) {
       String(formData.get("name") ?? ""),
       String(formData.get("color") ?? "#3B82F6")
     );
+  } else if (!isPlatformOperatorRole(me.role)) {
+    console.error("KID-372 refused a tag write with no request tenant (cross-tenant session):", me.email);
+    redirect(KID372_TENANT_REFUSAL);
   }
   redirect("/portal/tags");
 }
@@ -2085,12 +2144,20 @@ export async function createSupportTicketAction(formData: FormData) {
 }
 
 export async function setTicketStatusAction(formData: FormData) {
+  // KID-372: this action had no session guard at all and updated ANY support
+  // ticket by raw id (a cross-center write an anonymous POST could reach).
+  // The ticket must belong to the signed-in session's request tenant.
+  const me = requireAuthSession();
+  await ensureSchema();
   const ticketId = String(formData.get("ticketId") ?? "");
   const status = String(formData.get("status") ?? "open");
   if (ticketId) {
+    await assertInstituteOwned(me, "support_ticket", ticketId, "institute_id");
     await setTicketStatus(ticketId, status);
   }
-  redirect("/portal/support");
+  // KID-260: the staff inbox lives at /portal/support-inbox (/portal/support
+  // is the Help Center now) — land back on the list that posted the form.
+  redirect("/portal/support-inbox");
 }
 
 export async function sendMessageAction(formData: FormData) {
@@ -2558,6 +2625,11 @@ export async function updateSupplyStatusAction(formData: FormData) {
   const id = String(formData.get("id") ?? "");
   const status = String(formData.get("status") ?? "needed");
   if (id) {
+    // KID-372: the raw supply id is not authorization — any signed-in
+    // account could previously flip another center's supply status (and fire
+    // a newsfeed post about it). The reminder must belong to the request
+    // tenant before the write and the side effect.
+    await assertInstituteOwned(me, "supply_request", id, "institute_id");
     await updateSupplyStatus(id, status);
     // KID-47 fix (#9 "parents get notified of updates"): post status changes
     // to the parent-visible (tagged) newsfeed thread.
@@ -2632,10 +2704,16 @@ export async function saveNotificationPrefsAction(formData: FormData) {
 
 // ---- KID-47 Round 6: shareable form link (#26) ----
 export async function generateFormShareLinkAction(formData: FormData) {
-  authAccount();
+  // KID-372: authed was the only gate — formId came in raw and minted a
+  // public share token for ANOTHER center's form. The form must belong to
+  // the request tenant before a token is minted for it.
+  const me = requireAuthSession();
   const { ensureFormShareToken } = await import("@/lib/store");
   const formId = String(formData.get("formId") ?? "");
-  if (formId) await ensureFormShareToken(formId);
+  if (formId) {
+    await assertInstituteOwned(me, "form_template", formId, "institute_id");
+    await ensureFormShareToken(formId);
+  }
   redirect("/portal/forms");
 }
 
@@ -2703,23 +2781,42 @@ export async function updateStaffInfoAction(formData: FormData) {
 
 // Form-response submission funnel status.
 export async function setFormResponseStatusAction(formData: FormData) {
-  authAccount();
+  // KID-372: authed but responseId was never verified against the session's
+  // institute — a cross-center status flip on any raw id. form_response has
+  // no institute column; tenancy comes from the response's own form.
+  const me = requireAuthSession();
   await ensureSchema();
   const { setFormResponseStatus } = await import("@/lib/store");
   const responseId = String(formData.get("responseId") ?? "");
   const status = String(formData.get("status") ?? "new");
   const formId = String(formData.get("formId") ?? "");
-  if (responseId) await setFormResponseStatus(responseId, status);
+  if (responseId) {
+    await assertInstituteOwned(
+      me,
+      "form_response r JOIN form_template f ON f.id = r.form_id",
+      responseId,
+      "f.institute_id",
+      "",
+      "r.id"
+    );
+    await setFormResponseStatus(responseId, status);
+  }
   redirect(formId ? `/portal/forms?view=${formId}` : "/portal/forms");
 }
 
 // Smart-list creation (persists the list name; the builder filters live).
 export async function createSmartListAction(formData: FormData) {
+  // KID-372: same anonymous first-institute write path as createTagAction —
+  // hold a session, write into the request tenant only (fail closed).
+  const me = requireAuthSession();
   const instituteId = await requireInstitute();
   const name = String(formData.get("name") ?? "").trim();
   const { createTag } = await import("@/lib/store");
   if (instituteId && name) {
     await createTag(String(instituteId), name, "#DC2626");
+  } else if (!isPlatformOperatorRole(me.role)) {
+    console.error("KID-372 refused a smart-list write with no request tenant (cross-tenant session):", me.email);
+    redirect(KID372_TENANT_REFUSAL);
   }
   redirect("/portal/tags");
 }
