@@ -1,0 +1,10 @@
+portal-staff: after login URL = https://sunshine.kiddyapp.net/portal/dashboard
+portal-staff: help URL = https://sunshine.kiddyapp.net/portal/support
+portal-staff: removed-button checks = {"Open the support inbox":false,"AR inbox label":false,"href=\"/portal/support-inbox\"":false}
+portal-staff: removed-button present = false
+portal-staff: AR toggle → url = https://sunshine.kiddyapp.net/portal/support?lang=ar, shows 'مركز المساعدة' = true
+family-parent: after login URL = https://sunshine.kiddyapp.net/child
+family-parent: help URL = https://sunshine.kiddyapp.net/child/support
+family-parent: removed-button checks = {"Open the support inbox":false,"AR inbox label":false,"href=\"/portal/support-inbox\"":false}
+family-parent: removed-button present = false
+family-parent: AR toggle → url = https://sunshine.kiddyapp.net/child/support?lang=ar, shows 'مركز المساعدة' = true
