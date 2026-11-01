@@ -1,104 +1,67 @@
-"use client";
-
-// KID-260: the Knowledge Base list view shared by the family surface
+// KID-260/KID-428: the Help Center list view shared by the family surface
 // (/child/support) and the staff portal surface (/portal/support).
 //
-// The server already narrowed `articles` to the viewer's audiences + published
-// only (both languages, so the toggle never makes authority decisions; only the
-// selected language renders at any time, never mixed).
+// KID-428: this is now a server component. The article set (and the search
+// ranking) comes from the Chatwoot help center via lib/help-chatwoot — the
+// bundled 96-record file is retired, so the view can never drift back to stale
+// copies. The EN/AR control stays the client island (components/
+// HelpLanguageToggle) with the KID-403 contract; the search box is a plain GET
+// form so Chatwoot's own search runs on the server flight the submit triggers.
 //
-// The help language is independent of the account app language and defaults to
-// it; the choice persists through localStorage + a cookie (the cookie keeps the
-// server-rendered article detail pages in the same language).
-//
-// KID-403: the chrome copy (title, subtitle, search label/placeholder, results
-// count, empty state) follows the selected help language too — the page hands
-// over both dictionaries and the chrome strings resolve from the language state
-// at render time, so they flip together with the article set and the direction.
-// The toggle also syncs the URL (?lang=) via router.replace (cookie already
-// written), which re-renders the server chrome (page title, support form)
-// in the same language on the next flight.
+// The family surface keeps its on-page support-request form below the list as
+// the human escalation path. The staff surface no longer links to the ticket
+// inbox from here (KID-428 acceptance: no "open the support inbox" button).
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
 import { type HelpCopy } from "@/lib/i18n";
-import {
-  articlesByArea,
-  HELP_LANG_COOKIE,
-  type HelpArticle,
-  type HelpLanguage,
-} from "@/lib/help-kb";
-import { searchHelpArticles } from "@/lib/help-search";
+import { type HelpArticleRef, type HelpLanguage } from "@/lib/help-chatwoot";
+import HelpLanguageToggle from "@/components/HelpLanguageToggle";
 
-export function persistHelpLanguage(language: HelpLanguage) {
-  try {
-    window.localStorage.setItem(HELP_LANG_COOKIE, language);
-    document.cookie = `${HELP_LANG_COOKIE}=${language}; path=/; max-age=31536000; SameSite=Lax`;
-  } catch (err) {
-    console.error("Could not persist the help language preference:", err);
+export type HelpCenterGroup = { area: string; ref: HelpArticleRef };
+
+function groupByArea(
+  groups: readonly HelpCenterGroup[],
+): { area: string; articles: HelpArticleRef[] }[] {
+  const out: { area: string; articles: HelpArticleRef[] }[] = [];
+  for (const { area, ref } of groups) {
+    const last = out[out.length - 1];
+    if (last && last.area === area) last.articles.push(ref);
+    else out.push({ area, articles: [ref] });
   }
+  return out;
 }
 
 export type HelpCenterProps = {
-  articles: readonly HelpArticle[];
-  // KID-403: chrome copy per help language — the component picks the entry
-  // matching the current language state so the chrome always matches the
-  // rendered article set and direction.
-  dicts: { en: HelpCopy; ar: HelpCopy };
-  defaultLanguage: HelpLanguage;
-  // "family" sends the no-result exit to the on-page support request form;
-  // "staff" sends it to the ticket inbox.
-  mode: "family" | "staff";
+  // Server-resolved, Chatwoot-backed article groups for the current language.
+  // `null` means the help center is not configured (or its fetch failed) — the
+  // view must degrade to the unavailable card, never to bundled articles.
+  groups: HelpCenterGroup[] | null;
+  language: HelpLanguage;
+  copy: HelpCopy;
   basePath: string;
-  inboxHref?: string;
+  // Family surface: the no-result/empty state exits to the on-page request
+  // form. Staff surface: no inbox link anymore.
+  requestFormHref?: string;
+  // Server-side Chatwoot search results for the active ?q= (null when the
+  // page was opened without a query).
+  query?: string;
+  searchResults: HelpArticleRef[] | null;
 };
 
 export default function HelpCenter({
-  articles,
-  dicts,
-  defaultLanguage,
-  mode,
+  groups,
+  language,
+  copy,
   basePath,
-  inboxHref,
+  requestFormHref,
+  query,
+  searchResults,
 }: HelpCenterProps) {
-  const router = useRouter();
-  const [language, setLanguage] = useState<HelpLanguage>(defaultLanguage);
-  const [query, setQuery] = useState("");
-  const copy = dicts[language];
-
-  const selectLanguage = (next: HelpLanguage) => {
-    if (next === language) return;
-    setLanguage(next);
-    persistHelpLanguage(next);
-    // KID-403: keep the URL in step with the chosen help language so the
-    // server-resolved chrome dictionary (page title, support form, the dict
-    // props on the next flight) follows the same value the article set uses.
-    const params = new URLSearchParams(window.location.search);
-    params.set("lang", next);
-    router.replace(`${basePath}?${params.toString()}`, { scroll: false });
-  };
-
-  const langArticles = useMemo(
-    () => articles.filter((article) => article.language === language),
-    [articles, language],
-  );
-
-  const ranked = useMemo(
-    () => searchHelpArticles(langArticles, query),
-    [langArticles, query],
-  );
-
-  const compactQuery = query.trim();
   const dir = language === "ar" ? "rtl" : "ltr";
-
-  // Direct property access on the typed HelpCopy slice (the template vars are
-  // interpolated the same way tr() does it).
+  const trimmedQuery = (query ?? "").trim();
+  const hasQuery = trimmedQuery.length > 0;
   const resultsCount = (count: number) => copy.resultsCount.replaceAll("{count}", String(count));
-  const noResultsTitle = (queryText: string) =>
-    copy.noResultsTitle.replaceAll("{query}", queryText);
-
-  const articleHref = (article: HelpArticle) =>
-    `${basePath}/${article.slug}?lang=${language}`;
+  const noResultsTitle = copy.noResultsTitle.replaceAll("{query}", trimmedQuery);
+  const articleHref = (article: HelpArticleRef) => `${basePath}/${article.id}?lang=${language}`;
 
   return (
     <div className="help-center" data-testid="help-center" dir={dir}>
@@ -111,75 +74,56 @@ export default function HelpCenter({
             {copy.subtitle}
           </p>
         </div>
-        <div
-          className="help-lang-toggle"
-          role="group"
-          aria-label={copy.langLabel}
-          style={{ display: "flex", gap: 6, flexShrink: 0 }}
-        >
-          {(["en", "ar"] as HelpLanguage[]).map((code) => (
-            <button
-              key={code}
-              type="button"
-              className={code === language ? "btn btn-primary" : "btn btn-ghost"}
-              aria-pressed={code === language}
-              lang={code}
-              dir={code === "ar" ? "rtl" : "ltr"}
-              onClick={() => selectLanguage(code)}
-              style={{ padding: "4px 10px", fontSize: 13 }}
-            >
-              {code === "en" ? copy.langEn : copy.langAr}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      <div className="field">
-        <label className="label" htmlFor="help-search-input">
-          {copy.searchLabel}
-        </label>
-        <input
-          id="help-search-input"
-          className="input"
-          type="search"
-          value={query}
-          placeholder={copy.searchPlaceholder}
-          onChange={(event) => setQuery(event.target.value)}
+        <HelpLanguageToggle
+          current={language}
+          basePath={basePath}
+          label={copy.langLabel}
+          labels={{ en: copy.langEn, ar: copy.langAr }}
         />
       </div>
 
-      {compactQuery && (
+      <form action={basePath} method="get" role="search">
+        <input type="hidden" name="lang" value={language} />
+        <div className="field">
+          <label className="label" htmlFor="help-search-input">
+            {copy.searchLabel}
+          </label>
+          <input
+            id="help-search-input"
+            className="input"
+            type="search"
+            name="q"
+            defaultValue={query ?? ""}
+            placeholder={copy.searchPlaceholder}
+          />
+        </div>
+      </form>
+
+      {hasQuery && searchResults !== null && (
         <p className="small muted" data-testid="help-results-count">
-          {resultsCount(ranked.length)}
+          {resultsCount(searchResults.length)}
         </p>
       )}
 
-      {compactQuery && (
+      {hasQuery && (
         <>
-          <div className="help-list">
-            {ranked.map(({ article }) => (
-              <Link key={article.slug} className="help-article-row" href={articleHref(article)}>
+          <div className="help-list" data-testid="help-search-results">
+            {(searchResults ?? []).map((article) => (
+              <Link key={article.id} className="help-article-row" href={articleHref(article)}>
                 <span className="help-article-title">{article.title}</span>
-                <span className="help-article-area">{article.area}</span>
               </Link>
             ))}
           </div>
-          {ranked.length === 0 && (
+          {searchResults !== null && searchResults.length === 0 && (
             <div className="card help-empty-state" data-testid="help-empty-state">
               <p className="small" style={{ fontWeight: 700, marginBottom: 4 }}>
-                {noResultsTitle(compactQuery)}
+                {noResultsTitle}
               </p>
               <p className="small muted" style={{ marginTop: 0 }}>
                 {copy.noResultsHint}
               </p>
-              {mode === "staff" ? (
-                inboxHref && (
-                  <Link className="btn btn-ghost" href={inboxHref}>
-                    {copy.contactSupport}
-                  </Link>
-                )
-              ) : (
-                <a className="btn btn-ghost" href={inboxHref ?? "#support-form"}>
+              {requestFormHref && (
+                <a className="btn btn-ghost" href={requestFormHref}>
                   {copy.sendRequest}
                 </a>
               )}
@@ -188,22 +132,40 @@ export default function HelpCenter({
         </>
       )}
 
-      {!query.trim() && (
+      {!hasQuery && (
         <div>
-          {articlesByArea(langArticles).map(({ area, articles: group }) => (
-            <div key={area} className="help-area-group">
-              <div className="help-area-head">{area}</div>
-              <div className="help-list">
-                {group.map((article) => (
-                  <Link key={article.slug} className="help-article-row" href={articleHref(article)}>
-                    <span className="help-article-title">{article.title}</span>
-                  </Link>
-                ))}
-              </div>
+          {groups === null ? (
+            <div className="card help-empty-state" data-testid="help-unavailable">
+              <p className="small" style={{ fontWeight: 700, marginBottom: 4 }}>
+                {copy.unavailableTitle}
+              </p>
+              <p className="small muted" style={{ marginTop: 0 }}>
+                {copy.unavailableHint}
+              </p>
+              {requestFormHref && (
+                <a className="btn btn-ghost" href={requestFormHref}>
+                  {copy.sendRequest}
+                </a>
+              )}
             </div>
-          ))}
-          {langArticles.length === 0 && (
-            <p className="small muted">{resultsCount(0)}</p>
+          ) : (
+            <>
+              {groupByArea(groups).map(({ area, articles }) => (
+                <div key={area} className="help-area-group">
+                  <div className="help-area-head">{area}</div>
+                  <div className="help-list">
+                    {articles.map((article) => (
+                      <Link key={article.id} className="help-article-row" href={articleHref(article)}>
+                        <span className="help-article-title">{article.title}</span>
+                      </Link>
+                    ))}
+                  </div>
+                </div>
+              ))}
+              <p className="small muted" data-testid="help-results-count">
+                {resultsCount(groups.length)}
+              </p>
+            </>
           )}
         </div>
       )}
