@@ -55,13 +55,17 @@ parent issue KID-305 — do not invent per-tenant routing around this doc.
 
 | Var | Dev / QA | Production |
 | --- | --------- | ---------- |
-| `NEXT_PUBLIC_CHATWOOT_BASE_URL` | `http://100.71.115.5:3000` (board's Chatwoot; plain HTTP over Tailscale) | **Answered on KID-305: `http://100.71.115.5:3000`, one shared inbox.** Caveat: plain HTTP over Tailscale works for dev/QA/tailnet traffic, but kiddyapp.net is publicly served over HTTPS where the browser blocks the HTTP widget script as mixed content — provide an operator-provided **HTTPS**-reachable Chatwoot origin before enabling the widget in production (deployment step, not a code change) |
+| `NEXT_PUBLIC_CHATWOOT_BASE_URL` | `http://100.71.115.5:3000` (board's Chatwoot; plain HTTP over Tailscale) | **`https://chatwoot.kiddyapp.net`** (set on Vercel production on 2026-11-01, KID-429). The operator HTTPS origin resolved the old mixed-content blocker: the board's first answer on KID-305 was the plain-HTTP Tailscale address `http://100.71.115.5:3000` (same server, one shared inbox), which browsers block as mixed content on an HTTPS page — production therefore used the HTTPS reverse-proxied origin instead, verified loading `GET /packs/js/sdk.js` → 200 with no mixed-content or CSP errors |
 | `NEXT_PUBLIC_CHATWOOT_WEBSITE_TOKEN` | Board's shared website-inbox token (single shared platform inbox, confirmed by the board) | Set by the operator in the deploy env. Never paste the production token into docs, tickets, or chat |
 
 **Mixed-content warning:** browsers block a plain-HTTP widget script on an
 HTTPS page. Dev/QA works only because those pages are served over HTTP; if
 production serves HTTPS (it does), an HTTP Chatwoot origin means **no widget
-at all**. Provision HTTPS for the Chatwoot origin before enabling production.
+at all**. This was the KID-429 production root cause (the build shipped
+without either env var, and the only recorded origin was HTTP/Tailscale);
+production now runs `https://chatwoot.kiddyapp.net` and the widget is
+verified visible on the web app and staff portal for logged-in users
+(2026-11-01).
 
 ## Tests
 
