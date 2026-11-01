@@ -226,7 +226,8 @@ async function categoryArticleRefs(
 // (the KID-425 exit target). The app removes the paragraph — the Notion link
 // must not ship — and reuses its title as the alternate-language pairing key
 // (titles are exact duplicates across the two locales in this portal).
-const ALTERNATE_FOOTER = /<p>\s*<strong>\s*(?:النسخة العربية|English version)\s*:\s*<\/strong>([\s\S]*?)<\/p>/i;
+const ALTERNATE_FOOTER =
+  /<p>\s*(?:<strong>)?\s*(?:النسخة العربية|English version)\s*:\s*(?:<\/strong>)?\s*([\s\S]*?)<\/p>/i;
 
 export function extractAlternateTitle(content: string): string | null {
   const match = String(content ?? "").match(ALTERNATE_FOOTER);
@@ -269,7 +270,7 @@ export function stripRelatedParagraph(content: string): string {
 
 export function stripDanglingDivider(content: string): string {
   // Removing trailing meta paragraphs can leave a trailing <hr> behind.
-  return String(content ?? "").replace(/(?:\s<hr>\s*)+$/i, "").trimEnd();
+  return String(content ?? "").replace(/(?:\s*<hr>\s*)+$/i, "").trimEnd();
 }
 
 function normalizeTitle(title: string): string {
@@ -402,7 +403,11 @@ export async function loadHelpArticle(
   const config = chatwootHelpConfig();
   if (!config) return { ok: false };
   try {
-    const raw = (await chatwootHelpFetch<unknown>(config, `articles/${id}`, {})) as ChatwootArticle;
+    // The show endpoint wraps the article in { payload }.
+    const shown = (await chatwootHelpFetch<unknown>(config, `articles/${id}`, {})) as {
+      payload?: ChatwootArticle;
+    };
+    const raw = (shown.payload ?? shown) as ChatwootArticle;
     const audience = audienceForCategorySlug(raw.category?.slug);
     const allowed = new Set(audiences);
     if (!audience || raw.status !== "published" || !allowed.has(audience)) return { ok: false };

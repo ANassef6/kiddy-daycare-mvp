@@ -15,6 +15,7 @@ import {
   extractRelatedTitles,
   relatedRefs,
   articleRefByTitle,
+  loadHelpArticle,
   loadHelpCenter,
   searchHelpCenter,
 } from "@/lib/help-chatwoot";
@@ -106,6 +107,45 @@ describe("KID-428: footer pairing and Related parsing", () => {
     expect(extractAlternateTitle(EN_BODY)).toBe("قائمة الجدول");
     expect(extractAlternateTitle(AR_BODY)).toBe("Alpha Title");
     expect(extractAlternateTitle("<p>plain</p>")).toBeNull();
+  });
+
+  it("handles the live portal's strong-less footer variant and dangling divider", async () => {
+    vi.stubEnv("CHATWOOT_BASE_URL", "http://chatwoot.test");
+    vi.stubEnv("CHATWOOT_ACCESS_TOKEN", "test-access-token");
+    const liveStyle =
+      '<ul><li>step</li></ul><hr><p>النسخة العربية: <a href="https://app.notion.com/">قائمة الجدول</a></p>';
+    const respond = (body: unknown) =>
+      new Response(JSON.stringify(body), { status: 200 });
+    const calls: URL[] = [];
+    vi.stubGlobal("fetch", (input: RequestInfo | URL) => {
+      const url = new URL(String(input));
+      calls.push(url);
+      if (url.pathname.endsWith("/categories")) {
+        const locale = url.searchParams.get("locale");
+        return Promise.resolve(respond({ payload: [{ id: 1, slug: "public", locale, name: "Public" }] }));
+      }
+      if (/\/articles\/\d+$/.test(url.pathname)) {
+        return Promise.resolve(
+          respond({ payload: { id: 74, title: "T", status: "published", content: liveStyle, category: { slug: "public", locale: "en" } } }),
+        );
+      }
+      const slug = url.searchParams.get("category_slug");
+      const locale = url.searchParams.get("locale") ?? "en";
+      // The opposite-language listing must contain the footer pairing title.
+      const title = locale === "ar" ? "قائمة الجدول" : "A1";
+      return Promise.resolve(
+        respond({ payload: [articleJson(1, title, slug ?? "public", locale)], meta: { articles_count: 1 } }),
+      );
+    });
+    const load = await loadHelpArticle(74, "en", ["public"]);
+    expect(load.ok).toBe(true);
+    if (load.ok) {
+      expect(load.alternateId).toBe(1);
+      // The trailing divider left behind by the footer removal is gone.
+      expect(load.article.html.endsWith("<hr>")).toBe(false);
+      expect(load.article.html.includes("قائمة الجدول")).toBe(false);
+      expect(load.related.length).toBe(0);
+    }
   });
 
   it("reports Related names and skips placeholders", () => {
