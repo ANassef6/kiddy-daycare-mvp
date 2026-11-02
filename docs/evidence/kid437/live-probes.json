@@ -1,0 +1,32 @@
+{
+  "capturedAt": "2026-11-02T14:48Z",
+  "prodDeployment": {
+    "id": "dpl_DEqMPgubGAMecYyMxU5ediwDGU3y",
+    "state": "READY",
+    "target": "production",
+    "commit": "ed20d91ac (merge pull request #5 from ANassef6/kid437-mobile-tenant-branding)",
+    "aliases": ["kiddyapp.net", "*.kiddyapp.net (incl. sunshine.kiddyapp.net)", "kiddy-one.vercel.app"],
+    "path": "normal Vercel prod path (git integration), auto-triggered on master merge"
+  },
+  "priorProdDeployment": "dpl_6Ehkamtx @ 0095020e superseded",
+  "tenantAuthPages": {
+    "sunshine.kiddyapp.net/login": { "title": "Sunshine Daycare — childcare, in your pocket", "kiddyBodyHits": 0, "ssrBrandSpan": "Sunshine Daycare" },
+    "sunshine.kiddyapp.net/register": { "title": "Sunshine Daycare — childcare, in your pocket", "kiddyBodyHits": 0, "ssrBrandSpan": "Sunshine Daycare" },
+    "sunshine.kiddyapp.net/forgot-password": { "title": "Sunshine Daycare — childcare, in your pocket", "kiddyBodyHits": 0, "ssrBrandSpan": "Sunshine Daycare" }
+  },
+  "signedIn": {
+    "surface": "sunshine.kiddyapp.net/child (parent@example.test / kiddy-parent — the Sunshine fixture parent, signed in through the live /api/mobile/login endpoint)",
+    "title": "Sunshine Daycare — childcare, in your pocket",
+    "ssrBrandSpan": "Sunshine Daycare",
+    "kiddyBodyHits": 3,
+    "kiddyHitsAre": "invisible RSC/flight payload strings (signOutLabel dict, 'Ask the Kiddy team' subtitle, 'using Kiddy.' help subtitle) — zero rendered-DOM Kiddy",
+    "sunshineBodyHits": 7
+  },
+  "apexControl": {
+    "kiddyapp.net": { "title": "Kiddy — childcare management software for Egyptian daycares" },
+    "kiddyapp.net/manifest.webmanifest": { "name": "Kiddy", "short_name": "Kiddy", "theme_color": "#3B82F6" }
+  },
+  "mobileLineage": {
+    "kiddy-mobile-api.vercel.app": { "bootstrap": 401, "loginPOST": 400, "note": "still serving the kid435-mobile-tenant-branding @ ae2c9cc build promoted in 299bdbb (dpl_AzfL4HDbu43yy5Cd51D6q7k2hTXu); master now also carries ae2c9cc's fix via 0c735f1" }
+  }
+}
