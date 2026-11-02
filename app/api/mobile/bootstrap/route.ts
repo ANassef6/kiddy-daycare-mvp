@@ -12,7 +12,8 @@ export async function GET(req: NextRequest) {
   if (session instanceof NextResponse) return session;
 
   const [branding, children, account] = await Promise.all([
-    brandingPayload(),
+    // KID-435: the brand is the session's own daycare, not the first institute.
+    brandingPayload(session.accountId),
     familiesPayload(session.accountId),
     getAccount(session.accountId),
   ]);

@@ -3,7 +3,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyToken, getAccount } from "./auth";
 import { queryGet, type Row } from "./db";
-import { getFirstInstitute, brandingFromInstitute, type Branding } from "./theme";
+import { getFirstInstitute, getInstitute, brandingFromInstitute, type Branding } from "./theme";
 import { familiesForAccount, getChild, todayStatus, reportFor } from "./store";
 
 export type MobileSession = {
@@ -108,8 +108,22 @@ export function serializeReport(report: Row): Row {
   };
 }
 
-export async function brandingPayload(): Promise<Branding> {
-  const institute = await getFirstInstitute();
+// KID-435: the mobile home screen's brand must be the signed-in parent's OWN
+// daycare, not "whichever daycare was created first" — on a multi-daycare
+// deployment the first-institute pick showed one daycare's brand inside
+// another daycare's app. Resolution follows the same rule the web's signed-in
+// surfaces use: the account's family link (its children's institute) decides.
+// Accounts with no family link (staff/legacy/ghost sessions) keep the legacy
+// first-institute fallback so single-tenant deployments are unchanged.
+export async function brandingPayload(accountId: string): Promise<Branding> {
+  const row = await queryGet(
+    `SELECT c.institute_id AS iid FROM family_member fm
+     JOIN child c ON c.id = fm.child_id
+     WHERE fm.account_id = ? AND c.active = 1
+     ORDER BY c.created_at LIMIT 1`,
+    accountId
+  );
+  const institute = row ? await getInstitute(String(row.iid)) : await getFirstInstitute();
   return brandingFromInstitute(institute);
 }
 
