@@ -1,0 +1,49 @@
+{
+  "issue": "KID-453",
+  "baseUrl": "http://127.0.0.1:4560",
+  "runAt": "2026-11-02T23:01:16.461Z",
+  "viewportNote": "viewport-only screenshots, DPR 1",
+  "results": [
+    {
+      "id": "A1-login",
+      "ok": true,
+      "detail": "http://127.0.0.1:4560/portal/dashboard"
+    },
+    {
+      "id": "A2-rtl-dir",
+      "ok": true,
+      "detail": "dir after save"
+    },
+    {
+      "id": "A3-rtl-children-geometry",
+      "ok": true,
+      "detail": "{\"dir\":\"rtl\",\"lang\":\"ar\",\"clientWidth\":1080,\"scrollWidth\":1080,\"grid\":\"220px 860px\",\"side\":{\"x\":860,\"y\":0,\"w\":220,\"h\":1920},\"main\":{\"x\":0,\"y\":0,\"w\":860,\"h\":1920}}"
+    },
+    {
+      "id": "A4-rtl-support-geometry",
+      "ok": true,
+      "detail": "{\"dir\":\"rtl\",\"lang\":\"ar\",\"clientWidth\":1080,\"scrollWidth\":1080,\"grid\":\"220px 860px\",\"side\":{\"x\":860,\"y\":0,\"w\":220,\"h\":1920},\"main\":{\"x\":0,\"y\":0,\"w\":860,\"h\":1920}}"
+    },
+    {
+      "id": "A5-rtl-phone-single-column",
+      "ok": true,
+      "detail": "{\"dir\":\"rtl\",\"lang\":\"ar\",\"clientWidth\":700,\"scrollWidth\":700,\"grid\":\"700px\",\"side\":{\"x\":0,\"y\":0,\"w\":700,\"h\":410},\"main\":{\"x\":0,\"y\":410,\"w\":700,\"h\":790}}"
+    },
+    {
+      "id": "A6-ltr-children-geometry",
+      "ok": true,
+      "detail": "{\"dir\":\"ltr\",\"lang\":\"en\",\"clientWidth\":1080,\"scrollWidth\":1080,\"grid\":\"220px 860px\",\"side\":{\"x\":0,\"y\":0,\"w\":220,\"h\":1920},\"main\":{\"x\":220,\"y\":0,\"w\":860,\"h\":1920}}"
+    },
+    {
+      "id": "A7-ltr-support-geometry",
+      "ok": true,
+      "detail": "{\"dir\":\"ltr\",\"lang\":\"en\",\"clientWidth\":1080,\"scrollWidth\":1080,\"grid\":\"220px 860px\",\"side\":{\"x\":0,\"y\":0,\"w\":220,\"h\":1920},\"main\":{\"x\":220,\"y\":0,\"w\":860,\"h\":1920}}"
+    },
+    {
+      "id": "Z1-console-errors",
+      "ok": true,
+      "detail": "none"
+    }
+  ],
+  "consoleErrors": []
+}
