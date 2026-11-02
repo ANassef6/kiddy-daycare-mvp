@@ -1,0 +1,28 @@
+{
+  "issue": "KID-453",
+  "kind": "negative-control",
+  "baseUrl": "http://127.0.0.1:4560",
+  "runAt": "2026-11-02T23:04:52.406Z",
+  "results": [
+    {
+      "id": "N1-old-override-reproduces-bug",
+      "ok": true,
+      "detail": "{\"dir\":\"rtl\",\"clientWidth\":1080,\"scrollWidth\":1144,\"grid\":\"860px 220px\",\"side\":{\"x\":220,\"y\":0,\"w\":860,\"h\":1920},\"main\":{\"x\":0,\"y\":0,\"w\":220,\"h\":1920}}"
+    },
+    {
+      "id": "N2a-old-rule-injected",
+      "ok": true,
+      "detail": "parsed=true"
+    },
+    {
+      "id": "N2-ltr-geometry-unchanged",
+      "ok": true,
+      "detail": "fixed={\"dir\":\"ltr\",\"clientWidth\":1080,\"scrollWidth\":1080,\"grid\":\"220px 860px\",\"side\":{\"x\":0,\"y\":0,\"w\":220,\"h\":1920},\"main\":{\"x\":220,\"y\":0,\"w\":860,\"h\":1920}} preFix={\"dir\":\"ltr\",\"clientWidth\":1080,\"scrollWidth\":1080,\"grid\":\"220px 860px\",\"side\":{\"x\":0,\"y\":0,\"w\":220,\"h\":1920},\"main\":{\"x\":220,\"y\":0,\"w\":860,\"h\":1920}}"
+    },
+    {
+      "id": "N3-ltr-pixels-identical",
+      "ok": true,
+      "detail": "png bytes: fixed=56370 preFix=56370"
+    }
+  ]
+}
