@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import "./globals.css";
-import { getBranding } from "@/lib/theme";
+import { brandNameForTitle, getBranding } from "@/lib/theme";
 import { readSessionFromCookieValue } from "@/lib/auth";
 import { ensureSeeded } from "@/lib/bootstrap";
 import { LANG_COOKIE, dirFor } from "@/lib/i18n";
@@ -9,13 +9,27 @@ import { effectiveLocale } from "@/lib/i18n-session";
 import type { Locale } from "@/lib/i18n";
 import ChatwootWidget from "@/components/ChatwootWidget";
 
-export const metadata: Metadata = {
-  title: {
-    default: "Kiddy — childcare, in your pocket",
-    template: "%s | Kiddy",
-  },
-  description: "Check-in, check-out, daily reports, and the newsfeed for Egyptian daycares.",
-};
+// KID-435: the title brand follows the same white-label rule as the install
+// meta (KID-256): on a daycare's own subdomain every document title names
+// that daycare (the Sunshine install no longer reads "Kiddy ..."), signed-in
+// accounts on generic hosts keep their own daycare, and apex/anonymous hosts
+// stay byte-for-byte generic Kiddy. generateMetadata (not an isomorphic
+// `metadata` export) so the per-request host/session decides.
+export async function generateMetadata(): Promise<Metadata> {
+  let titleBrand = "Kiddy";
+  try {
+    titleBrand = (await brandNameForTitle()) || "Kiddy";
+  } catch (err) {
+    console.error("Title brand resolution failed:", err);
+  }
+  return {
+    title: {
+      default: `${titleBrand} — childcare, in your pocket`,
+      template: `%s | ${titleBrand}`,
+    },
+    description: "Check-in, check-out, daily reports, and the newsfeed for Egyptian daycares.",
+  };
+}
 
 export const dynamic = "force-dynamic";
 
