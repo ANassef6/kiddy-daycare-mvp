@@ -1,9 +1,15 @@
 # KID-453 evidence — RTL portal shell grid fix
 
-Run stamp: 2026-11-02T23:0xZ, branch `kid453-rtl-shell-grid` off `origin/master`
-(`4b96fab`), local `next build` + `next start` on `127.0.0.1:4560` (SQLite demo
-seed). Geometry measured with `getBoundingClientRect` + `getComputedStyle` in
-headless Chromium at DPR 1; screenshots are viewport-only.
+Run stamp: 2026-11-02, branch `kid453-rtl-shell-grid` off `origin/master`
+(`4b96fab`), merged as PR #7 → `master` @ `04a1cbb`, Vercel production deploy
+completed. Geometry measured with `getBoundingClientRect` + `getComputedStyle`
+in headless Chromium at DPR 1; screenshots are viewport-only.
+
+Two passes: a **local** one (`next build` + `next start` on `127.0.0.1:4560`,
+SQLite demo seed) and a **production** one against https://sunshine.kiddyapp.net
+after the deploy (`KID-453-production-report.json`). A branch-preview pass was
+not possible: Vercel deployment protection redirects `*.vercel.app` previews to
+team SSO, so verification went straight to production.
 
 ## The fix
 
@@ -48,6 +54,17 @@ vacuous. The deleted rule is re-injected into the fixed build at runtime
 | N2 | LTR geometry identical with and without the pre-fix rule | pass |
 | N3 | LTR PNG bytes identical fixed vs pre-fix (`56370 == 56370`) | pass — literal pixel-identity for the LTR acceptance criterion |
 
+## Production pass — `kid453-verify.mjs` against https://sunshine.kiddyapp.net (report: `KID-453-production-report.json`) 8/8 pass
+
+Same script, same checks, signed in with the sanctioned QA staff fixture
+(`qa_kid186_staff_sunshine_login`) on the live host after the deploy:
+
+- A3/A4 RTL @1080x1920 — aside x=860 w=220, main x=0 w=860,
+  `scrollWidth == clientWidth == 1080`, computed grid `220px 860px`;
+- A5 RTL @700x1200 — single `700px` track, stacked, no overflow;
+- A6/A7 LTR @1080x1920 — aside x=0 w=220, main x=220 w=860, unchanged;
+- Z1 console errors — none.
+
 ## Regression test (in the suite)
 
 `tests/unit/kid453-rtl-shell-grid.test.ts` — 5 tests, resolves the cascade the
@@ -78,8 +95,18 @@ deleted.
 | `KID-453-04-ltr-children-1080.png` | 1080x1920 | LTR unchanged |
 | `KID-453-05-ltr-support-1080.png` | 1080x1920 | LTR unchanged |
 | `KID-453-06-old-override-bug.png` | 1080x1920 | negative control: pre-fix cascade, the reported inversion |
+| `KID-453-07-prod-rtl-children-1080.png` | 1080x1920 | production after deploy — fixed RTL child list (also the source of KID-451's `KID-451-05` replacement) |
+| `KID-453-08-prod-rtl-children-700.png` | 700x1200 | production after deploy — RTL single column at ≤720px |
 
 PNG dimensions verified from the IHDR chunk (ImageMagick is not installed).
+
+## KID-451 follow-through
+
+The two AR shots were re-captured on production and attached to KID-451 as
+`KID-451-05-child-list-ar.png` and `KID-451-06-support-chat-ar.png`
+(1080x1920, `PASS`); KID-451's `screenshots-manifest` document gained a
+"Replacements after KID-453" section and marks GAP-1 RESOLVED. GAP-2 (English
+body copy on `/portal/children`) is unchanged and still open.
 
 ## Known gap carried over (NOT this issue)
 
