@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import { LANG_COOKIE, getDictionary, localeOf, tenancyDisabledMessage, tr, type Locale, type TenancyDisabledReason } from "@/lib/i18n";
 import { brandNameForTitle } from "@/lib/theme";
 import AuthBrand from "@/components/AuthBrand";
+import AuthLangToggle from "@/components/AuthLangToggle";
 import LoginForm from "./login-form";
 
 export const dynamic = "force-dynamic";
@@ -64,6 +65,10 @@ export default async function LoginPage({ searchParams }: { searchParams?: Login
   return (
     <div className="container" style={{ maxWidth: 420, paddingTop: 80 }}>
       <AuthBrand brandName={headerBrand} />
+      {/* KID-443 (defect 3): the pre-sign-in EN/AR control. The SSR paint
+          already follows the kiddy_lang cookie (KID-368); the toggle is what
+          lets a first-time visitor change that preference. */}
+      <AuthLangToggle locale={locale} label={t("langLabel")} en={t("langEn")} ar={t("langAr")} />
       <h1 className="title mt-4">{t("signIn")}</h1>
       <p className="subtitle">{t("welcomeBack")}</p>
       {guard && !confirmed && (
