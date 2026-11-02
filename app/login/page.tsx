@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { cookies } from "next/headers";
 import { LANG_COOKIE, getDictionary, localeOf, tenancyDisabledMessage, tr, type Locale, type TenancyDisabledReason } from "@/lib/i18n";
-import LoginBrand from "./login-brand";
+import { brandNameForTitle } from "@/lib/theme";
+import AuthBrand from "@/components/AuthBrand";
 import LoginForm from "./login-form";
 
 export const dynamic = "force-dynamic";
@@ -37,6 +38,11 @@ export default async function LoginPage({ searchParams }: { searchParams?: Login
   const dict = getDictionary(locale);
   const t = (key: string, vars?: Record<string, string | number>) => tr(dict, `login.${key}`, vars);
 
+  // KID-437: the header fallback is per-origin (same rule as the KID-435
+  // titles), so a tenant's own subdomain already names the daycare in the SSR
+  // paint instead of flashing generic Kiddy until the client fetch lands.
+  const headerBrand = (await brandNameForTitle()) || dict.app.name;
+
   const params = searchParams ?? {};
   const confirmed = params.confirmed === "1";
 
@@ -57,7 +63,7 @@ export default async function LoginPage({ searchParams }: { searchParams?: Login
 
   return (
     <div className="container" style={{ maxWidth: 420, paddingTop: 80 }}>
-      <LoginBrand brandName={dict.app.name} />
+      <AuthBrand brandName={headerBrand} />
       <h1 className="title mt-4">{t("signIn")}</h1>
       <p className="subtitle">{t("welcomeBack")}</p>
       {guard && !confirmed && (

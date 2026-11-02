@@ -1,5 +1,7 @@
 "use client";
 
+import AuthBrand from "@/components/AuthBrand";
+
 // KID-121: if anything under /register throws during render, show a friendly
 // message with a retry instead of the generic "Application error" digest page.
 export default function RegisterError({
@@ -10,7 +12,7 @@ export default function RegisterError({
 }) {
   return (
     <div className="container" style={{ maxWidth: 420, paddingTop: 80 }}>
-      <span className="brand">Kiddy</span>
+      <AuthBrand brandName="Kiddy" />
       <h1 className="title mt-4">Activate your parent account</h1>
       <p className="subtitle">
         We couldn&apos;t load the activation form right now. Check your connection and try again —
