@@ -1,40 +1,49 @@
-// KID-260: server-rendered article detail view shared by the family surface
-// (/child/support/[slug]) and the staff portal surface (/portal/support/[slug]).
-// The audience check has already happened in the route: it only ever receives a
-// published article the signed-in role may open.
+// KID-260/KID-428: server-rendered article detail view shared by the family
+// surface (/child/support/[id]) and the staff portal surface
+// (/portal/support/[id]). The route enforces the audience gate before this
+// component ever renders: it only ever receives a published Chatwoot article
+// the signed-in role may open.
+//
+// KID-428: the body HTML from Chatwoot is pre-sanitized by
+// sanitizeHelpHtml (lib/help-chatwoot): scripts/iframes/event attributes/
+// javascript: URLs are stripped, the Notion cross-language footer is removed
+// and the "Related:" line becomes the in-app related-article links below the
+// body. If the footer named the article's other-language counterpart, the
+// EN/AR switch jumps straight to that paired article id.
 import Link from "next/link";
-import { tr, type Dict } from "@/lib/i18n";
-import { type HelpArticle, type HelpLanguage } from "@/lib/help-kb";
-import { HelpArticleBody } from "@/lib/help-markdown";
+import { type HelpCopy } from "@/lib/i18n";
+import { type HelpArticleRef, type HelpArticleView, type HelpLanguage } from "@/lib/help-chatwoot";
+import HelpLanguageToggle from "@/components/HelpLanguageToggle";
 
 export type HelpArticleDetailProps = {
-  article: HelpArticle;
-  related: HelpArticle[];
-  relatedBody: string;
-  dict: Dict;
+  article: HelpArticleView;
+  related: HelpArticleRef[];
+  // Chatwoot article id of the same article in the other language (resolved
+  // from the footer pairing key). null → the toggle falls back to the list.
+  alternateId: number | null;
+  copy: HelpCopy;
   basePath: string;
   language: HelpLanguage;
-  backHref: string;
-  contactHref: string;
-  contactLabel: string;
+  exitHref: string;
+  exitLabel: string;
 };
 
 export default function HelpArticleDetail({
   article,
   related,
-  relatedBody,
-  dict,
+  alternateId,
+  copy,
   basePath,
   language,
-  backHref,
-  contactHref,
-  contactLabel,
+  exitHref,
+  exitLabel,
 }: HelpArticleDetailProps) {
   const dir = language === "ar" ? "rtl" : "ltr";
+  const next = language === "en" ? "ar" : "en";
   return (
     <div data-testid="help-article" dir={dir}>
       <p className="small" style={{ marginBottom: 8 }}>
-        <Link href={`${basePath}?lang=${language}`}>← {tr(dict, "help.backToList")}</Link>
+        <Link href={`${basePath}?lang=${language}`}>← {copy.backToList}</Link>
       </p>
       <div className="help-center">
         <div className="row" style={{ justifyContent: "space-between", alignItems: "flex-start", gap: 12 }}>
@@ -42,42 +51,37 @@ export default function HelpArticleDetail({
             <h2 className="title" style={{ marginBottom: 4 }}>
               {article.title}
             </h2>
-            <p className="small muted" style={{ margin: 0 }}>
-              <span dir="ltr">{article.area}</span>
-            </p>
           </div>
-          <div className="help-lang-toggle" role="group" aria-label={tr(dict, "help.langLabel")} style={{ display: "flex", gap: 6, flexShrink: 0 }}>
-            {(["en", "ar"] as HelpLanguage[]).map((code) => (
-              <Link
-                key={code}
-                className={code === language ? "btn btn-primary" : "btn btn-ghost"}
-                href={`${basePath}/${article.slug}?lang=${code}`}
-                lang={code}
-                dir={code === "ar" ? "rtl" : "ltr"}
-                style={{ padding: "4px 10px", fontSize: 13 }}
-              >
-                {tr(dict, code === "en" ? "help.langEn" : "help.langAr")}
-              </Link>
-            ))}
-          </div>
+          <HelpLanguageToggle
+            current={language}
+            basePath={`${basePath}/${article.id}`}
+            alternateHref={alternateId !== null ? `${basePath}/${alternateId}?lang=${next}` : undefined}
+            label={copy.langLabel}
+            labels={{ en: copy.langEn, ar: copy.langAr }}
+          />
         </div>
-        <HelpArticleBody body={relatedBody} dir={dir} />
+        <div
+          className="help-article-body"
+          dir={dir}
+          data-testid="help-article-body"
+          dangerouslySetInnerHTML={{ __html: article.html }}
+        />
         {related.length > 0 && (
-          <div style={{ marginTop: 14 }}>
-            <div className="label">{tr(dict, "help.articleRelated")}</div>
+          <div style={{ marginTop: 14 }} data-testid="help-article-related">
+            <div className="label">{copy.articleRelated}</div>
             <div>
               {related.map((item) => (
-                <div key={item.slug}>
-                  <Link href={`${basePath}/${item.slug}?lang=${language}`}>{item.title}</Link>
+                <div key={item.id}>
+                  <Link href={`${basePath}/${item.id}?lang=${language}`}>{item.title}</Link>
                 </div>
               ))}
             </div>
           </div>
         )}
         <p style={{ marginTop: 18 }}>
-          <Link className="btn btn-ghost" href={contactHref}>
-            {contactLabel}
-          </Link>
+          <a className="btn btn-ghost" href={exitHref}>
+            {exitLabel}
+          </a>
         </p>
       </div>
     </div>
