@@ -225,6 +225,12 @@ export const en = {
   login: {
     signIn: "Sign in",
     welcomeBack: "Welcome back. Sign in to see your daycare's day.",
+    // KID-443 (defect 3): the pre-sign-in EN/AR control on /login (and the
+    // same keys drive the toggle on /forgot-password). Both options are shown
+    // in long form so an Arabic-read parent can spot the switch on the EN page.
+    langLabel: "App language",
+    langEn: "English",
+    langAr: "العربية",
     emailLabel: "Email",
     passwordLabel: "Password",
     forgotPassword: "Forgot your password?",
@@ -238,11 +244,23 @@ export const en = {
       "This account belongs to {name}. Sign in from that daycare's own address instead.",
     wrongTenant:
       "This account is not the daycare for this address. Sign in from that daycare's own address instead.",
-    // KID-368: the login HOST gate (loginAction path, lib/tenant.ts) wording.
     wrongTenantHome:
       "This account belongs to {name}. Sign in at {url} instead.",
     wrongTenantOwn:
       "This account belongs to {name} — it is not the daycare for this address.",
+  },
+  // KID-443 (defect 3): /forgot-password keeps English-only copy while /login
+  // serves two languages — the same pre-sign-in toggle now resolves this
+  // section from the kiddy_lang cookie like the login section does.
+  forgot: {
+    title: "Reset your password",
+    subtitle: "Enter the email you use to sign in and we'll send you a link to set a new password.",
+    sentTitle: "Check your email",
+    sentBody: "If an account exists for that address, we sent a password-reset link. The link expires in one hour.",
+    sentRetry: "Didn't get it? Ask your daycare admin to send a new invite code, or try again.",
+    emailLabel: "Email",
+    sendBtn: "Send reset link",
+    backToSignin: "Back to sign in",
   },
   // KID-368 (DEF-004): /child/newsfeed strings.
   newsfeed: {
@@ -1286,6 +1304,10 @@ export const ar = {
   login: {
     signIn: "تسجيل الدخول",
     welcomeBack: "أهلًا بعودتك. سجّل الدخول لترى يوم روضتك.",
+    // KID-443 (defect 3) — see the en.login.langLabel note.
+    langLabel: "لغة التطبيق",
+    langEn: "English",
+    langAr: "العربية",
     emailLabel: "البريد الإلكتروني",
     passwordLabel: "كلمة المرور",
     forgotPassword: "هل نسيت كلمة المرور؟",
@@ -1303,6 +1325,16 @@ export const ar = {
       "هذا الحساب ينتمي إلى {name}. سجّل الدخول من {url} بدلًا من ذلك.",
     wrongTenantOwn:
       "هذا الحساب ينتمي إلى {name} — وهو ليس روضة هذا العنوان.",
+  },
+  forgot: {
+    title: "إعادة تعيين كلمة المرور",
+    subtitle: "أدخل البريد الذي تستخدمه لتسجيل الدخول وسنرسل لك رابطًا لضبط كلمة مرور جديدة.",
+    sentTitle: "تحقق من بريدك الإلكتروني",
+    sentBody: "إذا وُجد حساب بهذا العنوان، أرسلنا رابط إعادة تعيين كلمة المرور. ينتهي الرابط بعد ساعة.",
+    sentRetry: "لم يصل البريد؟ اطلب من مسؤول روضتك إرسال رمز دعوة جديد، أو حاول مرة أخرى.",
+    emailLabel: "البريد الإلكتروني",
+    sendBtn: "أرسل رابط إعادة التعيين",
+    backToSignin: "العودة لتسجيل الدخول",
   },
   newsfeed: {
     title: "الأخبار",
