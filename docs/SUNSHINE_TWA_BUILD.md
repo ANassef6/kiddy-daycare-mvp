@@ -215,3 +215,125 @@ curl -s https://sunshine.kiddyapp.net/.well-known/assetlinks.json
   a tenant's OWN `/` to that daycare's login/branding surface for unauthenticated
   visitors? Deferred — v2 fixes the launch surface at the APK level instead.
 - **Device install of v2** remains human/device-verified (no /dev/kvm here).
+
+## v3 rebuild (KID-446, versionCode 3 / versionName 3.0.0) — root cause + crash-proof design
+
+### What broke in v2 (root cause, evidence-backed)
+
+The KID-443 relaunch (v2) shipped an APK whose dex was **R8-obfuscated**
+(`com.google.androidbrowserhelper.trusted.*` renamed to `a`/`b`/`c`/`d`/`e`/`f`,
+`androidx.browser.customtabs.*` classes renamed away entirely). That obfuscation
+is NOT a hand-built anomaly: **Bubblewrap 1.27.0's generated `app/build.gradle`
+template contains `buildTypes { release { minifyEnabled true } }` with NO
+proguardFiles block and no keep rules** (see
+`@bubblewrap/*/1.27.0` template — verified by regenerating the project on
+2026-11-02 and reading the template output). A TWA wrapper's launch and service
+binding path is then shrunk/renamed with zero keep rules, and on real hardware
+(Samsung Galaxy Note 9, Android 10) the process died with the system
+"app stopped working" dialog on cold start — installs fine, dies instantly,
+exactly the reported symptom. The in-app resource *names* were also shortened
+(standard AGP release optimization; resource IDs remained intact, so that part
+was not itself the failure).
+
+Three findings pinned the artifact and the failure (recorded on the issue):
+- `string/fallbackType` was `customtabs`, so `WebViewFallbackActivity` shipped
+  but was never the fallback path taken; cold start depended on an external
+  browser being present and healthy *as well as* on the obfuscated dex holding
+  together.
+- The `androix.browser.trusted.NAVIGATION_BAR_DIVIDER_COLOR[_DARK]` meta-data
+  keys are a known Bubblewrap 1.27.x template typo (fixed in v3's manifest).
+- The browser-verification (assetlinks/DN vs `jOEoFBJf...`) chain was verified
+  clean; a digital-asset-links mismatch degrades to browser mode and cannot
+  hard-crash, so the dex was the remaining suspect.
+
+v3 root-cause fix: **`minifyEnabled false`** so every class the launch/binding
+path needs keeps its real name (v3's dex has `CustomTabsClient`, `TwaLauncher`,
+`TwaProviderPicker`, `WebViewFallbackActivity`, `LauncherActivity` all under
+their real names — verified with dexdump on the shipped APK). If the emulator
+repro of the v2 crash is captured on the issue, it confirms the exact missing
+link; the v3 build is intentionally safe against the whole class of R8-dex
+failures regardless.
+
+### User-mandated changes in v3 (browser independence + visible diagnostics)
+
+1. **Cold start never depends on a browser.** `fallbackType: 'webview'`
+   (BrowserHelper reads `FALLBACK_STRATEGY`; the value expected by 2.7.4's
+   `LauncherActivity` for the in-app renderer is the literal string `webview`,
+   not `webviewfallback`), so `TwaLauncher.WEBVIEW_FALLBACK_STRATEGY` →
+   `WebViewFallbackActivity` loads `/login` in the app's own WebView whenever no
+   Custom Tabs/TWA provider exists.
+2. **LauncherActivity is wrapped in a catch-all.** If the BrowserHelper launch
+   path throws (splash, token, session binding) the process now (a) records the
+   failure, (b) launches the in-app WebView directly, (c) if even that fails,
+   shows a real error screen with text — never a silent close. A
+   `Thread.setDefaultUncaughtExceptionHandler` in `Application` persists any
+   residual crash before the dialog so the next start can display it.
+3. **`DiagnosticsActivity` ("Sunshine Diagnostics" — its own launcher icon).**
+   Shows: package, versionName/versionCode, device model, Android SDK, launch
+   URL, provider picker decision (`provider` / `renderer_request` /
+   `renderer_used`), every detected Custom Tabs service + its version, the
+   default browser, in-app WebView availability, LAST ERROR and a rolling event
+   log. QA/user support needs no adb — a screenshot of this screen is the
+   evidence.
+4. **Cold-start logging**: every launch logs `Log.i("SunshineTWA", ...)` at
+   `Application.onCreate`, provider pick, `super.onCreate` completion, chosen
+   URL, fallback commitment, and any failure.
+5. **Manifest hygiene for API 30+ visibility**: a real `<queries>` block for
+   `android.support.customtabs.action.CustomTabsService` services, browsers, and
+   the WebView provider; the `androix` typo keys fixed to `androidx`.
+
+### v3 recipe (reproduces the build byte-for-byte modulo keystore times)
+
+Regenerate the project exactly as v2 (same loopback icon server), then apply:
+
+```sh
+# 1. Generate the v3 project via the @bubblewrap Node API (see v2 recipe for
+#    npm setup). In the TwaManifest used for generation:
+#    packageId 'net.kiddyapp.sunshine', host 'sunshine.kiddyapp.net',
+#    startUrl '/login', appVersionCode 3, appVersionName '3.0.0',
+#    fallbackType 'webview', enableNotifications true (location delegation on),
+#    styles as v2 (theme #6366F1, launcher 'Sunshine').
+# 2. Patch the generated project (KID-446 sources kept on the task thread):
+#    - app/build.gradle: minifyEnabled false; versionName "3.0.0";
+#      fallbackType 'webview'
+#    - net/kiddyapp/sunshine/LauncherActivity.java: catch-all + emergency
+#      WebView fallback + getFallbackStrategy() override (records
+#      renderer_used= in_app_webview when committed)
+#    - net/kiddyapp/sunshine/Application.java: uncaught handler under
+#      SunshineTWA tag persisting the stack trace to SharedPreferences
+#    - net/kiddyapp/sunshine/AppDiagnostics.java + DiagnosticsActivity.java
+#      (own main/LAUNCHER intent-filter, label 'Sunshine Diagnostics')
+#    - AndroidManifest.xml: <queries> block + .DiagnosticsActivity activity +
+#      androidx.browser.trusted.NAVIGATION_BAR_DIVIDER_COLOR[_DARK] fix
+
+# 3. Build + align + sign with the SAME release key (in-place upgrade path)
+cd app && ANDROID_HOME=<sdk> ./gradlew :app:assembleRelease && cd ..
+$BT/zipalign -p -f 4 app/app/build/outputs/apk/release/app-release-unsigned.apk \
+  app-release-aligned.apk
+set -a; . /paperclip/keystores/keystore.env; set +a
+$BT/apksigner sign --ks /paperclip/keystores/kiddy-release.jks \
+  --ks-key-alias kiddy-release --ks-pass env:KEYSTORE_PASSWORD \
+  --key-pass env:KEYSTORE_PASSWORD \
+  --out sunshine-daycare-v3-signed.apk app-release-aligned.apk
+# BT=<sdk>/build-tools/36.1.0, JDK 21 on PATH
+```
+
+### v3 verification performed (2026-11-02)
+
+```sh
+apksigner verify --print-certs sunshine-daycare-v3-signed.apk
+#  Signer #1 certificate SHA-256 digest:
+#  8ce12814125fd35db0f662dc56d6f3d5e5a3f714bc2c2656483f30263d5001bd
+#  (identical to v1/v2 → in-place upgrade over the broken install)
+aapt2 dump badging → versionCode='3' versionName='3.0.0' targetSdkVersion:'36'
+aapt2 dump resources → string/launchUrl https://sunshine.kiddyapp.net/login
+                    → string/fallbackType "webview"
+dexdump on classes.dex → androidx/browser/customtabs/CustomTabsClient,
+  com/google/androidbrowserhelper/trusted/{LauncherActivity,TwaLauncher,
+  TwaProviderPicker,WebViewFallbackActivity} all present under real names
+  (no R8 renaming anywhere in the launch path)
+```
+
+Runtime proof status is recorded separately on the issue (emulator and/or
+Appetize run), never in this file — see KID-447's gate for QA's launch
+verification on real hardware.
