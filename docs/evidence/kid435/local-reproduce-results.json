@@ -1,0 +1,53 @@
+{
+  "sunshine": {
+    "signOut": {
+      "found": true,
+      "box": {
+        "x": 202.78125,
+        "y": 16,
+        "width": 101.21875,
+        "height": 44
+      },
+      "fullyVisible": true,
+      "clickWorks": true
+    },
+    "prefetchProbe": {
+      "prefetchFalseInFlight": false,
+      "prefetchFlags": []
+    },
+    "childLinks": 11,
+    "childTap": {
+      "name": "Ella NguyenToddlersNot checked in yet",
+      "url": "http://sunshine-daycare.daycare.test:4444/child/mvz2k3xf-0bpsn8wc",
+      "urlChanged": true,
+      "skeletonShown": true
+    },
+    "consoleErrors": []
+  },
+  "apex": {},
+  "sunshine390": {
+    "signOut": {
+      "found": true,
+      "box": {
+        "x": 272.78125,
+        "y": 16,
+        "width": 101.21875,
+        "height": 44
+      },
+      "fullyVisible": true,
+      "clickWorks": true
+    },
+    "prefetchProbe": {
+      "prefetchFalseInFlight": false,
+      "prefetchFlags": []
+    },
+    "childLinks": 11,
+    "childTap": {
+      "name": "Ella NguyenToddlersNot checked in yet",
+      "url": "http://sunshine-daycare.daycare.test:4444/child/mvz2k3xf-0bpsn8wc",
+      "urlChanged": true,
+      "skeletonShown": true
+    },
+    "consoleErrors": []
+  }
+}

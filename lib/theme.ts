@@ -108,6 +108,48 @@ export async function getBranding(): Promise<Branding> {
   return brandingFromInstitute(institute);
 }
 
+// KID-435: the document title brand. The white-label wiring (KID-256) makes
+// the install meta (theme-color / manifest / apple-touch-icon) follow the
+// host's brand, but the title metadata stayed hardcoded "Kiddy" — so the
+// Sunshine install kept browser tabs and PWA shells naming a different
+// brand than its own theme. Rule mirrors the manifest's host rule and never
+// leaks a daycare brand onto a host that did not ask for it:
+//   - a KNOWN daycare subdomain names that tenant (anonymous and signed-in
+//     alike, same precedence as getBranding);
+//   - a signed-in non-operator account on a generic host names its own
+//     daycare (same as getBranding's signed-in path);
+//   - everything else — apex/legacy/unknown hosts, anonymous or no-tenancy —
+//     stays generic Kiddy: no first-institute fallback here, because the
+//     title brand must not follow whichever demo daycare is created first.
+export async function brandNameForTitle(): Promise<string> {
+  try {
+    const h = (await import("next/headers")).headers();
+    const ctx = splitSubdomainHost(h.get("host"));
+    if (ctx.kind === "subdomain") {
+      const { instituteIdBySubdomain } = await import("./store");
+      const hostIid = await instituteIdBySubdomain(ctx.slug);
+      if (!hostIid) return "Kiddy";
+      return brandingFromInstitute(await storeGetInstitute(hostIid)).name;
+    }
+  } catch (err) {
+    console.error("brandNameForTitle host resolution failed:", err);
+    return "Kiddy";
+  }
+  try {
+    const headers = (await import("next/headers")).headers;
+    const session = readSessionFromCookie(headers().get("cookie"));
+    if (session && !isPlatformOperatorRole(session.role)) {
+      const iid = await primaryInstituteIdForAccount(session.accountId);
+      if (iid) {
+        return brandingFromInstitute(await storeGetInstitute(iid)).name;
+      }
+    }
+  } catch (err) {
+    console.error("brandNameForTitle session resolution failed:", err);
+  }
+  return "Kiddy";
+}
+
 // Builds the CSS custom-property theme block from branding so every surface
 // consumes tokens only — swapping daycare branding is config, not code.
 export function themeCss(b: Branding): string {
