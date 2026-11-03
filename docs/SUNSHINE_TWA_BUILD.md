@@ -437,3 +437,74 @@ but the chat bubble needs a legacy-compatible (transpiled) SDK build served
 Chrome it keeps working as before. Suggested follow-up (not blocking the
 fallback launch path): serve an ES2019 build for old-Chromium agents or
 accept degraded chat on no-browser devices.
+
+## v5 AAB rebuild (KID-459, versionCode 5 / versionName 5.0.0) — the Play package rename
+
+### Why the package changes
+
+Google Play package naming rule (board decision, 2026-11-03): every daycare
+app uses **`<daycare>.kiddy.app`**. The Sunshine Play app record is created
+with package `sunshine.kiddy.app`, and a store bundle whose applicationId
+differs can NEVER be uploaded to that record (manifest package must match
+exactly). Only `applicationId` changes — the internal code namespace
+(`net.kiddyapp.sunshine`) stays (AGP allows the two to differ; relative
+activity refs in the manifest keep resolving against the `namespace`
+attribute, not the applicationId).
+
+### v5 changes (packaging only; no code, no web asset change)
+
+1. `app/app/build.gradle` (regenerated project copy of the v4 build source):
+   `applicationId "sunshine.kiddy.app"`, `versionCode 5`,
+   `versionName "5.0.0"`; `namespace "net.kiddyapp.sunshine"` UNCHANGED;
+   `minifyEnabled false` unchanged (v3 process guard still applies).
+2. `twa-manifest.json` `packageId: "sunshine.kiddy.app"`,
+   `appVersionCode: 5`, `appVersionName: "5.0.0"` (build-of-record metadata;
+   everything else identical to v4).
+
+### v5 recipe (same toolchain as v4/KID-456)
+
+```sh
+# 1. Copy the v4 project state and apply the (2) metadata changes above.
+# 2. Build the bundle (JDK21 + SDK as in v4):
+cd app && ./gradlew :app:bundleRelease --no-daemon   # BUILD SUCCESSFUL, unsigned bundle
+#    → app/app/build/outputs/bundle/release/app-release.aab
+# 3. Sign the bundle with the ONE release keystore (JAR/v1 — upload-bundle scheme):
+set -a; . /paperclip/keystores/keystore.env; set +a
+jarsigner -keystore /paperclip/keystores/kiddy-release.jks \
+  -storepass "$KEYSTORE_PASSWORD" app-release.aab kiddy-release
+#    → sunshine-daycare-v5-signed.aab
+```
+
+### v5 verification performed (2026-11-03)
+
+```sh
+bundletool validate --bundle sunshine-daycare-v5-signed.aab             # exit 0
+bundletool dump manifest → package="sunshine.kiddy.app"
+                          android:versionCode=5 android:versionName=5.0.0
+bundletool build-apks --mode=universal --ks kiddy-release.jks …
+apksigner verify --print-certs universal.apk
+#  Signer certificate SHA-256: 8ce12814125fd35db0f662dc56d6f3d5e5a3f714bc2c2656483f30263d5001bd
+#  (the KID-443/454/456 release cert — single-keystore rule holds)
+apksigner verify -v universal.apk → v2 scheme: true, v3 scheme: true
+jarsigner -verify sunshine-daycare-v5-signed.aab → exit 0
+aapt2 dump badging universal.apk → package name='sunshine.kiddy.app'
+  versionCode='5' versionName='5.0.0', label 'Sunshine Daycare',
+  launchable-activity net.kiddyapp.sunshine.LauncherActivity (namespace intact)
+# Behavior parity vs the field-proven v4 APK (KID-454 / store-form KID-456):
+#  classes.dex 2018c940851ecb55aee72032eed33b6343f0035e281b7fd124fee305d04cd289
+#  classes2.dex 2229aeec85ffbb6341164094c8863601854e3ca8e1abb01ec78ea86519c35aca
+#  BOTH byte-identical → the only v5 delta is the applicationId.
+```
+
+### assetlinks (the KID-459 item 2) — deployed as code, master @ c0238bf
+
+`lib/twa.ts` per-host registry became a package LIST; the Sunshine host now
+publishes THREE `android_app` statements (same cert fingerprint):
+`sunshine.kiddy.app` (Play, first), `net.kiddyapp.sunshine` (test TWA
+lineage v1–v4), `com.kiddy.app` (KID-251 control build). Landed via PR #10
+(branch `kid459-sunshine-assetlinks-kiddy-app`; 650/650 suite green, tsc +
+lint clean); live at `https://sunshine.kiddyapp.net/.well-known/assetlinks.json`
+(curl-verified in the KID-459 delivery comment). Fail-closed
+404 behavior for non-TWA hosts unchanged.
+NOTHING was uploaded to Google Play — the Play app record is the human-gated
+KID-458 step.
