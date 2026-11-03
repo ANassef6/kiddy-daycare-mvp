@@ -37,14 +37,21 @@ export const KIDDY_RELEASE_CERT_SHA256_BASE64 =
   "jOEoFBJf012w9mLcVtbz1eWj9xS8LCZWSD8wJj1QAb0=";
 
 export interface TwaApp {
-  packageName: string;
+  packageNames: string[];
   sha256CertFingerprints: string[];
 }
 
-/** Host-subdomain → the Android package wrapped for that daycare's TWA.
- *  `sunshine` is the only tenant with a built, signed TWA so far (KID-440). */
-const TWA_PACKAGES_BY_SUBDOMAIN: Record<string, string> = {
-  sunshine: "net.kiddyapp.sunshine",
+/** Per-daycare Android packages that the host's host assetlinks must bless.
+ *  KID-459 (2026-11-03): the board's Play package naming rule is
+ *  `<daycare>.kiddy.app`; sunshine.kiddy.app is the Play app record package.
+ *  The legacy entries stay published so fielded builds keep re-targeting the
+ *  host without breaking verification:
+ *   - net.kiddyapp.sunshine — the KID-440/443/446/454/456 test TWA/APK lineage;
+ *   - com.kiddy.app — the KID-251 control build still installed on QA devices.
+ *  Every package is signed with the SAME release certificate (single-keystore
+ *  rule), so one fingerprint serves all statements. */
+const TWA_PACKAGES_BY_SUBDOMAIN: Record<string, string[]> = {
+  sunshine: ["sunshine.kiddy.app", "net.kiddyapp.sunshine", "com.kiddy.app"],
 };
 
 export type AssetLinksStatement = {
@@ -71,7 +78,7 @@ function statementsFor(packageName: string): AssetLinksStatement[] {
 export function assetLinksForHost(host: string | null | undefined): AssetLinksStatement[] | null {
   const ctx = splitSubdomainHost(host);
   if (ctx.kind !== "subdomain") return null;
-  const packageName = TWA_PACKAGES_BY_SUBDOMAIN[ctx.slug];
-  if (!packageName) return null;
-  return statementsFor(packageName);
+  const packageNames = TWA_PACKAGES_BY_SUBDOMAIN[ctx.slug];
+  if (!packageNames) return null;
+  return packageNames.flatMap(statementsFor);
 }

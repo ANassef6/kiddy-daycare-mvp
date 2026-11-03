@@ -48,12 +48,6 @@ afterEach(() => {
   delete process.env.PUBLIC_APEX_DOMAIN;
 });
 
-function assetlinksPackage(statements: { target: { package_name: string } }[] | null): string | null {
-  if (!statements || statements.length === 0) return null;
-  const ns = statements[0].target as { namespace?: string; package_name: string };
-  return ns.package_name;
-}
-
 describe("KID-443: assetlinks resolves per request host (same tenancy rule as the surfaces)", () => {
   // Production layout (docs/evidence/kid437): the live Sunshine daycare's
   // stored subdomain is the `sunshine` label — the fixture's random demo slug
@@ -61,12 +55,18 @@ describe("KID-443: assetlinks resolves per request host (same tenancy rule as th
   beforeEach(async () => {
     await queryRun("UPDATE institute SET subdomain = 'sunshine' WHERE id = (SELECT id FROM institute ORDER BY created_at LIMIT 1)");
   });
-  it("the sunshine tenant subdomain publishes the net.kiddyapp.sunshine statement", () => {
+  it("the sunshine tenant subdomain publishes the sunshine.kiddy.app statement first, then the legacy packages", () => {
     const statements = assetLinksForHost(`sunshine.${APEX}`);
-    expect(assetlinksPackage(statements)).toBe("net.kiddyapp.sunshine");
-    expect(statements![0].relation).toEqual([TWA_RELATION]);
-    expect(statements![0].target.namespace).toBe("android_app");
-    expect(statements![0].target.sha256_cert_fingerprints).toContain(KIDDY_RELEASE_CERT_SHA256_BASE64);
+    expect(statements!.map((s) => s.target.package_name)).toEqual([
+      "sunshine.kiddy.app", // KID-459: board naming rule <daycare>.kiddy.app — the Play app record package
+      "net.kiddyapp.sunshine", // KID-440/443/446/454/456 test TWA/APK lineage
+      "com.kiddy.app", // KID-251 control build still installed on QA devices
+    ]);
+    for (const s of statements!) {
+      expect(s.relation).toEqual([TWA_RELATION]);
+      expect(s.target.namespace).toBe("android_app");
+      expect(s.target.sha256_cert_fingerprints).toContain(KIDDY_RELEASE_CERT_SHA256_BASE64);
+    }
   });
 
   it("generic hosts (apex/legacy/previews/subdomain-less) publish nothing — fail closed", () => {
