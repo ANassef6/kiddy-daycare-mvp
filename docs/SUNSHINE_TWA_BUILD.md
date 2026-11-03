@@ -337,3 +337,103 @@ dexdump on classes.dex → androidx/browser/customtabs/CustomTabsClient,
 Runtime proof status is recorded separately on the issue (emulator and/or
 Appetize run), never in this file — see KID-447's gate for QA's launch
 verification on real hardware.
+
+## v4 rebuild (KID-454, versionCode 4 / versionName 4.0.0) — the ERR_CACHE_MISS root cause + app-owned fallback
+
+### The real root cause of KID-447's FAIL (proven on emulator, 2026-11-03)
+
+The KID-447 gate FAILED with the in-app WebView showing "Webpage not
+available … net::ERR_CACHE_MISS" on Android 10 / WebView 74 with no Custom
+Tabs provider. Root cause was NOT the BrowserHelper load timing and NOT the
+site's `no-store` headers:
+
+**The generated manifest never declared `android.permission.INTERNET`.**
+Bubblewrap's template shipped `<uses-permission POST_NOTIFICATIONS>` and the
+location permissions but no INTERNET. Chrome (Custom Tabs path) fetches the
+page in its own process, so the TWA path always worked and every earlier QA
+pass looked clean. The moment v3 routed the no-browser case to an in-app
+WebView, the WebView's own fetches were denied by the permission and Chromium
+surfaced the denial as `net::ERR_CACHE_MISS` (the classic Android-WebView
+shape of "network access denied") — on WebView 74 QA hardware and reproduced
+byte-for-byte here on an android-29 AVD (`com.google.android.webview
+74.0.3729.185`, `cmd package query-services …CustomTabsService` → "No
+services found", cold start, 30 s wait, `Sign in` never appears). Adding
+`<uses-permission android:name="android.permission.INTERNET"/>` and
+reinstalling (`pm uninstall` + fresh install) removed the error completely:
+the same cold start renders `/login` with **zero** WebView errors.
+
+One test-harness note: an **in-place upgrade** (`adb install -r` of the
+INTERNET-permissioned build over the old install) left a stale per-uid
+denial on this AVD and kept showing `net::ERR_ACCESS_DENIED` until the app
+was fully uninstalled and reinstalled. A real-device store update runs the
+normal permission grant path, and the QA repro installs fresh; only
+`install -r` over a network-denied build on this emulator showed the
+artifact. Noted here so nobody burns hours on the same wall.
+
+### v4 changes (client-side only; zero server/PWA changes)
+
+1. **`INTERNET` uses-permission** added to `AndroidManifest.xml` — the actual
+   fix. Regression risk: none; Chrome path behavior unchanged.
+2. **App-owned fallback renderer** `.FallbackWebActivity` replaces
+   BrowserHelper's `WebViewFallbackActivity` as the fallback target
+   (`TwaLauncher.FallbackStrategy` override and the emergency path both
+   launch it):
+   - loads after the WebView is attached,
+   - explicit `LOAD_NO_CACHE`,
+   - `onReceivedError` per main frame: records code+description in
+     diagnostics, hides the webview, auto-retries (5 × 2 s backoff), never
+     leaves the raw Chromium error page visible,
+   - after retries are exhausted: plain-language retry state with the URL
+     and a Reload button (Reset rounds on tap),
+   - **`onRenderProcessGone` recovery**: renderer crashes destroy/rebuild
+     the webview and re-load instead of letting Chromium kill the whole app
+     (proven surviving repeated renderer deaths on a thrashing API 33 TCG
+     guest where the stock behavior crashes the app),
+   - JS/DOM storage/third-party cookies enabled for the EN/AR toggle and
+     Chatwoot.
+3. **DiagnosticsActivity** now also surfaces: renderer_used, last WebView
+   error code + text, auto-retry count, last successful page timestamp.
+4. `minifyEnabled false` stays (process guard unchanged); same release
+   keystore; TWA/Chrome path untouched.
+
+### v4 verification performed (2026-11-03, emulators only, no Appetize)
+
+```sh
+apksigner verify --print-certs sunshine-daycare-v4-signed.apk
+#  Signer certificate SHA-256: 8ce12814125fd35db0f662dc56d6f3d5e5a3f714bc2c2656483f30263d5001bd
+aapt2 dump badging → versionCode='4' versionName='4.0.0'
+aapt2 dump permissions → uses-permission INTERNET present
+aapt2 dump resources → launchUrl https://sunshine.kiddyapp.net/login
+```
+
+android-29 AVD (x86_64, google_apis, WebView `com.google.android.webview
+74.0.3729.185` — the exact failing generation), Chrome uninstalled, network
+verified up from the guest, cold start `.LauncherActivity`:
+`Status: ok / LaunchState: COLD`, `provider pick: none mode=BROWSER`,
+`fallback committed: app-owned WebView …`, `Displayed
+.FallbackWebActivity: +12s512ms`, then **`fallback page rendered:
+https://sunshine.kiddyapp.net/login` with no `onReceivedError` at all**,
+`Sign in` form + EN/العربية toggle visible; tapping العربية flips the page
+to full RTL Arabic in the fallback renderer. Diagnostics screen shows
+`renderer_used: app_fallback_webview`, `last error: (none recorded)`,
+`auto retries used: 0`.
+
+API 33 AVD (android-33 google_apis, WebView 109): fallback path launches
+with no Custom Tabs provider and the app survives renderer crashes
+(recovery loop logged, process stayed alive); the rendered-page screenshot
+could not be completed because this local TCG (no /dev/kvm) guest is memory
+starved and its renderers die before first composite — recorded honestly;
+the remaining on-device render check is the KID-449 gate, which also covers
+the real-device install/association re-check.
+
+### Chatwoot in the fallback renderer — partial (web-asset side, not the app)
+
+On WebView 74 the Chatwoot widget cannot initialize: its loader
+`https://chatwoot.kiddyapp.net/packs/js/sdk.js` fails to parse on
+Chromium 74 with `Uncaught SyntaxError: Unexpected token ?` (ES2020 optional
+chaining / nullish coalescing). The language toggle works (proven above),
+but the chat bubble needs a legacy-compatible (transpiled) SDK build served
+— a web-asset change outside this APK; on the TWA path with a modern
+Chrome it keeps working as before. Suggested follow-up (not blocking the
+fallback launch path): serve an ES2019 build for old-Chromium agents or
+accept degraded chat on no-browser devices.
