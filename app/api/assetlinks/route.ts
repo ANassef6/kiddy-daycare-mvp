@@ -6,7 +6,9 @@ export const dynamic = "force-dynamic";
 // KID-443 (defect 2): /.well-known/assetlinks.json is rewritten here
 // (next.config.mjs) so Digital Asset Links for a tenant's TWA app are served
 // as code through the same per-origin tenancy rule as every other tenant
-// surface. Sunshine (net.kiddyapp.sunshine) is the registry's first entry.
+// surface. Sunshine is the registry's first entry; since KID-459 its host
+// publishes the Play package sunshine.kiddy.app plus the legacy test-TWA
+// packages (see lib/twa.ts).
 export async function GET() {
   try {
     const host = (await import("next/headers")).headers().get("host");
