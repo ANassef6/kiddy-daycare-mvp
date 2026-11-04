@@ -2972,8 +2972,8 @@ export async function resendActivationAction(formData: FormData) {
 }
 // KID-258 A1 (KID-264): submit an "Enhancements request" from the owner-only
 // Tools page (/portal/enhancements). Title + description ONLY — estimate,
-// due date and priority are set by the Kiddy team in Linear (locked answer on
-// KID-258). The app never calls Linear from here; the record starts
+// due date and priority are set by the Kiddy team in Vikunja (locked answer on
+// KID-258). The app never calls the sync target from here; the record starts
 // 'queued' and customer_request carries the daycare's NAME for the sync
 // agent (e.g. "Sunshine"). De-dup: an identical OPEN (non-terminal) title for
 // the same daycare is refused with a friendly message — no client-visible

@@ -2,11 +2,12 @@ import { NextResponse } from "next/server";
 import { createHash, timingSafeEqual as safeEqual } from "crypto";
 import { applyLinearWriteBack, type LinearWriteBackPayload } from "@/lib/enhancements";
 
-// KID-258 A1 (KID-264): the sync write-back surface the KID-258 Linear sync
+// KID-258 A1 (KID-264): the sync write-back surface the Vikunja sync
 // agent (child task A2) calls. This is the ONLY route the app exposes for
-// pushing Linear's view of an enhancement request back into the portal — the
-// app itself never calls Linear (no app-side Linear token, decision locked on
-// KID-258).
+// pushing Vikunja's view of an enhancement request back into the portal — the
+// app itself never calls the sync target (no app-side token, decision locked
+// on KID-258); the Paperclip routine "Enhancement requests Vikunja sync"
+// owns every outbound call.
 //
 // CONTRACT (for A2):
 //   POST /api/enhancements/write-back
@@ -21,7 +22,7 @@ import { applyLinearWriteBack, type LinearWriteBackPayload } from "@/lib/enhance
 //     "linearIssueUrl": "https://linear.app/…/issue/…",
 //     // with kind = "synced":               (linear_created -> synced)
 //     "priority": "urgent" | "high" | "medium" | "low",
-//     "estimate": 3,                      // Linear points (integer >= 0)
+//     "estimate": 3,                      // Vikunja points (integer >= 0)
 //     "dueDate": "2026-11-15",            // ISO date (YYYY-MM-DD)
 //     "expectedDelivery": "2026-11-20",   // ISO date (YYYY-MM-DD)
 //     // with kind = "sync_error":

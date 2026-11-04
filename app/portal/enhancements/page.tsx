@@ -8,9 +8,9 @@
 // never drift apart.
 //
 // Submit = title + description ONLY (locked answer on KID-258: the Kiddy team
-// sets priority/estimate/due date in Linear). The app NEVER calls Linear here
-// (no app-side Linear token): the record starts 'queued' and the KID-258
-// Linear sync agent (child task A2) picks it up, creating the Linear issue
+// sets priority/estimate/due date in Vikunja). The app NEVER calls the sync
+// target here (no app-side token): the record starts 'queued' and the Vikunja
+// sync agent (child task A2) picks it up, creating the Vikunja task
 // and writing priority/estimate/due_date/expected_delivery back through the
 // authenticated write-back route (app/api/enhancements/write-back).
 import { redirect } from "next/navigation";

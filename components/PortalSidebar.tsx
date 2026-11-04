@@ -93,8 +93,8 @@ export function portalNav(dict: Dict, role?: string): NavGroup[] {
       // owner gate as Account billing (not isAdminRole — a plain admin must
       // not see it either). The page (app/portal/enhancements) re-checks the
       // session and refuses every non-owner, so the tab and the URL stay in
-      // sync. Submissions land in the queue for the KID-258 Linear sync
-      // agent; the app itself never calls Linear.
+      // sync. Submissions land in the queue for the Vikunja sync
+      // agent; the app itself never calls the sync target.
       tools.push({ label: t("nav.enhancements"), href: "/portal/enhancements" });
     }
     groups.push({

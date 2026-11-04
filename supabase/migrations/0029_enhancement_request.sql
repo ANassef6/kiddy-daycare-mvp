@@ -1,25 +1,25 @@
 -- KID-258 A1 (KID-264): the daycare owner's "Enhancements requests" record.
 --
 -- One row per feature/enhancement a daycare OWNER submits from the portal
--- (/portal/enhancements). The app NEVER calls Linear itself (no app-side
--- Linear token — decision locked on KID-258); the KID-258 Linear sync agent
--- (child task A2) owns everything Linear-side and writes its results back
+-- (/portal/enhancements). The app NEVER calls the sync target itself (no app-side
+-- token — decision locked on KID-258); the Vikunja sync agent
+-- (child task A2) owns everything sync-side and writes its results back
 -- through app/api/enhancements/write-back. This table is the hand-off point
 -- between the two halves:
 --
 -- Lifecycle (lib/enhancements.ts):
 --   queued          the owner just submitted it; the sync agent has not
 --                   picked it up yet
---   linear_created  the sync agent created the Linear issue; linear_issue_id
+--   linear_created  the sync agent created the Vikunja task; linear_issue_id
 --                   / linear_issue_url are set
---   synced          the Linear write-back (priority, estimate, due_date,
+--   synced          the Vikunja write-back (priority, estimate, due_date,
 --                   expected_delivery) has been applied; a TERMINAL state
 --   sync_error      the last sync attempt failed (retryable — still an OPEN
 --                   request, not terminal); sync_error_detail carries the
 --                   failure text from the sync agent
 --
 -- customer_request is the HUMAN-facing daycare name (e.g. "Sunshine"),
--- denormalized at submit time so the sync agent can paste it into the Linear
+-- denormalized at submit time so the sync agent can paste it into the Vikunja
 -- issue title/description without a second tenant lookup.
 --
 -- The open-title de-dup is schema-enforced like the KID-245 cycle uniqueness:
