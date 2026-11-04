@@ -98,7 +98,7 @@ function wordsOf(text: string): Set<string> {
 const NON_DATA_ALLOWED = new Set(
   [
     "inter", "nunito", "poppins", "georgia", "egp", "cad", "pcs", "pdf", "csv", "excel",
-    "linear", "png", "jpg", "jpeg", "mb", "kbd", "kiddy",
+    "vikunja", "png", "jpg", "jpeg", "mb", "kbd", "kiddy",
   ]
 );
 

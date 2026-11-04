@@ -11,14 +11,14 @@
 //   3. The submit creates the record with status 'queued' and
 //      customer_request = the daycare's NAME (e.g. "Sunshine Daycare"); the
 //      form carries title + description ONLY (estimate/due date are set by
-//      the team in Linear — locked answer on KID-258).
+//      the team in Vikunja — locked answer on KID-258).
 //   4. De-dup: an identical OPEN (non-terminal) title for the same daycare is
 //      refused ('duplicate-open-title'); a synced request frees the title.
 //   5. The sync write-back surface (lib/enhancements.applyLinearWriteBack +
 //      POST /api/enhancements/write-back) is idempotent, tenant-scoped
 //      (cross-daycare writes refused) and gated by the
 //      KIDDY_ENHANCEMENTS_SYNC_TOKEN bearer (fail closed, timing-safe) —
-//      never callable by the app's own Linear client, because there is none.
+//      never callable by the app's own sync client, because there is none.
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
@@ -362,10 +362,10 @@ describe("applyLinearWriteBack (the A2 sync contract)", () => {
     const id = await seedRequest("Retry probe", sunshineIid);
     const err = await applyLinearWriteBack(id, sunshineIid, {
       kind: "sync_error",
-      syncErrorDetail: "Linear 502 while creating issue",
+      syncErrorDetail: "Vikunja 502 while creating task",
     });
     expect(err.status).toBe("sync_error");
-    expect(err.syncErrorDetail).toBe("Linear 502 while creating issue");
+    expect(err.syncErrorDetail).toBe("Vikunja 502 while creating task");
     // Still OPEN for the de-dup: a same-title double submit stays blocked
     // while the retry loop owns it.
     await expect(

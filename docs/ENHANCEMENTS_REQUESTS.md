@@ -1,6 +1,6 @@
 # Kiddy — Enhancements requests (owner-only, Vikunja-synced)
 
-_Last updated 2026-10-30 (KID-268; documents KID-258 A1 + A2 as shipped)._
+_Last updated 2026-11-04 (KID-466; documents KID-258 A1 + A2 as shipped)._
 
 ## 1. Feature note
 
@@ -11,7 +11,7 @@ Owner-only **Tools → Enhancements requests** page at `/portal/enhancements`.
   any non-owner visiting the URL is redirected to `/portal/dashboard`.
 - **Submit.** Title (max 80 chars) + description only. Creates a `queued` row with
   `customer_request` = the daycare's name (e.g. "Sunshine"). Confirmation text
-  currently reads "It will appear in Linear shortly — the team will take it from
+  currently reads "It will appear in Vikunja shortly — the team will take it from
   there." An open request with the same title in the same daycare is rejected
   with a duplicate error. No app-side call to the sync target; no sync secret
   in app code.
@@ -25,14 +25,19 @@ Owner-only **Tools → Enhancements requests** page at `/portal/enhancements`.
 - **Write-back.** `POST https://kiddyapp.net/api/enhancements/write-back`,
   Bearer `KIDDY_ENHANCEMENTS_SYNC_TOKEN` (fail-closed: unset env refuses every
   caller). `linear_created` stores the Vikunja task id/URL; `synced` stores
-  priority + due date + expected delivery. The portal columns are still named
-  `linear_issue_id` / `linear_issue_url` — they hold Vikunja ids/URLs; the rename
-  is a follow-up ticket, not a bug.
+  priority + due date + expected delivery.
+- **Legacy internal names.** Several internal identifiers still carry the removed
+  Linear naming: the DB columns `linear_issue_id` / `linear_issue_url`, the
+  `linear_created` status value, the `LinearWriteBackPayload` type, the write-back
+  `kind` values, and related helper names in `lib/enhancements.ts`. These are kept
+  for compatibility — the live "Enhancement requests Vikunja sync" routine and
+  existing production rows depend on them, and every one of them holds Vikunja
+  ids/URLs. Renaming is a follow-up ticket, not a bug.
 - **Read-back fields shown to the owner.** Status, priority
   (Vikunja numeric 4/3/2/1 → urgent/high/medium/low; 0 or unmapped names omitted),
   estimate (always "—" for Vikunja-synced rows — no Vikunja equivalent), due date,
   expected delivery **= the Vikunja task's due date** (no estimate/milestone
-  equivalent), and the link column (labelled "Linear" / "Open in Linear" as shipped —
+  equivalent), and the link column (labelled "Vikunja" / "Open in Vikunja" as shipped —
   it opens the Vikunja task).
 - **Delay.** Status changes appear after the next routine sweep. The schedule
   trigger is labelled "15-min sync sweep"; the observed cron at doc time is
@@ -56,7 +61,7 @@ Round-trip proof (KID-265): record `nowpu6rf-yg7r6cls` (Sunshine Daycare) went
 | Description label | Description | الوصف |
 | Description placeholder | What should change? Who is it for? What does it fix? | ما التغيير المطلوب؟ لمن؟ وما المشكلة التي يحلّها؟ |
 | Submit button | Submit request | إرسال الطلب |
-| Success line | Request submitted. It will appear in Linear shortly — the team will take it from there. | تم إرسال الطلب. سيظهر في Linear بعد قليل — الفريق سيتولّى الأمر من هناك. |
+| Success line | Request submitted. It will appear in Vikunja shortly — the team will take it from there. | تم إرسال الطلب. سيظهر في Vikunja بعد قليل — الفريق سيتولّى الأمر من هناك. |
 | Daycare line | Daycare: {name} | الروضة: {name} |
 | List heading | Your requests | طلباتكم |
 | Empty list | No requests yet. Submit one above and the team will pick it up. | لا توجد طلبات بعد. أرسل طلبًا من الأعلى وسيتولّاه الفريق. |
@@ -66,9 +71,9 @@ Round-trip proof (KID-265): record `nowpu6rf-yg7r6cls` (Sunshine Daycare) went
 | Column: estimate | Estimate | التقدير |
 | Column: due date | Due date | تاريخ الاستحقاق |
 | Column: expected delivery | Expected delivery | التسليم المتوقع |
-| Column: link (as shipped) | Linear / Open in Linear | Linear / افتح في Linear |
+| Column: link (as shipped) | Vikunja / Open in Vikunja | Vikunja / افتح في Vikunja |
 | Status queued | Queued | في الطابور |
-| Status linear_created | In Linear | في Linear |
+| Status linear_created | In Vikunja | في Vikunja |
 | Status synced | Synced | تمت المزامنة |
 | Status sync_error | Sync retrying | إعادة محاولة المزامنة |
 | Priority urgent / high / medium / low | Urgent / High / Medium / Low | عاجلة / عالية / متوسطة / منخفضة |

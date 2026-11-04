@@ -1,17 +1,17 @@
 // KID-258 A1 (KID-264): the "Enhancements requests" store — the app-side half
 // of the daycare owner's feature-request flow.
 //
-// The app NEVER talks to Linear itself: there is no app-side Linear token
+// The app NEVER talks to the sync target itself: there is no app-side token
 // (decision locked on KID-258). The owner submits an enhancement_request with
-// status 'queued' here, and the KID-258 Linear sync agent (child task A2)
-// owns every Linear interaction, writing the outcome back through the
+// status 'queued' here, and the Vikunja sync agent (child task A2)
+// owns every sync interaction, writing the outcome back through the
 // authenticated write-back route (app/api/enhancements/write-back — contract
 // documented in this file's tail and in the route module).
 //
 // Lifecycle (migration 0029 + lib/sqlite-schema.ts mirror):
 //   queued          submitted from the portal, not yet synced
-//   linear_created  A2 created the Linear issue (linear_issue_id/url set)
-//   synced          Linear write-back applied (priority/estimate/due_date/
+//   linear_created  A2 created the Vikunja task (linear_issue_id/url set)
+//   synced          Vikunja write-back applied (priority/estimate/due_date/
 //                   expected_delivery); TERMINAL
 //   sync_error      the last sync attempt failed; retryable, still OPEN
 //
@@ -34,7 +34,7 @@ export type EnhancementStatus = (typeof ENHANCEMENT_STATUSES)[number];
 
 // The open (non-terminal) statuses the submit de-dup blocks on. 'sync_error'
 // is OPEN on purpose: the sync agent will retry it, so a while-an-error
-// double-submit must not fork the same request in Linear.
+// double-submit must not fork the same request in Vikunja.
 export const OPEN_ENHANCEMENT_STATUSES: EnhancementStatus[] = [
   "queued",
   "linear_created",
@@ -49,11 +49,11 @@ export type EnhancementRequest = {
   status: EnhancementStatus;
   linearIssueId: string;
   linearIssueUrl: string;
-  /** Linear priority, applied by the A2 write-back ("" until synced). */
+  /** Vikunja priority, applied by the A2 write-back ("" until synced). */
   priority: string;
-  /** Linear estimate (points). */
+  /** Vikunja estimate (points). */
   estimate: number | null;
-  /** Linear due date (YYYY-MM-DD), "" until synced. */
+  /** Vikunja due date (YYYY-MM-DD), "" until synced. */
   dueDate: string;
   /** The team's expected delivery date (YYYY-MM-DD), "" until synced. */
   expectedDelivery: string;
@@ -133,8 +133,8 @@ export async function hasOpenRequestWithTitle(
 
 /** Submits an enhancement request on a daycare's behalf: status 'queued' and
  *  customer_request = the daycare's NAME (locked answer on KID-258 — the sync
- *  agent pastes it into the Linear issue). There are deliberately NO
- *  priority/estimate/due-date inputs: the Kiddy team sets those in Linear.
+ *  agent pastes it into the Vikunja task). There are deliberately NO
+ *  priority/estimate/due-date inputs: the Kiddy team sets those in Vikunja.
  *  Refuses duplicates with 'duplicate-open-title' BEFORE the insert (and the
  *  uq_enhancement_request_open_title index backstops a race). */
 export async function createEnhancementRequest(args: {
@@ -217,7 +217,7 @@ export function isIsoDate(v: unknown): boolean {
   return /^\d{4}-\d{2}-\d{2}$/.test(String(v ?? ""));
 }
 
-// ----- sync write-back (for the KID-258 Linear sync agent, child task A2) ---
+// ----- sync write-back (for the Vikunja sync agent, child task A2) ---
 //
 // CONTRACT for A2 — route: POST /api/enhancements/write-back
 //   Headers:  Authorization: Bearer <KIDDY_ENHANCEMENTS_SYNC_TOKEN>
@@ -360,7 +360,7 @@ export async function applyLinearWriteBack(
       lastSyncedAt: syncedAt,
     };
   } else {
-    // sync_error: any open status may move here; the previously-known Linear
+    // sync_error: any open status may move here; the previously-known Vikunja
     // fields survive (the sync agent will retry, then correct them).
     await queryRun(
       `UPDATE enhancement_request

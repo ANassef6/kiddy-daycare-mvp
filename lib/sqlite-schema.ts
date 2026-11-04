@@ -584,8 +584,8 @@ export function sqliteSchema(db: any): void {
 
   -- KID-258 A1 (KID-264): mirror of supabase/migrations/
   -- 0029_enhancement_request.sql — the daycare owner's "Enhancements
-  -- requests" record. The app never calls Linear; the KID-258 Linear sync
-  -- agent writes Linear results back through the write-back route. Lifecycle:
+  -- requests" record. The app never calls the sync target; the Vikunja sync
+  -- agent writes Vikunja results back through the write-back route. Lifecycle:
   -- queued -> linear_created -> synced (terminal); sync_error is a retryable
   -- OPEN state. customer_request is the denormalized daycare NAME (e.g.
   -- "Sunshine") captured at submit time so the sync agent never needs a

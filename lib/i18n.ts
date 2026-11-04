@@ -847,7 +847,7 @@ export const en = {
   },
   // KID-258 A1 (KID-264): the owner-only "Enhancements requests" page under
   // Tools. Submit carries title + description ONLY — the Kiddy team sets
-  // priority/estimate/due date in Linear and the sync agent writes them back.
+  // priority/estimate/due date in Vikunja and the sync agent writes them back.
   enhancements: {
     title: "Enhancements requests",
     subtitle: "Ask the Kiddy team for an improvement to how your daycare runs.",
@@ -857,7 +857,7 @@ export const en = {
     fieldDescription: "Description",
     fieldDescriptionPlaceholder: "What should change? Who is it for? What does it fix?",
     submit: "Submit request",
-    submitted: "Request submitted. It will appear in Linear shortly — the team will take it from there.",
+    submitted: "Request submitted. It will appear in Vikunja shortly — the team will take it from there.",
     daycareLabel: "Daycare: {name}",
     listCard: "Your requests",
     noRequests: "No requests yet. Submit one above and the team will pick it up.",
@@ -867,10 +867,10 @@ export const en = {
     colEstimate: "Estimate",
     colDue: "Due date",
     colDelivery: "Expected delivery",
-    colLinear: "Linear",
-    linearLink: "Open in Linear",
+    colLinear: "Vikunja",
+    linearLink: "Open in Vikunja",
     statusQueued: "Queued",
-    statusLinearCreated: "In Linear",
+    statusLinearCreated: "In Vikunja",
     statusSynced: "Synced",
     statusSyncError: "Sync retrying",
     priorityUrgent: "Urgent",
@@ -1855,7 +1855,7 @@ export const ar = {
   },
   // KID-258 A1 (KID-264): صفحة "طلبات التحسينات" الخاصة بالمالك فقط تحت
   // الأدوات. الإرسال يتبع العنوان والوصف فقط — الأولوية/التقدير/التواريخ
-  // يحددها فريق كيدي في Linear ويكتبها وكيل المزامنة.
+  // يحددها فريق كيدي في Vikunja ويكتبها وكيل المزامنة.
   enhancements: {
     title: "طلبات التحسينات",
     subtitle: "اطلب من فريق كيدي تحسينًا في طريقة عمل روضتكم.",
@@ -1865,7 +1865,7 @@ export const ar = {
     fieldDescription: "الوصف",
     fieldDescriptionPlaceholder: "ما التغيير المطلوب؟ لمن؟ وما المشكلة التي يحلّها؟",
     submit: "إرسال الطلب",
-    submitted: "تم إرسال الطلب. سيظهر في Linear بعد قليل — الفريق سيتولّى الأمر من هناك.",
+    submitted: "تم إرسال الطلب. سيظهر في Vikunja بعد قليل — الفريق سيتولّى الأمر من هناك.",
     daycareLabel: "الروضة: {name}",
     listCard: "طلباتكم",
     noRequests: "لا توجد طلبات بعد. أرسل طلبًا من الأعلى وسيتولّاه الفريق.",
@@ -1875,10 +1875,10 @@ export const ar = {
     colEstimate: "التقدير",
     colDue: "تاريخ الاستحقاق",
     colDelivery: "التسليم المتوقع",
-    colLinear: "Linear",
-    linearLink: "افتح في Linear",
+    colLinear: "Vikunja",
+    linearLink: "افتح في Vikunja",
     statusQueued: "في الطابور",
-    statusLinearCreated: "في Linear",
+    statusLinearCreated: "في Vikunja",
     statusSynced: "تمت المزامنة",
     statusSyncError: "إعادة محاولة المزامنة",
     priorityUrgent: "عاجلة",
