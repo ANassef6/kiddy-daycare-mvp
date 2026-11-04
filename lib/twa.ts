@@ -36,6 +36,15 @@ export const TWA_NAMESPACE = "android_app";
 export const KIDDY_RELEASE_CERT_SHA256_BASE64 =
   "jOEoFBJf012w9mLcVtbz1eWj9xS8LCZWSD8wJj1QAb0=";
 
+/** KID-470: the Google Play App Signing certificate for sunshine.kiddy.app —
+ *  the key Play actually uses to sign the APKs it serves (its own upload-key
+ *  cert, NOT the release/upload keystore above). The Android Publisher API
+ *  reported it as hex
+ *  AF88F9A080C216AF64B7BCCAB6648D88AB7B535EA001537EAF70F471E0B7EBD7.
+ *  Fingerprint data is public by design, same as the release cert. */
+export const KIDDY_PLAY_SIGNING_CERT_SHA256_BASE64 =
+  "r4j5oIDCFq9kt7zKtmSNiKt7U16gAVN+r3D0ceC369c=";
+
 export interface TwaApp {
   packageNames: string[];
   sha256CertFingerprints: string[];
@@ -49,9 +58,19 @@ export interface TwaApp {
  *   - net.kiddyapp.sunshine — the KID-440/443/446/454/456 test TWA/APK lineage;
  *   - com.kiddy.app — the KID-251 control build still installed on QA devices.
  *  Every package is signed with the SAME release certificate (single-keystore
- *  rule), so one fingerprint serves all statements. */
+ *  rule), so one fingerprint serves all statements — except sunshine.kiddy.app,
+ *  whose Play track is additionally signed with the Play App Signing key
+ *  (KID-470): Play resigns its distributed APKs with its own key, so that
+ *  package must publish BOTH fingerprints or a Play-channel install fails
+ *  Digital Asset Links verification and the TWA opens with browser UI. */
 const TWA_PACKAGES_BY_SUBDOMAIN: Record<string, string[]> = {
   sunshine: ["sunshine.kiddy.app", "net.kiddyapp.sunshine", "com.kiddy.app"],
+};
+
+/** Extra per-package fingerprints appended after the shared release cert.
+ *  Only packages distributed through Google Play App Signing need an entry. */
+const EXTRA_FINGERPRINTS_BY_PACKAGE: Record<string, string[]> = {
+  "sunshine.kiddy.app": [KIDDY_PLAY_SIGNING_CERT_SHA256_BASE64],
 };
 
 export type AssetLinksStatement = {
@@ -66,7 +85,10 @@ function statementsFor(packageName: string): AssetLinksStatement[] {
       target: {
         namespace: TWA_NAMESPACE,
         package_name: packageName,
-        sha256_cert_fingerprints: [KIDDY_RELEASE_CERT_SHA256_BASE64],
+        sha256_cert_fingerprints: [
+          KIDDY_RELEASE_CERT_SHA256_BASE64,
+          ...(EXTRA_FINGERPRINTS_BY_PACKAGE[packageName] ?? []),
+        ],
       },
     },
   ];
