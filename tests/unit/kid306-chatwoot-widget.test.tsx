@@ -36,10 +36,9 @@ async function withWidgetEnv(env: WidgetEnv, body: () => Promise<void>) {
   }
 }
 
-async function importWidget() {
+async function importWidgetModule() {
   vi.resetModules();
-  const mod = await import("@/components/ChatwootWidget");
-  return mod.default;
+  return import("@/components/ChatwootWidget");
 }
 
 function walkSources(dir: string): string[] {
@@ -55,7 +54,7 @@ function walkSources(dir: string): string[] {
 describe("KID-306: Chatwoot widget is env-gated", () => {
   it("renders nothing when both env vars are unset", async () => {
     await withWidgetEnv({}, async () => {
-      const Widget = await importWidget();
+      const { default: Widget } = await importWidgetModule();
       expect(renderToStaticMarkup(<Widget />)).toBe("");
     });
   });
@@ -63,7 +62,7 @@ describe("KID-306: Chatwoot widget is env-gated", () => {
   it("renders nothing when either env var is empty", async () => {
     for (const partial of [{ baseURL: "https://chat.example" }, { token: "tok-123" }]) {
       await withWidgetEnv(partial, async () => {
-        const Widget = await importWidget();
+        const { default: Widget } = await importWidgetModule();
         expect(renderToStaticMarkup(<Widget />)).toBe("");
       });
     }
@@ -71,8 +70,10 @@ describe("KID-306: Chatwoot widget is env-gated", () => {
 
   it("mounts the Chatwoot SDK via next/script with the configured URL when fully configured", async () => {
     await withWidgetEnv({ baseURL: "https://chat.example", token: "tok-123" }, async () => {
-      const Widget = await importWidget();
-      const props = (Widget() as unknown as { props: { id: string; src: string; strategy: string; onLoad: () => void } }).props;
+      const { ChatwootScript } = await importWidgetModule();
+      const props = (ChatwootScript({ onLoad: () => {} }) as unknown as {
+        props: { id: string; src: string; strategy: string; onLoad: () => void };
+      }).props;
       expect(props.id).toBe("kiddy-chatwoot-widget");
       expect(props.src).toBe("https://chat.example/packs/js/sdk.js");
       expect(props.strategy).toBe("afterInteractive");
@@ -82,20 +83,13 @@ describe("KID-306: Chatwoot widget is env-gated", () => {
 
   it("chatwootSDK.run fires exactly once even if the script reports load twice", async () => {
     await withWidgetEnv({ baseURL: "https://chat.example", token: "tok-123" }, async () => {
-      const Widget = await importWidget();
-      const el = Widget() as unknown as { props: { onLoad: () => void } };
+      const { runChatwootSdk } = await importWidgetModule();
       const calls: Array<{ websiteToken: string; baseUrl: string }> = [];
-      const win = { chatwootSDK: { run: (o: { websiteToken: string; baseUrl: string }) => calls.push(o) } };
-      const hadWindow = Object.prototype.hasOwnProperty.call(globalThis, "window");
-      const savedWindow = (globalThis as { window?: unknown }).window;
-      (globalThis as { window?: unknown }).window = win as unknown;
-      try {
-        el.props.onLoad();
-        el.props.onLoad();
-      } finally {
-        if (!hadWindow) delete (globalThis as { window?: unknown }).window;
-        else (globalThis as { window?: unknown }).window = savedWindow;
-      }
+      const win = {
+        chatwootSDK: { run: (o: { websiteToken: string; baseUrl: string }) => calls.push(o) },
+      } as unknown as Window;
+      runChatwootSdk(win, { websiteToken: "tok-123", baseUrl: "https://chat.example" });
+      runChatwootSdk(win, { websiteToken: "tok-123", baseUrl: "https://chat.example" });
       expect(calls).toEqual([{ websiteToken: "tok-123", baseUrl: "https://chat.example" }]);
     });
   });
@@ -111,9 +105,43 @@ describe("KID-306: Chatwoot widget is env-gated", () => {
     }
   });
 
-  it("the example env advertises both Chatwoot keys", () => {
+  it("the example env advertises both Chatwoot keys and the optional identity HMAC", () => {
     const example = fs.readFileSync(path.join(process.cwd(), ".env.local.example"), "utf8");
     expect(example).toContain("NEXT_PUBLIC_CHATWOOT_BASE_URL=");
     expect(example).toContain("NEXT_PUBLIC_CHATWOOT_WEBSITE_TOKEN=");
+    expect(example).toContain("CHATWOOT_HMAC_TOKEN=");
+  });
+
+  it("identifies a signed-in visitor once and clears on logout", async () => {
+    const { applyChatwootIdentity } = await importWidgetModule();
+    const calls: Array<[string, unknown]> = [];
+    let resets = 0;
+    const chatwoot = {
+      setUser: (identifier: string, user: unknown) => calls.push([identifier, user]),
+      reset: () => {
+        resets += 1;
+      },
+    };
+    const win = { __kiddyChatwootIdentified: null as string | null } as unknown as Window;
+    const hadWindow = Object.prototype.hasOwnProperty.call(globalThis, "window");
+    const savedWindow = (globalThis as { window?: unknown }).window;
+    (globalThis as { window?: unknown }).window = win as unknown;
+    try {
+      const identity = {
+        identifier: "account-1",
+        name: "Nouran",
+        email: "nouran@example.test",
+        description: "Kiddy parent",
+        custom_attributes: { kiddy_role: "parent" },
+      };
+      applyChatwootIdentity(chatwoot, identity);
+      applyChatwootIdentity(chatwoot, identity);
+      applyChatwootIdentity(chatwoot, null);
+      expect(calls).toEqual([["account-1", expect.objectContaining({ name: "Nouran", email: "nouran@example.test" })]]);
+      expect(resets).toBe(1);
+    } finally {
+      if (!hadWindow) delete (globalThis as { window?: unknown }).window;
+      else (globalThis as { window?: unknown }).window = savedWindow;
+    }
   });
 });

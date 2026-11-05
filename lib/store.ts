@@ -9,6 +9,7 @@ import {
   type WorkingWeek,
 } from "./working-hours";
 import { feedCopyFor, type FeedCopy } from "./i18n";
+import { syncChatwootContactForAccount } from "./chatwoot-contacts";
 
 // ---------- Institute / branding (white-label) ----------
 export async function getInstitute(instituteId: string): Promise<Row | undefined> {
@@ -845,6 +846,7 @@ export async function createDaycare(data: {
     String(ownerStaff.id),
     String(ownerAccount.id)
   );
+  await syncChatwootContactForAccount(String(ownerAccount.id));
   // KID-244: write the billing row in the same logical step. firstCycleStart
   // is the 1st of the month AFTER the institute's own created_at (signup
   // month free) — read back from the row, never from "now" at write time, so

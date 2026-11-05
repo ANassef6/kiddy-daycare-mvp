@@ -77,6 +77,7 @@ import { PLATFORM_CONTACT_EMAIL } from "@/lib/site";
 import { isAdminRole, isOwnerRole } from "@/lib/role";
 import { requireSession } from "@/lib/require";
 import { createEnhancementRequest } from "@/lib/enhancements";
+import { syncChatwootContactForAccount } from "@/lib/chatwoot-contacts";
 import {
   PLATFORM_OPERATOR_ROLE,
   defaultThemeTokens,
@@ -492,6 +493,10 @@ export async function registerAction(formData: FormData) {
     };
   }
 
+  // Best-effort Chatwoot contact so the support team sees this account's
+  // name/email/role/daycare/children when the customer reaches out.
+  await syncChatwootContactForAccount(String(account.id));
+
   // KID-126: the already-registered branches above activate without GoTrue
   // ever sending a confirmation email. Best-effort resend one now — failures
   // (rate limit, already confirmed, mailer down) are logged and never break
@@ -587,6 +592,7 @@ export async function linkInviteAction(formData: FormData) {
       : "parent";
     await linkFamily(account.id, String(invite.child_id), inviteRole);
     await queryRun("UPDATE invite SET status = 'accepted' WHERE id = ?", invite.id);
+    await syncChatwootContactForAccount(String(account.id));
     return { ok: true };
   }
   return { error: "Invite has no linked child." };
@@ -1341,8 +1347,9 @@ export async function addStaffAction(formData: FormData) {
   // account. The admin shares the credentials; staff can change the password
   // later via "Forgot password".
   if (email && !(await findAccountByEmail(email))) {
-    await createAccount({ email, password, fullName, role: "staff" });
+    const staffAccount = await createAccount({ email, password, fullName, role: "staff" });
     await queryRun("UPDATE account SET staff_id = ? WHERE email = ?", staff.id, email);
+    await syncChatwootContactForAccount(String(staffAccount.id));
     // Best-effort GoTrue identity so the reset-password email flow works later.
     if (supabaseConfigured()) {
       try {
@@ -1408,6 +1415,7 @@ export async function linkStaffLoginAction(formData: FormData) {
       await queryRun("UPDATE account SET staff_id = ? WHERE id = ?", staffId, String(existing.id));
     }
     await queryRun("UPDATE staff SET email = ? WHERE id = ?", email, staffId);
+    await syncChatwootContactForAccount(String(existing.id));
     redirect(`${back}?linked=1&existing=1`);
   }
 
@@ -1421,6 +1429,7 @@ export async function linkStaffLoginAction(formData: FormData) {
   });
   await queryRun("UPDATE account SET staff_id = ? WHERE id = ?", staffId, String(account.id));
   await queryRun("UPDATE staff SET email = ? WHERE id = ?", email, staffId);
+  await syncChatwootContactForAccount(String(account.id));
   // Best-effort GoTrue identity, same channel as addStaffAction, so the
   // reset-password email flow works later. A failure must not roll back the
   // app-side account — log it loudly instead.

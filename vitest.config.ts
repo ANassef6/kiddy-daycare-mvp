@@ -30,6 +30,10 @@ export default defineConfig({
       SESSION_SECRET: "test-only-secret-for-qa",
       NEXT_PUBLIC_SUPABASE_URL: "",
       NEXT_PUBLIC_SUPABASE_ANON_KEY: "",
+      // Never let the best-effort contact sync reach a real Chatwoot in tests.
+      CHATWOOT_BASE_URL: "",
+      CHATWOOT_ACCESS_TOKEN: "",
+      CHATWOOT_HMAC_TOKEN: "",
     },
     fileParallelism: false,
     testTimeout: 20000,
