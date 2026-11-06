@@ -70,3 +70,35 @@ is authoritative); they are logged with ref/account context — never silently.
   `schema_migrations` ledger; SQLite mode applies the inline mirror on
   `ensureSchema()`. No data backfill needed (no-pref rows default enabled).
 - No auth/tenant/billing/permission behavior changed.
+
+## Production verification on Sunshine (2026-11-06, post-deploy)
+
+Deployment: Vercel production deployment for master `9099bdb` (`api.vercel.com`
+`v6/deployments`: `githubCommitSha 9099bdb`, ref `master`, `readyState READY`,
+2026-11-06T07:57Z). Schema: Supabase REST (service-role, read-only) shows
+`schema_migrations` latest file `0031_parent_notifications.sql` and an empty,
+queryable `notification` table (deployment applied the migration itself — no
+manual writes).
+
+Functional pass (real browser, Playwright over the documented Sunshine QA
+logins from docs/QA_KID173_STAFF_LOGIN_LINK.md; account language of the QA
+parent is Arabic, which doubles as the i18n check):
+
+| # | Check | Observed |
+| --- | --- | --- |
+| 1 | Parent bell + nav | `a[href="/child/notifications"]` present on every /child page; no badge before any emission (table empty) |
+| 2 | Staff bell badge | parent (Grace Nguyen) → staff (Maria Lopez) message via /child/messages → owner login topbar badge shows `1` with aria-label **"1 unread notifications"** (screenshot `11-staff-bell-after-message.png`) |
+| 3 | Staff derived feed | `/portal/notifications` lists **"Message from Grace Nguyen"** and **"Daily report: Becca Nassef"** — the two previously missing slices (screenshot `12-staff-notifications-page.png`) |
+| 4 | Daily report event | staff saved the daily report for Becca Nassef via the portal child page → parent received a durable unread item **"تقرير يومي: Becca Nassef"** with deep link `/child/<childId>` (screenshots `07/09`) |
+| 5 | Message event to parent | staff composer → Grace Nguyen got an unread item **"رسالة من Maria Lopez"** with deep link `/child/messages?thread=mw4p9g7k-knaycvyw` (screenshot `21-parent-message-unread.png`, also header) |
+| 6 | Read state | per-row mark-read cleared the badge (1 → none, item flips to read); mark-all-read clears everything; opening the thread deep link auto-clears the badge via the `markThreadRead` bridge on the next server render (screenshots `15/16/23`) |
+| 7 | Preference enforcement | parent turned **Messages** off in `/child/settings` (7 activities × inapp/email rendered), staff sent another message — parent badge stayed empty and `notification` gained no row; preference restored afterwards (screenshots `17/18/19`) |
+| 8 | i18n | Arabic account renders the entire center in Arabic (titles, subtitles, mark-all button, item copy, time-ago) — the durable payload copies per locale at view time |
+
+Screenshot index: `01` parent home with bell, `09` parent center (empty state
+→ first daily-report item), `10` parent settings, `11` staff badge=1, `12`
+staff notifications page with new slices, `14` parent center (message+report),
+`15/16` mark-one/mark-all, `18` prefs-off state, `21` message unread with
+thread deep link, `22/23` deep-link landing + post-read badge cleared.
+Screenshots are uploaded to the Paperclip issue as attachments.
+
