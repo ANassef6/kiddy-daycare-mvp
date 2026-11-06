@@ -16,6 +16,10 @@ export type SunshineAdminUpdateInput = {
   newEmail?: string;
   fullName?: string;
   password?: string;
+  // GoTrue bcrypt hash for the same password, computed by the caller (the
+  // production script) so this lib does not need the bcryptjs devDependency
+  // at type level. Ignored when a run touches no GoTrue identity.
+  gotrueHash?: string;
 };
 
 export type SunshineAdminUpdateResult = {
@@ -131,14 +135,15 @@ export async function updateSunshineAdmin(
         (await findGotrueUser(oldEmail)) ?? (await findGotrueUser(newEmail));
       if (user) {
         result.gotrueFound = true;
-        const bcrypt = (await import("bcryptjs")).default ?? (await import("bcryptjs"));
-        await queryRun(
-          "UPDATE auth.users SET encrypted_password = ? WHERE id = ?",
-          bcrypt.hashSync(input.password, 10),
-          user.id
-        );
-        result.gotrueUpdated = true;
-        messages.push(`GoTrue identity ${user.id} encrypted_password refreshed`);
+        if (input.gotrueHash) {
+          await queryRun(
+            "UPDATE auth.users SET encrypted_password = ? WHERE id = ?",
+            input.gotrueHash,
+            user.id
+          );
+          result.gotrueUpdated = true;
+          messages.push(`GoTrue identity ${user.id} encrypted_password refreshed`);
+        }
       }
     }
     return result;
@@ -186,11 +191,10 @@ export async function updateSunshineAdmin(
         JSON.stringify({ email: newEmail, email_verified: true }),
         user.id
       );
-      if (input.password) {
-        const bcrypt = (await import("bcryptjs")).default ?? (await import("bcryptjs"));
+      if (input.password && input.gotrueHash) {
         await queryRun(
           "UPDATE auth.users SET encrypted_password = ? WHERE id = ?",
-          bcrypt.hashSync(input.password, 10),
+          input.gotrueHash,
           user.id
         );
       }

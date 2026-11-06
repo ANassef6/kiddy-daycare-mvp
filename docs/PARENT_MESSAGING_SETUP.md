@@ -48,7 +48,8 @@ login in one step. The repair path above exists for staff who were created witho
 
 ## Fresh deployments
 
-`lib/seed.ts` links the seeded owner login to its Maria Lopez staff record, which is assigned
+`lib/seed.ts` links the seeded owner login to its Nassef staff record (KID-472 item 7:
+the demo admin is `trois4ever+admin@gmail.com`), which is assigned
 to Toddlers and Preschool — so a freshly seeded centre is messageable from the first request.
 Before KID-171 the seed created the staff record and the login separately and never joined
 them, which is why every deployment reproduced the same empty messaging page.

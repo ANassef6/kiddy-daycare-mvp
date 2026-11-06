@@ -44,11 +44,28 @@ async function main(): Promise<number> {
     return 1;
   }
   const password = process.env.SUNSHINE_DEMO_ADMIN_PASSWORD || undefined;
+  let gotrueHash: string | undefined;
+  if (password) {
+    // bcrypt for the GoTrue identity is resolved at runtime here (the lib
+    // stays free of the devDependency at type level). Never logged.
+    const bcryptName = "bcryptjs";
+    const mod = (await import(bcryptName)) as unknown as {
+      default?: { hashSync(pw: string, rounds: number): string };
+      hashSync?: (pw: string, rounds: number) => string;
+    };
+    const hashSync =
+      mod.hashSync ??
+      (mod.default && typeof mod.default.hashSync === "function"
+        ? mod.default.hashSync
+        : undefined);
+    if (!hashSync) throw new Error("bcryptjs hashSync unavailable in this environment");
+    gotrueHash = hashSync(password, 10);
+  }
   if (!password) {
     console.log("SUNSHINE_DEMO_ADMIN_PASSWORD not set — running email/name pass only; re-run with the variable to set the password.");
   }
   await ensureSchema();
-  const result = await updateSunshineAdmin({ password });
+  const result = await updateSunshineAdmin({ password, gotrueHash });
   for (const m of result.messages) console.log(`- ${m}`);
   const check = await verifySunshineAdmin();
   if (check.ok) {

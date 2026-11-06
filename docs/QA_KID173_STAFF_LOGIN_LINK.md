@@ -44,9 +44,14 @@ exactly three:
 
 | account | role | staff record | rooms |
 | --- | --- | --- | --- |
-| `admin@sunshinedaycare.test` | owner | **Maria Lopez** | Toddlers, Preschool |
+| see KID-472 note below | owner | see KID-472 note below | Toddlers, Preschool |
 | `trois4ever+bluestaff@gmail.com` | staff | bluestaff | manual test |
 | `staff.round5.1165531@kiddy-test.eg` | staff | Round5 Staff 1165531 | (none) |
+
+> **KID-472 note (added later, not part of the KID-173 run):** the Sunshine owner
+> account in row 1 has since been migrated to `trois4ever+admin@gmail.com` with the
+> display name **Nassef**. The table above preserves the identities as they were
+> observed during the KID-173 QA run.
 
 Three minus two is **one** account linked: the existing owner login to the staff record
 that already existed for it. No account was created, no credential was created, and every
