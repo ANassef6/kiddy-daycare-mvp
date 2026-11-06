@@ -217,11 +217,17 @@ describe("KID-146 backfill of pre-existing same-email sibling links", () => {
     const childB = await child(iid, roomB, "Mikael", "Nassef");
     await legacyContact({ childId: String(childA.id), email: null, name: "Walk-in Guardian" });
     await legacyContact({ childId: String(childB.id), email: "   ", name: "Blank Address" });
+    // KID-498: a STILL-PENDING child-naming invite is its own link evidence —
+    // the ensureSchema self-heal consumes it. This pin is about what the
+    // backfill may do with blank/null contact addresses, so consume the
+    // parent's pending invite first: with no pending invite, the backfill
+    // must link nothing at all.
     const parent = await parentViaInvite({
       email: "nouran@example.com",
       instituteId: iid,
       childId: String(childA.id),
     });
+    await queryRun("UPDATE invite SET status = 'accepted' WHERE email = 'nouran@example.com'");
 
     await ensureSchema();
 

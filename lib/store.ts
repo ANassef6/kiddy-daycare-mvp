@@ -2019,7 +2019,7 @@ export async function roomStaffIds(instituteId: string, roomId: string): Promise
      FROM account a
      JOIN staff s ON s.id = a.staff_id
      JOIN staff_room sr ON sr.staff_id = s.id
-     WHERE s.institute_id = ? AND sr.room_id = ? AND a.role IN ('staff','carer','admin','owner')`,
+     WHERE s.institute_id = ? AND sr.room_id = ? AND a.role IN ('teacher','caregiver','admin','owner')`,
     instituteId,
     roomId
   );
