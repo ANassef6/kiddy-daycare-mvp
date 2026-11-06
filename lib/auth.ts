@@ -177,6 +177,25 @@ export function emailConfirmedFor(account: DbRow | undefined): boolean {
   return account.email_confirmed !== 0;
 }
 
+// KID-499: the banner decision. The session cookie carries an emailConfirmed
+// snapshot minted at sign-in, so a confirmation completed without a fresh
+// sign-in (the /auth/confirm flow, or a flag repaired out of band) would keep
+// the banner contradicting the live account row for up to 30 days. When the
+// snapshot says confirmed we never touch the DB — the fast path is a pure
+// field read. When it says unconfirmed we ask the account row; layouts render
+// from this answer instead of the raw snapshot. DB failure keeps the snapshot
+// (fail-open: nothing better than the cookie is available), so the banner
+// degrades to exactly the pre-KID-499 behaviour instead of erroring a page.
+export async function emailConfirmedDisplayFor(session: Session): Promise<boolean> {
+  if (session.emailConfirmed) return true;
+  try {
+    const account: DbRow | undefined = await getAccount(session.accountId);
+    return emailConfirmedFor(account);
+  } catch {
+    return session.emailConfirmed;
+  }
+}
+
 export async function loginWithPin(pin: string, accountId: string): Promise<boolean> {
   const row = await queryGet("SELECT pin FROM account WHERE id = ?", accountId);
   if (!row?.pin) return false;

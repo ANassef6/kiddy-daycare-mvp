@@ -6,6 +6,7 @@ import NotificationBell from "@/components/NotificationBell";
 import ServiceWorkerRegister from "@/components/ServiceWorkerRegister";
 import NotificationSoundWatcher from "@/components/NotificationSoundWatcher";
 import { requireSessionWithWithdrawalCheck } from "@/lib/require";
+import { emailConfirmedDisplayFor } from "@/lib/auth";
 import { requireTenantForPage } from "@/lib/tenant";
 import { familyAccessForAccount, unreadNotificationCount } from "@/lib/store";
 import { ensureSchema } from "@/lib/db";
@@ -37,6 +38,11 @@ export default async function ParentLayout({ children }: { children: React.React
   // parent surface is a tenant surface too. KID-472: the post-session reads
   // below are pairwise independent, so they now run as one parallel batch;
   // the unused familiesForAccount() call the layout never consumed is gone.
+  // KID-499: the banner renders from the LIVE account row whenever the cookie
+  // snapshot says unconfirmed, so a confirmation completed without a fresh
+  // sign-in can never leave a stale yellow banner contradicting the verified
+  // state. Snapshot-confirmed sessions skip the DB entirely (fast path).
+  const bannerEmailConfirmed = await emailConfirmedDisplayFor(session);
   const [{ dict }, branding, access, operatorViewName, parentUnread] = await Promise.all([
     i18nForAccount(session.accountId),
     // branding failure falls back to neutral Kiddy defaults (unchanged).
@@ -81,7 +87,7 @@ export default async function ParentLayout({ children }: { children: React.React
 
   return (
     <div className="container" style={{ maxWidth: 760 }}>
-      {!session.emailConfirmed && (
+      {!bannerEmailConfirmed && (
         <div
           className="small"
           style={{
