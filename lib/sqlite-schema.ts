@@ -482,6 +482,23 @@ export function sqliteSchema(db: any): void {
     PRIMARY KEY (account_id, activity, channel)
   );
 
+  -- KID-474: durable notifications with per-account read state (mirror of
+  -- supabase/migrations/0031_parent_notifications.sql). The ref column is the
+  -- stable per-source-event emission id, unique per account so a replayed
+  -- write can never produce a duplicate item.
+  CREATE TABLE IF NOT EXISTS notification (
+    id TEXT PRIMARY KEY,
+    institute_id TEXT REFERENCES institute(id) ON DELETE CASCADE,
+    account_id TEXT NOT NULL REFERENCES account(id) ON DELETE CASCADE,
+    activity TEXT NOT NULL,
+    kind TEXT NOT NULL DEFAULT 'activity',
+    payload TEXT NOT NULL DEFAULT '{}',
+    ref TEXT NOT NULL DEFAULT '',
+    read_at TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    UNIQUE (account_id, ref)
+  );
+
   CREATE TABLE IF NOT EXISTS staff_status (
     id TEXT PRIMARY KEY,
     staff_id TEXT NOT NULL REFERENCES staff(id) ON DELETE CASCADE,
@@ -492,6 +509,8 @@ export function sqliteSchema(db: any): void {
   );
 
   CREATE INDEX IF NOT EXISTS idx_staff_status ON staff_status (staff_id, created_at DESC);
+  CREATE INDEX IF NOT EXISTS idx_notification_account_recent ON notification (account_id, created_at DESC);
+  CREATE INDEX IF NOT EXISTS idx_notification_unread ON notification (account_id, read_at);
   CREATE INDEX IF NOT EXISTS idx_billing_institute ON child_billing (institute_id, due_date);
   CREATE INDEX IF NOT EXISTS idx_form_resp_status ON form_response (form_id, status);
   CREATE INDEX IF NOT EXISTS idx_child_status ON child (institute_id, status);

@@ -10,7 +10,7 @@
 // Close-on-navigate / outside-click / Escape mirrors PortalAccountMenu
 // (KID-199.2).
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { usePathname } from "next/navigation";
 import { tr, type Dict } from "@/lib/i18n";
 import ActiveLink from "@/components/ActiveLink";
@@ -22,6 +22,9 @@ export type ChildNavMenuProps = {
   settingsTitle: string;
   signOutLabel: string;
   dict: Dict;
+  // KID-474: the notification bell is a server-rendered element the layout
+  // passes in, pinned beside the burger so it never scrolls out of reach.
+  bell?: ReactNode;
 };
 
 export default function ChildNavMenu({
@@ -31,6 +34,7 @@ export default function ChildNavMenu({
   settingsTitle,
   signOutLabel,
   dict,
+  bell,
 }: ChildNavMenuProps) {
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
@@ -70,6 +74,7 @@ export default function ChildNavMenu({
 
   return (
     <div className="child-nav" ref={rootRef}>
+      {bell}
       {/* Phone widths: hamburger + dropdown panel (panel only while open). */}
       <button
         type="button"

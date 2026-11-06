@@ -14,6 +14,8 @@ const TYPE_ICONS: Record<string, string> = {
   billing: "💳",
   attendance: "⏰",
   incidents: "⚠️",
+  messages: "💬",
+  daily_report: "📋",
 };
 
 // KID-221: two mixed-language leaks on this page — the English time-ago

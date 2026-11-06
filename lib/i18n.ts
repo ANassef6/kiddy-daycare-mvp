@@ -1041,6 +1041,10 @@ export const en = {
     checkedOutTitle: "Checked out: {name}",
     incidentTitle: "Incident: {name}",
     reportedBy: "Reported by {name}",
+    messageTitle: "Message from {name}",
+    reportTitle: "Daily report: {name}",
+    reportBody: "{summary}",
+    reportMeta: "Report for {date}",
     invoiceBody: "Total {amount} · due {date}",
     invoiceOverdue: "Overdue invoice — {cycle}",
     invoiceDueSoon: "Invoice due soon — {cycle}",
@@ -1056,6 +1060,25 @@ export const en = {
   parent: {
     notificationsJustNow: "just now",
     notificationsMinutesAgo: "{count}m ago",
+    // KID-474: parent notification center + preferences + bell badge.
+    notificationsTitle: "Notifications",
+    notificationsSubtitle: "Messages, daily reports, and activity from your daycare.",
+    notificationsEmpty: "You're all caught up — no notifications yet.",
+    notificationsMarkAll: "Mark all as read",
+    notificationsMarkOne: "Mark read",
+    notificationsUnreadAria: "Unread notification",
+    notificationsBadgeAria: "{count} unread notifications",
+    notifPrefsTitle: "Notification preferences",
+    notifPrefsHint: "Choose which activities notify you in the app.",
+    notifPrefsSaved: "Preferences saved.",
+    savePrefs: "Save preferences",
+    prefMessages: "Messages",
+    prefDailyReport: "Daily reports",
+    prefNewsfeed: "Newsfeed posts",
+    prefEvents: "Events",
+    prefAttendance: "Attendance",
+    prefIncidents: "Incidents",
+    prefBilling: "Billing",
     notificationsHoursAgo: "{count}h ago",
     notificationsDaysAgo: "{count}d ago",
     pickerChoose: "Choose recipients…",
@@ -2049,6 +2072,10 @@ export const ar = {
     checkedOutTitle: "سجّل الانصراف: {name}",
     incidentTitle: "حادث: {name}",
     reportedBy: "بلّغ عنه {name}",
+    messageTitle: "رسالة من {name}",
+    reportTitle: "تقرير يومي: {name}",
+    reportBody: "{summary}",
+    reportMeta: "تقرير يوم {date}",
     invoiceBody: "الإجمالي {amount} · الاستحقاق {date}",
     invoiceOverdue: "فاتورة متأخرة — {cycle}",
     invoiceDueSoon: "فاتورة تستحق قريبًا — {cycle}",
@@ -2064,6 +2091,25 @@ export const ar = {
   parent: {
     notificationsJustNow: "الآن",
     notificationsMinutesAgo: "قبل {count} د",
+    // KID-474: مركز إشعارات ولي الأمر + التفضيلات + عدد غير المقروء للجرس.
+    notificationsTitle: "الإشعارات",
+    notificationsSubtitle: "الرسائل والتقارير اليومية وأنشطة روضتكم.",
+    notificationsEmpty: "لا جديد لديك — لا إشعارات بعد.",
+    notificationsMarkAll: "تعليم الكل كمقروء",
+    notificationsMarkOne: "تعليم كمقروء",
+    notificationsUnreadAria: "إشعار غير مقروء",
+    notificationsBadgeAria: "{count} إشعارات غير مقروءة",
+    notifPrefsTitle: "تفضيلات الإشعارات",
+    notifPrefsHint: "اختر الأنشطة التي تريد أن تُعلمك داخل التطبيق.",
+    notifPrefsSaved: "تم حفظ التفضيلات.",
+    savePrefs: "حفظ التفضيلات",
+    prefMessages: "الرسائل",
+    prefDailyReport: "التقارير اليومية",
+    prefNewsfeed: "منشورات الأخبار",
+    prefEvents: "الفعاليات",
+    prefAttendance: "الحضور",
+    prefIncidents: "الحوادث",
+    prefBilling: "الفواتير",
     notificationsHoursAgo: "قبل {count} س",
     notificationsDaysAgo: "قبل {count} يوم",
     pickerChoose: "اختر المستلمين…",
@@ -2306,6 +2352,12 @@ export type FeedCopy = {
   checkedOutTitle: (name: string) => string;
   incidentTitle: (name: string) => string;
   reportedBy: (name: string) => string;
+  // KID-474: message + daily report feed entries (staff derived feed and
+  // the parent notification center render them with the account locale).
+  messageTitle: (name: string) => string;
+  reportTitle: (name: string) => string;
+  reportBody: (summary: string) => string;
+  reportMeta: (date: string) => string;
   invoiceBody: (amount: string, date: string) => string;
   invoiceOverdue: (cycle: string) => string;
   invoiceDueSoon: (cycle: string) => string;
@@ -2335,6 +2387,10 @@ export function feedCopyFor(locale: Locale): FeedCopy {
     checkedOutTitle: (name) => t("feed.checkedOutTitle", { name }),
     incidentTitle: (name) => t("feed.incidentTitle", { name }),
     reportedBy: (name) => t("feed.reportedBy", { name }),
+    messageTitle: (name) => t("feed.messageTitle", { name }),
+    reportTitle: (name) => t("feed.reportTitle", { name }),
+    reportBody: (summary) => t("feed.reportBody", { summary }),
+    reportMeta: (date) => t("feed.reportMeta", { date }),
     invoiceBody: (amount, date) => t("feed.invoiceBody", { amount, date }),
     invoiceOverdue: (cycle) => t("feed.invoiceOverdue", { cycle }),
     invoiceDueSoon: (cycle) => t("feed.invoiceDueSoon", { cycle }),
