@@ -5,6 +5,7 @@ import { tr } from "@/lib/i18n";
 import { getNotificationPrefs, PARENT_NOTIFICATION_ACTIVITIES } from "@/lib/store";
 import { saveParentNotificationPrefsAction } from "@/lib/actions";
 import LanguageSettingsCard from "@/components/LanguageSettingsCard";
+import PushNotificationsCard from "@/components/PushNotificationsCard";
 
 export const dynamic = "force-dynamic";
 
@@ -35,13 +36,33 @@ export default async function ParentSettingsPage({
     const hit = (prefs as { activity: string; channel: string; enabled: unknown }[]).find(
       (p) => p.activity === activity && p.channel === channel
     );
-    return hit ? Number(hit.enabled) !== 0 : channel === "inapp";
+    // KID-480: a missing row defaults to enabled for inapp AND push (browser
+    // permission is the push consent); email stays opt-in.
+    return hit ? Number(hit.enabled) !== 0 : channel !== "email";
+  };
+
+  const pushLabels = {
+    title: tr(dict, "parent.pushTitle"),
+    hint: tr(dict, "parent.pushHint"),
+    enable: tr(dict, "parent.pushEnable"),
+    disable: tr(dict, "parent.pushDisable"),
+    enabled: tr(dict, "parent.pushEnabled"),
+    denied: tr(dict, "parent.pushDenied"),
+    unsupported: tr(dict, "parent.pushUnsupported"),
+    notConfigured: tr(dict, "parent.pushNotConfigured"),
+    testButton: tr(dict, "parent.pushTestButton"),
+    testSent: tr(dict, "parent.pushTestSent"),
+    soundLabel: tr(dict, "parent.soundLabel"),
+    soundHint: tr(dict, "parent.soundHint"),
   };
 
   return (
     <div>
       <h1 className="title">{tr(dict, "account.settingsTitle")}</h1>
       <LanguageSettingsCard locale={locale} dict={dict} />
+      <div className="card mb-4">
+        <PushNotificationsCard labels={pushLabels} />
+      </div>
 
       <div className="card mb-4">
         <h3 className="subtitle">{tr(dict, "parent.notifPrefsTitle")}</h3>
@@ -58,6 +79,7 @@ export default async function ParentSettingsPage({
                 <th>{tr(dict, "account.activity")}</th>
                 <th>{tr(dict, "account.email")}</th>
                 <th>{tr(dict, "account.inApp")}</th>
+                <th>{tr(dict, "account.push")}</th>
               </tr>
             </thead>
             <tbody>
@@ -66,6 +88,7 @@ export default async function ParentSettingsPage({
                   <td style={{ fontWeight: 600 }}>{tr(dict, PARENT_ACTIVITY_LABEL_KEYS[a] ?? a)}</td>
                   <td><input type="checkbox" name={`${a}_email`} defaultChecked={on(a, "email")} /></td>
                   <td><input type="checkbox" name={`${a}_inapp`} defaultChecked={on(a, "inapp")} /></td>
+                  <td><input type="checkbox" name={`${a}_push`} defaultChecked={on(a, "push")} /></td>
                 </tr>
               ))}
             </tbody>

@@ -1517,6 +1517,44 @@ export async function createNewsfeedPost(data: {
   for (const cid of data.tagChildIds ?? []) {
     await queryRun("INSERT INTO newsfeed_tag (post_id, child_id) VALUES (?, ?) ON CONFLICT DO NOTHING", id, cid);
   }
+  // KID-480: announcements push. The in-app row rides the same
+  // emitNotifications path so the fan-out keeps one copy pipeline: the
+  // audience is the tagged children's family accounts, or every parent of
+  // the daycare when a post has no tags (a center-wide announcement).
+  try {
+    const author = await queryGet("SELECT full_name FROM account WHERE id = ?", data.accountId);
+    const tagged = data.tagChildIds?.length
+      ? await queryAll(
+          `SELECT DISTINCT fm.account_id FROM family_member fm
+           JOIN account ac ON ac.id = fm.account_id
+           WHERE fm.child_id IN (${(data.tagChildIds ?? []).map(() => "?").join(", ")})
+             AND ac.role = 'parent'`,
+          ...(data.tagChildIds ?? [])
+        )
+      : await queryAll(
+          `SELECT DISTINCT fm.account_id FROM family_member fm
+           JOIN child c ON c.id = fm.child_id
+           JOIN account ac ON ac.id = fm.account_id
+           WHERE c.institute_id = ? AND ac.role = 'parent'`,
+          data.instituteId
+        );
+    await emitNotifications({
+      instituteId: data.instituteId,
+      accountIds: tagged.map((r) => String(r.account_id)),
+      activity: "newsfeed",
+      kind: "announcement",
+      payload: {
+        authorName: String(author?.full_name ?? ""),
+        // Locale-independent: the raw post text; view copies localize only
+        // the title around it.
+        body: String(data.body ?? "").slice(0, 160),
+        postId: id,
+      },
+      ref: `post-${id}`,
+    });
+  } catch (err) {
+    console.error(`KID-480 announcement notification emission failed (post=${id}):`, err);
+  }
   return (await queryGet("SELECT * FROM newsfeed_post WHERE id = ?", id))!;
 }
 
@@ -3005,6 +3043,28 @@ export async function setNotificationPref(
   );
 }
 
+// KID-480: on browser push subscribe, give every parent activity an explicit
+// enabled 'push' row so the parent's choice is durable in the settings table.
+// An explicitly saved row (e.g. a prior opt-out) is never overwritten — only
+// gaps are filled. A missing row already defaults to enabled for push.
+export async function ensureDefaultPushPrefs(accountId: string): Promise<void> {
+  const rows = await queryAll(
+    `SELECT activity FROM notification_pref WHERE account_id = ? AND channel = 'push'`,
+    accountId
+  );
+  const existing = new Set(rows.map((r) => String(r.activity)));
+  for (const activity of PARENT_NOTIFICATION_ACTIVITIES as readonly string[]) {
+    if (!existing.has(activity)) {
+      await queryRun(
+        `INSERT INTO notification_pref (account_id, activity, channel, enabled)
+         VALUES (?, ?, 'push', 1)`,
+        accountId,
+        activity
+      );
+    }
+  }
+}
+
 // ---- KID-474: durable notifications with per-account read state ----
 // Design choice (documented in supabase/migrations/0031 and the issue): the
 // parent notification center needs read state, badges and mark-all-read,
@@ -3031,7 +3091,7 @@ export type NotificationPayload = Record<string, unknown>;
  *  notification failure break the underlying write (failures are logged,
  *  not swallowed silently). */
 export async function emitNotifications(data: {
-  instituteId: string;
+  instituteId: string | null;
   accountIds: string[];
   activity: string;
   kind: string;
@@ -3042,6 +3102,9 @@ export async function emitNotifications(data: {
   const accountIds = [...new Set(data.accountIds.map(String))];
   if (accountIds.length === 0) return 0;
   let emitted = 0;
+  // KID-480: only freshly inserted rows re-notify via web push — a replayed
+  // ref (idempotent save) must not re-push the same event.
+  const freshAccountIds: string[] = [];
   try {
     const placeholders = accountIds.map(() => "?").join(", ");
     const prefRows = await queryAll(
@@ -3060,7 +3123,7 @@ export async function emitNotifications(data: {
     for (const accountId of accountIds) {
       if (disabled.has(accountId)) continue;
       try {
-        await queryRun(
+        const inserted = await queryRun(
           `INSERT INTO notification (id, institute_id, account_id, activity, kind, payload, ref, created_at)
            VALUES (?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT DO NOTHING`,
           uid(),
@@ -3072,13 +3135,31 @@ export async function emitNotifications(data: {
           data.ref,
           createdAt
         );
-        emitted += 1;
+        if ((inserted?.rowCount ?? 0) !== 0) {
+          emitted += 1;
+          freshAccountIds.push(accountId);
+        }
       } catch (err) {
         console.error(`KID-474 notification emission failed (ref=${data.ref}, account=${accountId}):`, err);
       }
     }
   } catch (err) {
     console.error(`KID-474 notification pref gate failed (ref=${data.ref}):`, err);
+  }
+  // KID-480: web push rides the in-app emission — same payload, per-account
+  // locale, per-activity push opt-out (channel 'push'), always best-effort.
+  if (freshAccountIds.length > 0) {
+    try {
+      const { sendPushToAccounts } = await import("./push");
+      await sendPushToAccounts(freshAccountIds, {
+        activity: data.activity,
+        kind: data.kind,
+        payload: data.payload,
+        ref: data.ref,
+      });
+    } catch (err) {
+      console.error(`KID-480 push fan-out failed (ref=${data.ref}):`, err);
+    }
   }
   return emitted;
 }
@@ -3131,6 +3212,11 @@ export function notificationViewCopy(
   const body = String(payload.body ?? "");
   if (kind === "message") {
     return { title: copy.messageTitle(senderName), body };
+  }
+  // KID-480: announcements share the messages body convention (raw snippet);
+  // the author rides authorName (emission writer) with senderName fallback.
+  if (kind === "announcement") {
+    return { title: copy.announcementTitle(String(payload.authorName ?? senderName)), body };
   }
   if (kind === "daily_report") {
     const date = String(payload.reportDate ?? "");
