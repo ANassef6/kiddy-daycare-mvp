@@ -4,6 +4,8 @@ import { notFound } from "next/navigation";
 import { requireSession } from "@/lib/require";
 import { getChild,listChildBilling, isChildInScope } from "@/lib/store";
 import { addChildBillingAction, updateBillingStatusAction } from "@/lib/actions";
+import { i18nForAccount } from "@/lib/i18n-session";
+import Attribution from "@/components/Attribution";
 
 export const dynamic = "force-dynamic";
 
@@ -16,6 +18,7 @@ function money(cents: number, currency: string): string {
 
 export default async function ChildBillingPage({ params }: { params: { id: string } }) {
   const session = requireSession();
+  const billingLocale = (await i18nForAccount(session.accountId)).locale;
   const iid = await resolveTenantInstituteId();
   const child = await getChild(params.id);
   if (!child) notFound();
@@ -92,7 +95,7 @@ export default async function ChildBillingPage({ params }: { params: { id: strin
       ) : (
         <table className="data">
           <thead>
-            <tr><th>Description</th><th>Amount</th><th>Period</th><th>Due date</th><th>Status</th><th>Created</th></tr>
+            <tr><th>Description</th><th>Amount</th><th>Period</th><th>Due date</th><th>Status</th><th>Created</th><th>By</th></tr>
           </thead>
           <tbody>
             {bills.map((b: any) => (
@@ -112,6 +115,13 @@ export default async function ChildBillingPage({ params }: { params: { id: strin
                   </form>
                 </td>
                 <td className="small">{new Date(b.created_at).toLocaleDateString()}</td>
+                <td>
+                  <Attribution
+                    locale={billingLocale}
+                    createdBy={b.created_by_name ?? null}
+                    createdAt={b.created_at ?? null}
+                  />
+                </td>
               </tr>
             ))}
           </tbody>

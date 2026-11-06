@@ -4,6 +4,7 @@ import { firstInstituteId } from "@/lib/helpers";
 import { createSupplyAction, updateSupplyStatusAction } from "@/lib/actions";
 import { i18nForAccount } from "@/lib/i18n-session";
 import { tr } from "@/lib/i18n";
+import Attribution from "@/components/Attribution";
 
 export const dynamic = "force-dynamic";
 
@@ -12,7 +13,7 @@ export const dynamic = "force-dynamic";
 // select now carries translated options instead of the raw DB enum.
 export default async function PortalSuppliesPage() {
   const session = requireSession();
-  const { dict } = await i18nForAccount(session.accountId);
+  const { dict, locale } = await i18nForAccount(session.accountId);
   const t = (key: string, vars?: Record<string, string | number>) => tr(dict, key, vars);
   const instituteId = await firstInstituteId();
   if (!instituteId) return <p className="muted">{t("supplies.noInstitute")}</p>;
@@ -45,8 +46,9 @@ export default async function PortalSuppliesPage() {
               {s.status === "fulfilled" ? t("supplies.fulfilled") : t("supplies.needed")}
             </span>
           </div>
-          {s.notes && <p className="small muted mt-1">{s.notes}</p>}
-          <form action={updateSupplyStatusAction} className="row mt-2" style={{ gap: 6 }}>
+        {s.notes && <p className="small muted mt-1">{s.notes}</p>}
+        <Attribution locale={locale} createdBy={s.created_by_name ?? null} createdAt={s.created_at ?? null} />
+        <form action={updateSupplyStatusAction} className="row mt-2" style={{ gap: 6 }}>
             <input type="hidden" name="id" value={s.id} />
             <select className="select" name="status" defaultValue={s.status} style={{ maxWidth: 160 }}>
               <option value="needed">{t("supplies.needed")}</option>

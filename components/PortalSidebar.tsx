@@ -80,6 +80,9 @@ export function portalNav(dict: Dict, role?: string): NavGroup[] {
       { label: t("nav.finance"), href: "/portal/finance" },
       { label: t("nav.supplies"), href: "/portal/supplies" },
       { label: t("nav.rooms"), href: "/portal/rooms" },
+      // KID-477: the tenant-scoped audit trail joins the admin Tools group
+      // (date range / actor / record-type filters, paginated).
+      { label: t("audit.title"), href: "/portal/audit" },
     ];
     // KID-246: "Account billing" is the daycare OWNER's own surface — the
     // subscription plan, the read-only rates and the daycare's invoice

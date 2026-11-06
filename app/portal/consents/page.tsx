@@ -4,6 +4,7 @@ import { listConsents, listChildren } from "@/lib/store";
 import { createConsentAction } from "@/lib/actions";
 import { i18nForAccount } from "@/lib/i18n-session";
 import { fmtDateTimeFor, tr } from "@/lib/i18n";
+import Attribution from "@/components/Attribution";
 
 export const dynamic = "force-dynamic";
 
@@ -53,6 +54,7 @@ export default async function PortalConsentsPage() {
             <div>
               <div style={{ fontWeight: 600 }}>{c.title}</div>
               <div className="muted small">{fmtDateTimeFor(locale, c.created_at)}</div>
+              <Attribution locale={locale} createdBy={c.created_by_name ?? null} createdAt={c.created_at ?? null} />
             </div>
             <span className={
               c.status === "approved" ? "badge badge-green" : c.status === "denied" ? "badge badge-red" : "badge"
