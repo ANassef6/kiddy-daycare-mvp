@@ -33,6 +33,7 @@ import { getBranding } from "@/lib/theme";
 import { firstInstituteId, fmtDate, cap } from "@/lib/helpers";
 import ChildProfileTabs from "@/components/ChildProfileTabs";
 import DailyReportDateNav from "@/components/DailyReportDateNav";
+import Attribution from "@/components/Attribution";
 import { curriculumTree, ensureCurriculumSeeded } from "@/lib/curriculum";
 import ObservationModalTrigger from "@/components/ObservationModalTrigger";
 import { queryGet } from "@/lib/db";
@@ -134,7 +135,7 @@ export default async function PortalChildPage({
         reportDate === today
           ? t("profile.todaysDailyReport")
           : t("profile.dailyReportForDate", { date: fmtDate(reportDate) }),
-      node: dailyReportTab(child, report, today, todayStatuses, dict, reportDate),
+      node: dailyReportTab(child, report, today, todayStatuses, dict, reportDate, locale),
     },
     {
       id: "about",
@@ -278,7 +279,7 @@ export default async function PortalChildPage({
   );
 }
 
-function dailyReportTab(child: any, report: any, today: string, todayStatuses: any[], dict: any, reportDate: string) {
+function dailyReportTab(child: any, report: any, today: string, todayStatuses: any[], dict: any, reportDate: string, locale: any) {
   const meal = safeJson(report?.meal);
   const t = (key: string, vars?: Record<string, string | number>) => tr(dict, key, vars);
   return (
@@ -306,9 +307,16 @@ function dailyReportTab(child: any, report: any, today: string, todayStatuses: a
         {report?.saved_by_name && (
           <p className="small muted" style={{ marginTop: -4 }}>
             {t("profile.lastSavedBy")} <strong>{report.saved_by_name}</strong>
-            {report?.created_at ? ` · ${fmtDate(report.created_at)} ${time(report.created_at)}` : ""}
+            {report?.saved_at ? ` · ${fmtDate(report.saved_at)} ${time(report.saved_at)}` : ""}
           </p>
         )}
+        <Attribution
+          locale={locale}
+          createdBy={report?.created_by_name ?? null}
+          createdAt={report?.created_at ?? null}
+          updatedBy={report?.updated_by_name ?? null}
+          updatedAt={report?.updated_at ?? null}
+        />
         <form action={saveDailyReportAction} id="daily-report-form">
           <input type="hidden" name="childId" value={child.id as string} />
           <input type="hidden" name="reportDate" value={reportDate} />

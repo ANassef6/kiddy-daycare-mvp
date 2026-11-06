@@ -40,6 +40,7 @@ import {
   createStaff,
   createRoom,
   updateRoom,
+  getRoom,
   addContact,
   logChildStatus,
   createInvite,
@@ -77,6 +78,7 @@ import { notifyPlatformInbox } from "@/lib/contact-notify";
 import { PLATFORM_CONTACT_EMAIL } from "@/lib/site";
 import { isAdminRole, isOwnerRole } from "@/lib/role";
 import { requireSession } from "@/lib/require";
+import { recordAuditEvent } from "@/lib/audit";
 import { createEnhancementRequest } from "@/lib/enhancements";
 import { syncChatwootContactForAccount } from "@/lib/chatwoot-contacts";
 import {
@@ -692,10 +694,20 @@ async function uploadBrandingFile(
 // login and entry (KID-199.3); this only flips it and refreshes the page so the
 // toggle reflects the stored state.
 export async function setDaycareActiveAction(formData: FormData) {
-  requirePlatformOperator();
+  const operator = requirePlatformOperator();
   const instituteId = String(formData.get("instituteId") ?? "");
   if (!instituteId) redirect("/platform?error=missing-id");
-  await setInstituteActive(instituteId, String(formData.get("active") ?? "") === "1");
+  const active = String(formData.get("active") ?? "") === "1";
+  await setInstituteActive(instituteId, active);
+  // KID-477: enabling/disabling access is a settings change — attributed.
+  await recordAuditEvent({
+    instituteId,
+    actorAccountId: operator.accountId,
+    action: "update",
+    entityType: "institute_settings",
+    entityId: instituteId,
+    summary: active ? "Re-enabled the daycare" : "Disabled the daycare",
+  });
   revalidatePath("/platform");
   redirect("/platform");
 }
@@ -883,7 +895,7 @@ function billingFormNumbers(formData: FormData): {
 // every platform action; every failure lands back on the billing form with a
 // friendly message, a success back with ?saved=1.
 export async function updateDaycareBillingAction(formData: FormData) {
-  requirePlatformOperator();
+  const operator = requirePlatformOperator();
   const instituteId = String(formData.get("instituteId") ?? "");
   if (!instituteId) redirect("/platform?error=missing-id");
   const inst = await queryGet("SELECT id FROM institute WHERE id = ?", instituteId);
@@ -918,6 +930,16 @@ export async function updateDaycareBillingAction(formData: FormData) {
     console.error("KID-244 updateDaycareBillingAction failed:", err);
     redirect(`${back}?error=${known.includes(reason) ? reason : "unknown"}`);
   }
+  // KID-477: platform billing-setting changes are attributed per operator.
+  await recordAuditEvent({
+    instituteId,
+    actorAccountId: operator.accountId,
+    action: "update",
+    entityType: "billing_settings",
+    entityId: instituteId,
+    summary: `Updated billing settings (${plan})`,
+    metadata: { plan },
+  });
   revalidatePath("/platform");
   redirect(`${back}?saved=1`);
 }
@@ -935,7 +957,7 @@ const KNOWN_INVOICE_ERRORS = new Set(["invoice-not-found", "invoice-paid-locked"
  *  with an explanatory note (manual_adjustment). Only before payment — a paid
  *  invoice is locked. Redirects back to this daycare's invoice list. */
 export async function updateInvoiceAmountAction(formData: FormData) {
-  requirePlatformOperator();
+  const operator = requirePlatformOperator();
   const invoiceId = String(formData.get("invoiceId") ?? "");
   const { getInvoice } = await import("@/lib/billing");
   const invoice = invoiceId ? await getInvoice(invoiceId) : undefined;
@@ -954,6 +976,16 @@ export async function updateInvoiceAmountAction(formData: FormData) {
     console.error("KID-245 updateInvoiceAmountAction failed:", err);
     redirect(`${back}?error=${KNOWN_INVOICE_ERRORS.has(reason) ? reason : "unknown"}`);
   }
+  // KID-477: invoice amount overrides are attributed per operator.
+  await recordAuditEvent({
+    instituteId: String(invoice.instituteId),
+    actorAccountId: operator.accountId,
+    action: "update",
+    entityType: "invoice",
+    entityId: invoiceId,
+    summary: "Adjusted an invoice amount",
+    metadata: { cycleMonth: invoice.cycleMonth ?? null },
+  });
   revalidatePath(`${back}`);
   redirect(`${back}?saved=1`);
 }
@@ -962,7 +994,7 @@ export async function updateInvoiceAmountAction(formData: FormData) {
  *  stamps paid_at and re-activates the daycare as soon as no other unpaid
  *  overdue invoice remains — the billing block lifts. */
 export async function markInvoicePaidAction(formData: FormData) {
-  requirePlatformOperator();
+  const operator = requirePlatformOperator();
   const invoiceId = String(formData.get("invoiceId") ?? "");
   const { getInvoice, markInvoicePaid } = await import("@/lib/billing");
   const invoice = invoiceId ? await getInvoice(invoiceId) : undefined;
@@ -975,6 +1007,16 @@ export async function markInvoicePaidAction(formData: FormData) {
     console.error("KID-245 markInvoicePaidAction failed:", err);
     redirect(`${back}?error=${KNOWN_INVOICE_ERRORS.has(reason) ? reason : "unknown"}`);
   }
+  // KID-477: payment confirmation re-activates a daycare — attributed.
+  await recordAuditEvent({
+    instituteId: String(invoice.instituteId),
+    actorAccountId: operator.accountId,
+    action: "update",
+    entityType: "invoice",
+    entityId: invoiceId,
+    summary: "Marked an invoice paid",
+    metadata: { cycleMonth: invoice.cycleMonth },
+  });
   revalidatePath(`${back}`);
   redirect(`${back}?saved=1`);
 }
@@ -1160,9 +1202,9 @@ export async function checkInOutAction(formData: FormData) {
   await assertFamilyAction(me, "checkInOut");
   if (childId && (type === "in" || type === "out")) {
     await assertChildInScope(childId, me);
+    const instituteId = await firstInstituteId();
     // KID-58: no one can check in before the center opens.
     if (type === "in") {
-      const instituteId = await firstInstituteId();
       if (instituteId) {
         const policy = await checkInAllowed(String(instituteId));
         if (!policy.allowed) {
@@ -1171,6 +1213,16 @@ export async function checkInOutAction(formData: FormData) {
       }
     }
     await checkChildInOut({ childId, accountId: me.accountId, type });
+    // KID-477: attendance is a user-visible mutation on the audit trail.
+    await recordAuditEvent({
+      instituteId: instituteId ?? null,
+      actorAccountId: me.accountId,
+      action: type === "in" ? "check_in" : "check_out",
+      entityType: "attendance",
+      entityId: childId,
+      summary: type === "in" ? "Checked in" : "Checked out",
+      metadata: { edit: true },
+    });
   }
   // #7: stay in portal when invoked from portal pages instead of forcing /child/…
   const referer = headers().get("referer") ?? "";
@@ -1189,7 +1241,11 @@ export async function saveDailyReportAction(formData: FormData) {
   const reportDate = configuredReportDate(formData.get("reportDate"), new Date().toISOString().slice(0, 10));
   const me = authAccount();
   if (childId) await assertChildInScope(childId, me);
-  await upsertDailyReport({
+  // KID-477: the audit row must distinguish a NEW report from an EDIT —
+  // check presence before the upsert overwrites the row.
+  const { reportFor } = await import("@/lib/store");
+  const prior = childId ? await reportFor(childId, reportDate) : undefined;
+  const report = await upsertDailyReport({
     childId,
     reportDate,
     summary: String(formData.get("summary") ?? ""),
@@ -1206,6 +1262,25 @@ export async function saveDailyReportAction(formData: FormData) {
     note: String(formData.get("note") ?? ""),
     accountId: me.accountId,
   });
+  // KID-477: one audit row per daily-report mutation (create or edit) with
+  // the acting staff account snapped by the helper; never the report body.
+  if (report) {
+    const child = await queryGet(
+      "SELECT institute_id, first_name, last_name FROM child WHERE id = ?",
+      childId
+    );
+    await recordAuditEvent({
+      instituteId: child ? String(child.institute_id ?? "") : null,
+      actorAccountId: me.accountId,
+      action: prior ? "update" : "create",
+      entityType: "daily_report",
+      entityId: String(report.id),
+      summary: prior
+        ? `Edited the daily report for ${String(child?.first_name ?? "")} ${String(child?.last_name ?? "")}`.trim()
+        : `Created the daily report for ${String(child?.first_name ?? "")} ${String(child?.last_name ?? "")}`.trim(),
+      metadata: { date: reportDate, fields: ["summary", "observation", "mood", "meal", "sleep", "diaper", "sick", "note"] },
+    });
+  }
   redirect(`/portal/children/${childId}?tab=daily&date=${encodeURIComponent(reportDate)}`);
 }
 
@@ -1213,12 +1288,24 @@ export async function createNewsfeedAction(formData: FormData) {
   const me = authAccount();
   await ensureSchema();
   const instituteId = await firstInstituteId();
-  await createNewsfeedPost({
+  const post = await createNewsfeedPost({
     instituteId,
     accountId: me.accountId,
     body: String(formData.get("body") ?? ""),
     tagChildIds: formData.getAll("childIds").map(String),
   });
+  // KID-477: one audit row per newsfeed post (never the body text).
+  if (instituteId) {
+    await recordAuditEvent({
+      instituteId,
+      actorAccountId: me.accountId,
+      action: "create",
+      entityType: "newsfeed_post",
+      entityId: String(post.id),
+      summary: "Posted to the newsfeed",
+      metadata: { taggedChildren: formData.getAll("childIds").length },
+    });
+  }
   redirect("/portal/newsfeed");
 }
 
@@ -1226,7 +1313,22 @@ export async function commentAction(formData: FormData) {
   const me = authAccount();
   // KID-112: pickup accounts may only register pickup time — no commenting.
   await assertFamilyAction(me, "comment");
-  await addComment(String(formData.get("postId") ?? ""), me.accountId, String(formData.get("body") ?? ""));
+  const comment = await addComment(String(formData.get("postId") ?? ""), me.accountId, String(formData.get("body") ?? ""));
+  // KID-477: comments join the audit trail with their post link only.
+  const parent = comment.post_id
+    ? await queryGet("SELECT institute_id FROM newsfeed_post WHERE id = ?", String(comment.post_id))
+    : undefined;
+  if (parent) {
+    await recordAuditEvent({
+      instituteId: String(parent.institute_id ?? ""),
+      actorAccountId: me.accountId,
+      action: "create",
+      entityType: "newsfeed_comment",
+      entityId: String(comment.id),
+      summary: "Commented on a newsfeed post",
+      metadata: { postId: String(comment.post_id) },
+    });
+  }
   redirect(formData.get("fromParent") === "1" ? "/child/newsfeed" : "/portal/newsfeed");
 }
 
@@ -1236,12 +1338,25 @@ export async function createConsentAction(formData: FormData) {
   const instituteId = await firstInstituteId();
   const childId = String(formData.get("childId") ?? "") || undefined;
   if (childId) await assertChildInScope(childId, me);
-  await createConsent({
+  const consent = await createConsent({
     instituteId,
     title: String(formData.get("title") ?? ""),
     body: String(formData.get("body") ?? ""),
     childId,
   });
+  // KID-477: consent requests are admin-authored changes to a record parents
+  // must act on — attributed on the trail (title only, never the body).
+  if (instituteId && consent) {
+    await recordAuditEvent({
+      instituteId,
+      actorAccountId: me.accountId,
+      action: "create",
+      entityType: "consent_request",
+      entityId: String(consent.id),
+      summary: `Created the consent request “${String(formData.get("title") ?? "")}”`,
+      metadata: { childId: childId ?? null },
+    });
+  }
   redirect("/portal/consents");
 }
 
@@ -1249,7 +1364,21 @@ export async function respondConsentAction(formData: FormData) {
   const me = authAccount();
   // KID-112: consent responses are parent-only (family/pickup denied).
   await assertFamilyAction(me, "respondConsent");
-  await respondConsent(String(formData.get("id") ?? ""), String(formData.get("status") ?? "approved") as "approved" | "denied");
+  const consentId = String(formData.get("id") ?? "");
+  const status = String(formData.get("status") ?? "approved") as "approved" | "denied";
+  await respondConsent(consentId, status);
+  // KID-477: a parent decision is a record mutation — attributed per parent.
+  const row = await queryGet("SELECT institute_id FROM consent_request WHERE id = ?", consentId);
+  if (row) {
+    await recordAuditEvent({
+      instituteId: String(row.institute_id ?? ""),
+      actorAccountId: me.accountId,
+      action: "respond",
+      entityType: "consent_request",
+      entityId: consentId,
+      summary: `Responded “${status}” to a consent request`,
+    });
+  }
   redirect("/child/consents");
 }
 
@@ -1259,13 +1388,25 @@ export async function createIncidentAction(formData: FormData) {
   const instituteId = await firstInstituteId();
   const childId = String(formData.get("childId") ?? "");
   if (childId) await assertChildInScope(childId, me);
-  await createIncident({
+  const incident = await createIncident({
     instituteId,
     childId,
     accountId: me.accountId,
     type: String(formData.get("type") ?? "incident"),
     description: String(formData.get("description") ?? ""),
   });
+  // KID-477: reported incidents are on the trail (type only — the
+  // description stays inside the incident record).
+  if (incident) {
+    await recordAuditEvent({
+      instituteId: String(incident.institute_id ?? instituteId),
+      actorAccountId: me.accountId,
+      action: "create",
+      entityType: "incident_report",
+      entityId: String(incident.id),
+      summary: `Reported a ${String(formData.get("type") ?? "incident")}`,
+    });
+  }
   redirect("/portal/incidents");
 }
 
@@ -1273,7 +1414,20 @@ export async function acknowledgeIncidentAction(formData: FormData) {
   const me = authAccount();
   // KID-112: incident acknowledgement is parent-only (family/pickup denied).
   await assertFamilyAction(me, "acknowledgeIncident");
-  await acknowledgeIncident(String(formData.get("id") ?? ""));
+  const incidentId = String(formData.get("id") ?? "");
+  await acknowledgeIncident(incidentId);
+  // KID-477: the acknowledgement flips the record — one attributed row per parent.
+  const row = await queryGet("SELECT institute_id FROM incident_report WHERE id = ?", incidentId);
+  if (row) {
+    await recordAuditEvent({
+      instituteId: String(row.institute_id ?? ""),
+      actorAccountId: me.accountId,
+      action: "acknowledge",
+      entityType: "incident_report",
+      entityId: incidentId,
+      summary: "Acknowledged an incident report",
+    });
+  }
   const fromPortal = String(formData.get("portal") ?? "") === "1";
   redirect(fromPortal ? "/portal/incidents" : "/child/incidents");
 }
@@ -1327,6 +1481,19 @@ export async function addChildAction(formData: FormData) {
     isPickup: formData.get("guardianIsPickup") === "on",
     isEmergency: formData.get("guardianIsEmergency") === "on",
   });
+  // KID-477: child enrollment (the create + guardian contact) is one audit
+  // row — the child's own name, never the guardian's contact details.
+  if (instituteId) {
+    await recordAuditEvent({
+      instituteId,
+      actorAccountId: me.accountId,
+      action: "create",
+      entityType: "child",
+      entityId: String(child.id),
+      summary: `Enrolled ${String(child.first_name)} ${String(child.last_name)}`.trim(),
+      metadata: { room: roomId ?? null },
+    });
+  }
   redirect(`/portal/children/${child.id}`);
 }
 
@@ -1334,6 +1501,7 @@ export async function addStaffAction(formData: FormData) {
   await requireAdmin();
   await ensureSchema();
   const instituteId = await firstInstituteId();
+  const me = authAccount();
   const fullName = String(formData.get("fullName") ?? "").trim();
   const role = String(formData.get("role") ?? "carer");
   const email = String(formData.get("email") ?? "").trim().toLowerCase();
@@ -1346,6 +1514,18 @@ export async function addStaffAction(formData: FormData) {
     role,
     roomIds: formData.getAll("roomIds").map(String),
   });
+  // KID-477: a new staff record joins the audit trail (name + role only —
+  // never the generated password or the contact details).
+  if (instituteId && staff) {
+    await recordAuditEvent({
+      instituteId,
+      actorAccountId: me.accountId,
+      action: "create",
+      entityType: "staff",
+      entityId: String(staff.id),
+      summary: `Added ${fullName} as ${role}`.trim(),
+    });
+  }
 
   // #14: staff must be able to log in. When an email is supplied we create a
   // linked portal account (email + password) and record staff_id on the
@@ -1467,12 +1647,24 @@ export async function addRoomAction(formData: FormData) {
   await requireAdmin();
   await ensureSchema();
   const instituteId = await firstInstituteId();
-  await createRoom(
+  const me = authAccount();
+  const room = await createRoom(
     String(instituteId),
     String(formData.get("name") ?? ""),
     Number(formData.get("capacity")) || undefined,
     String(formData.get("colour") ?? "") || undefined
   );
+  // KID-477: rooms are settings on the trail.
+  if (instituteId && room) {
+    await recordAuditEvent({
+      instituteId,
+      actorAccountId: me.accountId,
+      action: "create",
+      entityType: "room",
+      entityId: String(room.id),
+      summary: `Created the classroom “${String(formData.get("name") ?? "")}”`,
+    });
+  }
   redirect("/portal/rooms");
 }
 
@@ -1485,11 +1677,23 @@ export async function updateRoomAction(formData: FormData) {
   // raw id — the room must belong to the request tenant.
   if (roomId) await assertInstituteOwned(me, "room", roomId, "institute_id");
   const capacityRaw = String(formData.get("capacity") ?? "").trim();
+  const room = await getRoom(roomId);
   await updateRoom(roomId, {
     name: String(formData.get("name") ?? ""),
     colour: String(formData.get("colour") ?? ""),
     capacity: capacityRaw ? Number(capacityRaw) : null,
   });
+  // KID-477: settings edits are attributed.
+  if (room) {
+    await recordAuditEvent({
+      instituteId: String(room.institute_id ?? ""),
+      actorAccountId: me.accountId,
+      action: "update",
+      entityType: "room",
+      entityId: roomId,
+      summary: `Updated the classroom “${String(formData.get("name") ?? room.name ?? "")}”`,
+    });
+  }
   redirect(`/portal/rooms/${roomId}`);
 }
 
@@ -1802,7 +2006,7 @@ export async function sendInviteForContactAction(formData: FormData) {
 }
 
 export async function saveBrandingAction(formData: FormData) {
-  await requireAdmin();
+  const me = await requireAdmin();
   await ensureSchema();
   const instituteId = await firstInstituteId();
   if (instituteId) {
@@ -1812,12 +2016,22 @@ export async function saveBrandingAction(formData: FormData) {
       accent_color: String(formData.get("accentColor") ?? "#10B981"),
       font: String(formData.get("font") ?? "Inter"),
     });
+    // KID-477: branding settings changes are attributed.
+    await recordAuditEvent({
+      instituteId,
+      actorAccountId: me.accountId,
+      action: "update",
+      entityType: "institute_settings",
+      entityId: instituteId,
+      summary: "Updated the center branding",
+      metadata: { primaryColor: String(formData.get("primaryColor") ?? ""), accentColor: String(formData.get("accentColor") ?? "") },
+    });
   }
   redirect("/portal/settings");
 }
 
 export async function saveCenterDetailsAction(formData: FormData) {
-  await requireAdmin();
+  const me = await requireAdmin();
   await ensureSchema();
   const instituteId = await firstInstituteId();
   if (instituteId) {
@@ -1829,13 +2043,22 @@ export async function saveCenterDetailsAction(formData: FormData) {
     patch.contact = contact || null;
     patch.address = address || null;
     await updateInstitute(String(instituteId), patch);
+    // KID-477: center details changes are attributed.
+    await recordAuditEvent({
+      instituteId,
+      actorAccountId: me.accountId,
+      action: "update",
+      entityType: "institute_settings",
+      entityId: instituteId,
+      summary: name ? `Updated the center profile (${name})` : "Updated the center profile",
+    });
   }
   redirect("/portal/settings");
 }
 
 // KID-55 item 3 / KID-58: per-day open/close editor persisted on the institute.
 export async function saveWorkingHoursAction(formData: FormData) {
-  await requireAdmin();
+  const me = await requireAdmin();
   await ensureSchema();
   const instituteId = await firstInstituteId();
   if (!instituteId) return { ok: false, error: "No center configured." };
@@ -1847,6 +2070,16 @@ export async function saveWorkingHoursAction(formData: FormData) {
     if (open && close) week[String(day)] = { open, close };
   }
   await saveWorkingHours(String(instituteId), week);
+  // KID-477: working-hours edits are attributed settings changes.
+  await recordAuditEvent({
+    instituteId,
+    actorAccountId: me.accountId,
+    action: "update",
+    entityType: "institute_settings",
+    entityId: instituteId,
+    summary: "Updated the working hours",
+    metadata: { openDays: Object.keys(week).length },
+  });
   return { ok: true, days: Object.keys(week).length };
 }
 
@@ -1904,7 +2137,7 @@ export async function createEventAction(formData: FormData) {
   const me = authAccount();
   const instituteId = await requireInstitute();
   if (instituteId) {
-    await createEvent({
+    const event = await createEvent({
       instituteId,
       title: String(formData.get("title") ?? ""),
       eventDate: String(formData.get("eventDate") ?? ""),
@@ -1913,6 +2146,15 @@ export async function createEventAction(formData: FormData) {
       location: String(formData.get("location") ?? "") || undefined,
       description: String(formData.get("description") ?? "") || undefined,
       accountId: me.accountId,
+    });
+    // KID-477: events are user-visible records — attributed on the trail.
+    await recordAuditEvent({
+      instituteId,
+      actorAccountId: me.accountId,
+      action: "create",
+      entityType: "event",
+      entityId: String(event.id),
+      summary: `Created the activity “${String(formData.get("title") ?? "")}”`,
     });
 
     // KID-104 #11: activities respect the selected recipients by posting the
@@ -1945,6 +2187,16 @@ export async function addEventMediaAction(formData: FormData) {
       caption: String(formData.get("caption") ?? "") || undefined,
       accountId: me.accountId,
     });
+    // KID-477: media additions are attributed to the acting account.
+    await recordAuditEvent({
+      instituteId,
+      actorAccountId: me.accountId,
+      action: "create",
+      entityType: "event_media",
+      entityId: eventId,
+      summary: "Attached media to an activity",
+      metadata: { kind: String(formData.get("kind") ?? "image") },
+    });
   }
   redirect(`/portal/events?open=${eventId}`);
 }
@@ -1966,7 +2218,7 @@ export async function createFormAction(formData: FormData) {
     fieldsJson.push({ id: `f${i}`, label, type: ftype, required: formData.get(`field_${i}_required`) === "on", options });
   }
   if (instituteId && title) {
-    await createForm({
+    const form = await createForm({
       instituteId,
       kind,
       title,
@@ -1974,6 +2226,19 @@ export async function createFormAction(formData: FormData) {
       fieldsJson: JSON.stringify(fieldsJson),
       accountId: me.accountId,
     });
+    // KID-477: a published form/survey is an admin change parents see —
+    // attributed without the field structure.
+    if (form) {
+      await recordAuditEvent({
+        instituteId,
+        actorAccountId: me.accountId,
+        action: "create",
+        entityType: "form_template",
+        entityId: String(form.id),
+        summary: `Created the ${kind === "survey" ? "survey" : "form"} “${title}”`,
+        metadata: { fields: fieldsJson.length },
+      });
+    }
   }
   // KID-52 #10: allow callers (e.g. the Surveys tab) to create forms/surveys
   // without leaving their page — a relative returnTo wins over /portal/forms.
@@ -1994,12 +2259,28 @@ export async function submitFormAction(formData: FormData) {
     const key = String(formData.get(`field_${i}_key`) ?? `field_${i}`);
     answers[key] = String(formData.get(`field_${i}`) ?? "").trim();
   }
-  await saveFormResponse({
+  const response = await saveFormResponse({
     formId,
     accountId: me.accountId,
     childId: String(formData.get("childId") ?? "") || undefined,
     answersJson: JSON.stringify(answers),
   });
+  // KID-477: parents filling a form/survey is a record mutation — attributed
+  // per parent (answer keys are in the record, never on the trail).
+  const formMeta = await queryGet(
+    "SELECT institute_id, title FROM form_template WHERE id = ?",
+    formId
+  );
+  if (response && formMeta) {
+    await recordAuditEvent({
+      instituteId: String(formMeta.institute_id ?? ""),
+      actorAccountId: me.accountId,
+      action: "create",
+      entityType: "form_response",
+      entityId: String(response.id),
+      summary: `Submitted “${String(formMeta.title ?? "a form")}”`,
+    });
+  }
   redirect(`/child/forms?sent=${formId}`);
 }
 
@@ -2154,12 +2435,23 @@ export async function createSupportTicketAction(formData: FormData) {
   await assertFamilyAction(me, "createSupportTicket");
   const instituteId = await requireInstitute();
   if (instituteId) {
-    await createSupportTicket({
+    const ticket = await createSupportTicket({
       instituteId,
       accountId: me.accountId,
       subject: String(formData.get("subject") ?? ""),
       body: String(formData.get("body") ?? ""),
     });
+    // KID-477: a new ticket is on the trail (subject only, never the body).
+    if (ticket) {
+      await recordAuditEvent({
+        instituteId,
+        actorAccountId: me.accountId,
+        action: "create",
+        entityType: "support_ticket",
+        entityId: String(ticket.id),
+        summary: `Opened a support ticket (${String(formData.get("subject") ?? "")})`,
+      });
+    }
   }
   redirect("/child/support?sent=1");
 }
@@ -2174,7 +2466,19 @@ export async function setTicketStatusAction(formData: FormData) {
   const status = String(formData.get("status") ?? "open");
   if (ticketId) {
     await assertInstituteOwned(me, "support_ticket", ticketId, "institute_id");
+    const before = await queryGet("SELECT institute_id, subject FROM support_ticket WHERE id = ?", ticketId);
     await setTicketStatus(ticketId, status);
+    // KID-477: status flips on a support ticket are attributed.
+    if (before) {
+      await recordAuditEvent({
+        instituteId: String(before.institute_id ?? ""),
+        actorAccountId: me.accountId,
+        action: "update",
+        entityType: "support_ticket",
+        entityId: ticketId,
+        summary: `Set a ticket (${String(before.subject ?? "")}) to ${status}`,
+      });
+    }
   }
   // KID-260: the staff inbox lives at /portal/support-inbox (/portal/support
   // is the Help Center now) — land back on the list that posted the form.
@@ -2190,7 +2494,17 @@ export async function sendMessageAction(formData: FormData) {
   if (recipient && body && instituteId) {
     const { latestPairThread } = await import("@/lib/store");
     const threadId = await latestPairThread(me.accountId, recipient);
-    await sendMessage({ instituteId, senderAccountId: me.accountId, recipientAccountId: recipient, body, threadId });
+    const message = await sendMessage({ instituteId, senderAccountId: me.accountId, recipientAccountId: recipient, body, threadId });
+    // KID-477: one audit row per send — the thread link only, never the body.
+    await recordAuditEvent({
+      instituteId,
+      actorAccountId: me.accountId,
+      action: "send",
+      entityType: "message",
+      entityId: message ? String(message.id) : null,
+      summary: "Sent a message",
+      metadata: { threadId: threadId ?? null, recipientCount: 1 },
+    });
   }
   redirect(`/portal/messages?with=${recipient}`);
 }
@@ -2289,6 +2603,23 @@ export async function sendComposerAction(formData: FormData) {
     for (const rid of recipients) {
       await sendMessage({ instituteId: String(instituteId), senderAccountId: me.accountId, recipientAccountId: rid, body, threadId: String(thread.id) });
     }
+    // KID-477: one audit row per composer send (group blast = one row) —
+    // channel/audience shape is recorded, message texts are not.
+    await recordAuditEvent({
+      instituteId,
+      actorAccountId: me.accountId,
+      action: "send",
+      entityType: "message",
+      entityId: String(thread.id),
+      summary: "Sent a group message",
+      metadata: {
+        threadId: String(thread.id),
+        newThread: true,
+        isGroup: true,
+        recipientCount: recipients.length,
+        hasAttachment: !!attachmentUrl,
+      },
+    });
     redirect(`/portal/messages?thread=${thread.id}`);
   }
   // Private mode: one private thread per recipient.
@@ -2304,6 +2635,24 @@ export async function sendComposerAction(formData: FormData) {
     });
     await sendMessage({ instituteId: String(instituteId), senderAccountId: me.accountId, recipientAccountId: rid, body, threadId: String(thread.id) });
     if (!firstThread) firstThread = String(thread.id);
+  }
+  // KID-477: the private blast is one user action — one attributed row.
+  if (firstThread) {
+    await recordAuditEvent({
+      instituteId,
+      actorAccountId: me.accountId,
+      action: "send",
+      entityType: "message",
+      entityId: firstThread,
+      summary: "Sent a message",
+      metadata: {
+        threadId: firstThread,
+        newThread: true,
+        isGroup: false,
+        recipientCount: recipients.length,
+        hasAttachment: !!attachmentUrl,
+      },
+    });
   }
   redirect(firstThread ? `/portal/messages?thread=${firstThread}` : "/portal/messages");
 }
@@ -2324,6 +2673,18 @@ export async function replyThreadAction(formData: FormData) {
   const others = (await threadParticipantIds(threadId)).filter((pid) => pid !== me.accountId);
   for (const rid of others) {
     await sendMessage({ instituteId: String(instituteId), senderAccountId: me.accountId, recipientAccountId: rid, body, threadId });
+  }
+  // KID-477: a thread reply is one audit row (thread link, no body).
+  if (others.length > 0) {
+    await recordAuditEvent({
+      instituteId,
+      actorAccountId: me.accountId,
+      action: "send",
+      entityType: "message",
+      entityId: threadId,
+      summary: "Replied in a thread",
+      metadata: { threadId, recipientCount: others.length },
+    });
   }
   const fallback = returnTo.startsWith("/child/") ? "/child/messages" : `/portal/messages?thread=${threadId}`;
   redirect(returnTo.startsWith("/") ? returnTo : fallback);
@@ -2365,10 +2726,32 @@ export async function sendParentMessageAction(formData: FormData) {
         for (const rid of others) {
           await sendMessage({ instituteId, senderAccountId: me.accountId, recipientAccountId: rid, body, threadId });
         }
+        // KID-477: parent thread replies are attributed too.
+        if (others.length > 0) {
+          await recordAuditEvent({
+            instituteId,
+            actorAccountId: me.accountId,
+            action: "send",
+            entityType: "message",
+            entityId: threadId,
+            summary: "Replied in a thread",
+            metadata: { threadId, recipientCount: others.length },
+          });
+        }
       }
     } else if (!allowedIds || allowedIds.has(recipient)) {
       const tid = await latestPairThread(me.accountId, recipient);
-      await sendMessage({ instituteId, senderAccountId: me.accountId, recipientAccountId: recipient, body, threadId: tid });
+      const message = await sendMessage({ instituteId, senderAccountId: me.accountId, recipientAccountId: recipient, body, threadId: tid });
+      // KID-477: a parent DM is attributed (recipient never named on the trail).
+      await recordAuditEvent({
+        instituteId,
+        actorAccountId: me.accountId,
+        action: "send",
+        entityType: "message",
+        entityId: message ? String(message.id) : null,
+        summary: "Sent a message",
+        metadata: { threadId: tid ?? null, recipientCount: 1 },
+      });
     } else {
       redirect("/child/messages?error=recipient");
     }
@@ -2420,8 +2803,35 @@ export async function uploadPhotoAction(formData: FormData) {
       const { data: urlData } = supabase.storage.from("kiddy-public").getPublicUrl(filename);
       if (entityType === "child") {
         await updateChildPhoto(entityId, urlData.publicUrl);
+        // KID-477: photo changes are attributed (no URL data on the trail).
+        const child = await queryGet(
+          "SELECT institute_id, first_name, last_name FROM child WHERE id = ?",
+          entityId
+        );
+        if (child) {
+          await recordAuditEvent({
+            instituteId: String(child.institute_id ?? ""),
+            actorAccountId: me.accountId,
+            action: "update",
+            entityType: "child",
+            entityId,
+            summary: `Changed the photo for ${String(child.first_name)} ${String(child.last_name)}`.trim(),
+          });
+        }
       } else {
         await updateStaffPhoto(entityId, urlData.publicUrl);
+        // KID-477: staff photo changes are attributed the same way.
+        const staff = await queryGet("SELECT institute_id, full_name FROM staff WHERE id = ?", entityId);
+        if (staff) {
+          await recordAuditEvent({
+            instituteId: String(staff.institute_id ?? ""),
+            actorAccountId: me.accountId,
+            action: "update",
+            entityType: "staff",
+            entityId,
+            summary: `Changed the photo for ${String(staff.full_name ?? "")}`.trim(),
+          });
+        }
       }
     }
   }
@@ -2486,6 +2896,23 @@ export async function updateChildDetailsAction(formData: FormData) {
     status: String(formData.get("status") ?? "") || null,
     lastDate: String(formData.get("lastDate") ?? "") || null,
   });
+  // KID-477: child profile edits join the audit trail — field names only,
+  // the values stay in the record.
+  if (instituteId) {
+    await recordAuditEvent({
+      instituteId,
+      actorAccountId: me.accountId,
+      action: "update",
+      entityType: "child",
+      entityId: childId,
+      summary: `Updated the profile of ${String(formData.get("firstName") ?? "")} ${String(formData.get("lastName") ?? "")}`.trim(),
+      metadata: {
+        fields: ["firstName", "lastName", "dob", "gender", "roomId", "status", "lastDate"].filter(
+          (f) => formData.get(f) !== null
+        ),
+      },
+    });
+  }
   redirect(`/portal/children/${childId}`);
 }
 
@@ -2497,7 +2924,7 @@ export async function addChildBillingAction(formData: FormData) {
   const childId = String(formData.get("childId") ?? "");
   if (!instituteId || !childId) redirect("/portal/children");
   await assertChildInScope(childId, me);
-  await createChildBilling({
+  const billing = await createChildBilling({
     childId,
     instituteId,
     description: String(formData.get("description") ?? ""),
@@ -2507,6 +2934,18 @@ export async function addChildBillingAction(formData: FormData) {
     dueDate: String(formData.get("dueDate") ?? "") || undefined,
     status: String(formData.get("status") ?? "pending"),
   });
+  // KID-477: billing line items are attributed (description + status only).
+  if (billing) {
+    await recordAuditEvent({
+      instituteId,
+      actorAccountId: me.accountId,
+      action: "create",
+      entityType: "child_billing",
+      entityId: String(billing.id),
+      summary: `Added a billing item (${String(formData.get("description") ?? "")})`,
+      metadata: { status: String(formData.get("status") ?? "pending"), childId },
+    });
+  }
   redirect(`/portal/children/${childId}/billing`);
 }
 
@@ -2517,7 +2956,20 @@ export async function updateBillingStatusAction(formData: FormData) {
   const childId = String(formData.get("childId") ?? "");
   if (childId) await assertChildInScope(childId, me);
   if (billingId) {
+    const before = await queryGet("SELECT institute_id FROM child_billing WHERE id = ?", billingId);
     await updateChildBilling(billingId, { status });
+    // KID-477: status moves are attributed; the amount never rides the trail.
+    if (before) {
+      await recordAuditEvent({
+        instituteId: String(before.institute_id ?? ""),
+        actorAccountId: me.accountId,
+        action: "update",
+        entityType: "child_billing",
+        entityId: billingId,
+        summary: `Changed a billing item status to ${status}`,
+        metadata: { childId },
+      });
+    }
   }
   redirect(`/portal/children/${childId}/billing`);
 }
@@ -2529,7 +2981,19 @@ export async function toggleLikeAction(formData: FormData) {
   await assertFamilyAction(me, "toggleLike");
   const postId = String(formData.get("postId") ?? "");
   if (postId) {
-    await toggleLike(postId, me.accountId);
+    const result = await toggleLike(postId, me.accountId);
+    // KID-477: likes/unlikes are attributed one-row-per-toggle.
+    const post = await queryGet("SELECT institute_id FROM newsfeed_post WHERE id = ?", postId);
+    if (post) {
+      await recordAuditEvent({
+        instituteId: String(post.institute_id ?? ""),
+        actorAccountId: me.accountId,
+        action: result.liked ? "like" : "unlike",
+        entityType: "newsfeed_post",
+        entityId: postId,
+        summary: result.liked ? "Liked a newsfeed post" : "Removed a like on a newsfeed post",
+      });
+    }
   }
   const referer = headers().get("referer") || "/portal/newsfeed";
   redirect(referer);
@@ -2553,7 +3017,19 @@ export async function createNewsfeedWithAttachmentAction(formData: FormData) {
   // The helper also enforces on the server that only admins may use Center.
   const tagChildIds = await resolveNewsfeedRecipients(formData, me, instituteId);
   if (body) {
-    await createNewsfeedPost({ instituteId, accountId: me.accountId, body, mediaUrl, tagChildIds });
+    const post = await createNewsfeedPost({ instituteId, accountId: me.accountId, body, mediaUrl, tagChildIds });
+    // KID-477: one audit row per newsfeed post (never the body text).
+    if (instituteId) {
+      await recordAuditEvent({
+        instituteId,
+        actorAccountId: me.accountId,
+        action: "create",
+        entityType: "newsfeed_post",
+        entityId: String(post.id),
+        summary: "Posted to the newsfeed",
+        metadata: { taggedChildren: tagChildIds.length, hasMedia: !!mediaUrl },
+      });
+    }
   }
   redirect("/portal/newsfeed");
 }
@@ -2614,7 +3090,7 @@ export async function createSupplyAction(formData: FormData) {
     const quantity = Number(formData.get("quantity") ?? 1) || 1;
     const unit = String(formData.get("unit") ?? "pcs");
     const notes = String(formData.get("notes") ?? "");
-    await createSupply({
+    const supply = await createSupply({
       instituteId,
       title,
       quantity,
@@ -2622,6 +3098,18 @@ export async function createSupplyAction(formData: FormData) {
       notes,
       accountId: me.accountId,
     });
+    // KID-477: supply requests are on the trail (title only).
+    if (supply) {
+      await recordAuditEvent({
+        instituteId,
+        actorAccountId: me.accountId,
+        action: "create",
+        entityType: "supply_request",
+        entityId: String(supply.id),
+        summary: `Requested supplies (${title})`,
+        metadata: { quantity, unit },
+      });
+    }
     // Notify parents of updates via newsfeed. KID-47 fix: the parent app
     // filters the newsfeed strictly by child tags, so tag every enrolled
     // child — otherwise center-wide supply requests stay invisible to parents.
@@ -2654,7 +3142,19 @@ export async function updateSupplyStatusAction(formData: FormData) {
     // a newsfeed post about it). The reminder must belong to the request
     // tenant before the write and the side effect.
     await assertInstituteOwned(me, "supply_request", id, "institute_id");
+    const before = await queryGet("SELECT institute_id, title FROM supply_request WHERE id = ?", id);
     await updateSupplyStatus(id, status);
+    // KID-477: status flips are attributed.
+    if (before) {
+      await recordAuditEvent({
+        instituteId: String(before.institute_id ?? ""),
+        actorAccountId: me.accountId,
+        action: "update",
+        entityType: "supply_request",
+        entityId: id,
+        summary: `Marked supplies (${String(before.title ?? "")}) as ${status}`,
+      });
+    }
     // KID-47 fix (#9 "parents get notified of updates"): post status changes
     // to the parent-visible (tagged) newsfeed thread.
     try {
@@ -2813,11 +3313,15 @@ export async function logStaffStatusAction(formData: FormData) {
 
 // Staff profile edits (full name, role, contact, rooms, last date).
 export async function updateStaffInfoAction(formData: FormData) {
-  await requireAdmin();
+  const me = await requireAdmin();
   await ensureSchema();
   const { updateStaffInfo } = await import("@/lib/store");
   const staffId = String(formData.get("staffId") ?? "");
   if (staffId) {
+    const staffBefore = await queryGet(
+      "SELECT institute_id, full_name FROM staff WHERE id = ?",
+      staffId
+    );
     await updateStaffInfo(staffId, {
       fullName: String(formData.get("fullName") ?? "").trim() || undefined,
       role: String(formData.get("role") ?? "").trim() || undefined,
@@ -2827,6 +3331,21 @@ export async function updateStaffInfoAction(formData: FormData) {
       roomIds: formData.getAll("roomIds").map(String),
       lastDate: String(formData.get("lastDate") ?? "") || null,
     });
+    // KID-477: staff profile edits join the audit trail (name only — never
+    // phone/email/bio in the summary or metadata).
+    if (staffBefore) {
+      await recordAuditEvent({
+        instituteId: String(staffBefore.institute_id ?? ""),
+        actorAccountId: me.accountId,
+        action: "update",
+        entityType: "staff",
+        entityId: staffId,
+        summary: `Updated ${String(formData.get("fullName") ?? staffBefore.full_name ?? "the staff profile")}`.trim(),
+        metadata: {
+          fields: ["fullName", "role", "rooms", "lastDate"].filter((f) => formData.get(f) !== null || f === "rooms"),
+        },
+      });
+    }
   }
   redirect(`/portal/staff/${staffId}`);
 }

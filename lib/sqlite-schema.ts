@@ -640,6 +640,27 @@ export function sqliteSchema(db: any): void {
   CREATE UNIQUE INDEX IF NOT EXISTS uq_enhancement_request_open_title
     ON enhancement_request (institute_id, title)
     WHERE status <> 'synced';
+
+  -- KID-477: mirror of supabase/migrations/0030_audit_event.sql — one row per
+  -- user-visible mutation (institute-scoped, add-only, never read for
+  -- behavior). metadata/request_path are TEXT on both engines so the JSON
+  -- payload stays byte-compatible.
+  CREATE TABLE IF NOT EXISTS audit_event (
+    id TEXT PRIMARY KEY,
+    institute_id TEXT REFERENCES institute(id) ON DELETE CASCADE,
+    actor_account_id TEXT REFERENCES account(id) ON DELETE SET NULL,
+    actor_name TEXT,
+    action TEXT NOT NULL,
+    entity_type TEXT NOT NULL,
+    entity_id TEXT,
+    summary TEXT NOT NULL DEFAULT '',
+    metadata TEXT,
+    request_path TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+  CREATE INDEX IF NOT EXISTS idx_audit_institute_created ON audit_event (institute_id, created_at DESC);
+  CREATE INDEX IF NOT EXISTS idx_audit_entity ON audit_event (entity_type, entity_id, created_at DESC);
+  CREATE INDEX IF NOT EXISTS idx_audit_actor ON audit_event (actor_account_id, created_at DESC);
   `);
 
   // Idempotent column backfills for databases created before these columns
@@ -751,15 +772,26 @@ export function sqliteSchema(db: any): void {
     }
   } catch {}
   try {
-    const childCols = db.prepare("PRAGMA table_info(child)").all() as { name: string }[];
-    if (!childCols.some((c) => c.name === "gender")) {
-      db.exec("ALTER TABLE child ADD COLUMN gender TEXT");
+    const obsCols = db.prepare("PRAGMA table_info(learning_observation)").all() as { name: string }[];
+    if (!obsCols.some((c) => c.name === "age_group")) {
+      db.exec("ALTER TABLE learning_observation ADD COLUMN age_group TEXT");
     }
-    if (!childCols.some((c) => c.name === "status")) {
-      db.exec("ALTER TABLE child ADD COLUMN status TEXT NOT NULL DEFAULT 'active'");
+    if (!obsCols.some((c) => c.name === "learning_point_id")) {
+      db.exec("ALTER TABLE learning_observation ADD COLUMN learning_point_id TEXT REFERENCES curriculum_learning_point(id) ON DELETE SET NULL");
     }
-    if (!childCols.some((c) => c.name === "last_date")) {
-      db.exec("ALTER TABLE child ADD COLUMN last_date TEXT");
+    if (!obsCols.some((c) => c.name === "milestone_id")) {
+      db.exec("ALTER TABLE learning_observation ADD COLUMN milestone_id TEXT REFERENCES curriculum_milestone(id) ON DELETE SET NULL");
+    }
+  } catch {}
+  // KID-477: mirror of the 0030 additive daily_report columns — rows drafted
+  // before the migration stay NULL ("Created by …" only).
+  try {
+    const reportCols = db.prepare("PRAGMA table_info(daily_report)").all() as { name: string }[];
+    if (reportCols.length > 0 && !reportCols.some((c) => c.name === "updated_at")) {
+      db.exec("ALTER TABLE daily_report ADD COLUMN updated_at TEXT");
+    }
+    if (reportCols.length > 0 && !reportCols.some((c) => c.name === "updated_by_account_id")) {
+      db.exec("ALTER TABLE daily_report ADD COLUMN updated_by_account_id TEXT REFERENCES account(id) ON DELETE SET NULL");
     }
   } catch {}
   try {

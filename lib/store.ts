@@ -1386,8 +1386,11 @@ export async function upsertDailyReport(data: {
     data.reportDate
   );
   if (existing) {
+    // KID-477: edits used to overwrite the row in place with no updated_at /
+    // actor trail — stamp it as part of the UPDATE.
     await queryRun(
-      `UPDATE daily_report SET summary=?, observation=?, mood=?, meal=?, sleep=?, diaper=?, sick=?, note=?
+      `UPDATE daily_report SET summary=?, observation=?, mood=?, meal=?, sleep=?, diaper=?, sick=?, note=?,
+        updated_at=(CURRENT_TIMESTAMP), updated_by_account_id=?
        WHERE id = ?`,
       data.summary ?? "",
       data.observation ?? "",
@@ -1397,6 +1400,7 @@ export async function upsertDailyReport(data: {
       data.diaper ?? "",
       data.sick ? 1 : 0,
       data.note ?? "",
+      data.accountId ?? null,
       existing.id
     );
     return (await queryGet("SELECT * FROM daily_report WHERE id = ?", existing.id))!;
@@ -1455,9 +1459,17 @@ export async function upsertDailyReport(data: {
 
 export async function reportFor(childId: string, reportDate: string): Promise<Row | undefined> {
   // KID-55 #4: attribute the report — who saved it and when.
+  // KID-477: also carry the edit trail (updated_by name + updated_at) and
+  // the coalesced "last saved by" for the editor header.
   return queryGet(
-    `SELECT dr.*, a.full_name AS saved_by_name
-     FROM daily_report dr LEFT JOIN account a ON a.id = dr.created_by_account_id
+    `SELECT dr.*,
+            a.full_name AS created_by_name,
+            u.full_name AS updated_by_name,
+            COALESCE(u.full_name, a.full_name) AS saved_by_name,
+            COALESCE(dr.updated_at, dr.created_at) AS saved_at
+     FROM daily_report dr
+     LEFT JOIN account a ON a.id = dr.created_by_account_id
+     LEFT JOIN account u ON u.id = dr.updated_by_account_id
      WHERE dr.child_id = ? AND dr.report_date = ?`,
     childId,
     reportDate
@@ -2054,7 +2066,17 @@ export async function respondConsent(id: string, status: "approved" | "denied"):
 }
 
 export async function listConsents(instituteId: string): Promise<Row[]> {
-  return queryAll("SELECT * FROM consent_request WHERE institute_id = ? ORDER BY created_at DESC", instituteId);
+  // KID-477: consent_request has no creator column; the name comes from the
+  // audit_event snapshot (one correlated subquery, tenant-scoped join free).
+  return queryAll(
+    `SELECT cr.*,
+       (SELECT ae.actor_name FROM audit_event ae
+        WHERE ae.entity_type = 'consent_request' AND ae.entity_id = cr.id AND ae.action = 'create'
+        ORDER BY ae.created_at DESC LIMIT 1) AS created_by_name
+     FROM consent_request cr
+     WHERE cr.institute_id = ? ORDER BY cr.created_at DESC`,
+    instituteId
+  );
 }
 
 // ---------- Incidents ----------
@@ -2723,8 +2745,16 @@ export async function staffPerformance(instituteId: string): Promise<Row[]> {
 
 // ---- #4b Child billing (admin) ----
 export async function listChildBilling(childId: string): Promise<Row[]> {
+  // KID-477: the actor comes from the audit_event snapshot (child_billing has
+  // no creator column); one correlated subquery per listed row, all scoped by
+  // the child id so no cross-tenant data can surface.
   return queryAll(
-    `SELECT * FROM child_billing WHERE child_id = ? ORDER BY due_date DESC, created_at DESC`,
+    `SELECT cb.*,
+       (SELECT ae.actor_name FROM audit_event ae
+        WHERE ae.entity_type = 'child_billing' AND ae.entity_id = cb.id AND ae.action = 'create'
+        ORDER BY ae.created_at DESC LIMIT 1) AS created_by_name
+     FROM child_billing cb
+     WHERE cb.child_id = ? ORDER BY cb.due_date DESC, cb.created_at DESC`,
     childId
   );
 }
@@ -2847,8 +2877,12 @@ export async function createHomework(data: {
 // ---- KID-47 Round 6: supplies ----
 export async function listSupplies(instituteId: string): Promise<Row[]> {
   try {
+    // KID-477: carry the creator's name for the inline attribution line.
     return await queryAll(
-      `SELECT * FROM supply_request WHERE institute_id = ? ORDER BY created_at DESC`,
+      `SELECT s.*, a.full_name AS created_by_name
+       FROM supply_request s
+       LEFT JOIN account a ON a.id = s.created_by
+       WHERE s.institute_id = ? ORDER BY s.created_at DESC`,
       instituteId
     );
   } catch {

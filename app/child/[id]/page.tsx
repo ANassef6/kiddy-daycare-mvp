@@ -15,6 +15,7 @@ import { CheckInButton } from "@/components/CheckInButton";
 import Avatar from "@/components/Avatar";
 import ContactBadges from "@/components/ContactBadges";
 import DailyReportDateNav from "@/components/DailyReportDateNav";
+import Attribution from "@/components/Attribution";
 import { getBranding } from "@/lib/theme";
 import { firstInstituteId, fmtDate } from "@/lib/helpers";
 import { configuredReportDate, todayIso } from "@/lib/report-dates";
@@ -34,7 +35,7 @@ export default async function ChildDetailPage({
   searchParams?: { date?: string };
 }) {
   const session = requireSession();
-  const { dict } = await i18nForAccount(session.accountId);
+  const { dict, locale } = await i18nForAccount(session.accountId);
   const t = (key: string, vars?: Record<string, string | number>) => tr(dict, key, vars);
   const child = await getChild(params.id);
   if (!child) notFound();
@@ -160,6 +161,13 @@ export default async function ChildDetailPage({
           {report.diaper && <p className="muted small mt-2"><strong>{t("child.diaper")}:</strong> {report.diaper}</p>}
           {report.sick ? <p className="muted small mt-2" style={{ color: "#b91c1c" }}><strong>{t("child.sickToday")}</strong></p> : null}
           {report.note && <p className="muted small mt-2"><strong>{t("common.notes")}:</strong> {report.note}</p>}
+          <Attribution
+            locale={locale}
+            createdBy={report.created_by_name ?? null}
+            createdAt={report.created_at ?? null}
+            updatedBy={report.updated_by_name ?? null}
+            updatedAt={report.updated_at ?? null}
+          />
         </div>
       ) : (
         <p className="muted small">
