@@ -2715,6 +2715,34 @@ export async function saveNotificationPrefsAction(formData: FormData) {
   redirect("/portal/account?saved=1");
 }
 
+// ---- KID-474: parent notification center + preferences ----
+export async function markNotificationReadAction(formData: FormData) {
+  const me = authAccount();
+  await ensureSchema();
+  const { markAllNotificationsRead, markNotificationRead } = await import("@/lib/store");
+  const id = String(formData.get("id") ?? "");
+  if (id === "all") {
+    await markAllNotificationsRead(me.accountId);
+  } else if (id) {
+    await markNotificationRead(me.accountId, id);
+  }
+  revalidatePath("/child/notifications");
+}
+
+export async function saveParentNotificationPrefsAction(formData: FormData) {
+  const me = authAccount();
+  await ensureSchema();
+  const { setNotificationPref, PARENT_NOTIFICATION_ACTIVITIES } = await import("@/lib/store");
+  for (const activity of PARENT_NOTIFICATION_ACTIVITIES as readonly string[]) {
+    for (const channel of ["email", "inapp"]) {
+      const key = `${activity}_${channel}`;
+      await setNotificationPref(me.accountId, activity, channel, formData.get(key) === "on");
+    }
+  }
+  revalidatePath("/child/notifications");
+  redirect("/child/settings?saved=1");
+}
+
 // ---- KID-47 Round 6: shareable form link (#26) ----
 export async function generateFormShareLinkAction(formData: FormData) {
   // KID-372: authed was the only gate — formId came in raw and minted a

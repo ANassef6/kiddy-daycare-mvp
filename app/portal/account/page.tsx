@@ -17,6 +17,8 @@ const NOTIFICATION_LABELS: Record<string, string> = {
   attendance: "Attendance",
   incidents: "Incidents",
   messages: "Messages",
+  daily_report: "Daily reports",
+  events: "Events",
 };
 
 export default async function PortalAccountPage({ searchParams }: { searchParams: { saved?: string } }) {

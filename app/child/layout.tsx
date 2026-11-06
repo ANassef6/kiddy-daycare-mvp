@@ -2,9 +2,10 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import ChildNavMenu from "@/components/ChildNavMenu";
 import OperatorViewBanner from "@/components/OperatorViewBanner";
+import NotificationBell from "@/components/NotificationBell";
 import { requireSessionWithWithdrawalCheck } from "@/lib/require";
 import { requireTenantForPage } from "@/lib/tenant";
-import { familyAccessForAccount } from "@/lib/store";
+import { familyAccessForAccount, unreadNotificationCount } from "@/lib/store";
 import { ensureSchema } from "@/lib/db";
 import { getBranding } from "@/lib/theme";
 import { i18nForAccount } from "@/lib/i18n-session";
@@ -34,7 +35,7 @@ export default async function ParentLayout({ children }: { children: React.React
   // parent surface is a tenant surface too. KID-472: the post-session reads
   // below are pairwise independent, so they now run as one parallel batch;
   // the unused familiesForAccount() call the layout never consumed is gone.
-  const [{ dict }, branding, access, operatorViewName] = await Promise.all([
+  const [{ dict }, branding, access, operatorViewName, parentUnread] = await Promise.all([
     i18nForAccount(session.accountId),
     // branding failure falls back to neutral Kiddy defaults (unchanged).
     getBranding().catch(() => ({ logoUrl: null as string | null, name: "Kiddy" })),
@@ -45,6 +46,11 @@ export default async function ParentLayout({ children }: { children: React.React
           return "";
         })
       : Promise.resolve(""),
+    // KID-474: the parent bell rides every page so the badge stays live.
+    unreadNotificationCount(session.accountId).catch((err) => {
+      console.error("KID-474 parent bell unread count failed:", err);
+      return 0;
+    }),
   ]);
   const logoUrl: string | null = branding.logoUrl;
   const brandName: string = branding.name;
@@ -58,6 +64,7 @@ export default async function ParentLayout({ children }: { children: React.React
     { href: "/child/forms", label: tr(dict, "nav.surveys") },
     { href: "/child/consents", label: tr(dict, "nav.childrenConsents") },
     { href: "/child/messages", label: tr(dict, "nav.chat") },
+    { href: "/child/notifications", label: tr(dict, "parent.notificationsTitle") },
     { href: "/child/support", label: tr(dict, "nav.support") },
   ];
 
@@ -108,6 +115,14 @@ export default async function ParentLayout({ children }: { children: React.React
           settingsTitle={tr(dict, "topbar.accountSettings")}
           signOutLabel={tr(dict, "nav.signOut")}
           dict={dict}
+          bell={
+            <NotificationBell
+              href="/child/notifications"
+              label={tr(dict, "parent.notificationsTitle")}
+              badgeAriaLabel={tr(dict, "parent.notificationsBadgeAria", { count: parentUnread })}
+              unread={parentUnread}
+            />
+          }
         />
       </header>
       {session.operatorViewInstituteId && (

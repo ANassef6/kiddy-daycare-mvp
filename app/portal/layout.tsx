@@ -2,6 +2,7 @@ import Link from "next/link";
 import PortalSidebar from "@/components/PortalSidebar";
 import PortalAccountMenu from "@/components/PortalAccountMenu";
 import OperatorViewBanner from "@/components/OperatorViewBanner";
+import NotificationBell from "@/components/NotificationBell";
 import { requireSessionWithWithdrawalCheck } from "@/lib/require";
 import { requireTenantForPage } from "@/lib/tenant";
 import { ensureSchema } from "@/lib/db";
@@ -9,6 +10,7 @@ import { getBranding } from "@/lib/theme";
 import { i18nForAccount } from "@/lib/i18n-session";
 import { tr } from "@/lib/i18n";
 import { accountProfile } from "@/lib/auth";
+import { unreadNotificationCount } from "@/lib/store";
 import { instituteNameForOperatorView } from "@/lib/operator-view";
 
 export const dynamic = "force-dynamic";
@@ -33,7 +35,10 @@ export default async function PortalLayout({ children }: { children: React.React
   // has already refused any host other than the session's bound institute.
   // KID-472: these post-session reads are pairwise independent, so they run as
   // one parallel batch instead of four sequential awaits.
-  const [{ locale, dict }, profile, branding, operatorViewName] = await Promise.all([
+  // KID-474: the bell's unread badge counts the durable notification rows
+  // (message recipients get a row from the send path; reads bridge back via
+  // markRead/markThreadRead).
+  const [{ locale, dict }, profile, branding, operatorViewName, staffUnread] = await Promise.all([
     i18nForAccount(session.accountId),
     accountProfile(session.accountId),
     getBranding().catch(() => ({ logoUrl: null as string | null, name: "Kiddy" })),
@@ -43,6 +48,10 @@ export default async function PortalLayout({ children }: { children: React.React
           return "";
         })
       : Promise.resolve(""),
+    unreadNotificationCount(session.accountId).catch((err) => {
+      console.error("KID-474 staff bell unread count failed:", err);
+      return 0;
+    }),
   ]);
   const displayName = profile.fullName || session.email;
   const logoUrl: string | null = branding.logoUrl;
@@ -59,12 +68,14 @@ export default async function PortalLayout({ children }: { children: React.React
               <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
             </svg>
           </Link>
-          <Link href="/portal/notifications" className="portal-topbar-icon" aria-label={tr(dict, "topbar.notifications")} title={tr(dict, "topbar.notifications")}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-              <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
-              <path d="M13.73 21a2 2 0 0 1-3.46 0" />
-            </svg>
-          </Link>
+          <NotificationBell
+            href="/portal/notifications"
+            label={tr(dict, "topbar.notifications")}
+            badgeAriaLabel={tr(dict, "parent.notificationsBadgeAria", {
+              count: staffUnread,
+            })}
+            unread={staffUnread}
+          />
           <PortalAccountMenu
             email={session.email}
             role={session.role}

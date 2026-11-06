@@ -1418,6 +1418,38 @@ export async function upsertDailyReport(data: {
     data.note ?? "",
     data.accountId ?? null
   );
+  // KID-474: a NEW daily report notifies the child's parent audience (the
+  // family accounts linked through family_member) with an unread item; the
+  // stable child+date ref never emits a second row for an update pass.
+  try {
+    const child = await queryGet(
+      "SELECT first_name, last_name, institute_id FROM child WHERE id = ?",
+      data.childId
+    );
+    if (child) {
+      const parents = await queryAll(
+        `SELECT fm.account_id FROM family_member fm
+         JOIN account a ON a.id = fm.account_id
+         WHERE fm.child_id = ? AND a.role = 'parent'`,
+        data.childId
+      );
+      await emitNotifications({
+        instituteId: String(child.institute_id ?? ""),
+        accountIds: parents.map((p) => String(p.account_id)),
+        activity: "daily_report",
+        kind: "daily_report",
+        payload: {
+          childId: String(data.childId),
+          childName: `${child.first_name ?? ""} ${child.last_name ?? ""}`.trim(),
+          reportDate: data.reportDate,
+          body: String(data.summary ?? "").slice(0, 160),
+        },
+        ref: `report-${data.childId}-${data.reportDate}`,
+      });
+    }
+  } catch (err) {
+    console.error(`KID-474 daily report notification emission failed (child=${data.childId}):`, err);
+  }
   return (await queryGet("SELECT * FROM daily_report WHERE id = ?", id))!;
 }
 
@@ -1587,6 +1619,26 @@ export async function sendMessage(data: {
     data.body,
     data.threadId ?? null
   );
+  // KID-474: the durable in-app notification rides the same write — the
+  // recipient (any role) gets a row for their unread badge and center, and
+  // message rows never duplicate thanks to the stable per-message ref.
+  try {
+    const sender = await queryGet("SELECT full_name FROM account WHERE id = ?", data.senderAccountId);
+    await emitNotifications({
+      instituteId: data.instituteId,
+      accountIds: [data.recipientAccountId],
+      activity: "messages",
+      kind: "message",
+      payload: {
+        senderName: String(sender?.full_name ?? ""),
+        body: String(data.body).slice(0, 280),
+        threadId: data.threadId ?? null,
+      },
+      ref: `msg-${id}`,
+    });
+  } catch (err) {
+    console.error(`KID-474 message notification emission failed (message=${id}):`, err);
+  }
   return (await queryGet("SELECT * FROM message WHERE id = ?", id))!;
 }
 
@@ -1608,10 +1660,40 @@ export async function conversation(a: string, b: string): Promise<Row[]> {
 
 export async function markRead(otherAccountId: string, me: string): Promise<void> {
   await queryRun("UPDATE message SET read = 1 WHERE sender_account_id = ? AND recipient_account_id = ?", otherAccountId, me);
+  // KID-474: bridge the durable badge — reading the conversation clears the
+  // matching unread notification rows for that sender's messages.
+  try {
+    await queryRun(
+      `UPDATE notification SET read_at = ?
+       WHERE account_id = ? AND activity = 'messages' AND read_at IS NULL
+         AND ref IN (SELECT 'msg-' || id FROM message
+                     WHERE sender_account_id = ? AND recipient_account_id = ? AND read = 1)`,
+      new Date().toISOString(),
+      me,
+      otherAccountId,
+      me
+    );
+  } catch (err) {
+    console.error("KID-474 badge bridge failed in markRead:", err);
+  }
 }
 
 export async function markThreadRead(threadId: string, me: string): Promise<void> {
   await queryRun("UPDATE message SET read = 1 WHERE thread_id = ? AND recipient_account_id = ?", threadId, me);
+  // KID-474: same badge bridge, scoped to the thread that was read.
+  try {
+    await queryRun(
+      `UPDATE notification SET read_at = ?
+       WHERE account_id = ? AND activity = 'messages' AND read_at IS NULL
+         AND ref IN (SELECT 'msg-' || id FROM message WHERE thread_id = ? AND recipient_account_id = ? AND read = 1)`,
+      new Date().toISOString(),
+      me,
+      threadId,
+      me
+    );
+  } catch (err) {
+    console.error("KID-474 badge bridge failed in markThreadRead:", err);
+  }
 }
 
 // KID-56: unread counts drive badges + row highlighting.
@@ -2839,6 +2921,8 @@ export async function deleteStaffSchedule(id: string): Promise<void> {
 }
 
 // ---- KID-47 Round 6: notification prefs ----
+// KID-474: "daily_report" and "events" join so parents (and staff) can opt
+// in/out per activity; the durable emissions below honor the same rows.
 export const NOTIFICATION_ACTIVITIES = [
   "newsfeed",
   "homework",
@@ -2847,6 +2931,8 @@ export const NOTIFICATION_ACTIVITIES = [
   "attendance",
   "incidents",
   "messages",
+  "daily_report",
+  "events",
 ] as const;
 
 export async function getNotificationPrefs(accountId: string): Promise<Row[]> {
@@ -2879,6 +2965,142 @@ export async function setNotificationPref(
     activity,
     channel
   );
+}
+
+// ---- KID-474: durable notifications with per-account read state ----
+// Design choice (documented in supabase/migrations/0031 and the issue): the
+// parent notification center needs read state, badges and mark-all-read,
+// which a derived feed cannot express per account, so rows land in the
+// `notification` table (0031) honoring the account's notification_pref for
+// the activity (channel 'inapp'; no row defaults to enabled, the same
+// convention the prefs pages use). The KID-221 staff derived feed keeps its
+// provenance slices; read state lives here only.
+export const PARENT_NOTIFICATION_ACTIVITIES = [
+  "messages",
+  "daily_report",
+  "newsfeed",
+  "events",
+  "attendance",
+  "incidents",
+  "billing",
+] as const;
+
+/** Locale-independent event payload — the view copies per account locale. */
+export type NotificationPayload = Record<string, unknown>;
+
+/** Best-effort fan-out: skips delivery when the account disabled the
+ *  activity's in-app pref, dedupes on (account_id, ref), and never lets a
+ *  notification failure break the underlying write (failures are logged,
+ *  not swallowed silently). */
+export async function emitNotifications(data: {
+  instituteId: string;
+  accountIds: string[];
+  activity: string;
+  kind: string;
+  payload: NotificationPayload;
+  ref: string;
+  createdAt?: string;
+}): Promise<number> {
+  const accountIds = [...new Set(data.accountIds.map(String))];
+  if (accountIds.length === 0) return 0;
+  let emitted = 0;
+  try {
+    const placeholders = accountIds.map(() => "?").join(", ");
+    const prefRows = await queryAll(
+      `SELECT account_id, enabled FROM notification_pref
+       WHERE activity = ? AND channel = 'inapp' AND account_id IN (${placeholders})`,
+      data.activity,
+      ...accountIds
+    );
+    const disabled = new Set(
+      prefRows.filter((r) => Number(r.enabled) === 0).map((r) => String(r.account_id))
+    );
+    // A plain ISO timestamp keeps the insert portable across SQLite (no
+    // now()) and Postgres (TIMESTAMPTZ accepts it), and ISO strings still
+    // sort chronologically as TEXT in SQLite.
+    const createdAt = data.createdAt ?? new Date().toISOString();
+    for (const accountId of accountIds) {
+      if (disabled.has(accountId)) continue;
+      try {
+        await queryRun(
+          `INSERT INTO notification (id, institute_id, account_id, activity, kind, payload, ref, created_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT DO NOTHING`,
+          uid(),
+          data.instituteId,
+          accountId,
+          data.activity,
+          data.kind,
+          JSON.stringify(data.payload),
+          data.ref,
+          createdAt
+        );
+        emitted += 1;
+      } catch (err) {
+        console.error(`KID-474 notification emission failed (ref=${data.ref}, account=${accountId}):`, err);
+      }
+    }
+  } catch (err) {
+    console.error(`KID-474 notification pref gate failed (ref=${data.ref}):`, err);
+  }
+  return emitted;
+}
+
+export async function listNotificationsFor(accountId: string, limit = 50): Promise<Row[]> {
+  return queryAll(
+    `SELECT * FROM notification WHERE account_id = ?
+     ORDER BY created_at DESC, id DESC LIMIT ?`,
+    accountId,
+    limit
+  );
+}
+
+export async function unreadNotificationCount(accountId: string): Promise<number> {
+  const row = await queryGet(
+    `SELECT COUNT(*) c FROM notification WHERE account_id = ? AND read_at IS NULL`,
+    accountId
+  );
+  return Number(row?.c ?? 0);
+}
+
+export async function markAllNotificationsRead(accountId: string): Promise<void> {
+  await queryRun(
+    `UPDATE notification SET read_at = ?
+     WHERE account_id = ? AND read_at IS NULL`,
+    new Date().toISOString(),
+    accountId
+  );
+}
+
+export async function markNotificationRead(accountId: string, id: string): Promise<void> {
+  await queryRun(
+    `UPDATE notification SET read_at = ?
+     WHERE account_id = ? AND id = ? AND read_at IS NULL`,
+    new Date().toISOString(),
+    accountId,
+    id
+  );
+}
+
+/** View-time copy: the row stores raw names/snippets; the locale-correct
+ *  strings come from the account dictionary at render time. */
+export function notificationViewCopy(
+  kind: string,
+  payload: NotificationPayload,
+  copy: FeedCopy
+): { title: string; body: string; meta?: string } {
+  const senderName = String(payload.senderName ?? "");
+  const childName = String(payload.childName ?? "");
+  const body = String(payload.body ?? "");
+  if (kind === "message") {
+    return { title: copy.messageTitle(senderName), body };
+  }
+  if (kind === "daily_report") {
+    const date = String(payload.reportDate ?? "");
+    const summary = body ? copy.reportBody(body) : "";
+    const meta = copy.reportMeta(date);
+    return { title: copy.reportTitle(childName), body: summary, meta };
+  }
+  return { title: String(payload.title ?? ""), body };
 }
 
 // ---- KID-107: unified recent-activity feed for the notification bell ----
@@ -3003,11 +3225,12 @@ export async function recentActivityFeed(
   since.setDate(since.getDate() - 7);
   const sinceIso = since.toISOString();
 
-  const [newsfeed, homework, supplies, billing, attendance, incidents] = await Promise.all([
-    listNewsfeed(instituteId, accountId),
-    listHomework(instituteId, accountId),
-    listSupplies(instituteId),
-    queryAll(
+  const [newsfeed, homework, supplies, billing, attendance, incidents, staffMessages, staffReports] = await Promise.all(
+    [
+      listNewsfeed(instituteId, accountId),
+      listHomework(instituteId, accountId),
+      listSupplies(instituteId),
+      queryAll(
       `SELECT cb.id, cb.description, cb.amount_cents, cb.currency, cb.status, cb.created_at,
               c.first_name, c.last_name
        FROM child_billing cb
@@ -3038,6 +3261,34 @@ export async function recentActivityFeed(
        WHERE ir.institute_id = ? ${roomFilter}
        ORDER BY ir.created_at DESC LIMIT ?`,
       instituteId,
+      ...roomArgs,
+      limit
+    ),
+    // KID-474: the two missing staff slices — direct/thread messages TO this
+    // account, and new daily reports inside the room scope the account
+    // already sees elsewhere on the feed. The window compares on the date
+    // prefix: SQLite datetime('now') stamps ("YYYY-MM-DD HH:MM:SS") sort
+    // below ISO stamps (' ' < 'T') for the same instant, so a full-ISO
+    // cutoff would silently drop same-day rows.
+    queryAll(
+      `SELECT m.id, m.body, m.created_at, ac.full_name AS sender_name
+       FROM message m
+       JOIN account ac ON ac.id = m.sender_account_id
+       WHERE m.recipient_account_id = ? AND m.created_at >= ?
+       ORDER BY m.created_at DESC LIMIT ?`,
+      accountId,
+      sinceIso.slice(0, 10),
+      limit
+    ),
+    queryAll(
+      `SELECT dr.id, dr.summary, dr.report_date, dr.created_at,
+              c.id AS child_id, c.first_name, c.last_name
+       FROM daily_report dr
+       JOIN child c ON c.id = dr.child_id
+       WHERE c.institute_id = ? AND dr.created_at >= ? ${roomFilter}
+       ORDER BY dr.created_at DESC LIMIT ?`,
+      instituteId,
+      sinceIso.slice(0, 10),
       ...roomArgs,
       limit
     ),
@@ -3124,6 +3375,33 @@ export async function recentActivityFeed(
       timestamp: String(i.created_at),
       link: "/portal/incidents",
       meta: copy.reportedBy(String(i.reported_by ?? "")),
+    });
+  }
+
+  // KID-474: the two slices the staff feed never emitted — messages and
+  // daily reports. Note the parent audience ALSO gets durable unread rows
+  // for these events (emitNotifications); this derived slice is provenance
+  // only and is viewed with view-time copy, so no duplicate items exist.
+  for (const m of staffMessages.slice(0, limit)) {
+    items.push({
+      id: String(m.id),
+      type: "messages",
+      title: copy.messageTitle(String(m.sender_name ?? "")),
+      body: String(m.body ?? ""),
+      timestamp: String(m.created_at),
+      link: "/portal/messages",
+    });
+  }
+
+  for (const r of staffReports.slice(0, limit)) {
+    items.push({
+      id: String(r.id),
+      type: "daily_report",
+      title: copy.reportTitle(`${r.first_name} ${r.last_name}`),
+      body: String(r.summary ?? ""),
+      timestamp: String(r.created_at),
+      link: `/portal/children/${r.child_id ?? ""}`,
+      meta: copy.reportMeta(String(r.report_date ?? "")),
     });
   }
 
