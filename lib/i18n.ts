@@ -392,6 +392,9 @@ export const en = {
     groupHint:
       "On: every reply stays in this thread for all to see. Off: each recipient gets a private thread.",
     writeMessage: "Write a message…",
+    // KID-475: visible pending state on the composer's send button while the
+    // server action is in flight.
+    sending: "Sending…",
     noMessagesInThread: "No messages yet in this thread.",
     threadWith: "Thread with {name}",
     selectedParent: "(selected parent)",
@@ -1478,6 +1481,7 @@ export const ar = {
     groupHint:
       "عند التفعيل: كل رد يبقى في هذه المحادثة ليراها الجميع. عند الإلغاء: كل مستلم يحصل على محادثة خاصة.",
     writeMessage: "اكتب رسالة…",
+    sending: "جارٍ الإرسال…",
     noMessagesInThread: "لا توجد رسائل في هذه المحادثة بعد.",
     threadWith: "محادثة مع {name}",
     selectedParent: "(ولي أمر محدد)",

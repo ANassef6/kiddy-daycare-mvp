@@ -1,0 +1,292 @@
+{
+ "desktop_en": {
+  "url": "http://localhost:3177/child/messages",
+  "viewport": {
+   "w": 1280,
+   "h": 900
+  },
+  "input": {
+   "x": 355,
+   "y": 479,
+   "w": 377,
+   "h": 36,
+   "display": "block",
+   "pointerEvents": "auto",
+   "readOnly": false,
+   "disabled": false,
+   "appendedTo": null,
+   "pageVisible": true
+  },
+  "select": {
+   "x": 744,
+   "y": 479,
+   "w": 260,
+   "h": 36,
+   "display": "block",
+   "pointerEvents": "auto",
+   "disabled": false,
+   "appendedTo": null,
+   "pageVisible": true
+  },
+  "button": {
+   "x": 276,
+   "y": 479,
+   "w": 67,
+   "h": 36,
+   "display": "flex",
+   "pointerEvents": "auto",
+   "disabled": false,
+   "appendedTo": null,
+   "pageVisible": true
+  },
+  "noStaff": false,
+  "error": null,
+  "hitInput": {
+   "cx": 544,
+   "cy": 497,
+   "what": "INPUT.input",
+   "isInputOrInside": true,
+   "isInsideHit": true
+  },
+  "hitButton": {
+   "cx": 310,
+   "cy": 497,
+   "what": "BUTTON.btn.btn-primary",
+   "isInputOrInside": true,
+   "isInsideHit": true
+  },
+  "chatwootHolder": null
+ },
+ "mobile_en_390": {
+  "url": "http://localhost:3177/child/messages",
+  "viewport": {
+   "w": 390,
+   "h": 844
+  },
+  "input": {
+   "x": 16,
+   "y": 433,
+   "w": 86,
+   "h": 36,
+   "display": "block",
+   "pointerEvents": "auto",
+   "readOnly": false,
+   "disabled": false,
+   "appendedTo": null,
+   "pageVisible": true
+  },
+  "select": {
+   "x": 114,
+   "y": 433,
+   "w": 260,
+   "h": 36,
+   "display": "block",
+   "pointerEvents": "auto",
+   "disabled": false,
+   "appendedTo": null,
+   "pageVisible": true
+  },
+  "button": {
+   "x": 307,
+   "y": 481,
+   "w": 67,
+   "h": 33,
+   "display": "flex",
+   "pointerEvents": "auto",
+   "disabled": false,
+   "appendedTo": null,
+   "pageVisible": true
+  },
+  "noStaff": false,
+  "error": null,
+  "hitInput": {
+   "cx": 59,
+   "cy": 451,
+   "what": "INPUT.input",
+   "isInputOrInside": true,
+   "isInsideHit": true
+  },
+  "hitButton": {
+   "cx": 341,
+   "cy": 498,
+   "what": "BUTTON.btn.btn-primary",
+   "isInputOrInside": true,
+   "isInsideHit": true
+  },
+  "chatwootHolder": null
+ },
+ "mobile_en_320": {
+  "url": "http://localhost:3177/child/messages",
+  "viewport": {
+   "w": 320,
+   "h": 568
+  },
+  "input": {
+   "x": 95,
+   "y": 481,
+   "w": 209,
+   "h": 34,
+   "display": "block",
+   "pointerEvents": "auto",
+   "readOnly": false,
+   "disabled": false,
+   "appendedTo": null,
+   "pageVisible": true
+  },
+  "select": {
+   "x": 44,
+   "y": 433,
+   "w": 260,
+   "h": 36,
+   "display": "block",
+   "pointerEvents": "auto",
+   "disabled": false,
+   "appendedTo": null,
+   "pageVisible": true
+  },
+  "button": {
+   "x": 16,
+   "y": 481,
+   "w": 67,
+   "h": 34,
+   "display": "flex",
+   "pointerEvents": "auto",
+   "disabled": false,
+   "appendedTo": null,
+   "pageVisible": true
+  },
+  "noStaff": false,
+  "error": null,
+  "hitInput": {
+   "cx": 200,
+   "cy": 498,
+   "what": "INPUT.input",
+   "isInputOrInside": true,
+   "isInsideHit": true
+  },
+  "hitButton": {
+   "cx": 50,
+   "cy": 498,
+   "what": "BUTTON.btn.btn-primary",
+   "isInputOrInside": true,
+   "isInsideHit": true
+  },
+  "chatwootHolder": null
+ },
+ "mobile_ar_390": {
+  "url": "http://localhost:3177/child/messages",
+  "viewport": {
+   "w": 390,
+   "h": 844
+  },
+  "input": {
+   "x": 16,
+   "y": 433,
+   "w": 86,
+   "h": 36,
+   "display": "block",
+   "pointerEvents": "auto",
+   "readOnly": false,
+   "disabled": false,
+   "appendedTo": null,
+   "pageVisible": true
+  },
+  "select": {
+   "x": 114,
+   "y": 433,
+   "w": 260,
+   "h": 36,
+   "display": "block",
+   "pointerEvents": "auto",
+   "disabled": false,
+   "appendedTo": null,
+   "pageVisible": true
+  },
+  "button": {
+   "x": 307,
+   "y": 481,
+   "w": 67,
+   "h": 33,
+   "display": "flex",
+   "pointerEvents": "auto",
+   "disabled": false,
+   "appendedTo": null,
+   "pageVisible": true
+  },
+  "noStaff": false,
+  "error": null,
+  "hitInput": {
+   "cx": 59,
+   "cy": 451,
+   "what": "INPUT.input",
+   "isInputOrInside": true,
+   "isInsideHit": true
+  },
+  "hitButton": {
+   "cx": 341,
+   "cy": 498,
+   "what": "BUTTON.btn.btn-primary",
+   "isInputOrInside": true,
+   "isInsideHit": true
+  },
+  "chatwootHolder": null
+ },
+ "mobile_ar_320": {
+  "url": "http://localhost:3177/child/messages",
+  "viewport": {
+   "w": 320,
+   "h": 568
+  },
+  "input": {
+   "x": 95,
+   "y": 481,
+   "w": 209,
+   "h": 34,
+   "display": "block",
+   "pointerEvents": "auto",
+   "readOnly": false,
+   "disabled": false,
+   "appendedTo": null,
+   "pageVisible": true
+  },
+  "select": {
+   "x": 44,
+   "y": 433,
+   "w": 260,
+   "h": 36,
+   "display": "block",
+   "pointerEvents": "auto",
+   "disabled": false,
+   "appendedTo": null,
+   "pageVisible": true
+  },
+  "button": {
+   "x": 16,
+   "y": 481,
+   "w": 67,
+   "h": 34,
+   "display": "flex",
+   "pointerEvents": "auto",
+   "disabled": false,
+   "appendedTo": null,
+   "pageVisible": true
+  },
+  "noStaff": false,
+  "error": null,
+  "hitInput": {
+   "cx": 200,
+   "cy": 498,
+   "what": "INPUT.input",
+   "isInputOrInside": true,
+   "isInsideHit": true
+  },
+  "hitButton": {
+   "cx": 50,
+   "cy": 498,
+   "what": "BUTTON.btn.btn-primary",
+   "isInputOrInside": true,
+   "isInsideHit": true
+  },
+  "chatwootHolder": null
+ }
+}

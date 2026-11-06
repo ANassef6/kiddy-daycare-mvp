@@ -1,0 +1,16 @@
+{
+ "directBody": "QA parent direct to staff 1793956901074",
+ "directVisibleForParent": true,
+ "staffSeesDirect": true,
+ "staffReply": "QA staff direct reply 1793956904774",
+ "staffReplyVisible": true,
+ "parentSeesStaffReply": true,
+ "threadOpensForParent": true,
+ "threadReply": "QA parent thread reply 1793956911354",
+ "threadReplyVisibleForParent": true,
+ "staffSeesContactReply": true,
+ "staffSeesOpeningNote": true,
+ "staffThreadReply": "QA staff thread reply 1793956915001",
+ "staffThreadReplyVisible": true,
+ "parentSeesStaffThreadReply": true
+}
