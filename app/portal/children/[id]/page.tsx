@@ -14,7 +14,9 @@ import {
   listMedia,
   listConsents,
   isChildInScope,
+  getInstitute,
 } from "@/lib/store";
+import { DEFAULT_CURRENCY, normalizeCurrency } from "@/lib/currency";
 import {
   saveDailyReportAction,
   updateChildDetailsAction,
@@ -90,6 +92,10 @@ export default async function PortalChildPage({
     ]);
   const meal = safeJson(report?.meal);
   const branding = await getBranding();
+  // KID-489 item 1 (KID-490): the invoice tab's display fallback follows the
+  // center's default currency; each invoice row keeps its stored currency.
+  const center = iid ? await getInstitute(iid) : undefined;
+  const centerCurrency = normalizeCurrency(center?.default_currency, DEFAULT_CURRENCY);
   // KID-113: batched unactivated-state lookup for every contact email (one
   // query, no N+1) so the family tab can show "Resend activation" next to
   // the role for pending accounts only.
@@ -165,7 +171,7 @@ export default async function PortalChildPage({
     {
       id: "invoices",
       label: t("profile.invoices"),
-      node: invoicesTab(child, billing, dict),
+      node: invoicesTab(child, billing, dict, centerCurrency),
     },
     {
       id: "learning",
@@ -616,7 +622,7 @@ function schedulesTab(child: any, dict: any) {
   );
 }
 
-function invoicesTab(child: any, billing: any[], dict: any) {
+function invoicesTab(child: any, billing: any[], dict: any, centerCurrency: string) {
   const t = (key: string, vars?: Record<string, string | number>) => tr(dict, key, vars);
   const totals = billing.reduce((acc: any, b: any) => acc + Number(b.amount ?? 0), 0);
   const overdue = billing.filter((b: any) => b.status === "overdue").length;
@@ -627,14 +633,14 @@ function invoicesTab(child: any, billing: any[], dict: any) {
         <Link href={`/portal/children/${child.id}/billing`} className="btn btn-accent small">{t("profile.manageBilling")}</Link>
       </div>
       <p className="small">
-        {t("profile.invoiceSummary", { count: billing.length, total: `AED ${totals.toFixed(2)}`, overdue })}
+        {t("profile.invoiceSummary", { count: billing.length, total: `${centerCurrency} ${totals.toFixed(2)}`, overdue })}
       </p>
       {billing.length === 0 ? <p className="muted small">{t("profile.noInvoices")}</p> : null}
       {billing.map((b: any) => (
         <div className="list-item small" key={b.id}>
           <div><strong>{b.period ?? t("profile.invoice")}</strong><br /><span className="muted">{b.reference ?? b.id}</span></div>
           <div style={{ textAlign: "right" }}>
-            <strong>AED {Number(b.amount ?? 0).toFixed(2)}</strong><br />
+            <strong>{String(b.currency ?? centerCurrency)} {Number(b.amount ?? 0).toFixed(2)}</strong><br />
             <span className={`badge ${b.status === "paid" || b.status === "approved" ? "badge-green" : b.status === "overdue" ? "badge-red" : "badge-gray"}`}>{cap(b.status ?? "draft")}</span>
           </div>
         </div>

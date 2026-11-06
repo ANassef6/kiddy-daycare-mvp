@@ -16,6 +16,7 @@ import {
   staffIdForAccount,
 } from "@/lib/auth";
 import { queryGet, queryRun, queryAll, ensureSchema, isForeignKeyViolation } from "@/lib/db";
+import { normalizeCurrency } from "@/lib/currency";
 import { configuredReportDate } from "@/lib/report-dates";
 import {
   isAccountAccessWithdrawn,
@@ -2042,6 +2043,13 @@ export async function saveCenterDetailsAction(formData: FormData) {
     if (name) patch.name = name;
     patch.contact = contact || null;
     patch.address = address || null;
+    // KID-489 item 1 (KID-490): the center's default currency. Only written
+    // when the field is present so callers that predate it keep their shape;
+    // the value is normalized against the central list (invalid → platform
+    // default) so the stored column always holds a supported code.
+    if (formData.get("defaultCurrency") !== null) {
+      patch.default_currency = normalizeCurrency(formData.get("defaultCurrency"));
+    }
     await updateInstitute(String(instituteId), patch);
     // KID-477: center details changes are attributed.
     await recordAuditEvent({
@@ -2051,6 +2059,7 @@ export async function saveCenterDetailsAction(formData: FormData) {
       entityType: "institute_settings",
       entityId: instituteId,
       summary: name ? `Updated the center profile (${name})` : "Updated the center profile",
+      metadata: patch.default_currency ? { defaultCurrency: String(patch.default_currency) } : undefined,
     });
   }
   redirect("/portal/settings");
@@ -2924,12 +2933,16 @@ export async function addChildBillingAction(formData: FormData) {
   const childId = String(formData.get("childId") ?? "");
   if (!instituteId || !childId) redirect("/portal/children");
   await assertChildInScope(childId, me);
+  // KID-489 item 1 (KID-490): a missing/blank currency choice falls back to
+  // the center's default currency (seeded EGP), never the old hardcoded CAD.
+  const center = instituteId ? await getInstitute(instituteId) : undefined;
+  const centerCurrency = normalizeCurrency(center?.default_currency);
   const billing = await createChildBilling({
     childId,
     instituteId,
     description: String(formData.get("description") ?? ""),
     amountCents: Math.round(Number(formData.get("amountCents") ?? 0)),
-    currency: String(formData.get("currency") ?? "CAD"),
+    currency: normalizeCurrency(formData.get("currency"), centerCurrency),
     period: String(formData.get("period") ?? "") || undefined,
     dueDate: String(formData.get("dueDate") ?? "") || undefined,
     status: String(formData.get("status") ?? "pending"),

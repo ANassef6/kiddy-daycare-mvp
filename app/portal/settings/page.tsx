@@ -5,6 +5,7 @@ import { isAdminRole } from "@/lib/role";
 import {getInstitute, getWorkingHours } from "@/lib/store";
 import { saveBrandingAction, saveCenterDetailsAction, uploadBrandingImageAction } from "@/lib/actions";
 import { brandingFromInstitute } from "@/lib/theme";
+import { DEFAULT_CURRENCY, SUPPORTED_CURRENCIES } from "@/lib/currency";
 import Avatar from "@/components/Avatar";
 import LanguageSettingsCard from "@/components/LanguageSettingsCard";
 import { i18nForAccount } from "@/lib/i18n-session";
@@ -67,6 +68,16 @@ export default async function PortalSettingsPage() {
         <div className="row">
           <div className="col field"><label className="label">{tr(dict, "settings.centerName")}</label><input className="input" name="name" defaultValue={institute?.name ?? ""} placeholder={tr(dict, "settings.centerNamePlaceholder")} /></div>
           <div className="col field"><label className="label">{tr(dict, "settings.contact")}</label><input className="input" name="contact" defaultValue={String(institute?.contact ?? "")} placeholder={tr(dict, "settings.contactPlaceholder")} /></div>
+        </div>
+        <div className="row">
+          {/* KID-489 item 1 (KID-490): the center's default currency — new
+              child invoices and finance display fallbacks follow this. */}
+          <div className="col field">
+            <label className="label">{tr(dict, "settings.defaultCurrency")}</label>
+            <select className="select" name="defaultCurrency" defaultValue={String(institute?.default_currency ?? DEFAULT_CURRENCY)}>
+              {SUPPORTED_CURRENCIES.map((c) => <option key={c} value={c}>{c}</option>)}
+            </select>
+          </div>
         </div>
         <div className="field"><label className="label">{tr(dict, "settings.address")}</label><input className="input" name="address" defaultValue={String(institute?.address ?? "")} placeholder={tr(dict, "settings.addressPlaceholder")} /></div>
         <button className="btn btn-primary" type="submit">{tr(dict, "settings.saveCenterDetails")}</button>

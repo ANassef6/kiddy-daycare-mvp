@@ -2,8 +2,9 @@ import Link from "next/link";
 import { resolveTenantInstituteId } from "@/lib/tenant";
 import { notFound } from "next/navigation";
 import { requireSession } from "@/lib/require";
-import { getChild,listChildBilling, isChildInScope } from "@/lib/store";
+import { getChild,listChildBilling, isChildInScope, getInstitute } from "@/lib/store";
 import { addChildBillingAction, updateBillingStatusAction } from "@/lib/actions";
+import { DEFAULT_CURRENCY, SUPPORTED_CURRENCIES, normalizeCurrency } from "@/lib/currency";
 import { i18nForAccount } from "@/lib/i18n-session";
 import Attribution from "@/components/Attribution";
 
@@ -20,6 +21,10 @@ export default async function ChildBillingPage({ params }: { params: { id: strin
   const session = requireSession();
   const billingLocale = (await i18nForAccount(session.accountId)).locale;
   const iid = await resolveTenantInstituteId();
+  // KID-489 item 1 (KID-490): the center's default currency seeds the form's
+  // currency select and the display fallbacks below.
+  const center = iid ? await getInstitute(iid) : undefined;
+  const centerCurrency = normalizeCurrency(center?.default_currency, DEFAULT_CURRENCY);
   const child = await getChild(params.id);
   if (!child) notFound();
   // KID-103: direct URLs to out-of-scope children are hidden.
@@ -45,7 +50,7 @@ export default async function ChildBillingPage({ params }: { params: { id: strin
           <div>
             <div className="label">Outstanding balance</div>
             <div style={{ fontSize: 28, fontWeight: 800, color: totalPending > 0 ? "#b91c1c" : "#047857" }}>
-              {money(totalPending, bills[0]?.currency ?? "CAD")}
+              {money(totalPending, bills[0]?.currency ?? centerCurrency)}
             </div>
           </div>
           <span className={totalPending > 0 ? "badge badge-red" : "badge badge-green"}>
@@ -60,7 +65,7 @@ export default async function ChildBillingPage({ params }: { params: { id: strin
           <input type="hidden" name="childId" value={child.id as string} />
           <div className="row">
             <div className="col field"><label className="label">Description</label><input className="input" name="description" required placeholder="e.g. January fees" /></div>
-            <div className="col field"><label className="label">Amount (CAD)</label><input className="input" name="amountCents" type="number" step="0.01" min="0" required placeholder="0.00" /></div>
+            <div className="col field"><label className="label">Amount</label><input className="input" name="amountCents" type="number" step="0.01" min="0" required placeholder="0.00" /></div>
           </div>
           <div className="row">
             <div className="col field">
@@ -73,7 +78,9 @@ export default async function ChildBillingPage({ params }: { params: { id: strin
             </div>
             <div className="col field">
               <label className="label">Currency</label>
-              <select className="select" name="currency"><option>CAD</option><option>USD</option></select>
+              <select className="select" name="currency" defaultValue={centerCurrency}>
+                {SUPPORTED_CURRENCIES.map((c) => <option key={c} value={c}>{c}</option>)}
+              </select>
             </div>
           </div>
           <div className="row">

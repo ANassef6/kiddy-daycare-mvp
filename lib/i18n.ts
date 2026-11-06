@@ -517,6 +517,9 @@ export const en = {
     centerName: "Center name",
     contact: "Contact",
     address: "Address",
+    // KID-489 item 1 (KID-490): the center-level default currency, used for
+    // new child invoices and finance display fallbacks.
+    defaultCurrency: "Default currency",
     saveCenterDetails: "Save center details",
     primary: "Primary {color}",
     accent: "Accent {color}",
@@ -1635,6 +1638,8 @@ export const ar = {
     centerName: "اسم المركز",
     contact: "جهة الاتصال",
     address: "العنوان",
+    // KID-489 item 1 (KID-490): العملة الافتراضية للمركز.
+    defaultCurrency: "العملة الافتراضية",
     saveCenterDetails: "حفظ بيانات المركز",
     primary: "الأساسي {color}",
     accent: "المميز {color}",
