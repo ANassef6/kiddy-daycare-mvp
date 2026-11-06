@@ -37,3 +37,20 @@ UPDATE auth.identities
 -- 4) Verify: exactly one account row on each side, no stale row.
 SELECT id, email, full_name FROM public.account
  WHERE lower(email) IN ('admin@sunshinedaycare.test', 'trois4ever+admin@gmail.com');
+
+ ---------------------------------------------------------------------------
+ -- 5) Optional: re-point QA-fixture authorship back, if the board wants the
+ --    historical "Created by" attribution restored on the Sunshine QA rows.
+ --    The 2026-11-06 application cleared ownership references row-by-row
+ --    over REST (restricting FKs cannot be swapped in a single UPDATE from
+ --    the app side). Proven rows re-attached at application time:
+ --      - daily_report id = '<SEED_ELLA_REPORT_ID>'  (seed fixture,
+ --        lib/seed.ts:211-227) -> created_by_account_id = '<WAS_ACCOUNT_ID>'
+ --      - audit_event rows where actor_name = 'Maria Lopez'
+ --      - newsfeed_comment id = '<QA_COMMENT_ID>' (re-inserted with body)
+ --    The remaining unproven rows are disclosed in README.md ("disclosed
+ --    losses"); the audit trail (KID-477) has no evidence that the admin
+ --    authored them, so re-pointing them would be guesswork and is left
+ --    to the board's QA re-run.
+ ---------------------------------------------------------------------------
+
