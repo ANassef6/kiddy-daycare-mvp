@@ -32,7 +32,19 @@
 ## Test evidence (local)
 
 - `tests/unit/kid472-sunshine-admin-account.test.ts`: 9/9 pass
-- Full suite, tsc, lint, build: recorded below when this branch handed off.
+- Full suite: green (72 test files, one stale recipient expectation in
+  `kid169-parent-messaging-recipients.test.ts` updated to the seeded
+  `Nassef` identity).
+- `npx tsc --noEmit`: clean. `npm run lint`: clean (pre-existing `<img>`
+  warnings only). `npm run build`: clean.
+
+## Merge + deployment
+
+- PR #19 merged to master: merge commit `44ab35c966531d44ff3f3a5236b114a7031288d4`
+  (`Merge pull request #19 from ANassef6/kid472-sunshine-admin-account`).
+- Production deployment of that merge: GitHub deployment `7605526513`
+  (2026-11-06T16:44:04Z), status `success`, URL
+  https://kiddy-4ml9vkp6b-kiddy2.vercel.app (master auto-deploys on Vercel).
 
 ## Production run — how it will happen
 
