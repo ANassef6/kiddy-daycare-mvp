@@ -45,6 +45,11 @@
 - Production deployment of that merge: GitHub deployment `7605526513`
   (2026-11-06T16:44:04Z), status `success`, URL
   https://kiddy-4ml9vkp6b-kiddy2.vercel.app (master auto-deploys on Vercel).
+- **2026-11-06 evidence follow-up:** PR #21 merged (`65268411073709e55434f052eb3aaffa7ee66222`),
+  production deployment `7606523242` (sha `ef9da51`, 2026-11-06T17:29:51Z)
+  status `success`. Post-deploy re-verification on the fresh build:
+  `/api/mobile/login` new credentials → **200** (`Nassef`, owner),
+  retired email → **401** — unchanged pass states after redeploy.
 
 ## Production run — how it will happen
 
