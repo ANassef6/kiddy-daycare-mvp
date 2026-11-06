@@ -1,0 +1,267 @@
+{
+ "320-en": {
+  "composer": {
+   "input": {
+    "x": 16,
+    "y": 814,
+    "w": 288,
+    "h": 44
+   },
+   "button": {
+    "x": 16,
+    "y": 870,
+    "w": 288,
+    "h": 44
+   },
+   "select": {
+    "x": 16,
+    "y": 758,
+    "w": 288,
+    "h": 44
+   },
+   "hitInputCenter": {
+    "what": "DIV.small",
+    "own": false
+   },
+   "hitInputRight": {
+    "what": "DIV.",
+    "own": false
+   },
+   "hitInputBottom": {
+    "what": "DIV.",
+    "own": false
+   },
+   "hitButtonCenter": {
+    "what": "DIV.small",
+    "own": false
+   },
+   "hitButtonCorner": {
+    "what": "DIV.card",
+    "own": false
+   },
+   "typed": true
+  },
+  "bubble_on_messages": {
+   "flag": null,
+   "holderWithoutBubble": true,
+   "bubbleHolderHidden": false
+  },
+  "bubble_on_newsfeed": {
+   "flag": null,
+   "holderWithoutBubble": false,
+   "bubbleHolderHidden": false
+  }
+ },
+ "360-ar": {
+  "composer": {
+   "input": {
+    "x": 16,
+    "y": 814,
+    "w": 328,
+    "h": 44
+   },
+   "button": {
+    "x": 16,
+    "y": 870,
+    "w": 328,
+    "h": 44
+   },
+   "select": {
+    "x": 16,
+    "y": 758,
+    "w": 328,
+    "h": 44
+   },
+   "hitInputCenter": {
+    "what": "SELECT.input",
+    "own": false
+   },
+   "hitInputRight": {
+    "what": "SELECT.input",
+    "own": false
+   },
+   "hitInputBottom": {
+    "what": "SELECT.input",
+    "own": false
+   },
+   "hitButtonCenter": {
+    "what": "SELECT.input",
+    "own": false
+   },
+   "hitButtonCorner": {
+    "what": "SELECT.input",
+    "own": false
+   },
+   "typed": true
+  },
+  "bubble_on_messages": {
+   "flag": null,
+   "holderWithoutBubble": true,
+   "bubbleHolderHidden": false
+  },
+  "bubble_on_newsfeed": {
+   "flag": null,
+   "holderWithoutBubble": false,
+   "bubbleHolderHidden": false
+  }
+ },
+ "390-ar": {
+  "composer": {
+   "input": {
+    "x": 16,
+    "y": 814,
+    "w": 358,
+    "h": 44
+   },
+   "button": {
+    "x": 16,
+    "y": 870,
+    "w": 358,
+    "h": 44
+   },
+   "select": {
+    "x": 16,
+    "y": 758,
+    "w": 358,
+    "h": 44
+   },
+   "hitInputCenter": {
+    "what": "INPUT.input",
+    "own": true
+   },
+   "hitInputRight": {
+    "what": "INPUT.input",
+    "own": true
+   },
+   "hitInputBottom": {
+    "what": "INPUT.input",
+    "own": true
+   },
+   "hitButtonCenter": {
+    "what": "INPUT.input",
+    "own": false
+   },
+   "hitButtonCorner": {
+    "what": "INPUT.input",
+    "own": false
+   },
+   "typed": true
+  },
+  "bubble_on_messages": {
+   "flag": null,
+   "holderWithoutBubble": true,
+   "bubbleHolderHidden": false
+  },
+  "bubble_on_newsfeed": {
+   "flag": null,
+   "holderWithoutBubble": false,
+   "bubbleHolderHidden": false
+  }
+ },
+ "430-ar": {
+  "composer": {
+   "input": {
+    "x": 16,
+    "y": 814,
+    "w": 398,
+    "h": 44
+   },
+   "button": {
+    "x": 16,
+    "y": 870,
+    "w": 398,
+    "h": 44
+   },
+   "select": {
+    "x": 16,
+    "y": 758,
+    "w": 398,
+    "h": 44
+   },
+   "hitInputCenter": {
+    "what": "INPUT.input",
+    "own": true
+   },
+   "hitInputRight": {
+    "what": "INPUT.input",
+    "own": true
+   },
+   "hitInputBottom": {
+    "what": "INPUT.input",
+    "own": true
+   },
+   "hitButtonCenter": {
+    "what": "BUTTON.btn",
+    "own": true
+   },
+   "hitButtonCorner": {
+    "what": "BUTTON.btn",
+    "own": true
+   },
+   "typed": true
+  },
+  "bubble_on_messages": {
+   "flag": null,
+   "holderWithoutBubble": true,
+   "bubbleHolderHidden": false
+  },
+  "bubble_on_newsfeed": {
+   "flag": null,
+   "holderWithoutBubble": false,
+   "bubbleHolderHidden": false
+  }
+ },
+ "1280-en": {
+  "composer": {
+   "input": {
+    "x": 355,
+    "y": 803,
+    "w": 319,
+    "h": 36
+   },
+   "button": {
+    "x": 276,
+    "y": 803,
+    "w": 67,
+    "h": 36
+   },
+   "select": {
+    "x": 686,
+    "y": 803,
+    "w": 319,
+    "h": 36
+   },
+   "hitInputCenter": {
+    "what": "INPUT.input",
+    "own": true
+   },
+   "hitInputRight": {
+    "what": "INPUT.input",
+    "own": true
+   },
+   "hitInputBottom": {
+    "what": "INPUT.input",
+    "own": true
+   },
+   "hitButtonCenter": {
+    "what": "BUTTON.btn",
+    "own": true
+   },
+   "hitButtonCorner": {
+    "what": "BUTTON.btn",
+    "own": true
+   },
+   "typed": true
+  },
+  "bubble_on_messages": {
+   "flag": null,
+   "holderWithoutBubble": true,
+   "bubbleHolderHidden": false
+  },
+  "bubble_on_newsfeed": {
+   "flag": null,
+   "holderWithoutBubble": false,
+   "bubbleHolderHidden": false
+  }
+ }
+}

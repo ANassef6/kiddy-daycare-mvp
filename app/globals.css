@@ -1233,6 +1233,52 @@ html[dir="rtl"] .audience-list li::before {
   right: 0;
 }
 
+/* ==========================================================================
+   KID-475 — parent/staff messaging composer
+   ========================================================================== */
+
+/* KID-475 OBS-002: at phone widths the composer's `.row` wrapped its three
+   flex items into two cramped lines — the message input measured 86px wide at
+   390px and 56px at 360px (a sliver beside a full-width recipient select,
+   which read as "the textbox is not editable"). Below the 720px breakpoint
+   the recipient select and the message input each take a full line and the
+   send button becomes a full-width 44px hit target, matching the KID-369
+   tap-area guidance. Logical flex properties keep this symmetrical in RTL
+   (verified EN + AR at 320/360/390/430). */
+.messages-composer .select {
+  max-width: 260px;
+}
+
+.messages-composer .input {
+  flex: 1;
+}
+
+@media (max-width: 720px) {
+  .messages-composer .select,
+  .messages-composer .input,
+  .messages-composer .btn {
+    flex: 1 1 100%;
+    max-width: none;
+  }
+
+  .messages-composer .select,
+  .messages-composer .input {
+    min-height: 44px;
+  }
+
+  .messages-composer .btn {
+    min-height: 44px;
+  }
+}
+
+/* KID-475 OBS-001: the Chatwoot launcher bubble is a fixed bottom-right
+   overlay that floats over every scroll position; on the messaging surfaces
+   it covers exactly the composer's interactive corner (at 320x568 taps inside
+   the message input's lower half returned the bubble from elementFromPoint).
+   ChatwootWidget hides the launcher on the two chat routes (the pure rule
+   lives in chatwootBubbleShouldHide()); the chat itself stays available from
+   every other page. */
+
 /* KID-260: in-app Help Center (knowledge base list + article detail). */
 .help-center {
   border: 1px solid var(--color-border);

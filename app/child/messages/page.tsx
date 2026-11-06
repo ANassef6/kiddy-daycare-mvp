@@ -13,6 +13,7 @@ import { parentMessageRecipients, pickRecipient, sumVisibleUnread } from "@/lib/
 import { getAccount } from "@/lib/auth";
 import { firstInstituteId, fmtTime } from "@/lib/helpers";
 import { sendParentMessageAction } from "@/lib/actions";
+import MessageComposerForm from "@/components/MessageComposerForm";
 import { i18nForAccount } from "@/lib/i18n-session";
 import { tr } from "@/lib/i18n";
 
@@ -182,20 +183,14 @@ export default async function ParentMessagesPage({
               there is no reply target — say so instead of rendering a form that
               can only fail. */}
           {center ? (
-            <form action={sendParentMessageAction} className="row mt-3">
-              <input type="hidden" name="threadId" value={threadId} />
-              <input type="hidden" name="recipientId" value={String(center.id)} />
-              <input
-                className="input"
-                name="body"
-                placeholder={t("messages.writeMessage")}
-                required
-                style={{ flex: 1 }}
-              />
-              <button className="btn btn-primary" type="submit">
-                {t("common.send")}
-              </button>
-            </form>
+            <MessageComposerForm
+              action={sendParentMessageAction}
+              sendLabel={t("common.send")}
+              sendingLabel={t("messages.sending")}
+              placeholder={t("messages.writeMessage")}
+              hiddenRecipientId={String(center.id)}
+              threadId={threadId}
+            />
           ) : (
             <p className="muted small mt-3" data-testid="messages-no-staff">
               {t("messages.noClassroomStaff")}
@@ -242,25 +237,17 @@ export default async function ParentMessagesPage({
             ))}
           </div>
           {center ? (
-            <form action={sendParentMessageAction} className="row">
-              <select className="input" name="recipientId" defaultValue={String(center.id)} style={{ maxWidth: 260 }}>
-                {recipients.map((r: any) => (
-                  <option key={String(r.id)} value={String(r.id)}>
-                    {String(r.full_name ?? "?")}
-                  </option>
-                ))}
-              </select>
-              <input
-                className="input"
-                name="body"
-                placeholder={t("messages.writeMessage")}
-                required
-                style={{ flex: 1 }}
-              />
-              <button className="btn btn-primary" type="submit">
-                {t("common.send")}
-              </button>
-            </form>
+            <MessageComposerForm
+              action={sendParentMessageAction}
+              sendLabel={t("common.send")}
+              sendingLabel={t("messages.sending")}
+              placeholder={t("messages.writeMessage")}
+              recipientOptions={recipients.map((r: any) => ({
+                id: String(r.id),
+                label: String(r.full_name ?? "?"),
+              }))}
+              defaultRecipientId={String(center.id)}
+            />
           ) : (
             <p className="muted" data-testid="messages-no-staff">
               {t("messages.noClassroomStaff")}
