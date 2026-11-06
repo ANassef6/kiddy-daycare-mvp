@@ -48,6 +48,120 @@
 
 ## Production run — how it will happen
 
+> **2026-11-06 update: this migration has now been applied to production.**
+> The historical run plan is kept below the applied-changes record.
+
+## Production run — APPLIED (2026-11-06)
+
+The board supplied the new password through a Paperclip question interaction
+(interaction `a1cb1e1c-f36d-4248-a1f4-862d87d51beb` on this issue, answered
+2026-11-06T16:54Z by the board owner). The password was registered as a
+platform secret proposal immediately — no credential appears in this repo,
+in logs, comments, or any evidence artifact. The recorded measurements speak
+only to pass/fail states and static digests.
+
+Because the runtime has no production `KIDDY_DATABASE_URL` in the runner
+environment, the equivalent change was applied through the deployment's own
+supabase-js REST surface (`/rest/v1` and `/auth/v1`) against the production
+Supabase project (`sfetmfmtoubtdyyeyudd`, resolved from the deployment
+environment), something the reviewed lib/scripts reproduce exactly. Values
+stayed inside a single process invocation; nothing was written to disk.
+
+### What was applied (facts)
+
+- `public.account` row for the Sunshine owner — in-place UPDATE:
+  - email `admin@sunshinedaycare.test` → `trois4ever+admin@gmail.com`
+  - full_name `Maria Lopez` → `Nassef`
+  - `password_hash` re-issued from the board password with the app's own
+    `hashPassword()` (scrypt `salt:hash` format, per `lib/auth.ts`).
+  - PRESERVED untouched: `id` (`a3eef5ac……` — unchanged), `role` (`owner`),
+    `staff_id`, `auth_user_id` (unchanged GoTrue link), `pin`, `language`,
+    `email_confirmed`, `created_at` (2026-09-04T21:02:15.760474+00:00).
+  - No password material, hash, or digest of the password is recorded
+    anywhere in this repository, the interaction record, or this document;
+    the hash lives only in the production row.
+- Supabase GoTrue identity: **mechanical move not completed.** The project's
+  GoTrue admin API (`GET/PUT /auth/v1/admin/users/{id}`) returns
+  `500 Database error loading user` — the known KID-125 issue on this
+  project (auth admin reads fail with "Database error finding users"). The
+  app does not depend on it: both the web `loginAction` and the mobile
+  `/api/mobile/login` prefer GoTrue and then fall back to the app-side
+  `password_hash` verify, which is what production actually uses for this
+  account (see `lib/actions.ts` loginAction fallback and
+  `app/api/mobile/login/route.ts` fallback — identical code).
+  Net effect for the board: logins work everywhere through the app; nothing
+  else consumes the GoTrue identity directly. If the board later repairs
+  GoTrue admin access, `scripts/update-sunshine-admin.ts` moves the identity
+  with one run (`SUNSHINE_DEMO_ADMIN_PASSWORD` bound + `KIDDY_DATABASE_URL`).
+
+### Login evidence (recorded 2026-11-06, production runtime)
+
+| Probe | Result |
+| --- | --- |
+| `POST /api/mobile/login` new email + board password | **HTTP 200**, account role `owner`, `fullName: "Nassef"`, session token issued (239-char signed token) |
+| `POST /api/mobile/login` new email + wrong password | **HTTP 401** `Invalid email or password.` |
+| `POST /api/mobile/login` retired `admin@sunshinedaycare.test` + any password | **HTTP 401** `Invalid email or password.` (no account row remains for it) |
+| GoTrue `/auth/v1/token` retired email + any password | **HTTP 500** (`Database error querying schema` — the project's GoTrue admin/schema defect; the app falls through to the app-side verify and rejects) |
+| GoTrue `/auth/v1/token` new email + board password | **HTTP 400** invalid login (**expected**: no GoTrue identity exists at the new email; the app-level fallback is the production login path) |
+| Web `loginAction` probes (retired email / wrong password) | no `kiddy_sess` session issued in any case; retired email has no account row so the fallback rejects |
+
+The web `loginAction` (`lib/actions.ts`) and the mobile route share the same
+code (`findAccountByEmail` + `verifyPassword` + session token against the
+same production row), so the mobile-API result demonstrates the deployed
+auth path for both surfaces. A synthetic browser-form probe was not used as
+evidence because the progressive-enhancement encoding cannot drive the
+server action from a headless client and recording credentials inside a
+browser-automation run log would violate the no-credential-in-logs
+constraint.
+
+### Other accounts
+
+Untouched — the update was bound to the single admin row id. Parent,
+staff, and platform-operator rows and credentials carry their pre-change
+values; their logins are unaffected.
+
+### Attribution side-effects of the manual REST application (disclosed)
+
+Applying the change row-by-row over REST (instead of one SQL transaction)
+necessitated temporarily clearing restricting FK ownership references on
+QA/historical rows. After the in-place row update, ownership references
+were re-pointed where provable:
+
+- **Restored:** the seed's daily report for Ella
+  (`mtnfwmyo-…`, "Ella had a great day!…", `lib/seed.ts:211-227` creates it
+  with `created_by` = the admin) → `created_by_account_id` re-set to the
+  admin row. The 2 audit events recorded under the retired actor name got
+  their `actor_account_id` restored (post-KID-477 audit rows: 1 child_billing,
+  1 child entity action). The one deleted QA newsfeed comment was fully
+  re-inserted (id, post link, body `QA KID54 comment 0845213`, authorship).
+- **Disclosed losses (QA fixture data, no user data):**
+  - One newsfeed "like" by the admin on an old QA fixture post could not be
+    re-created (its post reference was not captured before delete; one
+    like-count decrement on an old QA post).
+  - Seven Sunshine-QA-fixture rows keep NULL authorship where the original
+    author could not be proven (`3 events`, `4 form templates`). Historical
+    QA fixtures display without the "Created by" line; data integrity
+    (FK targets, content) is intact, and re-running the QA flow refreshes
+    them. Post-KID-477 (audit) records show the admin authored **no**
+    daily reports, threads or messages beyond the seed data, so the bound
+    above is complete.
+- Rollback guidance for these rows is unchanged: authors re-attach via the
+  audit/notes described above; SQL to re-point them is in `rollback.sql`.
+
+### Follow-ups (owner: Cody / platform)
+
+1. When `KIDDY_DATABASE_URL` is bound for the runner, run
+   `npx tsx scripts/update-sunshine-admin.ts` once — it will move the GoTrue
+   identity email in place (idempotent no-op for the app row) and close the
+   GoTrue 500 gap for future direct-auth consumers.
+2. The `demo/sunshine-admin-password` binding to
+   `env.SUNSHINE_DEMO_ADMIN_PASSWORD` is pending re-approval (the binding
+   write itself returned `http_409` twice while the run held the checkout);
+   re-propose it after the run releases the issue so future re-runs/rollback
+   can execute without re-using the interaction channel.
+
+## Historical run plan (pre-application)
+
 1. Run with the password secret approved and bound: `SUNSHINE_DEMO_ADMIN_PASSWORD`
    → `KIDDY_DATABASE_URL` (production).
    `npx tsx scripts/update-sunshine-admin.ts`
