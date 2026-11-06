@@ -1,16 +1,17 @@
 import Link from "next/link";
 import { requireSession } from "@/lib/require";
-import { listInstituteBilling } from "@/lib/store";
+import { listInstituteBilling, getInstitute } from "@/lib/store";
 import { firstInstituteId, cap } from "@/lib/helpers";
 import { updateBillingStatusAction } from "@/lib/actions";
+import { DEFAULT_CURRENCY, normalizeCurrency } from "@/lib/currency";
 
 export const dynamic = "force-dynamic";
 
 const TAB_IDS = ["invoices", "payers", "payouts", "payments", "deposits", "schedules", "reports"] as const;
 const STATUS_KEYS = ["paid", "outstanding", "due", "past-due", "cancelled", "partially-paid", "in-process"] as const;
 
-function money(v: unknown, currency?: string | null): string {
-  return `${currency ?? "AED"} ${Number(v ?? 0).toFixed(2)}`;
+function money(v: unknown, currency: string): string {
+  return `${currency} ${Number(v ?? 0).toFixed(2)}`;
 }
 
 function amountValue(b: any): number {
@@ -32,6 +33,10 @@ export default async function PortalFinancePage({
   requireSession();
   const instituteId = await firstInstituteId();
   if (!instituteId) return <p className="muted">No institute configured.</p>;
+  // KID-489 item 1 (KID-490): display fallbacks follow the center's default
+  // currency; each invoice row still shows its own stored currency first.
+  const center = await getInstitute(instituteId);
+  const centerCurrency = normalizeCurrency(center?.default_currency, DEFAULT_CURRENCY);
   const bills = await listInstituteBilling(instituteId);
 
   const tab = (TAB_IDS.find((t) => t === searchParams?.tab) ?? "invoices") as (typeof TAB_IDS)[number];
@@ -97,7 +102,7 @@ export default async function PortalFinancePage({
   return (
     <div>
       <h1 className="title">Finance</h1>
-      <p className="subtitle">Billing, payers, and payouts for the whole center. Amounts shown in AED.</p>
+      <p className="subtitle">Billing, payers, and payouts for the whole center. Amounts shown in {centerCurrency} (each invoice keeps its own stored currency).</p>
 
       <div className="row" style={{ gap: 6, flexWrap: "wrap", marginBottom: 16, borderBottom: "2px solid var(--color-border)" }}>
         {TAB_IDS.map((t) => (
@@ -136,13 +141,13 @@ export default async function PortalFinancePage({
             >
               <div className="muted small">{STATUS_LABEL[k]}{selected ? " ✓" : ""}</div>
               <div style={{ fontSize: 22, fontWeight: 800 }}>{n}</div>
-              <div className="small">{money(totals[k], "AED")}</div>
+              <div className="small">{money(totals[k], centerCurrency)}</div>
             </Link>
           );
         })}
       </div>
       <div className="small muted mt-2">
-        Outstanding balance: <strong>{money(outstandingTotal, "AED")}</strong> · All invoices: <strong>{money(allTotal, "AED")}</strong>. “Due” and “Payment in process” have no live records yet — mapped from pending/approved where applicable.
+        Outstanding balance: <strong>{money(outstandingTotal, centerCurrency)}</strong> · All invoices: <strong>{money(allTotal, centerCurrency)}</strong>. “Due” and “Payment in process” have no live records yet — mapped from pending/approved where applicable.
       </div>
 
       {tab === "invoices" && (
@@ -182,10 +187,10 @@ export default async function PortalFinancePage({
                   <td className="small">{b.due_date ?? "—"}</td>
                   <td className="small">{b.period ?? "—"}</td>
                   <td><span className={`badge ${STATUS_TONE[statusOf(b)]}`}>{STATUS_LABEL[statusOf(b)]}</span></td>
-                  <td className="small">{b.discount ? money(Number(b.discount) / 100, "AED") : "—"}</td>
+                  <td className="small">{b.discount ? money(Number(b.discount) / 100, String(b.currency ?? centerCurrency)) : "—"}</td>
                   <td className="small">—</td>
-                  <td className="small">{money(amountValue(b), "AED")}</td>
-                  <td className="small"><strong>{money(amountValue(b), "AED")}</strong></td>
+                  <td className="small">{money(amountValue(b), String(b.currency ?? centerCurrency))}</td>
+                  <td className="small"><strong>{money(amountValue(b), String(b.currency ?? centerCurrency))}</strong></td>
                   <td className="small">—</td>
                   <td>
                     <form action={updateBillingStatusAction} className="row" style={{ gap: 6, alignItems: "center" }}>
@@ -218,7 +223,7 @@ export default async function PortalFinancePage({
                 <tr key={name}>
                   <td><strong>{name}</strong></td>
                   <td className="small">{bills.filter((b) => (b.payer ?? "") === name && statusOf(b) !== "paid" && statusOf(b) !== "cancelled").length}</td>
-                  <td className="small">{money(total, "AED")}</td>
+                  <td className="small">{money(total, centerCurrency)}</td>
                 </tr>
               ))}
             </tbody>

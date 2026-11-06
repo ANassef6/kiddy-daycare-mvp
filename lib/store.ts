@@ -1,4 +1,5 @@
 import { queryAll, queryGet, queryRun, uid, type Row } from "./db";
+import { normalizeCurrency } from "./currency";
 import { normalizeSubdomainSlug } from "./subdomain";
 import { hasOverdueInvoice, nextMonthStart, type BillingPlan } from "./billing";
 import {
@@ -2778,7 +2779,10 @@ export async function createChildBilling(data: {
     data.instituteId,
     data.description,
     data.amountCents,
-    data.currency ?? "CAD",
+    // KID-489 item 1 (KID-490): a missing currency falls back to the central
+    // platform default (EGP) — callers that resolve the center's own default
+    // pass it explicitly.
+    normalizeCurrency(data.currency),
     data.period ?? null,
     data.dueDate ?? null,
     data.status ?? "pending"

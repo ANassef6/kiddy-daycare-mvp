@@ -95,10 +95,13 @@ function wordsOf(text: string): Set<string> {
 }
 
 // UI-ish proper nouns and tokens that are correct in both locales.
+// (aed/usd/gbp/eur/sar join egp/cad in KID-490: ISO currency codes rendered
+// as <option> text by the central currency list are language-neutral.)
 const NON_DATA_ALLOWED = new Set(
   [
     "inter", "nunito", "poppins", "georgia", "egp", "cad", "pcs", "pdf", "csv", "excel",
     "vikunja", "png", "jpg", "jpeg", "mb", "kbd", "kiddy",
+    "aed", "usd", "gbp", "eur", "sar",
   ]
 );
 

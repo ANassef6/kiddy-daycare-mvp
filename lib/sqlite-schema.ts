@@ -19,6 +19,7 @@ export function sqliteSchema(db: any): void {
     address TEXT,
     active INTEGER NOT NULL DEFAULT 1,
     subdomain TEXT,
+    default_currency TEXT NOT NULL DEFAULT 'EGP',
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
   );
 

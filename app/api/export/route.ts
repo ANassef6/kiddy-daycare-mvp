@@ -1,5 +1,7 @@
 import { requireSession } from "@/lib/require";
 import { firstInstituteId } from "@/lib/helpers";
+import { getInstitute } from "@/lib/store";
+import { DEFAULT_CURRENCY, normalizeCurrency } from "@/lib/currency";
 
 export const dynamic = "force-dynamic";
 
@@ -23,6 +25,10 @@ export async function GET(req: Request) {
   let name = `${type}-export.csv`;
 
   if (type === "billing") {
+    // KID-489 item 1 (KID-490): blank currencies fall back to the center's
+    // default currency instead of a hardcoded AED.
+    const center = instituteId ? await getInstitute(instituteId) : undefined;
+    const centerCurrency = normalizeCurrency(center?.default_currency, DEFAULT_CURRENCY);
     const { listInstituteBilling } = await import("@/lib/store");
     rows = ((await listInstituteBilling(instituteId)) as Record<string, unknown>[]).map((r) => ({
       reference: r.reference ?? r.id,
@@ -31,7 +37,7 @@ export async function GET(req: Request) {
       payer_phone: r.payer_phone ?? "",
       period: r.period ?? "",
       due_date: r.due_date ?? "",
-      currency: r.currency ?? "AED",
+      currency: r.currency ?? centerCurrency,
       status: r.status ?? "draft",
       discount: r.discount ?? "",
       total: r.amount ?? 0,
