@@ -3,6 +3,8 @@ import { redirect } from "next/navigation";
 import ChildNavMenu from "@/components/ChildNavMenu";
 import OperatorViewBanner from "@/components/OperatorViewBanner";
 import NotificationBell from "@/components/NotificationBell";
+import ServiceWorkerRegister from "@/components/ServiceWorkerRegister";
+import NotificationSoundWatcher from "@/components/NotificationSoundWatcher";
 import { requireSessionWithWithdrawalCheck } from "@/lib/require";
 import { requireTenantForPage } from "@/lib/tenant";
 import { familyAccessForAccount, unreadNotificationCount } from "@/lib/store";
@@ -128,6 +130,11 @@ export default async function ParentLayout({ children }: { children: React.React
       {session.operatorViewInstituteId && (
         <OperatorViewBanner instituteName={operatorViewName} dict={dict} />
       )}
+      {/* KID-480: service worker registration + in-app notification sound
+          live on the parent shell so pushes and sounds follow the account
+          across every parent page. */}
+      <ServiceWorkerRegister />
+      <NotificationSoundWatcher />
       {children}
       <footer className="muted small" style={{ padding: "24px 0", borderTop: "1px solid var(--color-border)", marginTop: 40 }}>
         {tr(dict, "topbar.signedInAs", { email: session.email })}

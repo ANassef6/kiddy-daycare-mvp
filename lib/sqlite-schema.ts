@@ -511,6 +511,24 @@ export function sqliteSchema(db: any): void {
   CREATE INDEX IF NOT EXISTS idx_staff_status ON staff_status (staff_id, created_at DESC);
   CREATE INDEX IF NOT EXISTS idx_notification_account_recent ON notification (account_id, created_at DESC);
   CREATE INDEX IF NOT EXISTS idx_notification_unread ON notification (account_id, read_at);
+
+  -- KID-480: web push subscriptions (mirror of
+  -- supabase/migrations/0032_push_subscriptions.sql). One row per browser
+  -- registration; endpoint is UNIQUE so subscribe upserts by it. Per-activity
+  -- delivery gating stays in notification_pref (channel 'push'), and the
+  -- sender lazily deletes stale rows when the push service reports 404/410.
+  CREATE TABLE IF NOT EXISTS push_subscription (
+    id TEXT PRIMARY KEY,
+    account_id TEXT NOT NULL REFERENCES account(id) ON DELETE CASCADE,
+    endpoint TEXT NOT NULL UNIQUE,
+    p256dh TEXT NOT NULL,
+    auth TEXT NOT NULL,
+    user_agent TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_push_subscription_account
+    ON push_subscription (account_id);
   CREATE INDEX IF NOT EXISTS idx_billing_institute ON child_billing (institute_id, due_date);
   CREATE INDEX IF NOT EXISTS idx_form_resp_status ON form_response (form_id, status);
   CREATE INDEX IF NOT EXISTS idx_child_status ON child (institute_id, status);

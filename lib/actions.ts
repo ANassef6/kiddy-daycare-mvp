@@ -3245,7 +3245,9 @@ export async function saveParentNotificationPrefsAction(formData: FormData) {
   await ensureSchema();
   const { setNotificationPref, PARENT_NOTIFICATION_ACTIVITIES } = await import("@/lib/store");
   for (const activity of PARENT_NOTIFICATION_ACTIVITIES as readonly string[]) {
-    for (const channel of ["email", "inapp"]) {
+    // KID-480: the user-visible push checkbox (channel 'push') joins the
+    // per-activity opt-out matrix; emitNotifications gates pushes on it.
+    for (const channel of ["email", "inapp", "push"]) {
       const key = `${activity}_${channel}`;
       await setNotificationPref(me.accountId, activity, channel, formData.get(key) === "on");
     }

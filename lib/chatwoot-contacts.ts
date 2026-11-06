@@ -66,7 +66,8 @@ function uniqueNames(rows: { first_name?: unknown; last_name?: unknown }[]): str
   return [...new Set(names)];
 }
 
-async function institutesForAccount(accountId: string) {
+// KID-480: also reused by the Chatwoot webhook to scope notification rows.
+export async function institutesForAccount(accountId: string) {
   return queryAll(
     `SELECT DISTINCT i.id, i.name
        FROM institute i

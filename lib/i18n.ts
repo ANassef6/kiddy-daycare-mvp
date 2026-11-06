@@ -573,6 +573,8 @@ export const en = {
     activity: "Activity",
     email: "Email",
     inApp: "In-app",
+    // KID-480: push column in the notification preferences table.
+    push: "Push",
     saveNotificationPrefs: "Save preferences",
   },
   notifications: {
@@ -1085,6 +1087,8 @@ export const en = {
     reportedBy: "Reported by {name}",
     messageTitle: "Message from {name}",
     reportTitle: "Daily report: {name}",
+    // KID-480: announcement (newsfeed post) push/notification title.
+    announcementTitle: "New post from {name}",
     reportBody: "{summary}",
     reportMeta: "Report for {date}",
     invoiceBody: "Total {amount} · due {date}",
@@ -1113,6 +1117,22 @@ export const en = {
     notifPrefsTitle: "Notification preferences",
     notifPrefsHint: "Choose which activities notify you in the app.",
     notifPrefsSaved: "Preferences saved.",
+    // KID-480: web push + in-app notification sound.
+    pushTitle: "Push notifications",
+    pushHint: "Get a notification on your phone when a new message, daily report, or announcement arrives — even while the app is closed.",
+    pushEnable: "Enable push notifications",
+    pushDisable: "Turn off",
+    pushEnabled: "Push notifications are on for this device.",
+    pushDenied: "Notifications are blocked for this site. Unblock them in your browser settings, then try again.",
+    pushUnsupported: "This browser or device does not support push notifications. You will still get in-app notifications.",
+    pushNotConfigured: "Push is not set up on this server yet. In-app notifications still work.",
+    pushTestButton: "Send test notification",
+    pushTestSent: "Test notification sent — check this device.",
+    soundLabel: "Play a sound for in-app notifications",
+    soundHint: "Short beep when something new arrives while the app is open. Sounds on background pushes follow your device's notification settings.",
+    chatwootSenderName: "Daycare support",
+    pushTestTitle: "Kiddy",
+    pushTestBody: "Push notifications are working.",
     savePrefs: "Save preferences",
     prefMessages: "Messages",
     prefDailyReport: "Daily reports",
@@ -1691,6 +1711,7 @@ export const ar = {
     activity: "النشاط",
     email: "البريد الإلكتروني",
     inApp: "داخل التطبيق",
+    push: "فوري",
     saveNotificationPrefs: "حفظ التفضيلات",
   },
   notifications: {
@@ -2150,6 +2171,7 @@ export const ar = {
     reportedBy: "بلّغ عنه {name}",
     messageTitle: "رسالة من {name}",
     reportTitle: "تقرير يومي: {name}",
+    announcementTitle: "منشور جديد من {name}",
     reportBody: "{summary}",
     reportMeta: "تقرير يوم {date}",
     invoiceBody: "الإجمالي {amount} · الاستحقاق {date}",
@@ -2178,6 +2200,22 @@ export const ar = {
     notifPrefsTitle: "تفضيلات الإشعارات",
     notifPrefsHint: "اختر الأنشطة التي تريد أن تُعلمك داخل التطبيق.",
     notifPrefsSaved: "تم حفظ التفضيلات.",
+    // KID-480: web push + in-app notification sound.
+    pushTitle: "الإشعارات الفورية",
+    pushHint: "استلم إشعارًا على هاتفك عند وصول رسالة أو تقرير يومي أو إعلان جديد — حتى عندما يكون التطبيق مغلقًا.",
+    pushEnable: "تشغيل الإشعارات الفورية",
+    pushDisable: "إيقاف",
+    pushEnabled: "الإشعارات الفورية مفعّلة لهذا الجهاز.",
+    pushDenied: "الإشعارات محجوبة لهذا الموقع. اسمح بها من إعدادات المتصفح ثم حاول مرة أخرى.",
+    pushUnsupported: "هذا المتصفح أو الجهاز لا يدعم الإشعارات الفورية. ستستمر الإشعارات داخل التطبيق كالمعتاد.",
+    pushNotConfigured: "الإشعارات الفورية غير مهيأة على هذا الخادم بعد. الإشعارات داخل التطبيق تعمل كالمعتاد.",
+    pushTestButton: "إرسال إشعار تجريبي",
+    pushTestSent: "تم إرسال الإشعار التجريبي — تحقق من هذا الجهاز.",
+    soundLabel: "تشغيل صوت للإشعارات داخل التطبيق",
+    soundHint: "نغمة قصيرة عند وصول شيء جديد والتطبيق مفتوح. صوت الإشعارات في الخلفية يتبع إعدادات جهازك.",
+    chatwootSenderName: "دعم الحاضنة",
+    pushTestTitle: "Kiddy",
+    pushTestBody: "الإشعارات الفورية تعمل.",
     savePrefs: "حفظ التفضيلات",
     prefMessages: "الرسائل",
     prefDailyReport: "التقارير اليومية",
@@ -2424,6 +2462,8 @@ export type FeedCopy = {
   // the parent notification center render them with the account locale).
   messageTitle: (name: string) => string;
   reportTitle: (name: string) => string;
+  // KID-480: newsfeed announcements pushed to parents.
+  announcementTitle: (name: string) => string;
   reportBody: (summary: string) => string;
   reportMeta: (date: string) => string;
   invoiceBody: (amount: string, date: string) => string;
@@ -2457,6 +2497,7 @@ export function feedCopyFor(locale: Locale): FeedCopy {
     reportedBy: (name) => t("feed.reportedBy", { name }),
     messageTitle: (name) => t("feed.messageTitle", { name }),
     reportTitle: (name) => t("feed.reportTitle", { name }),
+    announcementTitle: (name) => t("feed.announcementTitle", { name }),
     reportBody: (summary) => t("feed.reportBody", { summary }),
     reportMeta: (date) => t("feed.reportMeta", { date }),
     invoiceBody: (amount, date) => t("feed.invoiceBody", { amount, date }),
