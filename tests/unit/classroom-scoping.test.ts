@@ -25,13 +25,13 @@ beforeEach(async () => {
 
   ownerAcc = String((await queryGet("SELECT id FROM account WHERE role = 'owner'"))!.id);
 
-  const s = await store.createStaff({ instituteId: iid, fullName: "Room A Carer", role: "carer", roomIds: [roomA] });
-  const acc = await createAccount({ email: "carer-a@test", password: "x", fullName: "Room A Carer", role: "staff" });
+  const s = await store.createStaff({ instituteId: iid, fullName: "Room A Carer", role: "teacher", roomIds: [roomA] });
+  const acc = await createAccount({ email: "carer-a@test", password: "x", fullName: "Room A Carer", role: "teacher" });
   await queryRun("UPDATE account SET staff_id = ? WHERE id = ?", String(s.id), String(acc.id));
   staffAcc = String(acc.id);
 
-  const empty = await store.createStaff({ instituteId: iid, fullName: "Unassigned Carer", role: "carer", roomIds: [] });
-  const emptyAcc = await createAccount({ email: "carer-empty@test", password: "x", fullName: "Unassigned Carer", role: "staff" });
+  const empty = await store.createStaff({ instituteId: iid, fullName: "Unassigned Carer", role: "teacher", roomIds: [] });
+  const emptyAcc = await createAccount({ email: "carer-empty@test", password: "x", fullName: "Unassigned Carer", role: "teacher" });
   await queryRun("UPDATE account SET staff_id = ? WHERE id = ?", String(empty.id), String(emptyAcc.id));
   emptyStaffAcc = String(emptyAcc.id);
 });

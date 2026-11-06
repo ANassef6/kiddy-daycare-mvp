@@ -107,24 +107,15 @@ describe("the Account billing tab under Tools (owner-only)", () => {
       expect(own).toBeDefined();
       expect(own.label).toBe(dict.nav.accountBilling);
 
-      for (const role of ["admin", "staff", "carer", "parent"] as const) {
-        const group = toolsGroup(dict, role);
-        if (role !== "admin") {
-          // No Tools group at all — the isAdminRole gate is unchanged.
-          expect(group).toBeUndefined();
-          continue;
-        }
-        expect(group).toBeDefined();
-        expect(group!.items.map((i) => i.href)).not.toContain("/portal/account-billing");
+      for (const role of ["teacher", "caregiver", "parent"] as const) {
+        // No Tools group at all — the isAdminRole gate is unchanged.
+        expect(toolsGroup(dict, role)).toBeUndefined();
       }
-      // The admin keeps every other Tools surface byte-for-byte; the owner
-      // tabs are purely additive. KID-258 A1 (KID-264): "Enhancements
-      // requests" rides the SAME exact-owner gate as Account billing, so the
-      // additive diff now excludes both owner-only tabs.
+      // KID-485: Account billing stays the exact owner gate, but the admin
+      // toolset now also carries the enhancements tab (same admin gate) —
+      // exactly the owner list minus the billing tab.
       expect(toolsGroup(dict, "admin")!.items.map((i) => i.href)).toEqual(
-        ownerGroup.items.map((i) => i.href).filter(
-          (h) => h !== "/portal/account-billing" && h !== "/portal/enhancements"
-        )
+        ownerGroup.items.map((i) => i.href).filter((h) => h !== "/portal/account-billing")
       );
     }
   });

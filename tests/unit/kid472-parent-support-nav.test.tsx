@@ -199,7 +199,7 @@ describe("KID-478 item 8: Supplies and Rooms live in the Children group, not Too
   });
 
   it("non-admin roles see neither Tools nor the two moved items anywhere", () => {
-    for (const role of ["staff", "carer", "parent"] as const) {
+    for (const role of ["teacher", "caregiver", "parent"] as const) {
       const groups = portalNav(dictionaries.en as never, role);
       expect(groups.find((g) => g.href === "/portal/report-center")).toBeUndefined();
       for (const group of groups) {

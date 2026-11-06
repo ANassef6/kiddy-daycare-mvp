@@ -347,7 +347,7 @@ describe("KID-152 register path: account identity is the gate's anchor", () => {
       email: staffEmail,
       password: "x",
       fullName: "Teo Lindqvist",
-      role: "staff"
+      role: "teacher"
     });
 
     // Act.

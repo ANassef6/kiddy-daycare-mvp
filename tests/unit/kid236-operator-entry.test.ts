@@ -137,7 +137,7 @@ describe("grant mint/read: signed, shaped, and single-purpose", () => {
     expect(readOperatorEntryGrant(forged)).toBeNull();
     expect(readOperatorEntryGrant(`${body}.${sig!.slice(0, -2)}XX`)).toBeNull();
     // A regular session token is not a grant.
-    expect(readOperatorEntryGrant(createSessionToken({ accountId: "a", role: "staff", email: "e@x.test", emailConfirmed: true }))).toBeNull();
+    expect(readOperatorEntryGrant(createSessionToken({ accountId: "a", role: "teacher", email: "e@x.test", emailConfirmed: true }))).toBeNull();
     expect(readOperatorEntryGrant("")).toBeNull();
     expect(readOperatorEntryGrant(null)).toBeNull();
     expect(readOperatorEntryGrant("not-a-token")).toBeNull();
@@ -205,7 +205,7 @@ describe("evaluateOperatorEntryGrant: every refusal the ticket pins", () => {
     expect(
       evaluateOperatorEntryGrant(grant, {
         ...host,
-        operator: { role: "staff", email: OPERATOR_EMAIL },
+        operator: { role: "teacher", email: OPERATOR_EMAIL },
       })
     ).toEqual({ ok: false, reason: "not-operator" });
     expect(
@@ -336,14 +336,14 @@ describe("operator-view session: reads back as this daycare's admin, only while 
     // marker with a daycare role — it degrades to the ordinary session rules.
     const forged = signToken({
       accountId: "acc-staff",
-      role: "staff",
+      role: "teacher",
       email: "staff@sunshinedaycare.test",
       emailConfirmed: true,
       operatorViewInstituteId: sunshineIid,
       exp: Date.now() + 60_000,
     });
     const session = readSessionFromCookie(`kiddy_sess=${encodeURIComponent(forged)}`);
-    expect(session!.role).toBe("staff");
+    expect(session!.role).toBe("teacher");
     expect(session!.operatorViewInstituteId).toBeUndefined();
   });
 });

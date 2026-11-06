@@ -151,7 +151,7 @@ describe("KID-142 sibling auto-link by parent email", () => {
     const childA = await store.createChild({ instituteId: iid, firstName: "Becca", lastName: "Nassef", roomId: roomA });
     const childB = await store.createChild({ instituteId: iid, firstName: "Mikael", lastName: "Nassef", roomId: roomB });
     const sharedEmail = "carer-shared@example.com";
-    const staffAccount = await createAccount({ email: sharedEmail, password: "x", fullName: "Carer", role: "staff" });
+    const staffAccount = await createAccount({ email: sharedEmail, password: "x", fullName: "Carer", role: "teacher" });
 
     await store.addContact({ childId: String(childA.id), fullName: "Carer", relationship: "parent", email: sharedEmail, isPickup: false, isEmergency: false });
     await store.addContact({ childId: String(childB.id), fullName: "Carer", relationship: "parent", email: sharedEmail, isPickup: false, isEmergency: false });
@@ -473,11 +473,11 @@ describe("KID-144 classroom staff messaging", () => {
     const parent = await createAccount({ email: "parent-kid144@example.com", password: "x", fullName: "Parent KID144", role: "parent" });
     await store.linkFamily(parent.id as string, String(childA.id));
 
-    const staffA = await store.createStaff({ instituteId: iid, fullName: "Carer A", role: "carer", roomIds: [roomA] });
-    const staffB = await store.createStaff({ instituteId: iid, fullName: "Carer B", role: "carer", roomIds: [roomB] });
+    const staffA = await store.createStaff({ instituteId: iid, fullName: "Carer A", role: "teacher", roomIds: [roomA] });
+    const staffB = await store.createStaff({ instituteId: iid, fullName: "Carer B", role: "teacher", roomIds: [roomB] });
 
-    const accA = await createAccount({ email: "carer-a@example.com", password: "x", fullName: "Carer A", role: "staff" });
-    const accB = await createAccount({ email: "carer-b@example.com", password: "x", fullName: "Carer B", role: "staff" });
+    const accA = await createAccount({ email: "carer-a@example.com", password: "x", fullName: "Carer A", role: "teacher" });
+    const accB = await createAccount({ email: "carer-b@example.com", password: "x", fullName: "Carer B", role: "teacher" });
     await queryRun("UPDATE account SET staff_id = ? WHERE id = ?", String(staffA.id), String(accA.id));
     await queryRun("UPDATE account SET staff_id = ? WHERE id = ?", String(staffB.id), String(accB.id));
 
@@ -497,11 +497,11 @@ describe("KID-144 classroom staff messaging", () => {
     await store.linkFamily(parent.id as string, String(childA.id));
     await store.linkFamily(parent.id as string, String(childB.id));
 
-    const staffA = await store.createStaff({ instituteId: iid, fullName: "Carer A", role: "carer", roomIds: [roomA] });
-    const staffB = await store.createStaff({ instituteId: iid, fullName: "Carer B", role: "carer", roomIds: [roomB] });
+    const staffA = await store.createStaff({ instituteId: iid, fullName: "Carer A", role: "teacher", roomIds: [roomA] });
+    const staffB = await store.createStaff({ instituteId: iid, fullName: "Carer B", role: "teacher", roomIds: [roomB] });
 
-    const accA = await createAccount({ email: "multi-a@example.com", password: "x", fullName: "Carer A", role: "staff" });
-    const accB = await createAccount({ email: "multi-b@example.com", password: "x", fullName: "Carer B", role: "staff" });
+    const accA = await createAccount({ email: "multi-a@example.com", password: "x", fullName: "Carer A", role: "teacher" });
+    const accB = await createAccount({ email: "multi-b@example.com", password: "x", fullName: "Carer B", role: "teacher" });
     await queryRun("UPDATE account SET staff_id = ? WHERE id = ?", String(staffA.id), String(accA.id));
     await queryRun("UPDATE account SET staff_id = ? WHERE id = ?", String(staffB.id), String(accB.id));
 
@@ -517,9 +517,9 @@ describe("KID-144 classroom staff messaging", () => {
     const parent = await createAccount({ email: "parent-threads@example.com", password: "x", fullName: "Thread Parent", role: "parent" });
     await store.linkFamily(parent.id as string, String(childA.id));
 
-    const staffA = await store.createStaff({ instituteId: iid, fullName: "Carer A", role: "carer", roomIds: [roomA] });
+    const staffA = await store.createStaff({ instituteId: iid, fullName: "Carer A", role: "teacher", roomIds: [roomA] });
     const admin = await createAccount({ email: "admin-threads@example.com", password: "x", fullName: "Admin", role: "owner" });
-    const accA = await createAccount({ email: "thread-a@example.com", password: "x", fullName: "Carer A", role: "staff" });
+    const accA = await createAccount({ email: "thread-a@example.com", password: "x", fullName: "Carer A", role: "teacher" });
     await queryRun("UPDATE account SET staff_id = ? WHERE id = ?", String(staffA.id), String(accA.id));
 
     const allowedThread = await store.createMessageThread({ instituteId: iid, isGroup: false, createdBy: accA.id as string, participantIds: [parent.id as string] });

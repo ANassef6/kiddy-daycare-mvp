@@ -89,13 +89,13 @@ describe("KID-169 the daycare recipient contract is one set", () => {
     await store.linkFamily(String(parent.id), String(child.id));
 
     // Staff assigned to the parent's room: the only legitimate recipient.
-    const roomStaff = await store.createStaff({ instituteId: iid, fullName: "Room A Carer", role: "carer", roomIds: [roomA] });
-    const roomAcc = await createAccount({ email: "room-a@example.com", password: "x", fullName: "Room A Carer", role: "staff" });
+    const roomStaff = await store.createStaff({ instituteId: iid, fullName: "Room A Carer", role: "teacher", roomIds: [roomA] });
+    const roomAcc = await createAccount({ email: "room-a@example.com", password: "x", fullName: "Room A Carer", role: "teacher" });
     await queryRun("UPDATE account SET staff_id = ? WHERE id = ?", String(roomStaff.id), String(roomAcc.id));
 
     // Staff assigned to another room: not this parent's staff.
-    const otherStaff = await store.createStaff({ instituteId: iid, fullName: "Room B Carer", role: "carer", roomIds: [roomB] });
-    const otherAcc = await createAccount({ email: "room-b@example.com", password: "x", fullName: "Room B Carer", role: "staff" });
+    const otherStaff = await store.createStaff({ instituteId: iid, fullName: "Room B Carer", role: "teacher", roomIds: [roomB] });
+    const otherAcc = await createAccount({ email: "room-b@example.com", password: "x", fullName: "Room B Carer", role: "teacher" });
     await queryRun("UPDATE account SET staff_id = ? WHERE id = ?", String(otherStaff.id), String(otherAcc.id));
 
     // The production case: an owner/admin with a staff row but no assignment to
@@ -136,8 +136,8 @@ describe("KID-169 the daycare recipient contract is one set", () => {
     const child = await store.createChild({ instituteId: iid, firstName: "Becca", lastName: "Nassef", roomId: roomA });
     const parent = await createAccount({ email: "kid169-forged@example.com", password: "x", fullName: "Parent", role: "parent" });
     await store.linkFamily(String(parent.id), String(child.id));
-    const roomStaff = await store.createStaff({ instituteId: iid, fullName: "Room A Carer", role: "carer", roomIds: [roomA] });
-    const roomAcc = await createAccount({ email: "room-a-2@example.com", password: "x", fullName: "Room A Carer", role: "staff" });
+    const roomStaff = await store.createStaff({ instituteId: iid, fullName: "Room A Carer", role: "teacher", roomIds: [roomA] });
+    const roomAcc = await createAccount({ email: "room-a-2@example.com", password: "x", fullName: "Room A Carer", role: "teacher" });
     await queryRun("UPDATE account SET staff_id = ? WHERE id = ?", String(roomStaff.id), String(roomAcc.id));
     const owner = await createAccount({ email: "owner@example.com", password: "x", fullName: "Centre Owner", role: "owner" });
 

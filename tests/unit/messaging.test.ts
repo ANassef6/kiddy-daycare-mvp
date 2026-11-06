@@ -23,8 +23,8 @@ beforeEach(async () => {
   const childB = String((await queryGet("SELECT id FROM child WHERE room_id = ?", roomB))!.id);
 
   // Staff member assigned to Toddlers only.
-  const s = await store.createStaff({ instituteId: iid, fullName: "Room A Carer", role: "carer", roomIds: [roomA] });
-  const acc = await createAccount({ email: "carer-a@test", password: "x", fullName: "Room A Carer", role: "staff" });
+  const s = await store.createStaff({ instituteId: iid, fullName: "Room A Carer", role: "teacher", roomIds: [roomA] });
+  const acc = await createAccount({ email: "carer-a@test", password: "x", fullName: "Room A Carer", role: "teacher" });
   await queryRun("UPDATE account SET staff_id = ? WHERE id = ?", String(s.id), String(acc.id));
   staffAcc = String(acc.id);
 

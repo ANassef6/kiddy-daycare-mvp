@@ -203,7 +203,7 @@ describe("KID-146 backfill of pre-existing same-email sibling links", () => {
     const childA = await child(iid, roomA, "Becca", "Nassef");
     const sharedEmail = "carer@example.com";
     await legacyContact({ childId: String(childA.id), email: sharedEmail });
-    const staffAccount = await createAccount({ email: sharedEmail, password: "x", fullName: "Carer", role: "staff" });
+    const staffAccount = await createAccount({ email: sharedEmail, password: "x", fullName: "Carer", role: "teacher" });
     // Defence in depth: role can be corrected after the account was created.
     await queryRun("UPDATE account SET role = 'staff' WHERE id = ?", String(staffAccount.id));
 

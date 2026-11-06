@@ -200,8 +200,8 @@ describe("KID-207 in-centre scope (the parent's own composer)", () => {
   it("staff room assignment still scopes staff as before (assigned rooms only)", async () => {
     // Maya's shape from the report: a Maple staff row assigned to Willows
     // only must give the Willows channel — on the Maple pin.
-    const acc = await createAccount({ email: "maya.kid207.staff@example.test", password: "x", fullName: "Maya Maple", role: "staff" });
-    const staff = await createStaff({ instituteId: mapleIid, fullName: "Maya Maple", role: "carer", roomIds: [mapleWillows] });
+    const acc = await createAccount({ email: "maya.kid207.staff@example.test", password: "x", fullName: "Maya Maple", role: "teacher" });
+    const staff = await createStaff({ instituteId: mapleIid, fullName: "Maya Maple", role: "teacher", roomIds: [mapleWillows] });
     await queryRun("UPDATE account SET staff_id = ? WHERE id = ?", String(staff.id), String(acc.id));
     expect(roomNames(await roomChannelsForAccount(mapleIid, String(acc.id)))).toEqual(["Willows"]);
     expect(names(await parentAccountsScoped(mapleIid, String(acc.id)))).toEqual(["Maple Parent One", "Willows Coparent"]);
@@ -280,8 +280,8 @@ describe("KID-207 write boundary: sendComposerAction accepts only the family-sco
 
   it("the family-scoped channel still fans out to the room's staff and parents only", async () => {
     // Staff assigned to the room so the audience has a staff half.
-    const acc = await createAccount({ email: "willows-staff@example.test", password: "x", fullName: "Willows Staff", role: "staff" });
-    const staff = await createStaff({ instituteId: mapleIid, fullName: "Willows Staff", role: "carer", roomIds: [mapleWillows] });
+    const acc = await createAccount({ email: "willows-staff@example.test", password: "x", fullName: "Willows Staff", role: "teacher" });
+    const staff = await createStaff({ instituteId: mapleIid, fullName: "Willows Staff", role: "teacher", roomIds: [mapleWillows] });
     await queryRun("UPDATE account SET staff_id = ? WHERE id = ?", String(staff.id), String(acc.id));
 
     // channel = Willows, audience = whole (default). The redirect that ends

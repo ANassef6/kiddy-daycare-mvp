@@ -76,7 +76,7 @@ beforeEach(async () => {
     email: unique("staff"),
     password: "staff-pass-1",
     fullName: "Sara Staff",
-    role: "staff",
+    role: "teacher",
   });
   staffAccId = String(staffAcc.id);
 

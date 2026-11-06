@@ -282,8 +282,8 @@ describe("KID-199.4r platform operator", () => {
     // The regression this pins: the operator sentinel must not silently pass
     // center-admin gates, and no internal role leaks into it.
     expect(isAdminRole(PLATFORM_OPERATOR_ROLE)).toBe(false);
-    expect(isAdminRole("staff")).toBe(false);
-    expect(isAdminRole("carer")).toBe(false);
+    expect(isAdminRole("teacher")).toBe(false);
+    expect(isAdminRole("caregiver")).toBe(false);
     expect(isAdminRole("parent")).toBe(false);
   });
 });

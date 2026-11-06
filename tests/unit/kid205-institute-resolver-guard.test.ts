@@ -223,8 +223,8 @@ describe("KID-205 composer sends under a stray institute row", () => {
     const roomToddlers = String(
       (await mustGet("SELECT id FROM room WHERE institute_id = ? AND name = 'Toddlers'", sunshineId)).id
     );
-    const s = await store.createStaff({ instituteId: sunshineId, fullName: "Sofia Kid205", role: "carer", roomIds: [roomToddlers] });
-    await createAccount({ email: "sofia-kid205@test", password: "x", fullName: "Sofia Kid205", role: "staff" });
+    const s = await store.createStaff({ instituteId: sunshineId, fullName: "Sofia Kid205", role: "teacher", roomIds: [roomToddlers] });
+    await createAccount({ email: "sofia-kid205@test", password: "x", fullName: "Sofia Kid205", role: "teacher" });
     await queryRun("UPDATE account SET staff_id = ? WHERE id = ?", String(s.id), String((await mustGet("SELECT id FROM account WHERE email = 'sofia-kid205@test'")).id));
     asSession(await mustGet("SELECT * FROM account WHERE email = 'sofia-kid205@test'"));
     const grace = await mustGet("SELECT id FROM account WHERE email = 'parent@example.test'");

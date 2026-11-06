@@ -1,13 +1,15 @@
-// KID-258 A1 (KID-264): the owner-only "Enhancements requests" flow.
+// KID-258 A1 (KID-264), updated by KID-485: the owner+admin "Enhancements
+// requests" flow.
 //
 // Pinned here, mirroring the ticket:
-//   1. The Tools tab rides the EXACT owner gate (same `role === "owner"`
-//      block as Account billing — KID-246), NOT isAdminRole: a plain admin
-//      sees the rest of Tools but never this tab; the tab label ships EN + AR.
-//   2. /portal/enhancements re-checks the session: an owner renders the
-//      submit form and the request list; admin / staff / carer / parent are
-//      refused by redirect to /portal/dashboard — the tab and the URL stay
-//      in sync.
+//   1. The Tools tab rides isAdminRole (owner OR admin since KID-485): the
+//      plain admin DOES see this tab now, Account billing stays owner-only,
+//      and teacher/caregiver/parent see no Tools group at all. The tab label
+//      ships EN + AR.
+//   2. /portal/enhancements re-checks the session: an owner or admin renders
+//      the submit form and the request list; teacher / caregiver / parent
+//      are refused by redirect to /portal/dashboard — the tab and the URL
+//      stay in sync.
 //   3. The submit creates the record with status 'queued' and
 //      customer_request = the daycare's NAME (e.g. "Sunshine Daycare"); the
 //      form carries title + description ONLY (estimate/due date are set by
@@ -76,23 +78,22 @@ beforeEach(async () => {
   ownerEmail = String(owner!.email);
 });
 
-// ---- 1. the Tools tab is owner-only (the EXACT owner gate) --------------------
-describe("the Enhancements requests tab under Tools (owner-only)", () => {
+// ---- 1. the Tools tab is admin-gated (owner + admin) --------------------------
+describe("the Enhancements requests tab under Tools (owner + admin)", () => {
   const toolsGroup = (dict: any, role?: string) =>
     portalNav(dict as never, role).find((g) => g.href === "/portal/report-center");
 
-  it("the owner sees the tab; a plain admin and every other role do not", () => {
+  it("the owner and the plain admin see the tab; every floor role does not", () => {
     for (const lang of ["en", "ar"] as const) {
       const dict = dictionaries[lang];
       const own = toolsGroup(dict, "owner")!.items.find((i) => i.href === "/portal/enhancements")!;
       expect(own).toBeDefined();
       expect(own.label).toBe(dict.nav.enhancements);
 
-      // The plain admin keeps the Tools group but must NOT get this tab
-      // (the exact `role === "owner"` gate, not isAdminRole).
+      // KID-485: a plain admin now DOES get the enhancements tab, while
+      // Account billing stays the exact owner role (KID-246 unchanged).
       const adminHrefs = toolsGroup(dict, "admin")!.items.map((i) => i.href);
-      expect(adminHrefs).not.toContain("/portal/enhancements");
-      // Account billing rides the same gate; the two tabs stay siblings.
+      expect(adminHrefs).toContain("/portal/enhancements");
       expect(adminHrefs).not.toContain("/portal/account-billing");
       const ownerHrefs = toolsGroup(dict, "owner")!.items.map((i) => i.href);
       expect(ownerHrefs).toContain("/portal/account-billing");
@@ -119,7 +120,7 @@ describe("the enhancements dictionary parity (EN + AR)", () => {
   });
 });
 
-// ---- 3. the page gate: owner renders, every other role is refused ------------
+// ---- 3. the page gate: owner+admin render, every other role is refused -------
 describe("/portal/enhancements access", () => {
   async function renderPage(searchParams: Record<string, string> = {}): Promise<string> {
     const { default: Page } = await import("@/app/portal/enhancements/page");
@@ -148,27 +149,41 @@ describe("/portal/enhancements access", () => {
     expect(html).not.toMatch(/name="priority"/);
   });
 
-  it("a non-owner session (admin / staff / parent) is refused at the URL", async () => {
+  it("an admin session also renders the submit form (KID-485)", async () => {
     const admin = await createAccount({
-      email: "plain-admin-enh@sunshinedaycare.test",
+      email: "admin-enh-ok@sunshinedaycare.test",
       password: "plain-admin-1",
-      fullName: "Plain Admin",
+      fullName: "Enhance Admin",
       role: "admin",
     });
+    mockState.cookie = sessionCookieFor(String(admin.id), "admin", "admin-enh-ok@sunshinedaycare.test");
+    const html = await renderPage();
+    expect(html).toContain("Enhancements requests");
+    expect(html).not.toMatch(/name="estimate"/);
+    expect(html).not.toMatch(/name="priority"/);
+  });
+
+  it("a non-admin session (teacher / caregiver / parent) is refused at the URL", async () => {
     const staff = await createAccount({
       email: "plain-staff-enh@sunshinedaycare.test",
       password: "plain-staff-1",
       fullName: "Plain Staff",
-      role: "staff",
+      role: "teacher",
+    });
+    const caregiver = await createAccount({
+      email: "plain-caregiver-enh@sunshinedaycare.test",
+      password: "plain-caregiver-1",
+      fullName: "Plain Caregiver",
+      role: "caregiver",
     });
     const parent = String(
       (await queryGet("SELECT id FROM account WHERE email = 'parent@example.test'"))!.id
     );
-    for (const [accountId, role] of [
-      [String(admin.id), "admin"],
-      [String(staff.id), "staff"],
-      [parent, "parent"],
-    ] as Array<[string, string]>) {
+    for (const [accountId, role, target] of [
+      [String(staff.id), "teacher", "/portal/dashboard"],
+      [String(caregiver.id), "caregiver", "/portal/children"],
+      [parent, "parent", "/portal/dashboard"],
+    ] as Array<[string, string, string]>) {
       mockState.cookie = sessionCookieFor(accountId, role, "refused@sunshinedaycare.test");
       let digest = "";
       try {
@@ -177,7 +192,7 @@ describe("/portal/enhancements access", () => {
         digest = String((err as { digest?: unknown }).digest ?? "");
       }
       expect(digest).toContain("NEXT_REDIRECT");
-      expect(digest).toContain("/portal/dashboard");
+      expect(digest).toContain(target);
     }
   });
 });

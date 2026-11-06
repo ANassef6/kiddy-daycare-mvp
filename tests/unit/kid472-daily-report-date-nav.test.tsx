@@ -212,20 +212,20 @@ describe("KID-472 item 4: permissions are date-independent", () => {
     const staffRow = await store.createStaff({
       instituteId: sunshineIid,
       fullName: "Unassigned Staff",
-      role: "carer",
+      role: "teacher",
       // No roomIds — a classroom-carer with no assigned rooms is fail-closed.
     });
     const staff = await createAccount({
       email: "unassigned-472@sunshinedaycare.test",
       password: "kiddy-staff",
       fullName: "Unassigned Staff",
-      role: "carer",
+      role: "teacher",
     });
     await queryRun("UPDATE account SET staff_id = ? WHERE id = ?", staffRow.id, staff.id);
     const date = shiftIsoDate(todayIso(), -2);
     mockState.cookie = sessionCookieFor(
       String(staff.id),
-      "carer",
+      "teacher",
       "unassigned-472@sunshinedaycare.test"
     );
     const fd = new FormData();

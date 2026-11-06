@@ -62,10 +62,10 @@ describe("KID-428: audience mapping (KID-260 semantics on Chatwoot categories)",
 
   it("keeps role visibility boundaries", () => {
     expect(helpAudiencesForRole("parent")).toEqual(["public", "parent"]);
-    expect(helpAudiencesForRole("carer")).toEqual(["public"]);
+    expect(helpAudiencesForRole("caregiver")).toEqual(["public"]);
     expect(helpAudiencesForRole("owner")).toEqual(["public", "staff"]);
     expect(helpAudiencesForRole("admin")).toEqual(["public", "staff"]);
-    expect(helpAudiencesForRole("staff")).toEqual(["public", "staff"]);
+    expect(helpAudiencesForRole("teacher")).toEqual(["public", "staff"]);
   });
 });
 

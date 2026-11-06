@@ -191,7 +191,7 @@ describe("D2 a parent can message the daycare", () => {
     const orphan = await store.createStaff({
       instituteId: iid,
       fullName: "Orphan Carer",
-      role: "carer",
+      role: "teacher",
       roomIds: [String(room.id)],
     });
     const child = await store.createChild({ instituteId: iid, firstName: "Orphan", lastName: "Case", roomId: String(room.id) });
@@ -221,9 +221,9 @@ describe("D2 a parent can message the daycare", () => {
   it("refuses to steal an account that already belongs to another staff member", async () => {
     // Authorize the resource, not just the role: linking must not silently move
     // a person's access between staff records.
-    const orphan = await store.createStaff({ instituteId: iid, fullName: "Second Orphan", role: "carer", roomIds: [] });
-    const taken = await store.createStaff({ instituteId: iid, fullName: "First Owner Of Login", role: "carer", roomIds: [] });
-    const account = await createAccount({ email: "already-linked@example.test", password: "x", fullName: "First Owner Of Login", role: "staff" });
+    const orphan = await store.createStaff({ instituteId: iid, fullName: "Second Orphan", role: "teacher", roomIds: [] });
+    const taken = await store.createStaff({ instituteId: iid, fullName: "First Owner Of Login", role: "teacher", roomIds: [] });
+    const account = await createAccount({ email: "already-linked@example.test", password: "x", fullName: "First Owner Of Login", role: "teacher" });
     await queryRun("UPDATE account SET staff_id = ? WHERE id = ?", String(taken.id), String(account.id));
 
     const owner = String((await mustGet("SELECT id FROM account WHERE role = 'owner'")).id);
@@ -243,8 +243,8 @@ describe("D3 an unread badge counts only what the page can open", () => {
     const room = await mustGet("SELECT id FROM room WHERE name = 'Toddlers'");
     // Two staff records: one assigned to the parent's child's classroom, one
     // with no assignment at all. Only the first is a legal recipient.
-    const roomStaff = await store.createStaff({ instituteId: iid, fullName: "Visible Carer", role: "carer", roomIds: [String(room.id)] });
-    const visible = await createAccount({ email: "visible.carer@example.test", password: "x", fullName: "Visible Carer", role: "staff" });
+    const roomStaff = await store.createStaff({ instituteId: iid, fullName: "Visible Carer", role: "teacher", roomIds: [String(room.id)] });
+    const visible = await createAccount({ email: "visible.carer@example.test", password: "x", fullName: "Visible Carer", role: "teacher" });
     await queryRun("UPDATE account SET staff_id = ? WHERE id = ?", String(roomStaff.id), String(visible.id));
 
     const unassignedStaff = await store.createStaff({ instituteId: iid, fullName: "Unassigned Owner", role: "owner", roomIds: [] });

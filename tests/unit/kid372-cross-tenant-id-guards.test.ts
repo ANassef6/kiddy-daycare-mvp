@@ -278,7 +278,7 @@ describe("KID-372: parent /child/[id] — family-scoped child visibility", () =>
       email: "unassigned-staff@sunshinedaycare.test",
       password: "kiddy-staff",
       fullName: "Unassigned Staff",
-      role: "staff",
+      role: "teacher",
     });
     const { ella, maple } = await childIds();
     expect(await isChildVisibleToAccount(sunshineIid, String(staffAccount.id), ella)).toBe(false);

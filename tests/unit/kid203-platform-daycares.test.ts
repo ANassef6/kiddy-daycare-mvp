@@ -101,7 +101,7 @@ describe("listInstitutesForPlatform", () => {
       ownerFullName: "Maple Owner",
     });
     // One extra non-owner staff row at Maple Grove.
-    await store.createStaff({ instituteId: res.instituteId, fullName: "Maple Carer", role: "carer" });
+    await store.createStaff({ instituteId: res.instituteId, fullName: "Maple Carer", role: "teacher" });
 
     const rows = await store.listInstitutesForPlatform();
     const names = rows.map((r) => String(r.name));

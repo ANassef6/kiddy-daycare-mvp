@@ -37,7 +37,7 @@ beforeEach(async () => {
 
 describe("superadmin is not a role", () => {
   it("the role union stops at the five real daycare roles", () => {
-    expect([...ROLES]).toEqual(["owner", "admin", "staff", "carer", "parent"]);
+    expect([...ROLES]).toEqual(["owner", "admin", "teacher", "caregiver", "parent"]);
     expect(JSON.stringify(ROLES)).not.toContain("superadmin");
   });
 
@@ -207,10 +207,10 @@ describe("i18n", () => {
       keysOf(d).filter((k) => k.startsWith("roles.")).sort();
     expect(roleKeys(dictionaries.en)).toEqual([
       "roles.admin",
-      "roles.carer",
+      "roles.caregiver",
       "roles.owner",
       "roles.parent",
-      "roles.staff",
+      "roles.teacher",
     ]);
     expect([...arKeys].sort()).toEqual([...enKeys].sort());
   });
