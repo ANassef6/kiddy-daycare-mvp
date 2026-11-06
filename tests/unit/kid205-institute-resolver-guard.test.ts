@@ -185,13 +185,13 @@ describe("KID-205 institute resolver", () => {
   });
 
   it("tenancy beats the fallback: Sunshine's linked owner resolves Sunshine with strays present", async () => {
-    const owner = await mustGet("SELECT id FROM account WHERE email = 'admin@sunshinedaycare.test'");
+    const owner = await mustGet("SELECT id FROM account WHERE email = 'trois4ever+admin@gmail.com'");
     expect(await primaryInstituteIdForAccount(String(owner.id))).toBe(sunshineId);
   });
 });
 
 describe("KID-205 composer sends under a stray institute row", () => {
-  const ownerRow = () => mustGet("SELECT * FROM account WHERE email = 'admin@sunshinedaycare.test'");
+  const ownerRow = () => mustGet("SELECT * FROM account WHERE email = 'trois4ever+admin@gmail.com'");
 
   it("owner: an in-scope channel collects its recipients and the send lands (no error=norecipients)", async () => {
     const roomToddlers = String(

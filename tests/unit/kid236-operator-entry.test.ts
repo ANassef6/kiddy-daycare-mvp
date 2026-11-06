@@ -384,7 +384,7 @@ describe("tenant resolution accepts an operator-view session only on its bound h
   it("every pre-existing rule stays byte-for-byte (staff, operator, anonymous)", async () => {
     // A real sunshine admin session: host on its own subdomain, cross-tenant
     // on the second daycare's host — the KID-152/207 fail-closed rule.
-    const owner = await findAccountByEmail("admin@sunshinedaycare.test");
+    const owner = await findAccountByEmail("trois4ever+admin@gmail.com");
     const ownerCookie = cookieFor({
       accountId: String(owner!.id),
       role: "admin",
@@ -454,7 +454,7 @@ describe("only a platform operator can mint a grant (the real action, cookie-moc
   });
 
   it("a staff mint attempt is refused to /login before any grant exists", async () => {
-    const staff = await findAccountByEmail("admin@sunshinedaycare.test");
+    const staff = await findAccountByEmail("trois4ever+admin@gmail.com");
     sessionCookie.value = tokenFor({
       accountId: String(staff!.id),
       role: "admin",

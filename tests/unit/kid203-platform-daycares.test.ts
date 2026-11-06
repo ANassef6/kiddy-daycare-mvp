@@ -114,7 +114,7 @@ describe("listInstitutesForPlatform", () => {
     expect(Number(maple.active ?? 1)).toBe(1);
 
     const sunshine = rows.find((r) => String(r.name) === "Sunshine Daycare")!;
-    expect(Number(sunshine.owner_count)).toBe(1); // seeded Maria Lopez owner login
+    expect(Number(sunshine.owner_count)).toBe(1); // seeded Nassef owner login (KID-472)
     expect(Number(sunshine.staff_count)).toBe(1);
 
     // A disabled daycare still lists (the platform needs to see it to re-enable).

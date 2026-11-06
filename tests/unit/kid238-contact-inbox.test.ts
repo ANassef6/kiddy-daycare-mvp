@@ -125,7 +125,7 @@ describe("the disabled-daycare login error", () => {
 
     const { loginAction } = await import("@/lib/actions");
     const form = new FormData();
-    form.set("email", "admin@sunshinedaycare.test");
+    form.set("email", "trois4ever+admin@gmail.com");
     form.set("password", "kiddy-admin");
     const result = (await loginAction(form)) as { error?: string };
 

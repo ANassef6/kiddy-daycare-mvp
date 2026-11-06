@@ -15,7 +15,8 @@
 //
 // Demo credentials (seed data):
 //   parent@example.test / kiddy-parent  (Grace Nguyen, children Ella + Leo)
-//   admin@sunshinedaycare.test / kiddy-admin
+//   trois4ever+admin@gmail.com / kiddy-admin (KID-472; production uses the
+//   board-supplied password — KIDDY_SMOKE_ADMIN_PASSWORD overrides this value)
 
 const API_ORIGIN =
   process.env.API_ORIGIN ?? process.env.EXPO_PUBLIC_API_URL ?? "https://kiddy-mobile-api.vercel.app";
@@ -137,7 +138,9 @@ async function main() {
   }
 
   // ---- 6. Admin login -------------------------------------------------------
-  const admin = await login("admin@sunshinedaycare.test", "kiddy-admin");
+  const ADMIN_EMAIL = "trois4ever+admin@gmail.com";
+  const ADMIN_PASSWORD = process.env.KIDDY_SMOKE_ADMIN_PASSWORD || "kiddy-admin";
+  const admin = await login(ADMIN_EMAIL, ADMIN_PASSWORD);
   check("login admin returns account + token", !!admin.token && !!admin.account, admin.account?.email);
   check("admin/staff role", ["admin", "owner"].includes(admin.account?.role), admin.account?.role);
 

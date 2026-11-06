@@ -397,7 +397,7 @@ try {
       ins("staff", ["id", "institute_id", "full_name", "role"], [id, inst, fullName, role]);
     // Every staff record. Which of these have a login is the fixture's whole
     // point; names are unique except where a duplicate is the case under test.
-    await staffRow("s-maria", "inst-home", "Maria Lopez", "admin"); // no login: the repair
+    await staffRow("s-maria", "inst-home", "Nassef", "admin"); // no login: the repair
     await staffRow("s-blue", "inst-home", "Blue Staff", "carer"); // already claimed
     await staffRow("s-far", "inst-other", "Far Owner", "admin"); // no login, evidenced
     await staffRow("s-x1-far", "inst-other", "Cross Owner", "admin"); // foreign name match
@@ -434,12 +434,12 @@ try {
 
     // The seed's owner: no invite, no family link, so no tenancy evidence at
     // all. This is the row production actually carries.
-    await accountRow("acc-maria", "admin@sunshinedaycare.test", "Maria Lopez", "owner");
+    await accountRow("acc-maria", "trois4ever+admin@gmail.com", "Nassef", "owner");
     await ins("invite", ["id", "institute_id", "child_id", "email", "code", "status"], [
       "inv-maria",
       "inst-home",
       null,
-      "admin@sunshinedaycare.test",
+      "trois4ever+admin@gmail.com",
       "code-maria",
       "accepted",
     ]);
@@ -447,7 +447,7 @@ try {
     // Same name as the owner, same institute, and a child in Toddlers — a
     // parent account that looks like the staff member from every angle except
     // the one that matters.
-    await accountRow("acc-parent-maria", "grace@example.test", "Maria Lopez", "parent");
+    await accountRow("acc-parent-maria", "grace@example.test", "Nassef", "parent");
     await ins("family_member", ["id", "account_id", "child_id", "role"], [
       "fm-parent",
       "acc-parent-maria",
@@ -605,7 +605,7 @@ try {
     check(
       "the parent now sees the centre owner as a recipient",
       recipients.map((r) => `${r.id}:${r.full_name}`),
-      ["acc-maria:Maria Lopez"]
+      ["acc-maria:Nassef"]
     );
 
     // ---------------------------------------------------------------------

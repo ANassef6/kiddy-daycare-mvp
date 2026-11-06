@@ -418,7 +418,7 @@ describe("the login gate distinguishes billing from manual disable (EN + AR)", (
   async function loginAsAdmin(): Promise<{ error?: string }> {
     const { loginAction } = await import("@/lib/actions");
     const form = new FormData();
-    form.set("email", "admin@sunshinedaycare.test");
+    form.set("email", "trois4ever+admin@gmail.com");
     form.set("password", "kiddy-admin");
     return (await loginAction(form)) as { error?: string };
   }
@@ -441,7 +441,7 @@ describe("the login gate distinguishes billing from manual disable (EN + AR)", (
   it("the billing message ships in Arabic for an Arabic account", async () => {
     await overdueInvoiceFor(sunshineIid);
     await queryRun("UPDATE institute SET active = 0 WHERE id = ?", sunshineIid);
-    await queryRun("UPDATE account SET language = 'ar' WHERE email = 'admin@sunshinedaycare.test'");
+    await queryRun("UPDATE account SET language = 'ar' WHERE email = 'trois4ever+admin@gmail.com'");
     const res = await loginAsAdmin();
     expect(res.error).toContain("مؤقتًا");
     expect(res.error).toContain(PLATFORM_CONTACT_EMAIL);
@@ -466,7 +466,7 @@ describe("the login gate distinguishes billing from manual disable (EN + AR)", (
 
   it("isTenancyBillingBlocked reads the overdue-invoice signature, not the flag alone", async () => {
     const adminId = String(
-      (await queryGet("SELECT id FROM account WHERE email = 'admin@sunshinedaycare.test'"))!.id
+      (await queryGet("SELECT id FROM account WHERE email = 'trois4ever+admin@gmail.com'"))!.id
     );
     expect(await store.isTenancyBillingBlocked(adminId)).toBe(false);
     await queryRun("UPDATE institute SET active = 0 WHERE id = ?", sunshineIid);

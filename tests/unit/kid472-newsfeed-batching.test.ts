@@ -96,7 +96,7 @@ describe("listNewsfeed batched tags + comments (KID-472)", () => {
       "first",
       "second",
     ]);
-    expect((taggedRow.comments as Array<{ full_name?: string }>)[0].full_name).toBe("Maria Lopez");
+    expect((taggedRow.comments as Array<{ full_name?: string }>)[0].full_name).toBe("Nassef");
 
     const untaggedRow = byId.get(String(untagged.id))!;
     expect((untaggedRow.tags as unknown[]).length).toBe(0);

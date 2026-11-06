@@ -48,7 +48,7 @@ describe("recordAuditEvent (KID-477)", () => {
       "SELECT * FROM audit_event WHERE entity_type = 'newsfeed_post' AND entity_id = 'post-1'"
     ))!;
     // actor_name is snapped from the account, not left for joins after deletion
-    expect(String(row.actor_name)).toBe("Maria Lopez");
+    expect(String(row.actor_name)).toBe("Nassef");
     expect(String(row.actor_account_id)).toBe(owner);
     expect(String(row.action)).toBe("create");
     expect(String(row.summary)).toBe("Posted to the newsfeed");
@@ -57,7 +57,7 @@ describe("recordAuditEvent (KID-477)", () => {
   });
 
   it("actorNameFor resolves the account and tolerates unknown ids", async () => {
-    expect(await actorNameFor(owner)).toBe("Maria Lopez");
+    expect(await actorNameFor(owner)).toBe("Nassef");
     expect(await actorNameFor(null)).toBeNull();
     expect(await actorNameFor("no-such-account")).toBeNull();
   });
@@ -188,7 +188,7 @@ describe("daily report edit trail (KID-477)", () => {
     expect(String(row.updated_by_account_id)).toBe(parentAcc);
     expect(row.updated_at).toBeTruthy();
     // the joined names flow for the attribution component
-    expect(String(row.created_by_name)).toBe("Maria Lopez");
+    expect(String(row.created_by_name)).toBe("Nassef");
     expect(String(row.updated_by_name)).toBe("Grace Nguyen");
   });
 });
@@ -223,7 +223,7 @@ describe("attributionFor (KID-477)", () => {
     });
     const { created, updated } = await attributionFor(iid, "daily_report", "rep-1");
     expect(created).toBeDefined();
-    expect(String(created!.actor_name)).toBe("Maria Lopez");
+    expect(String(created!.actor_name)).toBe("Nassef");
     expect(updated).toBeDefined();
     expect(String(updated!.summary)).toBe("Edited again");
   });

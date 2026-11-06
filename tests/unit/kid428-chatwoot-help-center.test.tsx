@@ -295,7 +295,7 @@ async function renderChildSupportArticle(id: string, searchParams: Query = {}): 
 async function renderPortalSupport(searchParams: Query = {}): Promise<string> {
   mockHeaders = {
     host: "daycare.test",
-    cookie: sessionCookie(staffAccountId, "owner", "admin@sunshinedaycare.test"),
+    cookie: sessionCookie(staffAccountId, "owner", "trois4ever+admin@gmail.com"),
   };
   const page = await import("@/app/portal/support/page");
   return renderToStaticMarkup(await page.default({ searchParams }));
@@ -304,7 +304,7 @@ async function renderPortalSupport(searchParams: Query = {}): Promise<string> {
 async function renderPortalSupportArticle(id: string, searchParams: Query = {}): Promise<string> {
   mockHeaders = {
     host: "daycare.test",
-    cookie: sessionCookie(staffAccountId, "owner", "admin@sunshinedaycare.test"),
+    cookie: sessionCookie(staffAccountId, "owner", "trois4ever+admin@gmail.com"),
   };
   const page = await import("@/app/portal/support/[id]/page");
   return renderToStaticMarkup(await page.default({ params: { id }, searchParams }));

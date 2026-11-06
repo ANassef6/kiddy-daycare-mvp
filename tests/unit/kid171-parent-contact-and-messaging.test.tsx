@@ -151,7 +151,7 @@ describe("D2 a parent can message the daycare", () => {
     // /child/messages was empty for the whole deployment.
     const recipients = await parentMessageRecipients(parentId);
     expect(recipients.length).toBeGreaterThan(0);
-    expect(recipients.map((r) => String(r.full_name))).toContain("Maria Lopez");
+    expect(recipients.map((r) => String(r.full_name))).toContain("Nassef");
 
     // The chain the query depends on, asserted directly so a broken link names
     // itself.
@@ -186,7 +186,7 @@ describe("D2 a parent can message the daycare", () => {
 
   it("lets an admin link a login to an existing staff record from the UI", async () => {
     // The repair the old UI could not express: `addStaffAction` only creates new
-    // staff rows, so "Maria Lopez" could not gain a login without a database write.
+    // staff rows, so "Nassef" could not gain a login without a database write.
     const room = await mustGet("SELECT id FROM room WHERE name = 'Toddlers'");
     const orphan = await store.createStaff({
       instituteId: iid,
@@ -203,7 +203,7 @@ describe("D2 a parent can message the daycare", () => {
     expect((await parentMessageRecipients(String(parent.id))).map((r) => String(r.full_name))).not.toContain("Orphan Carer");
 
     const owner = String((await mustGet("SELECT id FROM account WHERE role = 'owner'")).id);
-    sessionCookie.value = createSessionToken({ accountId: owner, role: "owner", email: "admin@sunshinedaycare.test", accountConfirmed: true } as never);
+    sessionCookie.value = createSessionToken({ accountId: owner, role: "owner", email: "trois4ever+admin@gmail.com", accountConfirmed: true } as never);
     const { linkStaffLoginAction } = await import("@/lib/actions");
     const form = new FormData();
     form.set("staffId", String(orphan.id));
@@ -227,7 +227,7 @@ describe("D2 a parent can message the daycare", () => {
     await queryRun("UPDATE account SET staff_id = ? WHERE id = ?", String(taken.id), String(account.id));
 
     const owner = String((await mustGet("SELECT id FROM account WHERE role = 'owner'")).id);
-    sessionCookie.value = createSessionToken({ accountId: owner, role: "owner", email: "admin@sunshinedaycare.test", accountConfirmed: true } as never);
+    sessionCookie.value = createSessionToken({ accountId: owner, role: "owner", email: "trois4ever+admin@gmail.com", accountConfirmed: true } as never);
     const { linkStaffLoginAction } = await import("@/lib/actions");
     const form = new FormData();
     form.set("staffId", String(orphan.id));

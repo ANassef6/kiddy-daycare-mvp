@@ -190,7 +190,7 @@ describe("KID-207 in-centre scope (the parent's own composer)", () => {
     expect(ownerNames).toContain("Maple Grove Impostor");
     expect(ownerNames).not.toContain("Maple Parent One");
     expect(ownerNames).not.toContain("Willows Coparent");
-    expect(ownerNames).not.toContain("Maria Lopez"); // never the viewer themself
+    expect(ownerNames).not.toContain("Nassef"); // never the viewer themself
     const ownerRooms = roomNames(await roomChannelsForAccount(sunshineIid, ownerAcc)).sort();
     expect(ownerRooms).toEqual(["Preschool", "Toddlers"]); // all Sunshine rooms…
     expect(ownerRooms).not.toContain("Willows");
