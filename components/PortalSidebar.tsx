@@ -14,9 +14,13 @@ export type NavGroup = { label: string; href: string; items: NavItem[] };
 // from the active locale dictionary (KID-57).
 // KID-179: the sidebar Settings (gear) group is gone. Account settings
 // (/portal/account) and center settings (/portal/settings) live in the
-// top-right user menu (app/portal/layout.tsx), and Rooms now sits in Tools.
+// top-right user menu (app/portal/layout.tsx).
+// KID-478 item 8: Supplies and Rooms left the Tools group and sit inside the
+// Children group for admin roles (child-linked center operations); the
+// admin-only gating is unchanged.
 export function portalNav(dict: Dict, role?: string): NavGroup[] {
   const t = (key: string) => tr(dict, key);
+  const adminNav = isAdminRole(role ?? "");
   const groups: NavGroup[] = [
     {
       label: t("nav.home"),
@@ -43,6 +47,15 @@ export function portalNav(dict: Dict, role?: string): NavGroup[] {
         // card. The Children group is its intended home (child-linked
         // approvals, KID-103 classroom-scoped); the dashboard card link stays.
         { label: t("nav.childrenConsents"), href: "/portal/consents" },
+        // KID-478 item 8: Supplies and Rooms join the Children group for
+        // admin roles. The Rooms page itself stays scoped to the staff
+        // member's assigned classrooms (KID-105 #16, unchanged).
+        ...(adminNav
+          ? [
+              { label: t("nav.supplies"), href: "/portal/supplies" },
+              { label: t("nav.rooms"), href: "/portal/rooms" },
+            ]
+          : []),
       ],
     },
     {
@@ -67,9 +80,9 @@ export function portalNav(dict: Dict, role?: string): NavGroup[] {
 
   // KID-105 #14: the Tools menu exposes center-wide admin surfaces (staff
   // accounts, all children, finance, etc.). Keep it visible only to admins.
-  // KID-179 item 4: Rooms joins the Tools group. The Rooms page itself stays
-  // scoped to the staff member's assigned classrooms (KID-105 #16, unchanged).
-  if (isAdminRole(role ?? "")) {
+  // KID-478 item 8: Supplies and Rooms no longer ride Tools — they live in
+  // the Children group above, still admin-only.
+  if (adminNav) {
     const tools: NavItem[] = [
       { label: t("nav.reportCenter"), href: "/portal/report-center" },
       // KID-86 #10: Inquiries moved under Smart Forms — no standalone entry.
@@ -78,11 +91,6 @@ export function portalNav(dict: Dict, role?: string): NavGroup[] {
       { label: t("nav.surveys"), href: "/portal/surveys" },
       { label: t("nav.performance"), href: "/portal/performance" },
       { label: t("nav.finance"), href: "/portal/finance" },
-      { label: t("nav.supplies"), href: "/portal/supplies" },
-      { label: t("nav.rooms"), href: "/portal/rooms" },
-      // KID-477: the tenant-scoped audit trail joins the admin Tools group
-      // (date range / actor / record-type filters, paginated).
-      { label: t("audit.title"), href: "/portal/audit" },
     ];
     // KID-246: "Account billing" is the daycare OWNER's own surface — the
     // subscription plan, the read-only rates and the daycare's invoice

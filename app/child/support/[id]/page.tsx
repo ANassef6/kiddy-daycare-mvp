@@ -12,8 +12,8 @@ export const dynamic = "force-dynamic";
 // Chatwoot URL). The audience filter is enforced again here on direct URL
 // access: a family viewer cannot open a staff-only article URL, and nothing
 // unpublished renders (both degrade to a not-found, consistent with the
-// /child page family gates). The support-request form below the list stays
-// the human escalation path.
+// /child page family gates). KID-478 item 6: the "still stuck" exit returns
+// to the help list, where the Chatwoot chat bubble answers the rest.
 export default async function ParentSupportArticlePage({
   params,
   searchParams,
@@ -37,7 +37,7 @@ export default async function ParentSupportArticlePage({
       copy={dict.help}
       basePath="/child/support"
       language={language}
-      exitHref="/child/support#support-form"
+      exitHref="/child/support"
       exitLabel={tr(dict, "help.articleContactExit")}
     />
   );
