@@ -1163,23 +1163,17 @@ export const en = {
     langAr: "العربية",
     resultsCount: "{count} articles",
     noResultsTitle: "No article matches “{query}”",
-    noResultsHint: "Try fewer or different words, or send us a support request — we answer in chat.",
+    // KID-478 item 6: the manual ticket form/list strings are gone with the
+    // parent-facing UI; the Chatwoot chat bubble is the escalation path.
+    noResultsHint: "Try fewer or different words, or chat with us from the support bubble.",
     contactSupport: "Contact support",
-    sendRequest: "Send a support request",
-    myRequests: "My requests",
-    noRequests: "No requests yet.",
-    formSubject: "Subject",
-    formSubjectPlaceholder: "e.g. Question about my child's schedule",
-    formMessage: "Message",
-    requestSent: "Sent. The daycare will reply here and by chat.",
-    requestIntro: "Questions about your child's day, billing, or the app? Send a message below.",
     backToList: "All articles",
     articleRelated: "Related articles",
     articleContactExit: "Still stuck? Contact support",
     // KID-428: Chatwoot-backed view states (the bundled article set is gone).
     unavailableTitle: "The help center is temporarily unavailable",
     unavailableHint:
-      "The articles load from our docs service. Try again soon — meanwhile you can chat with us from the support bubble or send a request below.",
+      "The articles load from our docs service. Try again soon — meanwhile you can chat with us from the support bubble.",
   },
 };
 
@@ -2270,23 +2264,15 @@ export const ar = {
     langAr: "العربية",
     resultsCount: "{count} مقالة",
     noResultsTitle: "لا توجد مقالة تطابق «{query}»",
-    noResultsHint: "جرّب كلمات مختلفة أو أقلّ، أو أرسل لنا طلب دعم — نجيبكم في المحادثة.",
+    noResultsHint: "جرّب كلمات مختلفة أو أقلّ، أو تحدث معنا عبر فقاعة الدعم.",
     contactSupport: "تواصل مع الدعم",
-    sendRequest: "أرسل طلب دعم",
-    myRequests: "طلباتي",
-    noRequests: "لا توجد طلبات بعد.",
-    formSubject: "الموضوع",
-    formSubjectPlaceholder: "مثلًا: سؤال عن جدول يوم طفلي",
-    formMessage: "الرسالة",
-    requestSent: "تم الإرسال. سترد الروضة هنا وفي المحادثة.",
-    requestIntro: "أسئلة عن يوم طفلك أو الفواتير أو التطبيق؟ أرسل رسالتك أدناه.",
     backToList: "كل المقالات",
     articleRelated: "مقالات ذات صلة",
     articleContactExit: "لم تحصل على ما تحتاج؟ تواصل مع الدعم",
     // KID-428: Chatwoot-backed view states (the bundled article set is gone).
     unavailableTitle: "مركز المساعدة غير متاح مؤقتًا",
     unavailableHint:
-      "تُحمَّل المقالات من خدمة التوثيق لدينا. حاول مرة أخرى بعد قليل — ويمكنك التحدث معنا عبر فقاعة الدعم أو إرسال طلب في الأسفل.",
+      "تُحمَّل المقالات من خدمة التوثيق لدينا. حاول مرة أخرى بعد قليل — ويمكنك التحدث معنا عبر فقاعة الدعم.",
   },
 };
 

@@ -8,9 +8,10 @@
 // HelpLanguageToggle) with the KID-403 contract; the search box is a plain GET
 // form so Chatwoot's own search runs on the server flight the submit triggers.
 //
-// The family surface keeps its on-page support-request form below the list as
-// the human escalation path. The staff surface no longer links to the ticket
-// inbox from here (KID-428 acceptance: no "open the support inbox" button).
+// The family surface's manual on-page support-request form is gone (KID-478
+// item 6) — the Chatwoot live-chat bubble is the escalation path. The staff
+// surface no longer links to the ticket inbox from here (KID-428 acceptance:
+// no "open the support inbox" button).
 import Link from "next/link";
 import { type HelpCopy } from "@/lib/i18n";
 import { type HelpArticleRef, type HelpLanguage } from "@/lib/help-chatwoot";
@@ -38,9 +39,6 @@ export type HelpCenterProps = {
   language: HelpLanguage;
   copy: HelpCopy;
   basePath: string;
-  // Family surface: the no-result/empty state exits to the on-page request
-  // form. Staff surface: no inbox link anymore.
-  requestFormHref?: string;
   // Server-side Chatwoot search results for the active ?q= (null when the
   // page was opened without a query).
   query?: string;
@@ -52,7 +50,6 @@ export default function HelpCenter({
   language,
   copy,
   basePath,
-  requestFormHref,
   query,
   searchResults,
 }: HelpCenterProps) {
@@ -122,11 +119,6 @@ export default function HelpCenter({
               <p className="small muted" style={{ marginTop: 0 }}>
                 {copy.noResultsHint}
               </p>
-              {requestFormHref && (
-                <a className="btn btn-ghost" href={requestFormHref}>
-                  {copy.sendRequest}
-                </a>
-              )}
             </div>
           )}
         </>
@@ -142,11 +134,6 @@ export default function HelpCenter({
               <p className="small muted" style={{ marginTop: 0 }}>
                 {copy.unavailableHint}
               </p>
-              {requestFormHref && (
-                <a className="btn btn-ghost" href={requestFormHref}>
-                  {copy.sendRequest}
-                </a>
-              )}
             </div>
           ) : (
             <>

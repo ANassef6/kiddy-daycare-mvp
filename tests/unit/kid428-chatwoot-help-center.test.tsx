@@ -316,19 +316,17 @@ async function assertNotFound(promise: Promise<string>): Promise<void> {
 
 // Chrome copy visible/blocked per language. The "English" toggle label
 // (help.langEn) is intentionally language-stable and never asserted away.
+// KID-478 item 6: the manual ticket chrome ("Send a support request",
+// "My requests") is gone with the parent-facing form/list.
 const EN_LIST_CHROME = [
   "Help Center",
   "Step-by-step guides for using Kiddy.",
   "Search the help center",
-  "Send a support request",
-  "My requests",
 ];
 const AR_LIST_CHROME = [
   "مركز المساعدة",
   "إرشادات خطوة بخطوة لاستخدام كيدي.",
   "ابحث في مركز المساعدة",
-  "أرسل طلب دعم",
-  "طلباتي",
 ];
 
 describe("KID-428: Chatwoot-backed knowledge base on the parent surface", () => {
@@ -444,10 +442,12 @@ describe("KID-428: Chatwoot search replaces the bundled search", () => {
     expect(html).not.toContain("Record a payment or deposit");
   });
 
-  it("empty result card carries the family request-form exit and no inbox link", async () => {
+  it("empty result card carries the new chat-bubble hint and no form/inbox exit", async () => {
     const html = await renderChildSupport({ q: "zzz-not-anywhere" });
     expect(html).toContain(tr(en, "help.noResultsTitle").replace("{query}", "zzz-not-anywhere"));
-    expect(html).toContain('href="#support-form"');
+    expect(html).toContain(tr(en, "help.noResultsHint"));
+    // KID-478 item 6: no request-form anchor and no inbox link survive.
+    expect(html).not.toContain("#support-form");
     expect(html).not.toContain("support-inbox");
   });
 });
