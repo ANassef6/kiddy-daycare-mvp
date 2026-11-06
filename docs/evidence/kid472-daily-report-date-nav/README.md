@@ -122,6 +122,14 @@ Programmatic assertions during the run (all true):
   textareas; empty state present for a reportless day
 - zero console errors (page + browser) in both sessions
 
+## Deployment
+
+- PR: https://github.com/ANassef6/kiddy-daycare-mvp/pull/16 (merged, merge
+  commit `8883364b36c83118b7046e3a2f0cf94d69370978`); Vercel preview checks
+  passed before merge.
+- Vercel production deployment of `8883364`: **success** (GitHub deployment
+  7599694334, 2026-11-06T12:08:12Z, "Deployment has completed").
+
 ## Notes
 
 - Screenshot parity with the board's (unavailable) KID-472 attachment was not
