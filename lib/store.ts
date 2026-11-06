@@ -603,6 +603,76 @@ export async function linkFamily(accountId: string, childId: string, role: strin
   await queryRun("UPDATE family_member SET role = ? WHERE account_id = ? AND child_id = ?", linkRole, accountId, childId);
 }
 
+/** KID-160: link-role precedence, lifted verbatim from the ranking in
+ *  supabase/migrations/0019_institute_scope_repair.sql (parent > family >
+ *  pickup > no_access, non-canonical values rank last). The sibling auto-link
+ *  resolves roles through this only, so SQL and runtime cannot drift again —
+ *  the migration ranks the same contacts with the same weights.
+ */
+export const LINK_ROLE_PRECEDENCE: Record<string, number> = {
+  parent: 0,
+  family: 1,
+  pickup: 2,
+  no_access: 3,
+};
+
+export function linkRolePrecedence(role: unknown): number {
+  const r = String(role ?? "").trim().toLowerCase();
+  return LINK_ROLE_PRECEDENCE[r] ?? 3;
+}
+
+/** KID-160: the contact role the 0019 rule resolves for one contact row:
+ *  canonical relationships keep their value, anything else is treated as
+ *  `parent` — exactly the backfill's `CASE lower(trim(co.relationship)) …
+ *  ELSE 'parent'`. Using `parseContactRelationship` here would instead throw on
+ *  legacy free text the migration itself tolerates.
+ */
+export function contactRoleUnderPrecedence(relationship: unknown): string {
+  const r = String(relationship ?? "").trim().toLowerCase();
+  return isLinkRole(r) ? r : "parent";
+}
+
+function isLinkRole(value: string): value is keyof typeof LINK_ROLE_PRECEDENCE & string {
+  return Object.prototype.hasOwnProperty.call(LINK_ROLE_PRECEDENCE, value);
+}
+
+/** KID-160: the reconcile's own link write. Insert-only when the pair has no
+ *  link yet, and upgrade-only after that: a role another contact on the same
+ *  child justifies is never *downgraded* by a reconcile, because 0019's
+ *  `ON CONFLICT (account_id, child_id) DO NOTHING` backfill cannot repair a
+ *  weaker role written back afterward. Only a strictly stronger contact
+ *  upgrades the stored role.
+ */
+async function ensureFamilyLinkAtLeast(
+  accountId: string,
+  childId: string,
+  desiredRole: string
+): Promise<void> {
+  const existing = await queryGet(
+    "SELECT role FROM family_member WHERE account_id = ? AND child_id = ?",
+    accountId,
+    childId
+  );
+  if (!existing) {
+    await queryRun(
+      "INSERT INTO family_member (id, account_id, child_id, role) VALUES (?, ?, ?, ?) ON CONFLICT DO NOTHING",
+      uid(),
+      accountId,
+      childId,
+      desiredRole
+    );
+    return;
+  }
+  if (linkRolePrecedence(desiredRole) < linkRolePrecedence(existing.role)) {
+    await queryRun(
+      "UPDATE family_member SET role = ? WHERE account_id = ? AND child_id = ?",
+      desiredRole,
+      accountId,
+      childId
+    );
+  }
+}
+
 /** KID-112: all family-link roles for an account (drives access enforcement). */
 export async function familyRolesForAccount(accountId: string): Promise<string[]> {
   const rows = await queryAll("SELECT role FROM family_member WHERE account_id = ?", accountId);
@@ -952,9 +1022,9 @@ export async function crossInstituteFamilyMemberRows(): Promise<
 }
 
 /** KID-142: grant a parent account access to every child in the same institute
- *  whose contact record shares that email address. Uses the contact
- *  relationship as the family-link access role (KID-112). Idempotent:
- *  linkFamily upserts on (account_id, child_id), so re-running this is safe.
+ *  whose contact record shares that email address. KID-160: each link role
+ *  resolves through the 0019 contact precedence and the link write is
+ *  insert-or-upgrade-only, so re-running this is safe and never weakens access.
  *
  *  Email matching is case-insensitive and trimmed on both sides.
  *
@@ -969,6 +1039,14 @@ export async function crossInstituteFamilyMemberRows(): Promise<
  *  (`instituteIdsForAccount`), and a child at a centre the account has no
  *  association with is never a candidate. A genuinely multi-centre account is
  *  still linked at each centre it is on file at.
+ *
+ *  KID-160: the role each link gets is resolved per (account, child) with the
+ *  0019 precedence — the strongest same-address contact wins — and the link
+ *  write (`ensureFamilyLinkAtLeast`) is insert-or-upgrade-only, so a weaker
+ *  contact can never replace the access a parent already holds. Deliberate
+ *  access downgrades stay explicit staff work, never a side effect of a second
+ *  contact row; `0019`'s insert-only backfill idiom cannot restore a role
+ *  runtime lost this way.
  */
 export async function linkSiblingsByParentEmail(
   accountId: string,
@@ -976,7 +1054,6 @@ export async function linkSiblingsByParentEmail(
   instituteId: string,
   excludeChildId?: string | null
 ): Promise<{ linkedChildIds: string[] }> {
-  const { isContactRelationship, parseContactRelationship } = await import("./contact-relationship");
   const normalizedEmail = normalizeParentEmail(email);
   if (!normalizedEmail || !instituteId) return { linkedChildIds: [] };
 
@@ -990,23 +1067,36 @@ export async function linkSiblingsByParentEmail(
     return { linkedChildIds: [] };
   }
 
+  // KID-160: one contact row per (account, child) decides the link role — the
+  // strongest under the 0019 ranking — instead of whichever row this query
+  // happens to return last. The ORDER BY is the migration's own
+  // ROW_NUMBER() … ORDER BY rank, so the first row per child is the role the
+  // backfill would store for the same contacts.
   const rows = await queryAll(
-    `SELECT DISTINCT c.id AS child_id, co.relationship
+    `SELECT c.id AS child_id, co.relationship
      FROM contact co
      JOIN child c ON c.id = co.child_id
-     WHERE c.institute_id = ? AND lower(trim(co.email)) = ?`,
+     WHERE c.institute_id = ? AND lower(trim(co.email)) = ?
+     ORDER BY c.id,
+       CASE lower(trim(co.relationship))
+         WHEN 'parent' THEN 0
+         WHEN 'family' THEN 1
+         WHEN 'pickup' THEN 2
+         ELSE 3
+       END,
+       lower(trim(co.relationship))`,
     instituteId,
     normalizedEmail
   );
 
   const linkedChildIds: string[] = [];
+  let rankedChildId: string | null = null;
   for (const row of rows) {
     const childId = String(row.child_id);
+    if (childId === rankedChildId) continue;
+    rankedChildId = childId;
     if (excludeChildId && childId === excludeChildId) continue;
-    const role = isContactRelationship(String(row.relationship))
-      ? String(row.relationship)
-      : parseContactRelationship(String(row.relationship ?? "parent"));
-    await linkFamily(accountId, childId, role);
+    await ensureFamilyLinkAtLeast(accountId, childId, contactRoleUnderPrecedence(row.relationship));
     linkedChildIds.push(childId);
   }
   return { linkedChildIds };
@@ -1762,6 +1852,10 @@ export async function scopedRoomIds(instituteId: string, accountId: string): Pro
   const acct = await queryGet("SELECT staff_id, role FROM account WHERE id = ?", accountId);
   const role = String(acct?.role ?? "");
   if (role === "owner" || role === "admin") return null;
+  // KID-485: a caregiver without a linked staff record must fail CLOSED —
+  // the old `return null` read as "unscoped admin-like" and would have given
+  // that login every classroom. An unassigned caregiver scopes to [].
+  if (role === "caregiver" && !(acct?.staff_id ? String(acct.staff_id) : null)) return [];
   const staffId = acct?.staff_id ? String(acct.staff_id) : null;
   if (!staffId) return null;
   const rooms = await queryAll(
@@ -1915,9 +2009,10 @@ export async function setThreadAttachment(threadId: string, url: string, name: s
   );
 }
 
-// KID-182: accounts of role staff/carer/admin/owner attached to the given room
-// via staff_room. Unlinked admins resolve to nothing here by design — a channel
-// only reaches staff records actually assigned to the classroom.
+// KID-182: accounts of role teacher/caregiver/admin/owner attached to the
+// given room via staff_room. Unlinked admins resolve to nothing here by
+// design — a channel only reaches staff records actually assigned to the
+// classroom.
 export async function roomStaffIds(instituteId: string, roomId: string): Promise<string[]> {
   const rows = await queryAll(
     `SELECT DISTINCT a.id
@@ -2686,7 +2781,7 @@ export async function classroomStaffForParent(accountId: string): Promise<Row[]>
      JOIN staff_room sr ON sr.staff_id = s.id
      JOIN child c ON c.room_id = sr.room_id
      JOIN family_member fm ON fm.child_id = c.id
-     WHERE fm.account_id = ? AND a.role IN ('staff','carer','admin','owner')
+     WHERE fm.account_id = ? AND a.role IN ('teacher','caregiver','admin','owner')
      ORDER BY a.full_name`,
     accountId
   );
@@ -2776,7 +2871,7 @@ export async function staffPerformance(instituteId: string): Promise<Row[]> {
        (SELECT COUNT(*) FROM incident_report ir WHERE ir.account_id = a.id) AS incidents_logged,
        (SELECT COUNT(*) FROM learning_observation o WHERE o.account_id = a.id) AS observations
      FROM account a
-     WHERE a.role IN ('owner','staff','carer','admin')
+     WHERE a.role IN ('owner','teacher','caregiver','admin')
       ORDER BY reports_authored DESC, a.full_name`
   );
 }
@@ -3661,6 +3756,146 @@ export async function updateStaffInfo(
   }
 }
 
+// ---- Parent activation self-heal (KID-498) ----
+//
+// `registerAction` creates the account row first and links the child in a
+// later step. If the link step fails after the account exists, the parent is
+// left half-activated: no `family_member` row, the invite still `pending`,
+// and — with the old withdrawal rule — login told them their access was
+// "withdrawn", which is false. These helpers classify that state and repair
+// it from the still-pending invite instead of ever calling it withdrawal.
+
+/** How a parent's login entry should read, per KID-498:
+ *
+ *  - `active` — at least one family link and at least one linked child is not
+ *    withdrawn: the normal portal.
+ *  - `withdrawn` — at least one family link and EVERY linked child is
+ *    withdrawn: a true enrollment end. This is the only state that keeps the
+ *    "access has been withdrawn" message.
+ *  - `activation-incomplete` — zero family links but a pending invite exists
+ *    for the account's email: registration created the account and the child
+ *    link step failed or never ran. Recoverable via healParentActivation.
+ *  - `no-access` — zero family links and no pending invite: no invitation to
+ *    complete anything, and no daycare association on file.
+ *
+ *  Returns null for non-parent (and missing) accounts — staff withdrawal is
+ *  isAccountAccessWithdrawn's own business, on the staff row's last_date.
+ */
+export type ParentAccountAccessState =
+  | "active"
+  | "withdrawn"
+  | "activation-incomplete"
+  | "no-access";
+
+export async function parentAccountAccessState(accountId: string): Promise<ParentAccountAccessState | null> {
+  const account = await queryGet("SELECT role, email FROM account WHERE id = ?", accountId);
+  if (!account || String(account.role) !== "parent") return null;
+  const linked = await queryGet("SELECT COUNT(*) c FROM family_member WHERE account_id = ?", accountId);
+  const linkCount = Number((linked as { c: number } | undefined)?.c ?? 0);
+  if (linkCount > 0) {
+    // Same predicate isAccountAccessWithdrawn has always used for parents:
+    // every linked child must be withdrawn for the state to be "withdrawn".
+    const activeChildren = await queryGet(
+      `SELECT COUNT(*) c FROM family_member fm
+       JOIN child c ON c.id = fm.child_id
+       WHERE fm.account_id = ? AND c.status != 'withdrawn'`,
+      accountId
+    );
+    return Number((activeChildren as { c: number } | undefined)?.c ?? 0) > 0 ? "active" : "withdrawn";
+  }
+  const { getPendingInvitesByEmail } = await import("./invite-email");
+  const pending = await getPendingInvitesByEmail(String(account.email ?? ""));
+  return pending.length > 0 ? "activation-incomplete" : "no-access";
+}
+
+export type ParentActivationHeal =
+  | { status: "linked"; childId: string; inviteId: string }
+  | { status: "blocked"; inviteId: string; reason: string }
+  | { status: "none" };
+
+/** KID-498: finish a parent's missing child link from a still-pending invite.
+ *
+ *  For a `parent` account, looks for a `pending` invite addressed to the
+ *  account's own email that names a child (`child_id`), links that child with
+ *  the invite's own role (default `parent`), and marks the invite accepted —
+ *  the same two writes registerAction would have made at its `linkFamily` and
+ *  `consumeInvite` steps. Reuses linkFamily (idempotent upsert) and
+ *  getPendingInvitesByEmail so nothing here invents its own matching rule.
+ *
+ *  Safety properties:
+ *  - Only the single child the invite NAMES is ever linked. A contact or child
+ *    at another centre that merely shares the email is never consulted — the
+ *    same-email sibling scan is deliberately NOT repeated here, so the heal
+ *    cannot re-open the KID-152 cross-tenant leak.
+ *  - The invite's own `institute_id` must agree with its child's
+ *    `institute_id`; a mismatched row is damaged data and is refused rather
+ *    than repaired into a cross-tenant grant (the child row is the anchor).
+ *  - Withdrawn/inactive children and children that no longer exist are never
+ *    linked; the heal reports `blocked` and the caller shows the distinct
+ *    "activation incomplete" message.
+ *  - Idempotent: linkFamily is an upsert, the status update only moves
+ *    `pending` → `accepted`, and re-running after a completed heal finds no
+ *    pending invite and returns `none`.
+ *  - Out of scope by guard: only `role = 'parent'` accounts heal, so
+ *    staff/admin accounts never gain family access through this path.
+ *
+ *  `blocked` carries the first refused invite's id and a machine-readable
+ *  reason: `invite_missing_child`, `child_missing`, `child_withdrawn` or
+ *  `institute_mismatch`.
+ */
+export async function healParentActivation(accountId: string): Promise<ParentActivationHeal> {
+  const { getPendingInvitesByEmail } = await import("./invite-email");
+  const { isContactRelationship, parseContactRelationship } = await import("./contact-relationship");
+  const account = await queryGet("SELECT role, email FROM account WHERE id = ?", accountId);
+  if (!account || String(account.role) !== "parent") return { status: "none" };
+  const email = String(account.email ?? "").trim().toLowerCase();
+  if (!email) return { status: "none" };
+  // Same pool registerAction consumes from: pending invites for this email,
+  // newest first. The account's other links are irrelevant here — the caller
+  // (login) only invokes the heal for a zero-link account, and even when it
+  // does not, linking the invited child is what the invite itself authorizes.
+  const invites = await getPendingInvitesByEmail(email);
+  if (invites.length === 0) return { status: "none" };
+
+  let blocked: { inviteId: string; reason: string } | null = null;
+  for (const invite of invites) {
+    const inviteId = String(invite.id);
+    const childId = String(invite.child_id ?? "").trim();
+    if (!childId) {
+      blocked ??= { inviteId, reason: "invite_missing_child" };
+      continue;
+    }
+    const child = await queryGet("SELECT id, status, active, institute_id FROM child WHERE id = ?", childId);
+    if (!child) {
+      blocked ??= { inviteId, reason: "child_missing" };
+      continue;
+    }
+    if (String(child.status ?? "") === "withdrawn" || Number(child.active ?? 1) === 0) {
+      blocked ??= { inviteId, reason: "child_withdrawn" };
+      continue;
+    }
+    const inviteInstitute = String(invite.institute_id ?? "").trim();
+    const childInstitute = String(child.institute_id ?? "").trim();
+    if (inviteInstitute && childInstitute && inviteInstitute !== childInstitute) {
+      blocked ??= { inviteId, reason: "institute_mismatch" };
+      continue;
+    }
+    // Same rule registerAction applies to the invited child: the invite's
+    // own relationship becomes the link role, 'parent' for anything the
+    // KID-112 enum does not recognize (never lock a real parent out).
+    const rawRole = String((invite as Record<string, unknown>).role ?? "parent").trim();
+    const linkRole = isContactRelationship(rawRole) ? parseContactRelationship(rawRole) : "parent";
+    await linkFamily(accountId, childId, linkRole);
+    // Single-use consumption, exactly like the register tail: only a still-
+    // pending row moves, so a replayed heal can never re-open a used invite.
+    await queryRun("UPDATE invite SET status = 'accepted' WHERE id = ? AND status = 'pending'", inviteId);
+    console.log(`KID-498: healParentActivation linked account ${accountId} to child ${childId} via invite ${inviteId} (role ${linkRole}).`);
+    return { status: "linked", childId, inviteId };
+  }
+  console.log(`KID-498: healParentActivation refused account ${accountId}: ${blocked?.reason} (invite ${blocked?.inviteId}).`);
+  return { status: "blocked", inviteId: blocked?.inviteId ?? "", reason: blocked?.reason ?? "invite_missing_child" };
+}
+
 // ---- Access withdrawal (KID-86 item 9) ----
 
 // Returns true when the account should no longer access the portal because its
@@ -3681,15 +3916,15 @@ export async function isAccountAccessWithdrawn(accountId: string): Promise<boole
     }
   }
 
-  // Parent withdrawal: only when every linked child is withdrawn.
+  // Parent withdrawal: only when the account actually holds at least one
+  // family link and every linked child is withdrawn.
+  // KID-498: zero family links is NOT withdrawal — it is an unfinished
+  // activation (registerAction created the account, the child-link step never
+  // ran), and calling it "withdrawn" was the Sunshine lockout's false message.
+  // parentAccountAccessState names that state and the login path self-heals it
+  // from the pending invite; this function only reports the genuine end.
   if (account.role === "parent") {
-    const activeChildren = await queryGet(
-      `SELECT COUNT(*) c FROM family_member fm
-       JOIN child c ON c.id = fm.child_id
-       WHERE fm.account_id = ? AND c.status != 'withdrawn'`,
-      accountId
-    );
-    return Number((activeChildren as { c: number })?.c ?? 0) === 0;
+    return (await parentAccountAccessState(accountId)) === "withdrawn";
   }
 
   return false;

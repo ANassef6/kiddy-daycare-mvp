@@ -1,4 +1,4 @@
-import { requireSession } from "@/lib/require";
+import { requirePortalPage } from "@/lib/require";
 import { listForms, formResponses } from "@/lib/store";
 import { firstInstituteId, safeJson } from "@/lib/helpers";
 import { createFormAction } from "@/lib/actions";
@@ -6,7 +6,7 @@ import { createFormAction } from "@/lib/actions";
 export const dynamic = "force-dynamic";
 
 export default async function PortalSurveysPage({ searchParams }: { searchParams: { view?: string } }) {
-  requireSession();
+  requirePortalPage("/portal/surveys");
   const instituteId = await firstInstituteId();
   if (!instituteId) return <p className="muted">No institute configured.</p>;
   const surveys = await listForms(instituteId, "survey");

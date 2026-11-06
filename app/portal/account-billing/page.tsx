@@ -9,7 +9,7 @@
 // session so a direct URL visit by any other role is rejected — the tab and
 // the route can never drift apart (lib/role.ts isOwnerRole).
 import { redirect } from "next/navigation";
-import { requireSession } from "@/lib/require";
+import { requirePortalPage } from "@/lib/require";
 import { isOwnerRole } from "@/lib/role";
 import { resolveTenantInstituteId } from "@/lib/tenant";
 import { i18nForAccount } from "@/lib/i18n-session";
@@ -38,10 +38,11 @@ const STATUS_TONE: Record<DaycareInvoice["status"], string> = {
 };
 
 export default async function PortalAccountBillingPage() {
-  const session = requireSession();
+  const session = requirePortalPage("/portal/account-billing");
   if (!isOwnerRole(session.role)) {
-    // Admins, staff and carers render the portal; parents have their own
-    // shell. Nothing here is theirs to see — a redirect is a quiet refusal.
+    // KID-485: admins, teachers and caregivers render the portal; parents
+    // have their own shell. Account billing stays the OWNER's own surface —
+    // every other role is refused with a quiet redirect.
     redirect("/portal/dashboard");
   }
   const { dict, dir } = await i18nForAccount(session.accountId);

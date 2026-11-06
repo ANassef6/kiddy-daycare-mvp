@@ -1,4 +1,4 @@
-import { requireSession } from "@/lib/require";
+import { requirePortalPage } from "@/lib/require";
 import { reportCenterStats, staffPerformance, attendanceOn, listChildren, listRoomsScoped, recentReports } from "@/lib/store";
 import { firstInstituteId } from "@/lib/helpers";
 import { i18nForAccount } from "@/lib/i18n-session";
@@ -16,7 +16,7 @@ export default async function PortalReportCenterPage({
 }: {
   searchParams: { child?: string; from?: string; to?: string; status?: string };
 }) {
-  const session = requireSession();
+  const session = requirePortalPage("/portal/report-center");
   const { locale, dict } = await i18nForAccount(session.accountId);
   const t = (key: string, vars?: Record<string, string | number>) => tr(dict, key, vars);
   const roleLabel = (role: string) => {

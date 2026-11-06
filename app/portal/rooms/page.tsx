@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { resolveTenantInstituteId } from "@/lib/tenant";
-import { requireSession } from "@/lib/require";
+import { requirePortalPage } from "@/lib/require";
 import { staffIdForAccount } from "@/lib/auth";
 import { isAdminRole } from "@/lib/role";
 import { listRooms, listChildren, staffRooms } from "@/lib/store";
@@ -14,7 +14,7 @@ export const dynamic = "force-dynamic";
 // create form, capacity/children counts and the click hint. Localized; the
 // "1 child" case now gets a proper singular form per locale.
 export default async function PortalRoomsPage() {
-  const session = requireSession();
+  const session = requirePortalPage("/portal/rooms");
   const { dict } = await i18nForAccount(session.accountId);
   const t = (key: string, vars?: Record<string, string | number>) => tr(dict, key, vars);
   const iid = await resolveTenantInstituteId();

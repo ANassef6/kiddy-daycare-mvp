@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { resolveTenantInstituteId } from "@/lib/tenant";
-import { requireSession } from "@/lib/require";
+import { requirePortalPage } from "@/lib/require";
 import { isAdminRole } from "@/lib/role";
 import {getInstitute, getWorkingHours } from "@/lib/store";
 import { saveBrandingAction, saveCenterDetailsAction, uploadBrandingImageAction } from "@/lib/actions";
@@ -14,7 +14,7 @@ import { WorkingHoursEditor } from "@/components/WorkingHoursEditor";
 export const dynamic = "force-dynamic";
 
 export default async function PortalSettingsPage() {
-  const session = requireSession();
+  const session = requirePortalPage("/portal/settings");
   // KID-105 #15: Center details (and the rest of center configuration) is
   // admin-only. Staff landing here are sent back to the dashboard.
   if (!isAdminRole(session.role)) {

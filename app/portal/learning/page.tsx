@@ -1,4 +1,4 @@
-import { requireSession } from "@/lib/require";
+import { requirePortalPage } from "@/lib/require";
 import { listObservations, listChildren } from "@/lib/store";
 import { curriculumTree, ensureCurriculumSeeded } from "@/lib/curriculum";
 import { firstInstituteId } from "@/lib/helpers";
@@ -10,7 +10,7 @@ import { fmtDateTimeFor, tr } from "@/lib/i18n";
 export const dynamic = "force-dynamic";
 
 export default async function PortalLearningPage() {
-  const session = requireSession();
+  const session = requirePortalPage("/portal/learning");
   const { locale, dict } = await i18nForAccount(session.accountId);
   const t = (key: string, vars?: Record<string, string | number>) => tr(dict, key, vars);
   // KID-221: the kind badge showed the raw DB enum ("observation" etc.) in

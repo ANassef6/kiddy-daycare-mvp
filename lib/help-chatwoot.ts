@@ -105,7 +105,9 @@ export function helpAudiencesForRole(role: string): HelpAudience[] {
   switch (role) {
     case "parent":
       return ["public", "parent"];
-    case "carer":
+    // KID-485: caregivers keep the original carer behavior — public help
+    // articles only.
+    case "caregiver":
       return ["public"];
     case "owner":
       return ["public", "staff"];

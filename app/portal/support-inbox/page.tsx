@@ -1,7 +1,7 @@
 // KID-260: the staff support-ticket inbox moved from /portal/support, which is
 // now the staff Help Center landing (Knowledge Base). The inbox stayed byte
 // for byte as it was; it is the human escalation path referenced from the KB.
-import { requireSession } from "@/lib/require";
+import { requirePortalPage } from "@/lib/require";
 import { listSupportTickets } from "@/lib/store";
 import { firstInstituteId, cap, fmtDate } from "@/lib/helpers";
 import { setTicketStatusAction } from "@/lib/actions";
@@ -15,7 +15,7 @@ function badge(s: string) {
 }
 
 export default async function PortalSupportInboxPage() {
-  requireSession();
+  requirePortalPage("/portal/support-inbox");
   const instituteId = await firstInstituteId();
   if (!instituteId) return <p className="muted">No institute configured.</p>;
   const tickets = await listSupportTickets(instituteId);

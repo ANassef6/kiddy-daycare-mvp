@@ -1,4 +1,4 @@
-import { requireSession } from "@/lib/require";
+import { requirePortalPage } from "@/lib/require";
 import { listEvents, eventMedia } from "@/lib/store";
 import { firstInstituteId } from "@/lib/helpers";
 import { createEventAction, addEventMediaAction } from "@/lib/actions";
@@ -13,7 +13,7 @@ export const dynamic = "force-dynamic";
 const WEEKDAYS = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
 
 export default async function PortalEventsPage({ searchParams }: { searchParams: { open?: string } }) {
-  const session = requireSession();
+  const session = requirePortalPage("/portal/events");
   const { locale, dict } = await i18nForAccount(session.accountId);
   const t = (key: string, vars?: Record<string, string | number>) => tr(dict, key, vars);
   const instituteId = await firstInstituteId();

@@ -4,7 +4,7 @@
 // same gate as the rest of the Tools group. The platform operator's
 // operator-view session carries an admin-shaped session for its bound
 // institute and passes unchanged (requireAdmin action semantics).
-import { requireSession } from "@/lib/require";
+import { requirePortalPage } from "@/lib/require";
 import { resolveTenantInstituteId } from "@/lib/tenant";
 import { isAdminRole } from "@/lib/role";
 import { i18nForAccount } from "@/lib/i18n-session";
@@ -62,7 +62,7 @@ export default async function AuditTrailPage({
   searchParams: Promise<SearchParams> | SearchParams;
 }) {
   const sp = (await searchParams) as SearchParams;
-  const session = requireSession();
+  const session = requirePortalPage("/portal/audit");
   if (!isAdminRole(session.role)) redirect("/portal/dashboard");
   const { locale, dict } = await i18nForAccount(session.accountId);
   const t = (key: string, vars?: Record<string, string | number>) => tr(dict, key, vars);

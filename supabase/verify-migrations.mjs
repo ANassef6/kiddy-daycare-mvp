@@ -534,7 +534,7 @@ try {
          JOIN staff_room sr ON sr.staff_id = s.id
          JOIN child c ON c.room_id = sr.room_id
          JOIN family_member fm ON fm.child_id = c.id
-        WHERE fm.account_id = $1 AND a.role IN ('staff','carer','admin','owner')`,
+        WHERE fm.account_id = $1 AND a.role IN ('teacher','caregiver','admin','owner')`,
       ["acc-parent-maria"]
     );
     check("the parent has no recipient before the repair", recipientsBefore.length, 0);
@@ -598,7 +598,7 @@ try {
          JOIN staff_room sr ON sr.staff_id = s.id
          JOIN child c ON c.room_id = sr.room_id
          JOIN family_member fm ON fm.child_id = c.id
-        WHERE fm.account_id = $1 AND a.role IN ('staff','carer','admin','owner')
+        WHERE fm.account_id = $1 AND a.role IN ('teacher','caregiver','admin','owner')
         ORDER BY a.full_name`,
       ["acc-parent-maria"]
     );
@@ -607,6 +607,161 @@ try {
       recipients.map((r) => `${r.id}:${r.full_name}`),
       ["acc-maria:Nassef"]
     );
+
+    // ---------------------------------------------------------------------
+    // 0033 — KID-485 role model. Legacy 'staff'/'carer' staff rows and login
+    // accounts become 'teacher'; an admin-labeled staff record promotes its
+    // linked login to 'admin'; owner rows and accounts stay untouched; the
+    // default becomes 'teacher'. Replaying the file must be a no-op.
+    {
+      console.log("\n== 0033 kid485 role model ==");
+      await db.run("TRUNCATE family_member, invite, contact, child, account, staff_room, staff, institute CASCADE");
+      await ins("institute", ["id", "name"], ["inst-roles", "Role Centre"]);
+      await staffRow("st-carer", "inst-roles", "Legacy Carer", "carer");
+      await staffRow("st-staff", "inst-roles", "Legacy Staff", "staff");
+      await staffRow("st-admin", "inst-roles", "Legacy Admin", "admin");
+      await staffRow("st-owner", "inst-roles", "Owner Profile", "owner");
+      // Seed the login accounts directly (the accountRow helper keeps its own
+      // SELECT contract).
+      await db.all(`INSERT INTO account (id, email, password_hash, full_name, role, staff_id) VALUES
+        ('ac-carer', 'legacy-carer@x.test', 'x', 'Legacy Carer', 'carer', 'st-carer'),
+        ('ac-staff', 'legacy-staff@x.test', 'x', 'Legacy Staff', 'staff', 'st-staff'),
+        ('ac-adminlink', 'legacy-admin@x.test', 'x', 'Legacy Admin', 'staff', 'st-admin'),
+        ('ac-admin-true', 'already-admin@x.test', 'x', 'Already Admin', 'admin', 'st-admin2'),
+        ('ac-owner', 'owner-staff@x.test', 'x', 'Owner Profile', 'owner', 'st-owner')`);
+      await staffRow("st-admin2", "inst-roles", "Already Admin Staff", "admin");
+
+      const rolesSnapshot = async () =>
+        (await db.all(
+          `SELECT id, role FROM account WHERE id IN ('ac-carer','ac-staff','ac-adminlink','ac-admin-true','ac-owner')
+           UNION ALL SELECT id, role FROM staff WHERE id IN ('st-carer','st-staff','st-admin','st-owner','st-admin2')
+           ORDER BY id`
+        )).map((r) => `${r.id}=${r.role}`);
+
+      await db.run(readFileSync(join(migrationsDir, "0033_kid485_role_model.sql"), "utf8"));
+      check(
+        "legacy carer/staff rows and accounts rename to teacher",
+        await rolesSnapshot(),
+        [
+          "ac-admin-true=admin",
+          "ac-adminlink=admin",
+          "ac-carer=teacher",
+          "ac-owner=owner",
+          "ac-staff=teacher",
+          "st-admin=admin",
+          "st-admin2=admin",
+          "st-carer=teacher",
+          "st-owner=owner",
+          "st-staff=teacher",
+        ]
+      );
+      check("new staff rows default to teacher", (await db.all(
+        `INSERT INTO staff (id, institute_id, full_name) VALUES ('st-default','inst-roles','Default Dolly') RETURNING role`
+      )).map((r) => String(r.role)), ["teacher"]);
+
+      // Idempotence: replay changes nothing anywhere.
+      await db.run(readFileSync(join(migrationsDir, "0033_kid485_role_model.sql"), "utf8"));
+      check(
+        "replaying 0033 changes nothing",
+        (await rolesSnapshot()).concat((await db.all(`SELECT role FROM staff WHERE id = 'st-default'`)).map((r) => `st-default=${r.role}`)),
+        [
+          "ac-admin-true=admin",
+          "ac-adminlink=admin",
+          "ac-carer=teacher",
+          "ac-owner=owner",
+          "ac-staff=teacher",
+          "st-admin=admin",
+          "st-admin2=admin",
+          "st-carer=teacher",
+          "st-owner=owner",
+          "st-staff=teacher",
+          "st-default=teacher",
+        ]
+      );
+    }
+
+    // ---------------------------------------------------------------------
+    // 0034 — KID-498 parent activation repair. Orphan parent accounts (created
+    // by a registration whose child-link step never ran) get their missing
+    // family_member row from the newest still-pending, child-naming invite,
+    // and that invite is accepted. The invite's own institute anchors the
+    // tenant; a same-email child at ANOTHER centre is never consulted.
+    {
+      const m34 = readFileSync(join(migrationsDir, "0034_kid498_parent_activation_repair.sql"), "utf8");
+      console.log("\n== 0034 kid498 parent activation repair ==");
+      await db.run("TRUNCATE family_member, invite, contact, child, account, staff_room, staff, institute CASCADE");
+      await ins("institute", ["id", "name"], ["inst-home", "Home Centre"]);
+      await ins("institute", ["id", "name"], ["inst-other", "Other Centre"]);
+      for (const [id, inst, name] of [
+        ["c-home", "inst-home", "Zein"],
+        ["c-far", "inst-other", "Stranger"],
+        ["c-gone", "inst-home", "Withdrawn Kid"],
+      ]) {
+        await ins("child", ["id", "institute_id", "first_name", "last_name"], [id, inst, name, "Refaat"]);
+      }
+      await db.run(`UPDATE child SET status = 'withdrawn', active = 0 WHERE id = 'c-gone'`);
+
+      // The incident shape: account created, link step failed, invite pending.
+      // The contact table carries a same-email row at BOTH centres — shared
+      // addresses are how the KID-152/149 leaks happened, so the repair must
+      // match on the INVITE alone and never on the contact.
+      const shared = "ahmed@example.com";
+      await db.all(`INSERT INTO account (id, email, password_hash, full_name, role) VALUES ('ac-orphan', $1, 'x', 'Ahmed Refaat', 'parent')`, [shared]);
+      await ins("contact", ["id", "child_id", "full_name", "relationship", "email"], ["co-home", "c-home", "Ahmed", "parent", shared]);
+      await ins("contact", ["id", "child_id", "full_name", "relationship", "email"], ["co-far", "c-far", "Ahmed", "parent", shared]);
+      await ins("invite", ["id", "institute_id", "child_id", "email", "code", "status"], ["inv-heal", "inst-home", "c-home", shared, "KID-STBQGS", "pending"]);
+
+      // Decoys: an already-linked parent with a stale second-child invite, a
+      // parent whose invite names a withdrawn child, a parent whose invite
+      // disagrees with its child's institute, and a staff-linked account.
+      await db.all(`INSERT INTO account (id, email, password_hash, full_name, role) VALUES ('ac-linked', 'linked@example.com', 'x', 'Linked Parent', 'parent')`);
+      await ins("family_member", ["id", "account_id", "child_id", "role"], ["fm-linked", "ac-linked", "c-home", "parent"]);
+      await ins("invite", ["id", "institute_id", "child_id", "email", "code", "status"], ["inv-second", "inst-home", "c-far", "linked@example.com", "code-second", "pending"]);
+      await db.all(`INSERT INTO account (id, email, password_hash, full_name, role) VALUES ('ac-withdrawn', 'withdrawn@example.com', 'x', 'Withdrawn Parent', 'parent')`);
+      await ins("invite", ["id", "institute_id", "child_id", "email", "code", "status"], ["inv-gone", "inst-home", "c-gone", "withdrawn@example.com", "code-gone", "pending"]);
+      await db.all(`INSERT INTO account (id, email, password_hash, full_name, role) VALUES ('ac-mismatch', 'mismatch@example.com', 'x', 'Mismatch Parent', 'parent')`);
+      // invite institute deliberately disagrees with the child's institute.
+      await ins("invite", ["id", "institute_id", "child_id", "email", "code", "status"], ["inv-mismatch", "inst-other", "c-home", "mismatch@example.com", "code-mismatch", "pending"]);
+      await db.all(`INSERT INTO account (id, email, password_hash, full_name, role, staff_id) VALUES ('ac-staff', 'staffer@example.com', 'x', 'Staff Parent', 'parent', 'st-fake')`);
+      await ins("staff", ["id", "institute_id", "full_name", "role"], ["st-fake", "inst-home", "Staff Parent", "teacher"]);
+      await ins("invite", ["id", "institute_id", "child_id", "email", "code", "status"], ["inv-staff", "inst-home", "c-home", "staffer@example.com", "code-staff", "pending"]);
+
+      const links = async (accountId) =>
+        (await db.all(`SELECT child_id FROM family_member WHERE account_id = $1 ORDER BY child_id`, [accountId])).map((r) => String(r.child_id));
+      const inviteStatus = async (id) =>
+        ((await db.all(`SELECT status FROM invite WHERE id = $1`, [id]))[0]?.status ?? null);
+
+      await db.run(m34);
+      check("the orphan is healed with exactly the invite's child", await links("ac-orphan"), ["c-home"]);
+      check("the healed invite is accepted", await inviteStatus("inv-heal"), "accepted");
+      check("the link carries the invite's default parent role",
+        (await db.all(`SELECT role FROM family_member WHERE account_id = 'ac-orphan'`)).map((r) => String(r.role)), ["parent"]);
+      check("a same-email contact at the second centre never leaks a link",
+        await db.all(`SELECT child_id FROM family_member WHERE child_id = 'c-far'`), []);
+      check("an already-linked parent gains no second child", await links("ac-linked"), ["c-home"]);
+      check("a stale pending invite of a linked parent is not this repair's business",
+        await inviteStatus("inv-second"), "pending");
+      check("a withdrawn child is never linked", await links("ac-withdrawn"), []);
+      check("the withdrawn child's invite stays pending", await inviteStatus("inv-gone"), "pending");
+      check("an invite/institute mismatch is refused", await links("ac-mismatch"), []);
+      check("the mismatched invite stays pending (not deleted)", await inviteStatus("inv-mismatch"), "pending");
+      check("a staff-linked account gains no family access", await links("ac-staff"), []);
+
+      // Idempotence: run the repair again on the healed data. Every healable
+      // account now holds a link and every healed invite is accepted, so the
+      // whole file must be a no-op — proven in rows, the 0020 way.
+      const before = await db.all(`SELECT account_id, child_id, role FROM family_member ORDER BY id`);
+      const beforeInvites = await db.all(`SELECT id, status FROM invite ORDER BY id`);
+      await db.run(m34);
+      const after = await db.all(`SELECT account_id, child_id, role FROM family_member ORDER BY id`);
+      const afterInvites = await db.all(`SELECT id, status FROM invite ORDER BY id`);
+      check("re-running the repair changes nothing", [before, beforeInvites], [after, afterInvites]);
+
+      // The same-email contact at the foreign centre gains NO link even after
+      // a replay, and no account besides the healed ones gains one.
+      check("cross-tenant regression: the stranger's child stays linkless",
+        await db.all(`SELECT account_id FROM family_member WHERE child_id = 'c-far'`), []);
+    }
 
     // ---------------------------------------------------------------------
     // 0024 — one daycare per wildcard subdomain. The column plus its partial

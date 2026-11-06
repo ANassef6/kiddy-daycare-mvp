@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { requireSession } from "@/lib/require";
+import { requirePortalPage } from "@/lib/require";
 import { listForms, formResponses, formResponseStatusCounts, formResponsesForInstitute, FORM_RESPONSE_STATUSES } from "@/lib/store";
 import { firstInstituteId, cap } from "@/lib/helpers";
 import { createFormAction, generateFormShareLinkAction, setFormResponseStatusAction } from "@/lib/actions";
@@ -15,7 +15,7 @@ export default async function PortalFormsPage({
 }: {
   searchParams: { view?: string; q?: string; status?: string; type?: string; form?: string };
 }) {
-  requireSession();
+  requirePortalPage("/portal/forms");
   const instituteId = await firstInstituteId();
   if (!instituteId) return <p className="muted">No institute configured.</p>;
   const forms = await listForms(instituteId);

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { requireSession } from "@/lib/require";
+import { requirePortalPage } from "@/lib/require";
 import {
   parentAccountsScoped,
   roomChannelsForAccount,
@@ -26,7 +26,7 @@ export default async function PortalMessagesPage({
 }: {
   searchParams: { with?: string; thread?: string; compose?: string; unread?: string; q?: string; error?: string };
 }) {
-  const session = requireSession();
+  const session = requirePortalPage("/portal/messages");
   const { dict } = await i18nForAccount(session.accountId);
   const t = (key: string, vars?: Record<string, string | number>) => tr(dict, key, vars);
   const instituteId = await firstInstituteId();

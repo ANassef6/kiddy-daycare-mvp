@@ -1,11 +1,11 @@
-import { requireSession } from "@/lib/require";
+import { requirePortalPage } from "@/lib/require";
 import { resolveTenantInstituteId } from "@/lib/tenant";
 import {listIncidents } from "@/lib/store";
 
 export const dynamic = "force-dynamic";
 
 export default async function PortalIncidentsPage() {
-  requireSession();
+  requirePortalPage("/portal/incidents");
   const iid = await resolveTenantInstituteId();
   const incidents = iid ? await listIncidents(iid) : [];
 

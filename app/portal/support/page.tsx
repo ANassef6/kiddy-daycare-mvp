@@ -1,4 +1,4 @@
-import { requireSession } from "@/lib/require";
+import { requirePortalPage } from "@/lib/require";
 import { i18nForAccount } from "@/lib/i18n-session";
 import { getDictionary, tr } from "@/lib/i18n";
 import { helpLanguageForRequest } from "@/lib/help-lang-server";
@@ -17,7 +17,7 @@ export default async function PortalSupportPage({
 }: {
   searchParams: { [key: string]: string | string[] | undefined };
 }) {
-  const session = requireSession();
+  const session = requirePortalPage("/portal/support");
   const { locale } = await i18nForAccount(session.accountId);
   const language = await helpLanguageForRequest(searchParams.lang, locale);
   const dict = getDictionary(language);

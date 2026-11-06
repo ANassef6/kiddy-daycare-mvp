@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { requireSession } from "@/lib/require";
+import { requirePortalPage } from "@/lib/require";
 import { staffIdForAccount } from "@/lib/auth";
 import { isAdminRole } from "@/lib/role";
 import { getRoom, roomChildren, staffRooms } from "@/lib/store";
@@ -10,7 +10,7 @@ import { updateRoomAction } from "@/lib/actions";
 export const dynamic = "force-dynamic";
 
 export default async function PortalRoomDetailPage({ params }: { params: { id: string } }) {
-  const session = requireSession();
+  const session = requirePortalPage("/portal/rooms");
   const room = await getRoom(params.id);
   if (!room) notFound();
   // KID-372: the raw room id in the URL is not authorization — admins could

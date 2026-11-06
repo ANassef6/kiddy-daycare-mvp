@@ -76,8 +76,8 @@ import { requestOrigin, publicOrigin } from "@/lib/url";
 import { sendContactInvite, contactNameForInvite } from "@/lib/contact-invite";
 import { notifyPlatformInbox } from "@/lib/contact-notify";
 import { PLATFORM_CONTACT_EMAIL } from "@/lib/site";
-import { isAdminRole, isOwnerRole } from "@/lib/role";
-import { requireSession } from "@/lib/require";
+import { isAdminRole, isOwnerRole, isCaregiverRole, isTeacherRole } from "@/lib/role";
+import { requireSession, refuseCaregiver } from "@/lib/require";
 import { recordAuditEvent } from "@/lib/audit";
 import { createEnhancementRequest } from "@/lib/enhancements";
 import { syncChatwootContactForAccount } from "@/lib/chatwoot-contacts";
@@ -140,6 +140,8 @@ function homeForRole(role: string): string {
   // KID-199.4r: the platform operator lands on /platform (its internal
   // sentinel session is not a daycare role).
   if (role === PLATFORM_OPERATOR_ROLE) return "/platform";
+  // KID-485: a caregiver's only home is the children area.
+  if (isCaregiverRole(role)) return "/portal/children";
   return role === "parent" ? "/child" : "/portal/dashboard";
 }
 
@@ -202,6 +204,44 @@ async function tenancyDisabledError(
   return null;
 }
 
+// KID-498: the parent activation gate, shared by both login paths (GoTrue and
+// app-side). Zero family links is an unfinished activation, never withdrawal —
+// heal it from the pending invite addressed to this email and, on success,
+// continue the normal session. The three user-facing states:
+//   - `withdrawn` (a real link set whose every child is withdrawn) keeps the
+//     original withdrawn message;
+//   - a pending invite exists but the heal cannot complete (withdrawn child,
+//     damaged invite row) gets `login.activationIncomplete` — a path to ask
+//     for help, not a false "unenrolled" claim;
+//   - zero links and no pending invite gets `login.noDaycareAccess`.
+// A gate failure (DB unreachable) logs and fails open — the page-level
+// withdrawal gate then classifies the session and nothing is lost.
+async function parentActivationGate(
+  accountId: string,
+  accountLanguage: unknown
+): Promise<{ error: string } | null> {
+  try {
+    const { parentAccountAccessState, healParentActivation } = await import("@/lib/store");
+    const state = await parentAccountAccessState(accountId);
+    if (state === null || state === "active") return null;
+    if (state === "withdrawn") {
+      return { error: await gateMessage("login.withdrawn", accountLanguage) };
+    }
+    const heal = await healParentActivation(accountId);
+    if (heal.status === "linked") {
+      console.log(`KID-498: login self-heal completed for account ${accountId} (child ${heal.childId}, invite ${heal.inviteId}); continuing the session.`);
+      return null;
+    }
+    const key = heal.status === "blocked" ? "login.activationIncomplete" : "login.noDaycareAccess";
+    const message = await gateMessage(key, accountLanguage);
+    console.log(`KID-498: parent activation gate blocks account ${accountId} (${state}, heal ${heal.status}${heal.status === "blocked" ? `: ${heal.reason}` : ""}).`);
+    return { error: message };
+  } catch (err) {
+    console.error("KID-498: parent activation gate failed open:", err instanceof Error ? err.message : err);
+    return null;
+  }
+}
+
 export async function loginAction(formData: FormData) {
   const email = String(formData.get("email") ?? "").trim();
   const password = String(formData.get("password") ?? "");
@@ -221,6 +261,21 @@ export async function loginAction(formData: FormData) {
         // a Sunshine login on the Maple host is refused, never signed in.
         const hostGate = await loginHostGate(String(account.id), String(account.role), headers().get("host"));
         if (hostGate) return hostGate;
+        // KID-498: the same activation gate the app-side login runs — an
+        // orphan parent with a pending invite self-heals here too, and one
+        // whose invited child is withdrawn gets the honest message instead of
+        // being dropped into an empty portal. The sweep runs first so a child
+        // whose last_date was reached today is already marked withdrawn when
+        // the state is classified (same order as the app-side path).
+        if (String(account.role) === "parent") {
+          try {
+            await runWithdrawalSweep();
+          } catch (err) {
+            console.error("Login withdrawal sweep failed:", err);
+          }
+          const parentGate = await parentActivationGate(String(account.id), account.language);
+          if (parentGate) return parentGate;
+        }
         if (data.user.email_confirmed_at && !emailConfirmedFor(account)) {
           await setEmailConfirmed(account.id, true);
         }
@@ -254,6 +309,12 @@ export async function loginAction(formData: FormData) {
   // KID-112: contacts with relationship "No access" cannot log in
   // (e.g. unpaid fees). The admin re-enables them by changing the role.
   if (account.role === "parent") {
+    // KID-498: zero family links self-heals from the pending invite here —
+    // a completed heal continues the normal session instead of erroring; a
+    // heal that cannot complete gets its own honest message, and only a
+    // genuine all-children-withdrawn account still hears "withdrawn".
+    const parentGate = await parentActivationGate(account.id, account.language);
+    if (parentGate) return parentGate;
     const { familyAccessForAccount } = await import("@/lib/store");
     const access = await familyAccessForAccount(account.id);
     if (access === "no_access") {
@@ -313,8 +374,34 @@ export async function registerAction(formData: FormData) {
   let needsConfirmResend = false;
   let step = "findAccount";
   try {
-    if (await findAccountByEmail(email)) {
-      return { error: "An account with that email already exists." };
+    // KID-498: an account may already exist because an earlier registration
+    // died between createAccount and the child-link step (or before the
+    // invite was consumed). The submitted, still-pending invite authorizes
+    // finishing that activation in place — the same authorization the
+    // KID-123 adopt-signIn fallback uses. Re-registration never creates a
+    // second account here.
+    const existing = await findAccountByEmail(email);
+    if (existing) {
+      if (String(existing.role) === "parent") {
+        const { healParentActivation } = await import("@/lib/store");
+        const heal = await healParentActivation(String(existing.id));
+        if (heal.status === "linked") {
+          console.log(`KID-498: register resumed activation for account ${existing.id} (child ${heal.childId}, invite ${heal.inviteId}) instead of duplicate-registration.`);
+          account = existing;
+          // The row predates this attempt; its stored confirmation state is
+          // authoritative (no fresh signUp happened on this path).
+          emailConfirmed = await emailConfirmedFor(existing);
+          if (!emailConfirmed) needsConfirmResend = true;
+        } else {
+          // Blocked (e.g. the invited child is withdrawn) or nothing to
+          // finish: report the honest state and let the parent sign in —
+          // login classifies the account and offers the right message.
+          console.log(`KID-498: register for ${email} found an existing parent account the heal could not finish (${heal.status}).`);
+        }
+      }
+      if (!account) {
+        return { error: "An account with that email already exists." };
+      }
     }
 
     // Create a real GoTrue user for every self-service registration, then record
@@ -543,6 +630,38 @@ export async function confirmEmailAction(email: string) {
   const account = await findAccountByEmail(email);
   if (account && !emailConfirmedFor(account)) {
     await setEmailConfirmed(account.id, true);
+  }
+  // KID-499: the visitor may already hold a 30-day session whose cookie
+  // snapshot says emailConfirmed: false (the Sunshine report — a signed-in
+  // parent clicks the link from the same browser). Re-mint THAT session before
+  // the success page renders, so the banner clears in the same browser
+  // session with no sign-out/sign-in. Minting is keyed to an existing,
+  // matching cookie: the confirm link proves control of the email, but a
+  // fresh sign-in session is never conjured out of it (that would bypass
+  // password auth for an idle email owner).
+  if (account) {
+    try {
+      const cookie = cookies().get(SESSION_COOKIE)?.value;
+      const session = cookie
+        ? (verifyToken(decodeURIComponent(cookie)) as SessionCookie | null)
+        : null;
+      if (
+        session &&
+        String(session.email).toLowerCase() === String(account.email).toLowerCase() &&
+        session.emailConfirmed === false
+      ) {
+        await setSession(account.email);
+        console.log(`KID-499 confirm: refreshed session cookie for ${account.email} so the banner clears in the same session.`);
+      }
+    } catch (err) {
+      // The local flag is already set; a failed refresh only leaves the
+      // cosmetic banner, which the layout live-check (lib/auth.ts
+      // emailConfirmedDisplayFor) hides on the next render anyway.
+      console.warn(
+        `KID-499 confirm: session cookie refresh skipped for ${email}:`,
+        err instanceof Error ? err.message : err
+      );
+    }
   }
   return { ok: true };
 }
@@ -1118,8 +1237,8 @@ async function assertFamilyAction(me: SessionCookie, action: string): Promise<vo
 }
 
 // KID-104: resolve recipient form fields into the list of child IDs a post is
-// allowed to tag. Admin/owner may use the "center" channel; staff and carers
-// are restricted to their assigned classrooms. Forged or out-of-scope values
+// allowed to tag. Admin/owner may use the "center" channel; teachers are
+// restricted to their assigned classrooms. Forged or out-of-scope values
 // are dropped rather than silently expanded.
 async function resolveNewsfeedRecipients(
   formData: FormData,
@@ -1133,7 +1252,7 @@ async function resolveNewsfeedRecipients(
 
   let allowedRoomIds: string[] = [];
   if (!isAdmin) {
-    if (me.role === "staff" || me.role === "carer") {
+    if (isTeacherRole(me.role)) {
       const account = await queryGet("SELECT staff_id FROM account WHERE id = ?", me.accountId);
       if (account?.staff_id) {
         const roomsForStaff = await staffRooms(String(account.staff_id));
@@ -1197,6 +1316,7 @@ export async function checkInOutAction(formData: FormData) {
   const childId = String(formData.get("childId") ?? "");
   const type = String(formData.get("type") ?? "") as "in" | "out";
   const me = authAccount();
+  refuseCaregiver(me);
   // KID-112: pickup role exists only to register pickup time; no_access is
   // blocked at login (defensive deny here too).
   await assertFamilyAction(me, "checkInOut");
@@ -1240,6 +1360,7 @@ export async function saveDailyReportAction(formData: FormData) {
   // reload rather than swapping the view to today.
   const reportDate = configuredReportDate(formData.get("reportDate"), new Date().toISOString().slice(0, 10));
   const me = authAccount();
+  refuseCaregiver(me);
   if (childId) await assertChildInScope(childId, me);
   // KID-477: the audit row must distinguish a NEW report from an EDIT —
   // check presence before the upsert overwrites the row.
@@ -1286,6 +1407,7 @@ export async function saveDailyReportAction(formData: FormData) {
 
 export async function createNewsfeedAction(formData: FormData) {
   const me = authAccount();
+  refuseCaregiver(me);
   await ensureSchema();
   const instituteId = await firstInstituteId();
   const post = await createNewsfeedPost({
@@ -1311,6 +1433,7 @@ export async function createNewsfeedAction(formData: FormData) {
 
 export async function commentAction(formData: FormData) {
   const me = authAccount();
+  refuseCaregiver(me);
   // KID-112: pickup accounts may only register pickup time — no commenting.
   await assertFamilyAction(me, "comment");
   const comment = await addComment(String(formData.get("postId") ?? ""), me.accountId, String(formData.get("body") ?? ""));
@@ -1335,6 +1458,7 @@ export async function commentAction(formData: FormData) {
 export async function createConsentAction(formData: FormData) {
   await ensureSchema();
   const me = authAccount();
+  refuseCaregiver(me);
   const instituteId = await firstInstituteId();
   const childId = String(formData.get("childId") ?? "") || undefined;
   if (childId) await assertChildInScope(childId, me);
@@ -1362,6 +1486,7 @@ export async function createConsentAction(formData: FormData) {
 
 export async function respondConsentAction(formData: FormData) {
   const me = authAccount();
+  refuseCaregiver(me);
   // KID-112: consent responses are parent-only (family/pickup denied).
   await assertFamilyAction(me, "respondConsent");
   const consentId = String(formData.get("id") ?? "");
@@ -1384,6 +1509,7 @@ export async function respondConsentAction(formData: FormData) {
 
 export async function createIncidentAction(formData: FormData) {
   const me = authAccount();
+  refuseCaregiver(me);
   await ensureSchema();
   const instituteId = await firstInstituteId();
   const childId = String(formData.get("childId") ?? "");
@@ -1412,6 +1538,7 @@ export async function createIncidentAction(formData: FormData) {
 
 export async function acknowledgeIncidentAction(formData: FormData) {
   const me = authAccount();
+  refuseCaregiver(me);
   // KID-112: incident acknowledgement is parent-only (family/pickup denied).
   await assertFamilyAction(me, "acknowledgeIncident");
   const incidentId = String(formData.get("id") ?? "");
@@ -1435,6 +1562,7 @@ export async function acknowledgeIncidentAction(formData: FormData) {
 export async function addChildAction(formData: FormData) {
   await ensureSchema();
   const me = authAccount();
+  refuseCaregiver(me);
   const instituteId = await firstInstituteId();
 
   // #4a: a child cannot exist without at least one parent/guardian who will
@@ -1460,7 +1588,7 @@ export async function addChildAction(formData: FormData) {
     if (allowed !== null && !allowed.includes(roomId)) {
       redirect("/portal/children?error=scope");
     }
-  } else if ((me.role === "staff" || me.role === "carer") && !roomId) {
+  } else if (isTeacherRole(me.role) && !roomId) {
     redirect("/portal/children?error=scope");
   }
 
@@ -1503,7 +1631,11 @@ export async function addStaffAction(formData: FormData) {
   const instituteId = await firstInstituteId();
   const me = authAccount();
   const fullName = String(formData.get("fullName") ?? "").trim();
-  const role = String(formData.get("role") ?? "carer");
+  // KID-485: the add form offers exactly admin | teacher | caregiver. Any
+  // other submitted value (owner, the retired staff/carer strings, a forged
+  // option) falls back to teacher — owner is never assignable here.
+  const requestedRole = String(formData.get("role") ?? "");
+  const role = ["admin", "teacher", "caregiver"].includes(requestedRole) ? requestedRole : "teacher";
   const email = String(formData.get("email") ?? "").trim().toLowerCase();
   const passwordInput = String(formData.get("password") ?? "").trim();
   const password = passwordInput || genTempPassword();
@@ -1532,7 +1664,10 @@ export async function addStaffAction(formData: FormData) {
   // account. The admin shares the credentials; staff can change the password
   // later via "Forgot password".
   if (email && !(await findAccountByEmail(email))) {
-    const staffAccount = await createAccount({ email, password, fullName, role: "staff" });
+    // KID-485: the linked login carries the staff role itself (admin -> admin,
+    // teacher -> teacher, caregiver -> caregiver), so the account's portal
+    // surface matches what the staff profile says from day one.
+    const staffAccount = await createAccount({ email, password, fullName, role });
     await queryRun("UPDATE account SET staff_id = ? WHERE email = ?", staff.id, email);
     await syncChatwootContactForAccount(String(staffAccount.id));
     // Best-effort GoTrue identity so the reset-password email flow works later.
@@ -1582,15 +1717,21 @@ export async function linkStaffLoginAction(formData: FormData) {
 
   // Authorize the resource, not just the role: the staff record must belong to
   // this institute, so a forged id from another centre cannot be linked.
-  const staff = await queryGet("SELECT id, full_name FROM staff WHERE id = ? AND institute_id = ?", staffId, String(instituteId));
+  // KID-485: the staff role is read too, so the linked account can be aligned
+  // with it (admin-labeled staff get the real portal admin).
+  const staff = await queryGet("SELECT id, full_name, role FROM staff WHERE id = ? AND institute_id = ?", staffId, String(instituteId));
   if (!staff) redirect(`${back}?error=notfound`);
+
+  // KID-485: role sync mapping — the account role must equal the staff role.
+  // Only admin/teacher/caregiver travel; `owner` is never assigned here.
+  const staffRole = ["admin", "teacher", "caregiver"].includes(String(staff.role)) ? String(staff.role) : "teacher";
 
   const existing = await findAccountByEmail(email);
   if (existing) {
     // `findAccountByEmail` selects without `staff_id`, so read the link
     // explicitly — reading it off that row would silently pass every check and
     // let this action re-point an account that belongs to another staff record.
-    const linked = await queryGet("SELECT staff_id FROM account WHERE id = ?", String(existing.id));
+    const linked = await queryGet("SELECT staff_id, role FROM account WHERE id = ?", String(existing.id));
     // Never move a person's access between staff records: if this email already
     // belongs to a different staff member, say so instead of hijacking it.
     if (linked?.staff_id && String(linked.staff_id) !== staffId) {
@@ -1599,6 +1740,22 @@ export async function linkStaffLoginAction(formData: FormData) {
     if (String(linked?.staff_id ?? "") !== staffId) {
       await queryRun("UPDATE account SET staff_id = ? WHERE id = ?", staffId, String(existing.id));
     }
+    // KID-485: align the account role with the staff role WITHOUT demoting a
+    // standing owner or admin — promoting an admin-labeled staff member's
+    // login stays safe, while teacher/caregiver staff roles apply only to
+    // accounts whose role is not already owner/admin.
+    if (staffRole === "admin") {
+      await queryRun(
+        "UPDATE account SET role = 'admin' WHERE id = ? AND role <> 'owner'",
+        String(existing.id)
+      );
+    } else {
+      await queryRun(
+        "UPDATE account SET role = ? WHERE id = ? AND role NOT IN ('owner','admin')",
+        staffRole,
+        String(existing.id)
+      );
+    }
     await queryRun("UPDATE staff SET email = ? WHERE id = ?", email, staffId);
     await syncChatwootContactForAccount(String(existing.id));
     redirect(`${back}?linked=1&existing=1`);
@@ -1606,11 +1763,13 @@ export async function linkStaffLoginAction(formData: FormData) {
 
   const password = passwordInput;
   if (password.length < 8) redirect(`${back}?error=password`);
+  // KID-485: the new login starts at the staff record's role (admin ->
+  // admin, teacher -> teacher, caregiver -> caregiver).
   const account = await createAccount({
     email,
     password,
     fullName: String(staff.full_name ?? ""),
-    role: "staff",
+    role: staffRole,
   });
   await queryRun("UPDATE account SET staff_id = ? WHERE id = ?", staffId, String(account.id));
   await queryRun("UPDATE staff SET email = ? WHERE id = ?", email, staffId);
@@ -1727,6 +1886,7 @@ export async function saveChildStatusAction(formData: FormData) {
 
 export async function addContactAction(formData: FormData) {
   const me = authAccount();
+  refuseCaregiver(me);
   const childId = String(formData.get("childId") ?? "");
   if (childId) await assertChildInScope(childId, me);
   // KID-112: relationship is a required 4-option enum — reject free text.
@@ -1751,7 +1911,7 @@ export async function addContactAction(formData: FormData) {
   // to, so an email-bearing contact invites its parent in the same action —
   // no separate "Send invite" click that history shows gets forgotten.
   // Invite sending stays admin-only, like every other invite surface: a
-  // carer adding a pickup/emergency contact just saves the contact.
+  // teacher/caregiver adding a pickup/emergency contact just saves the contact.
   const params = new URLSearchParams({ tab: "family" });
   if (email && isAdminRole(me.role)) {
     const outcome = await sendContactInvite({
@@ -1814,6 +1974,7 @@ export async function updateContactAction(formData: FormData) {
 export async function inviteParentAction(formData: FormData) {
   await ensureSchema();
   const me = authAccount();
+  refuseCaregiver(me);
   const instituteId = await firstInstituteId();
   const childId = String(formData.get("childId") ?? "") || null;
   if (childId) await assertChildInScope(childId, me);
@@ -1878,6 +2039,7 @@ export async function inviteParentAction(formData: FormData) {
 export async function resendParentInviteAction(formData: FormData) {
   await ensureSchema();
   const me = authAccount();
+  refuseCaregiver(me);
   if (!isAdminRole(me.role)) return { error: "Only admins can resend invites." };
   const inviteId = String(formData.get("inviteId") ?? "").trim();
   const invite = inviteId ? await getInviteById(inviteId) : undefined;
@@ -1968,6 +2130,7 @@ export async function resendParentInviteAction(formData: FormData) {
 export async function sendInviteForContactAction(formData: FormData) {
   await ensureSchema();
   const me = authAccount();
+  refuseCaregiver(me);
   if (!isAdminRole(me.role)) return { error: "Only admins can send invites." };
   const childId = String(formData.get("childId") ?? "").trim();
   if (!childId) return { error: "Missing child." };
@@ -2135,6 +2298,7 @@ function requireInstitute(): Promise<string> {
 
 export async function createEventAction(formData: FormData) {
   const me = authAccount();
+  refuseCaregiver(me);
   const instituteId = await requireInstitute();
   if (instituteId) {
     const event = await createEvent({
@@ -2176,6 +2340,7 @@ export async function createEventAction(formData: FormData) {
 
 export async function addEventMediaAction(formData: FormData) {
   const me = authAccount();
+  refuseCaregiver(me);
   const instituteId = await requireInstitute();
   const eventId = String(formData.get("eventId") ?? "");
   if (instituteId && eventId) {
@@ -2203,6 +2368,7 @@ export async function addEventMediaAction(formData: FormData) {
 
 export async function createFormAction(formData: FormData) {
   const me = authAccount();
+  refuseCaregiver(me);
   const instituteId = await requireInstitute();
   const title = String(formData.get("title") ?? "");
   const kind = String(formData.get("kind") ?? "form");
@@ -2249,6 +2415,7 @@ export async function createFormAction(formData: FormData) {
 
 export async function submitFormAction(formData: FormData) {
   const me = authAccount();
+  refuseCaregiver(me);
   // KID-112: form submissions are parent-only (family/pickup denied).
   await assertFamilyAction(me, "submitForm");
   const formId = String(formData.get("formId") ?? "");
@@ -2289,6 +2456,7 @@ export async function createTagAction(formData: FormData) {
   // back to the first-created institute — an unauthenticated POST wrote a tag
   // into that daycare. Tags belong to the signed-in session's request tenant.
   const me = requireAuthSession();
+  refuseCaregiver(me);
   const instituteId = await requireInstitute();
   if (instituteId) {
     await createTag(
@@ -2305,6 +2473,7 @@ export async function createTagAction(formData: FormData) {
 
 export async function setChildTagsAction(formData: FormData) {
   const me = authAccount();
+  refuseCaregiver(me);
   const childId = String(formData.get("childId") ?? "");
   if (childId) {
     await assertChildInScope(childId, me);
@@ -2315,6 +2484,7 @@ export async function setChildTagsAction(formData: FormData) {
 
 export async function addDriveFileAction(formData: FormData) {
   const me = authAccount();
+  refuseCaregiver(me);
   const instituteId = await requireInstitute();
   const childId = String(formData.get("childId") ?? "") || undefined;
   if (instituteId) {
@@ -2359,6 +2529,7 @@ export async function addDriveFileAction(formData: FormData) {
 
 export async function createObservationAction(formData: FormData) {
   const me = authAccount();
+  refuseCaregiver(me);
   const instituteId = await requireInstitute();
   const childId = String(formData.get("childId") ?? "");
   const body = String(formData.get("body") ?? "").trim();
@@ -2431,6 +2602,7 @@ export async function accountName(accountId: string): Promise<string> {
 
 export async function createSupportTicketAction(formData: FormData) {
   const me = authAccount();
+  refuseCaregiver(me);
   // KID-112: support tickets are parent-only (family/pickup denied).
   await assertFamilyAction(me, "createSupportTicket");
   const instituteId = await requireInstitute();
@@ -2461,6 +2633,7 @@ export async function setTicketStatusAction(formData: FormData) {
   // ticket by raw id (a cross-center write an anonymous POST could reach).
   // The ticket must belong to the signed-in session's request tenant.
   const me = requireAuthSession();
+  refuseCaregiver(me);
   await ensureSchema();
   const ticketId = String(formData.get("ticketId") ?? "");
   const status = String(formData.get("status") ?? "open");
@@ -2487,6 +2660,7 @@ export async function setTicketStatusAction(formData: FormData) {
 
 export async function sendMessageAction(formData: FormData) {
   const me = authAccount();
+  refuseCaregiver(me);
   const recipient = String(formData.get("recipientId") ?? "");
   const body = String(formData.get("body") ?? "").trim();
   await ensureSchema();
@@ -2518,6 +2692,7 @@ const MAX_ATTACHMENT_BYTES = 1_500_000;
 
 export async function sendComposerAction(formData: FormData) {
   const me = authAccount();
+  refuseCaregiver(me);
   await ensureSchema();
   const instituteId = await firstInstituteId();
   const body = String(formData.get("body") ?? "").trim();
@@ -2661,6 +2836,7 @@ export async function sendComposerAction(formData: FormData) {
 // group reply stays in the same shared thread for all to see.
 export async function replyThreadAction(formData: FormData) {
   const me = authAccount();
+  refuseCaregiver(me);
   await ensureSchema();
   const instituteId = await firstInstituteId();
   const threadId = String(formData.get("threadId") ?? "");
@@ -2692,6 +2868,7 @@ export async function replyThreadAction(formData: FormData) {
 
 export async function sendParentMessageAction(formData: FormData) {
   const me = authAccount();
+  refuseCaregiver(me);
   // KID-112: pickup accounts may only register pickup time — no messaging.
   await assertFamilyAction(me, "sendMessage");
   const recipient = String(formData.get("recipientId") ?? "");
@@ -2782,6 +2959,7 @@ export async function uploadBrandingImageAction(formData: FormData) {
 export async function uploadPhotoAction(formData: FormData) {
   await ensureSchema();
   const me = authAccount();
+  refuseCaregiver(me);
   const entityType = String(formData.get("entityType") ?? ""); // "child" | "staff"
   const entityId = String(formData.get("entityId") ?? "");
   const file = formData.get("file") as File | null;
@@ -2874,6 +3052,7 @@ export async function uploadAccountPhotoAction(formData: FormData) {
 export async function updateChildDetailsAction(formData: FormData) {
   await ensureSchema();
   const me = authAccount();
+  refuseCaregiver(me);
   const childId = String(formData.get("childId") ?? "");
   if (!childId) redirect("/portal/children");
   await assertChildInScope(childId, me);
@@ -2920,6 +3099,7 @@ export async function updateChildDetailsAction(formData: FormData) {
 export async function addChildBillingAction(formData: FormData) {
   await ensureSchema();
   const me = authAccount();
+  refuseCaregiver(me);
   const instituteId = await firstInstituteId();
   const childId = String(formData.get("childId") ?? "");
   if (!instituteId || !childId) redirect("/portal/children");
@@ -2951,6 +3131,7 @@ export async function addChildBillingAction(formData: FormData) {
 
 export async function updateBillingStatusAction(formData: FormData) {
   const me = authAccount();
+  refuseCaregiver(me);
   const billingId = String(formData.get("billingId") ?? "");
   const status = String(formData.get("status") ?? "pending");
   const childId = String(formData.get("childId") ?? "");
@@ -2977,6 +3158,7 @@ export async function updateBillingStatusAction(formData: FormData) {
 // ---- #8 Newsfeed likes (client calls this) ----
 export async function toggleLikeAction(formData: FormData) {
   const me = authAccount();
+  refuseCaregiver(me);
   // KID-112: pickup accounts may only register pickup time — no likes.
   await assertFamilyAction(me, "toggleLike");
   const postId = String(formData.get("postId") ?? "");
@@ -3002,6 +3184,7 @@ export async function toggleLikeAction(formData: FormData) {
 // ---- #3 Newsfeed post with local-drive attachment (no URL field) ----
 export async function createNewsfeedWithAttachmentAction(formData: FormData) {
   const me = authAccount();
+  refuseCaregiver(me);
   await ensureSchema();
   const instituteId = await firstInstituteId();
   const body = String(formData.get("body") ?? "");
@@ -3037,6 +3220,7 @@ export async function createNewsfeedWithAttachmentAction(formData: FormData) {
 // ---- KID-47 Round 6: homework assign (#8) ----
 export async function assignHomeworkAction(formData: FormData) {
   const me = authAccount();
+  refuseCaregiver(me);
   await ensureSchema();
   const { createHomework, createNewsfeedPost, listChildren } = await import("@/lib/store");
   const instituteId = await requireInstitute();
@@ -3082,6 +3266,7 @@ export async function assignHomeworkAction(formData: FormData) {
 // ---- KID-47 Round 6: supplies (#9) ----
 export async function createSupplyAction(formData: FormData) {
   const me = authAccount();
+  refuseCaregiver(me);
   await ensureSchema();
   const { createSupply, createNewsfeedPost, listChildren } = await import("@/lib/store");
   const instituteId = await requireInstitute();
@@ -3130,6 +3315,7 @@ export async function createSupplyAction(formData: FormData) {
 
 export async function updateSupplyStatusAction(formData: FormData) {
   const me = authAccount();
+  refuseCaregiver(me);
   await ensureSchema();
   const { updateSupplyStatus, createNewsfeedPost, listChildren } = await import("@/lib/store");
   const { queryGet } = await import("@/lib/db");
@@ -3178,6 +3364,7 @@ export async function updateSupplyStatusAction(formData: FormData) {
 // ---- KID-47 Round 6: staff schedules (#13) ----
 export async function createStaffScheduleAction(formData: FormData) {
   const me = authAccount();
+  refuseCaregiver(me);
   await ensureSchema();
   const { createStaffSchedule } = await import("@/lib/store");
   let staffId = String(formData.get("staffId") ?? "");
@@ -3200,6 +3387,7 @@ export async function createStaffScheduleAction(formData: FormData) {
 
 export async function deleteStaffScheduleAction(formData: FormData) {
   const me = authAccount();
+  refuseCaregiver(me);
   const { deleteStaffSchedule } = await import("@/lib/store");
   const id = String(formData.get("id") ?? "");
   // KID-105 #13: non-admins can only delete their own shifts.
@@ -3262,6 +3450,7 @@ export async function generateFormShareLinkAction(formData: FormData) {
   // public share token for ANOTHER center's form. The form must belong to
   // the request tenant before a token is minted for it.
   const me = requireAuthSession();
+  refuseCaregiver(me);
   const { ensureFormShareToken } = await import("@/lib/store");
   const formId = String(formData.get("formId") ?? "");
   if (formId) {
@@ -3291,6 +3480,7 @@ export async function submitPublicFormAction(formData: FormData) {
 // Staff presence / availability status (staff profile card).
 export async function logStaffStatusAction(formData: FormData) {
   const me = authAccount();
+  refuseCaregiver(me);
   await ensureSchema();
   const { logStaffStatus } = await import("@/lib/store");
   const staffId = String(formData.get("staffId") ?? "");
@@ -3321,18 +3511,45 @@ export async function updateStaffInfoAction(formData: FormData) {
   const staffId = String(formData.get("staffId") ?? "");
   if (staffId) {
     const staffBefore = await queryGet(
-      "SELECT institute_id, full_name FROM staff WHERE id = ?",
+      "SELECT institute_id, full_name, role FROM staff WHERE id = ?",
       staffId
     );
+    // KID-485: role updates accept exactly admin | teacher | caregiver.
+    // `owner`, the retired `staff`/`carer` strings and any forged value are
+    // dropped (never written); an owner record's role is immutable through
+    // this action, so editing an owner profile cannot demote the owner.
+    const requestedRole = String(formData.get("role") ?? "").trim();
+    // An owner staff record never moves: editing the profile cannot demote
+    // the owner, so the submitted role is simply dropped for that record.
+    const role: string | undefined =
+      String(staffBefore?.role) === "owner"
+        ? undefined
+        : ["admin", "teacher", "caregiver"].includes(requestedRole)
+          ? requestedRole
+          : undefined;
     await updateStaffInfo(staffId, {
       fullName: String(formData.get("fullName") ?? "").trim() || undefined,
-      role: String(formData.get("role") ?? "").trim() || undefined,
+      role,
       email: String(formData.get("email") ?? "").trim().toLowerCase() || undefined,
       phone: String(formData.get("phone") ?? "").trim() || undefined,
       bio: String(formData.get("bio") ?? "").trim() || undefined,
       roomIds: formData.getAll("roomIds").map(String),
       lastDate: String(formData.get("lastDate") ?? "") || null,
     });
+    // KID-485: keep the linked login's role in step with the staff record.
+    // The account always follows the staff role the admin chose (admin ->
+    // admin, teacher/caregiver -> same), except never demoting the account
+    // when it is the daycare's own owner.
+    if (role && String(staffBefore?.role) !== role) {
+      await queryRun(
+        "UPDATE account SET role = ? WHERE staff_id = ? AND role <> 'owner'",
+        role,
+        staffId
+      );
+      if (String(staffBefore?.role) === "admin" && role !== "admin") {
+        console.error("KID-485: an admin staff profile was moved to", role, "— the linked login follows the new staff role (a standing owner account was left untouched).");
+      }
+    }
     // KID-477: staff profile edits join the audit trail (name only — never
     // phone/email/bio in the summary or metadata).
     if (staffBefore) {
@@ -3358,6 +3575,7 @@ export async function setFormResponseStatusAction(formData: FormData) {
   // institute — a cross-center status flip on any raw id. form_response has
   // no institute column; tenancy comes from the response's own form.
   const me = requireAuthSession();
+  refuseCaregiver(me);
   await ensureSchema();
   const { setFormResponseStatus } = await import("@/lib/store");
   const responseId = String(formData.get("responseId") ?? "");
@@ -3382,6 +3600,7 @@ export async function createSmartListAction(formData: FormData) {
   // KID-372: same anonymous first-institute write path as createTagAction —
   // hold a session, write into the request tenant only (fail closed).
   const me = requireAuthSession();
+  refuseCaregiver(me);
   const instituteId = await requireInstitute();
   const name = String(formData.get("name") ?? "").trim();
   const { createTag } = await import("@/lib/store");
@@ -3549,11 +3768,10 @@ export async function resendActivationAction(formData: FormData) {
 // stack, no silent swallow (the unexpected path rethrows).
 export async function createEnhancementRequestAction(formData: FormData) {
   const session = requireSession();
-  // Owner-only in the ACTION too, not only the page: a forged form post from
-  // a non-owner session must not mint rows. Same test as the tab/page
-  // (components/PortalSidebar.tsx, isOwnerRole) — the exact owner role, not
-  // isAdminRole.
-  if (!isOwnerRole(session.role)) redirect("/portal/dashboard");
+  // KID-485: owner OR admin in the ACTION too, not only the page: a forged
+  // form post from any other session must not mint rows. Same test as the
+  // tab/page (components/PortalSidebar.tsx, isAdminRole).
+  if (!isAdminRole(session.role)) redirect("/portal/dashboard");
   const instituteId = await resolveTenantInstituteId();
   if (!instituteId) redirect("/portal/dashboard");
   const title = String(formData.get("title") ?? "").trim();

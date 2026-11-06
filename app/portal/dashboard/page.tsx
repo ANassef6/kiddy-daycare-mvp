@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { resolveTenantInstituteId } from "@/lib/tenant";
-import { requireSession } from "@/lib/require";
+import { requirePortalPage } from "@/lib/require";
 import { queryGet } from "@/lib/db";
 import {
   listChildren,
@@ -18,7 +18,7 @@ import { tr } from "@/lib/i18n";
 export const dynamic = "force-dynamic";
 
 export default async function PortalDashboard() {
-  const session = requireSession();
+  const session = requirePortalPage("/portal/dashboard");
   const { locale, dict } = await i18nForAccount(session.accountId);
   const instituteId = await resolveTenantInstituteId();
   if (!instituteId) {

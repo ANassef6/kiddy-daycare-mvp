@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { resolveTenantInstituteId } from "@/lib/tenant";
 import { notFound, redirect } from "next/navigation";
-import { requireSession } from "@/lib/require";
+import { requirePortalPage } from "@/lib/require";
 import { staffIdForAccount } from "@/lib/auth";
 import { isAdminRole } from "@/lib/role";
 import { listStaff, staffRooms, listStaffSchedules, staffStatusLog, staffActivity, listRooms } from "@/lib/store";
@@ -26,7 +26,7 @@ const STATUS_KIND_LABEL: Record<string, string> = {
 };
 
 export default async function StaffProfilePage({ params, searchParams }: { params: { id: string }; searchParams?: { edit?: string; linked?: string; existing?: string; error?: string } }) {
-  const session = requireSession();
+  const session = requirePortalPage("/portal/staff");
   const iid = await resolveTenantInstituteId();
 
   // KID-105 #13: staff can only view their own profile.
@@ -200,11 +200,19 @@ function profileTab(
               <div className="row">
                 <div className="col field"><label className="label">Full name</label><input className="input" name="fullName" defaultValue={staff.full_name} /></div>
                 <div className="col field"><label className="label">Role</label>
-                  <select className="select" name="role" defaultValue={staff.role ?? "carer"}>
-                    <option value="carer">Carer</option>
-                    <option value="admin">Admin</option>
-                    <option value="owner">Owner</option>
-                  </select>
+                  {/* KID-485: exactly the assignable staff roles. An owner
+                      staff record is read-only here — editing an owner
+                      profile cannot demote the owner (the server drops any
+                      role value for owner records too). */}
+                  {String(staff.role) === "owner" ? (
+                    <input className="input" value="Owner" readOnly disabled aria-label="Role" />
+                  ) : (
+                    <select className="select" name="role" defaultValue={staff.role ?? "teacher"}>
+                      <option value="teacher">Teacher</option>
+                      <option value="caregiver">Caregiver</option>
+                      <option value="admin">Admin</option>
+                    </select>
+                  )}
                 </div>
               </div>
               <div className="row">

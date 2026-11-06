@@ -158,6 +158,8 @@ describe("KID-368 (DEF-004): the i18n dictionary carries both locales", () => {
       "consents.title", "consents.empty", "consents.approve", "consents.deny",
       "consents.statusPending", "consents.statusApproved", "consents.statusDenied",
       "login.withdrawn", "login.noAccess", "login.operatorEntryInvalid",
+      // KID-498: the two further parent-entry states ship in both languages.
+      "login.activationIncomplete", "login.noDaycareAccess",
       "login.wrongTenant", "login.wrongTenantNamed",
     ];
     for (const key of arKeys) {

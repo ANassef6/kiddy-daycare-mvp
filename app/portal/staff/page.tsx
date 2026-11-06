@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { resolveTenantInstituteId } from "@/lib/tenant";
 import { redirect } from "next/navigation";
-import { requireSession } from "@/lib/require";
+import { requirePortalPage } from "@/lib/require";
 import { staffIdForAccount } from "@/lib/auth";
 import { isAdminRole } from "@/lib/role";
 import { listStaff, listRooms,staffRooms } from "@/lib/store";
@@ -13,7 +13,10 @@ import AddStaffForm from "./AddStaffForm";
 
 export const dynamic = "force-dynamic";
 
-const ROLES = ["Owner", "Admin", "Teacher", "Carer", "Caregiver"];
+// KID-485: the access-roles panel is exactly the real role model — Owner is
+// display-only (it is the daycare's own account role and is never assignable),
+// while Admin, Teacher and Caregiver are the assignable staff roles.
+const ROLES = ["Owner", "Admin", "Teacher", "Caregiver"];
 const STATUS_KIND_LABEL: Record<string, string> = {
   checkin: "Checked in",
   sick: "Sick",
@@ -27,7 +30,7 @@ export default async function PortalStaffPage({
 }: {
   searchParams?: { added?: string; email?: string; q?: string; role?: string };
 }) {
-  const session = requireSession();
+  const session = requirePortalPage("/portal/staff");
   const iid = await resolveTenantInstituteId();
   const [staff, rooms] = await Promise.all([
     iid ? listStaff(iid) : Promise.resolve([]),

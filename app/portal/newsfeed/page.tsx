@@ -1,4 +1,4 @@
-import { requireSession } from "@/lib/require";
+import { requirePortalPage } from "@/lib/require";
 import { resolveTenantInstituteId } from "@/lib/tenant";
 import { listNewsfeed, listChildren, listRooms, staffRooms } from "@/lib/store";
 import { createNewsfeedWithAttachmentAction, commentAction, toggleLikeAction } from "@/lib/actions";
@@ -14,7 +14,7 @@ export const dynamic = "force-dynamic";
 // inside the translated shell (heading, composer labels, like/comment rows,
 // timestamps). Localized like the rest of the Home group.
 export default async function PortalNewsfeedPage() {
-  const session = requireSession();
+  const session = requirePortalPage("/portal/newsfeed");
   const { locale, dict } = await i18nForAccount(session.accountId);
   const t = (key: string, vars?: Record<string, string | number>) => tr(dict, key, vars);
   const iid = await resolveTenantInstituteId();
@@ -26,7 +26,7 @@ export default async function PortalNewsfeedPage() {
   ]);
   // KID-53 #1: staff recipients are limited to their assigned classrooms.
   let assignedRoomIds: string[] = [];
-  if (session.role === "staff" || session.role === "carer") {
+  if (session.role === "teacher") {
     const me = await queryGet("SELECT staff_id FROM account WHERE id = ?", session.accountId);
     if (me?.staff_id) {
       const roomsForStaff = await staffRooms(String(me.staff_id));

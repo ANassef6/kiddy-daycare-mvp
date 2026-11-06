@@ -1,4 +1,4 @@
-import { requireSession } from "@/lib/require";
+import { requirePortalPage } from "@/lib/require";
 import { resolveTenantInstituteId } from "@/lib/tenant";
 import { staffIdForAccount } from "@/lib/auth";
 import { isAdminRole } from "@/lib/role";
@@ -8,7 +8,7 @@ import { cap, safeJson } from "@/lib/helpers";
 export const dynamic = "force-dynamic";
 
 export default async function PortalStaffHoursPage() {
-  const session = requireSession();
+  const session = requirePortalPage("/portal/staff/hours");
   const iid = await resolveTenantInstituteId();
   const allStaff = iid ? await listStaff(iid) : [];
 

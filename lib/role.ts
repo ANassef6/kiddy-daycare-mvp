@@ -2,7 +2,11 @@
 // KID-199.4r: there is no platform/superadmin role in this union any more.
 // The /platform surface is gated by an env-based operator allowlist instead
 // (lib/platform.ts). `isAdminRole` keeps its exact owner|admin semantics.
-export const ROLES = ["owner", "admin", "staff", "carer", "parent"] as const;
+// KID-485: the staff-facing floor roles are Teacher (a full staff member with
+// classroom-scoped access) and Caregiver (login + children area only, read
+// only). The old `staff`/`carer` values are replaced by them; migration
+// 0033 renames existing records and accounts.
+export const ROLES = ["owner", "admin", "teacher", "caregiver", "parent"] as const;
 
 export type Role = (typeof ROLES)[number];
 
@@ -17,4 +21,21 @@ export function isAdminRole(role: string): boolean {
 // excluded even at the same daycare.
 export function isOwnerRole(role: string): boolean {
   return role === "owner";
+}
+
+// KID-485: the classroom-scoped staff floor. Both teacher and caregiver are
+// non-admin staff members whose reach is limited to their assigned classrooms
+// (lib/store.ts scopedRoomIds).
+export function isTeacherRole(role: string): boolean {
+  return role === "teacher";
+}
+
+export function isCaregiverRole(role: string): boolean {
+  return role === "caregiver";
+}
+
+// KID-485: a floor staff member (teacher or caregiver) — used where the old
+// checks read `me.role === "staff" || me.role === "carer"`.
+export function isFloorStaffRole(role: string): boolean {
+  return role === "teacher" || role === "caregiver";
 }

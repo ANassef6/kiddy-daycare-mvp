@@ -1,4 +1,4 @@
-import { requireSession } from "@/lib/require";
+import { requirePortalPage } from "@/lib/require";
 import { staffIdForAccount } from "@/lib/auth";
 import { isAdminRole } from "@/lib/role";
 import { listStaff, listStaffSchedules } from "@/lib/store";
@@ -13,7 +13,7 @@ const DAYS = [
 ];
 
 export default async function PortalStaffSchedulePage() {
-  const session = requireSession();
+  const session = requirePortalPage("/portal/staff/schedule");
   const instituteId = await firstInstituteId();
   if (!instituteId) return <p className="muted">No institute configured.</p>;
 

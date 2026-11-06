@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { requireSession } from "@/lib/require";
+import { requirePortalPage } from "@/lib/require";
 import { listTags, listChildren } from "@/lib/store";
 import { firstInstituteId, fmtDate } from "@/lib/helpers";
 import { createSmartListAction } from "@/lib/actions";
@@ -23,7 +23,7 @@ export default async function PortalTagsPage({
     cols?: string;
   };
 }) {
-  const session = requireSession();
+  const session = requirePortalPage("/portal/tags");
   const instituteId = await firstInstituteId();
   if (!instituteId) return <p className="muted">No institute configured.</p>;
   // KID-103: smart lists respect classroom scoping.

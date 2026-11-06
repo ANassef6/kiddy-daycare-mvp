@@ -9,7 +9,7 @@ import { ensureSchema } from "@/lib/db";
 import { getBranding } from "@/lib/theme";
 import { i18nForAccount } from "@/lib/i18n-session";
 import { tr } from "@/lib/i18n";
-import { accountProfile } from "@/lib/auth";
+import { accountProfile, emailConfirmedDisplayFor } from "@/lib/auth";
 import { unreadNotificationCount } from "@/lib/store";
 import { instituteNameForOperatorView } from "@/lib/operator-view";
 
@@ -38,6 +38,10 @@ export default async function PortalLayout({ children }: { children: React.React
   // KID-474: the bell's unread badge counts the durable notification rows
   // (message recipients get a row from the send path; reads bridge back via
   // markRead/markThreadRead).
+  // KID-499: same banner decision as the parent shell — the LIVE account row
+  // outranks the cookie snapshot whenever the snapshot says unconfirmed, so a
+  // re-sent confirmation link clears the banner without a fresh sign-in.
+  const bannerEmailConfirmed = await emailConfirmedDisplayFor(session);
   const [{ locale, dict }, profile, branding, operatorViewName, staffUnread] = await Promise.all([
     i18nForAccount(session.accountId),
     accountProfile(session.accountId),
@@ -63,11 +67,17 @@ export default async function PortalLayout({ children }: { children: React.React
         {/* KID-52 #12: messages, notifications and account settings live in the
             top-right corner on every portal page. */}
         <div className="portal-topbar">
-          <Link href="/portal/messages" className="portal-topbar-icon" aria-label={tr(dict, "topbar.messages")} title={tr(dict, "topbar.messages")}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-            </svg>
-          </Link>
+          {/* KID-485: the messages icon is hidden for caregivers — every
+              portal area except children / account / notifications redirects
+              back into the children area for that role, so the icon would
+              just bounce. */}
+          {session.role !== "caregiver" && (
+            <Link href="/portal/messages" className="portal-topbar-icon" aria-label={tr(dict, "topbar.messages")} title={tr(dict, "topbar.messages")}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+              </svg>
+            </Link>
+          )}
           <NotificationBell
             href="/portal/notifications"
             label={tr(dict, "topbar.notifications")}
@@ -84,7 +94,7 @@ export default async function PortalLayout({ children }: { children: React.React
             dict={dict}
           />
         </div>
-        {!session.emailConfirmed && (
+        {!bannerEmailConfirmed && (
           <div
             className="small"
             style={{

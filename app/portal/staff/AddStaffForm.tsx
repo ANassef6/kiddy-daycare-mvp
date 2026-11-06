@@ -28,7 +28,13 @@ export default function AddStaffForm({ rooms }: { rooms: Room[] }) {
       <div className="row mt-2">
         <div className="col field"><label className="label">Full name</label><input className="input" name="fullName" required /></div>
         <div className="col field"><label className="label">Role</label>
-          <select className="select" name="role"><option value="carer">Carer</option><option value="admin">Admin</option></select>
+          {/* KID-485: exactly the assignable staff roles — Owner is the
+              daycare's own account role and was removed from assignment. */}
+          <select className="select" name="role">
+            <option value="teacher">Teacher</option>
+            <option value="caregiver">Caregiver</option>
+            <option value="admin">Admin</option>
+          </select>
         </div>
       </div>
       <div className="row">

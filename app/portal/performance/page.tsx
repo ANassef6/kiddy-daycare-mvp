@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { requireSession } from "@/lib/require";
+import { requirePortalPage } from "@/lib/require";
 import { listStaff, staffActivity } from "@/lib/store";
 import { firstInstituteId } from "@/lib/helpers";
 import { i18nForAccount } from "@/lib/i18n-session";
@@ -27,7 +27,7 @@ export default async function PortalPerformancePage({
 }: {
   searchParams?: { staffId?: string; from?: string; to?: string };
 }) {
-  const session = requireSession();
+  const session = requirePortalPage("/portal/performance");
   const { locale, dict } = await i18nForAccount(session.accountId);
   const t = (key: string, vars?: Record<string, string | number>) => tr(dict, key, vars);
   const instituteId = await firstInstituteId();

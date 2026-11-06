@@ -1,4 +1,4 @@
-import { requireSession } from "@/lib/require";
+import { requirePortalPage } from "@/lib/require";
 import { listDriveFiles, listChildren } from "@/lib/store";
 import { firstInstituteId, cap } from "@/lib/helpers";
 import { addDriveFileAction } from "@/lib/actions";
@@ -6,7 +6,7 @@ import { addDriveFileAction } from "@/lib/actions";
 export const dynamic = "force-dynamic";
 
 export default async function PortalDrivePage() {
-  const session = requireSession();
+  const session = requirePortalPage("/portal/drive");
   const instituteId = await firstInstituteId();
   if (!instituteId) return <p className="muted">No institute configured.</p>;
   // KID-103: drive lists and share-with dropdown are scoped to assigned classrooms.

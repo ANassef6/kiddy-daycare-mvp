@@ -26,9 +26,15 @@ type LoginSearchParams = {
 
 // KID-236/KID-245 guard redirect kinds -> dict keys (wording identical to
 // what the login action itself returns after a failed gate).
+// KID-498: two further parent-entry states. `withdrawn` stays reserved for a
+// real enrollment end (links exist, every child withdrawn); a half-activated
+// account gets `activation-incomplete`, and one with neither links nor a
+// pending invite gets `no-daycare-access` — neither may claim enrollment ended.
 const GUARD_KEYS: Record<string, string> = {
   withdrawn: "withdrawn",
   disabled: "noAccess",
+  "activation-incomplete": "activationIncomplete",
+  "no-daycare-access": "noDaycareAccess",
   "operator-entry-invalid": "operatorEntryInvalid",
 };
 

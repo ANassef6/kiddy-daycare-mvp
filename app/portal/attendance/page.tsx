@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { resolveTenantInstituteId } from "@/lib/tenant";
-import { requireSession } from "@/lib/require";
+import { requirePortalPage } from "@/lib/require";
 import {attendanceOn, runAutoCheckoutSweep, scopedRoomIds, listRooms } from "@/lib/store";
 import { AttendanceCheckIn } from "@/components/AttendanceCheckIn";
 
@@ -11,7 +11,7 @@ export default async function PortalAttendancePage({
 }: {
   searchParams: { day?: string; sweep?: string; q?: string; room?: string };
 }) {
-  const session = requireSession();
+  const session = requirePortalPage("/portal/attendance");
   const iid = await resolveTenantInstituteId();
   const day = searchParams.day ?? new Date().toISOString().slice(0, 10);
   const q = searchParams.q ?? "";

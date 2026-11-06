@@ -78,6 +78,14 @@ export function portalNav(dict: Dict, role?: string): NavGroup[] {
     },
   ];
 
+  // KID-485: a caregiver sees only the children area in the shell (its own
+  // account settings live in the top-right menu). The page gate in
+  // lib/require.ts refuses every other route server-side; this keeps the
+  // sidebar showing nothing it cannot reach.
+  if (role === "caregiver") {
+    return [groups[1]];
+  }
+
   // KID-105 #14: the Tools menu exposes center-wide admin surfaces (staff
   // accounts, all children, finance, etc.). Keep it visible only to admins.
   // KID-478 item 8: Supplies and Rooms no longer ride Tools — they live in
@@ -92,20 +100,17 @@ export function portalNav(dict: Dict, role?: string): NavGroup[] {
       { label: t("nav.performance"), href: "/portal/performance" },
       { label: t("nav.finance"), href: "/portal/finance" },
     ];
-    // KID-246: "Account billing" is the daycare OWNER's own surface — the
-    // subscription plan, the read-only rates and the daycare's invoice
-    // ledger. A plain admin (staff-level manager) must not see or reach it,
-    // which is why this is the exact owner role, not isAdminRole. The page
-    // itself (app/portal/account-billing) re-checks the session and refuses
-    // every non-owner, so the tab and the URL stay in sync.
+    // KID-485: "Account billing" is still the exact owner-only surface, but
+    // "Enhancements requests" now rides the admin gate (owner/admin — a plain
+    // teacher/caregiver/parent never sees it). The page
+    // (app/portal/enhancements) re-checks the session and refuses every
+    // non-admin, so the tab and the URL stay in sync. Submissions land in
+    // the queue for the Vikunja sync agent; the app itself never calls the
+    // sync target.
     if (role === "owner") {
       tools.push({ label: t("nav.accountBilling"), href: "/portal/account-billing" });
-      // KID-258 A1 (KID-264): "Enhancements requests" rides the same EXACT
-      // owner gate as Account billing (not isAdminRole — a plain admin must
-      // not see it either). The page (app/portal/enhancements) re-checks the
-      // session and refuses every non-owner, so the tab and the URL stay in
-      // sync. Submissions land in the queue for the Vikunja sync
-      // agent; the app itself never calls the sync target.
+    }
+    if (adminNav) {
       tools.push({ label: t("nav.enhancements"), href: "/portal/enhancements" });
     }
     groups.push({

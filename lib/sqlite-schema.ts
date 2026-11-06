@@ -58,7 +58,7 @@ export function sqliteSchema(db: any): void {
     id TEXT PRIMARY KEY,
     institute_id TEXT NOT NULL REFERENCES institute(id) ON DELETE CASCADE,
     full_name TEXT NOT NULL,
-    role TEXT NOT NULL DEFAULT 'carer',
+    role TEXT NOT NULL DEFAULT 'teacher',
     photo_url TEXT,
     active INTEGER NOT NULL DEFAULT 1,
     email TEXT,
@@ -1046,5 +1046,103 @@ export function sqliteSchema(db: any): void {
           LIMIT 1
         )
         WHERE staff_id IS NULL AND role <> 'parent'`);
+    } catch {}
+    // KID-485: mirror of supabase/migrations/0033_kid485_role_model.sql —
+    // 'staff'/'carer' staff rows and accounts become 'teacher'; an admin
+    // staff row promotes its linked account to 'admin' (never demoting an
+    // already-admin/owner account). Re-running fully idempotent.
+    try {
+      db.exec(`UPDATE staff SET role = 'teacher' WHERE role IN ('carer', 'staff')`);
+    } catch {}
+    try {
+      db.exec(`UPDATE account SET role = 'teacher' WHERE role IN ('carer', 'staff')`);
+    } catch {}
+    try {
+      db.exec(`UPDATE account
+        SET role = 'admin'
+        WHERE role NOT IN ('admin', 'owner')
+          AND staff_id IN (SELECT id FROM staff WHERE role = 'admin')`);
+    } catch {}
+    // KID-498: mirror of supabase/migrations/0034_kid498_parent_activation_repair.sql
+    // — one-time repair for orphan parent accounts: a role='parent' account
+    // with ZERO family_member rows is linked to the child named by its newest
+    // still-pending, child-naming invite, and that invite is accepted. The
+    // invite's own institute_id must agree with the child's (damaged rows are
+    // refused, not repaired cross-tenant); withdrawn/inactive children and
+    // staff-linked accounts never qualify. Nothing else is touched: accounts
+    // that already hold ANY link are excluded, so a deliberately-set role
+    // survives (same insert-only rule as the 0018 backfill). Idempotent: the
+    // healed orphan leaves the candidate pool (it now holds a link) and the
+    // accepted invite leaves the pending pool, so re-running changes nothing.
+    //
+    // SQLite cannot chain a data-modifying CTE, so the statement is split:
+    // the INSERT restores the link; the UPDATE then consumes exactly the kind
+    // of invite the INSERT healed — the account linked to the invite's child
+    // holds no OTHER family link, so a stale pending invite for a second child
+    // of an already-linked parent is left pending. Both steps skip rows that
+    // were consumed before, which is what makes the pair idempotent together.
+    try {
+      db.exec(`INSERT INTO family_member (id, account_id, child_id, role)
+        SELECT lower(hex(randomblob(16))), heal.account_id, heal.child_id, heal.role
+        FROM (
+          SELECT o.account_id, o.child_id, o.role
+          FROM (
+            SELECT
+              a.id AS account_id,
+              i.child_id AS child_id,
+              i.institute_id AS invite_institute_id,
+              CASE
+                WHEN lower(trim(i.role)) IN ('parent', 'family', 'pickup', 'no_access')
+                  THEN lower(trim(i.role))
+                ELSE 'parent'
+              END AS role,
+              ROW_NUMBER() OVER (
+                PARTITION BY a.id
+                ORDER BY i.created_at DESC, i.id DESC
+              ) AS invite_rn
+            FROM account a
+            JOIN invite i
+              ON lower(trim(i.email)) = lower(trim(a.email))
+             AND i.status = 'pending'
+             AND i.child_id IS NOT NULL
+            WHERE a.role = 'parent'
+              AND a.staff_id IS NULL
+              AND NOT EXISTS (SELECT 1 FROM family_member fm WHERE fm.account_id = a.id)
+          ) o
+          JOIN child c ON c.id = o.child_id
+          WHERE o.invite_rn = 1
+            AND c.status != 'withdrawn'
+            AND c.active = 1
+            AND (o.invite_institute_id IS NULL OR c.institute_id IS NULL OR o.invite_institute_id = c.institute_id)
+        ) heal
+        WHERE 1 = 1
+        ON CONFLICT (account_id, child_id) DO NOTHING`);
+    } catch {}
+    try {
+      db.exec(`UPDATE invite
+        SET status = 'accepted'
+        WHERE status = 'pending'
+          AND child_id IS NOT NULL
+          AND EXISTS (
+            SELECT 1
+            FROM family_member fm
+            JOIN account a ON a.id = fm.account_id
+            WHERE lower(trim(invite.email)) = lower(trim(a.email))
+              AND fm.child_id = invite.child_id
+              AND a.role = 'parent'
+              AND a.staff_id IS NULL
+              AND NOT EXISTS (
+                SELECT 1 FROM family_member other
+                WHERE other.account_id = a.id
+                  AND other.child_id IS NOT invite.child_id
+              )
+          )
+          AND EXISTS (
+            SELECT 1 FROM child c
+            WHERE c.id = invite.child_id
+              AND c.status != 'withdrawn'
+              AND c.active = 1
+              AND (invite.institute_id IS NULL OR c.institute_id IS NULL OR invite.institute_id = c.institute_id)
+          )`);
     } catch {}
 }

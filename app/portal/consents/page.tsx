@@ -1,4 +1,4 @@
-import { requireSession } from "@/lib/require";
+import { requirePortalPage } from "@/lib/require";
 import { resolveTenantInstituteId } from "@/lib/tenant";
 import { listConsents, listChildren } from "@/lib/store";
 import { createConsentAction } from "@/lib/actions";
@@ -12,7 +12,7 @@ export const dynamic = "force-dynamic";
 // in English (the whole form, statuses and dates). Localized end-to-end; the
 // status labels are shared with the parent's approve/deny page.
 export default async function PortalConsentsPage() {
-  const session = requireSession();
+  const session = requirePortalPage("/portal/consents");
   const { locale, dict } = await i18nForAccount(session.accountId);
   const t = (key: string, vars?: Record<string, string | number>) => tr(dict, key, vars);
   const iid = await resolveTenantInstituteId();

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { requireSession } from "@/lib/require";
+import { requirePortalPage } from "@/lib/require";
 import { listInstituteBilling } from "@/lib/store";
 import { firstInstituteId, cap } from "@/lib/helpers";
 import { updateBillingStatusAction } from "@/lib/actions";
@@ -29,7 +29,7 @@ export default async function PortalFinancePage({
 }: {
   searchParams?: { tab?: string; q?: string; status?: string; to?: string; from?: string };
 }) {
-  requireSession();
+  requirePortalPage("/portal/finance");
   const instituteId = await firstInstituteId();
   if (!instituteId) return <p className="muted">No institute configured.</p>;
   const bills = await listInstituteBilling(instituteId);

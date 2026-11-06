@@ -14,8 +14,8 @@
 // and writing priority/estimate/due_date/expected_delivery back through the
 // authenticated write-back route (app/api/enhancements/write-back).
 import { redirect } from "next/navigation";
-import { requireSession } from "@/lib/require";
-import { isOwnerRole } from "@/lib/role";
+import { requirePortalPage } from "@/lib/require";
+import { isAdminRole } from "@/lib/role";
 import { resolveTenantInstituteId } from "@/lib/tenant";
 import { i18nForAccount } from "@/lib/i18n-session";
 import { tr } from "@/lib/i18n";
@@ -51,10 +51,11 @@ export default async function PortalEnhancementsPage({
 }: {
   searchParams: { submitted?: string; error?: string };
 }) {
-  const session = requireSession();
-  if (!isOwnerRole(session.role)) {
-    // Admins, staff and carers render the portal; parents have their own
-    // shell. Nothing here is theirs to see — a redirect is a quiet refusal.
+  const session = requirePortalPage("/portal/enhancements");
+  if (!isAdminRole(session.role)) {
+    // KID-485: owner OR admin reaches the enhancements requests; teachers,
+    // caregivers and parents have their own surfaces and are refused with a
+    // quiet redirect. The sidebar tab rides the same gate.
     redirect("/portal/dashboard");
   }
   const { dict, dir } = await i18nForAccount(session.accountId);

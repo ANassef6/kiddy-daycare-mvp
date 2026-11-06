@@ -1,12 +1,12 @@
 import Link from "next/link";
-import { requireSession } from "@/lib/require";
+import { requirePortalPage } from "@/lib/require";
 import { listEvents } from "@/lib/store";
 import { firstInstituteId, cap, fmtDate, fmtTime } from "@/lib/helpers";
 
 export const dynamic = "force-dynamic";
 
 export default async function PortalCalendarPage() {
-  requireSession();
+  requirePortalPage("/portal/calendar");
   const instituteId = await firstInstituteId();
   if (!instituteId) return <p className="muted">No institute configured.</p>;
   const events = await listEvents(instituteId, true);

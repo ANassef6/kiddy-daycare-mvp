@@ -245,6 +245,17 @@ export const en = {
     emailConfirmed: "Your email is confirmed. You can now sign in.",
     withdrawn: "This account's access has been withdrawn.",
     noAccess: "This account's access is currently disabled. Contact your daycare admin.",
+    // KID-498: three distinct parent-entry states instead of one "withdrawn"
+    // meaning. `withdrawn` is a real enrollment end (the account holds links
+    // and every linked child is withdrawn). A half-activated account (created
+    // but never linked, a pending invite still out) is NOT withdrawal — it is
+    // activation that did not finish; login self-heals it where it can. And an
+    // account with neither links nor a pending invite was never activated for
+    // any daycare. Each has its own honest wording.
+    activationIncomplete:
+      "Your account is not fully set up yet — we could not finish linking it to your daycare. Ask your daycare to check your invite, then try signing in again.",
+    noDaycareAccess:
+      "This account has no daycare access yet. Ask your daycare to send you an invite code.",
     operatorEntryInvalid:
       "This entry link is invalid, expired or already used. Ask the platform team to open the daycare again.",
     wrongTenantNamed:
@@ -708,8 +719,8 @@ export const en = {
   roles: {
     owner: "Owner",
     admin: "Admin",
-    staff: "Staff",
-    carer: "Carer",
+    teacher: "Teacher",
+    caregiver: "Caregiver",
     parent: "Parent",
   },
   // KID-199.4: the /platform surface the board asked for — every daycare with
@@ -1401,6 +1412,11 @@ export const ar = {
     emailConfirmed: "تم تأكيد بريدك الإلكتروني. يمكنك الآن تسجيل الدخول.",
     withdrawn: "ألغيت صلاحية الوصول لهذا الحساب.",
     noAccess: "تعطّل صلاحية الوصول لهذا الحساب حاليًا. تواصل مع مسؤول روضتك.",
+    // KID-498 — see the en.login note above: three distinct entry states.
+    activationIncomplete:
+      "حسابك لم يكتمل إعداده بعد — لم نتمكن من إتمام ربطه بروضتك. اطلب من روضتك مراجعة دعوتك، ثم حاول تسجيل الدخول مرة أخرى.",
+    noDaycareAccess:
+      "لا يوجد لهذا الحساب وصول إلى روضة بعد. اطلب من روضتك إرسال رمز دعوة لك.",
     operatorEntryInvalid:
       "رابط الدخول هذا غير صالح أو منتهٍ أو مستخدم مسبقًا. اطلب من فريق المنصة إعادة فتح الروضة.",
     wrongTenantNamed:
@@ -1837,8 +1853,8 @@ export const ar = {
   roles: {
     owner: "المالك",
     admin: "مدير",
-    staff: "موظف",
-    carer: "مقدّم رعاية",
+    teacher: "معلّم",
+    caregiver: "مقدّم رعاية",
     parent: "ولي أمر",
   },
   platform: {

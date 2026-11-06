@@ -1,4 +1,4 @@
-import { requireSession } from "@/lib/require";
+import { requirePortalPage } from "@/lib/require";
 import { listSupplies } from "@/lib/store";
 import { firstInstituteId } from "@/lib/helpers";
 import { createSupplyAction, updateSupplyStatusAction } from "@/lib/actions";
@@ -12,7 +12,7 @@ export const dynamic = "force-dynamic";
 // (heading, request form, notes and status chips). Localized; the status
 // select now carries translated options instead of the raw DB enum.
 export default async function PortalSuppliesPage() {
-  const session = requireSession();
+  const session = requirePortalPage("/portal/supplies");
   const { dict, locale } = await i18nForAccount(session.accountId);
   const t = (key: string, vars?: Record<string, string | number>) => tr(dict, key, vars);
   const instituteId = await firstInstituteId();
