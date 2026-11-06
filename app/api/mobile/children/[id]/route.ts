@@ -5,8 +5,10 @@ import { queryGet } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 
-// Single child: identity + room, today's check-in/out status + daily report,
-// plus contacts, newsfeed and incidents — the parent's "today" view.
+// Single child: identity + room, today's check-in/out status + daily report
+// (KID-472 item 4: `?date=YYYY-MM-DD` optionally selects a past day's report
+// while today remains the default), plus contacts, newsfeed and incidents —
+// the parent's day view.
 export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
   const session = await requireMobileSession(req);
   if (session instanceof NextResponse) return session;
@@ -22,7 +24,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
     : undefined;
 
   const [summary, contacts, newsfeed, incidents] = await Promise.all([
-    childSummary(child),
+    childSummary(child, req.nextUrl.searchParams.get("date") ?? undefined),
     listContacts(params.id),
     newsfeedForChild(params.id),
     incidentsForChild(params.id),

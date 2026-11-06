@@ -32,11 +32,13 @@ import MediaDownloadAll from "@/components/MediaDownloadAll";
 import { getBranding } from "@/lib/theme";
 import { firstInstituteId, fmtDate, cap } from "@/lib/helpers";
 import ChildProfileTabs from "@/components/ChildProfileTabs";
+import DailyReportDateNav from "@/components/DailyReportDateNav";
 import { curriculumTree, ensureCurriculumSeeded } from "@/lib/curriculum";
 import ObservationModalTrigger from "@/components/ObservationModalTrigger";
 import { queryGet } from "@/lib/db";
 import { CONTACT_RELATIONSHIP_LABELS } from "@/lib/contact-relationship";
 import { i18nForAccount } from "@/lib/i18n-session";
+import { configuredReportDate, todayIso } from "@/lib/report-dates";
 import { tr } from "@/lib/i18n";
 
 export const dynamic = "force-dynamic";
@@ -53,7 +55,7 @@ export default async function PortalChildPage({
   params: { id: string };
   // KID-180: the Add-contact action lands back here with the family tab +
   // the invite outcome, so the view the staff was working in survives submit.
-  searchParams: { tab?: string; error?: string; invite?: string; email?: string; activationUrl?: string; inviteDetail?: string };
+  searchParams: { tab?: string; date?: string; error?: string; invite?: string; email?: string; activationUrl?: string; inviteDetail?: string };
 }) {
   const session = requireSession();
   const { locale, dict } = await i18nForAccount(session.accountId);
@@ -66,10 +68,15 @@ export default async function PortalChildPage({
     notFound();
   }
 
-  const today = new Date().toISOString().slice(0, 10);
+  // KID-472 item 4: the daily report is date-navigable. `?date=` (validated —
+  // anything malformed falls back to today) selects which day's record the
+  // staff member edits; the status log card below keeps its existing today
+  // semantics ("logged instantly"), so it stays pinned to today.
+  const today = todayIso();
+  const reportDate = configuredReportDate(searchParams.date, today);
   const [report, contacts, incidents, status, todayStatuses, observations, billing, media, consents, rooms] =
     await Promise.all([
-      reportFor(child.id, today),
+      reportFor(child.id, reportDate),
       listContacts(child.id),
       incidentsForChild(child.id),
       todayStatus(child.id),
@@ -123,8 +130,11 @@ export default async function PortalChildPage({
   const tabs = [
     {
       id: "daily",
-      label: t("profile.todaysDailyReport"),
-      node: dailyReportTab(child, report, today, todayStatuses, dict),
+      label:
+        reportDate === today
+          ? t("profile.todaysDailyReport")
+          : t("profile.dailyReportForDate", { date: fmtDate(reportDate) }),
+      node: dailyReportTab(child, report, today, todayStatuses, dict, reportDate),
     },
     {
       id: "about",
@@ -268,22 +278,40 @@ export default async function PortalChildPage({
   );
 }
 
-function dailyReportTab(child: any, report: any, today: string, todayStatuses: any[], dict: any) {
+function dailyReportTab(child: any, report: any, today: string, todayStatuses: any[], dict: any, reportDate: string) {
   const meal = safeJson(report?.meal);
   const t = (key: string, vars?: Record<string, string | number>) => tr(dict, key, vars);
   return (
     <div>
+      <DailyReportDateNav
+        basePath={`/portal/children/${child.id}`}
+        tab="daily"
+        date={reportDate}
+        today={today}
+        formId="daily-report-form"
+        labels={{
+          prev: t("profile.reportPrevDay"),
+          next: t("profile.reportNextDay"),
+          today: t("profile.reportTodayChip"),
+          pickDate: t("profile.reportPickDate"),
+          unsaved: t("profile.unsavedConfirm"),
+        }}
+      />
       <div className="card mb-4">
-        <h3 className="subtitle">{t("profile.todaysDailyReport")}</h3>
+        <h3 className="subtitle">
+          {reportDate === today
+            ? t("profile.todaysDailyReport")
+            : t("profile.dailyReportForDate", { date: fmtDate(reportDate) })}
+        </h3>
         {report?.saved_by_name && (
           <p className="small muted" style={{ marginTop: -4 }}>
             {t("profile.lastSavedBy")} <strong>{report.saved_by_name}</strong>
             {report?.created_at ? ` · ${fmtDate(report.created_at)} ${time(report.created_at)}` : ""}
           </p>
         )}
-        <form action={saveDailyReportAction}>
+        <form action={saveDailyReportAction} id="daily-report-form">
           <input type="hidden" name="childId" value={child.id as string} />
-          <input type="hidden" name="reportDate" value={today} />
+          <input type="hidden" name="reportDate" value={reportDate} />
           <div className="field">
             <label className="label">{t("profile.summary")}</label>
             <textarea className="textarea" name="summary" defaultValue={String(report?.summary ?? "")} />
@@ -323,6 +351,7 @@ function dailyReportTab(child: any, report: any, today: string, todayStatuses: a
                 <form key={value} action={saveChildStatusAction}>
                   <input type="hidden" name="childId" value={child.id as string} />
                   <input type="hidden" name="kind" value="mood" />
+                  <input type="hidden" name="statusDate" value={reportDate} />
                   <input type="hidden" name="value" value={value} />
                   <button className="status-chip status-chip-mood" type="submit">{mo(t, value)}</button>
                 </form>
@@ -336,6 +365,7 @@ function dailyReportTab(child: any, report: any, today: string, todayStatuses: a
                 <form key={value} action={saveChildStatusAction}>
                   <input type="hidden" name="childId" value={child.id as string} />
                   <input type="hidden" name="kind" value="diaper" />
+                  <input type="hidden" name="statusDate" value={reportDate} />
                   <input type="hidden" name="value" value={value} />
                   <button className="status-chip status-chip-diaper" type="submit">{di(t, value)}</button>
                 </form>
@@ -349,6 +379,7 @@ function dailyReportTab(child: any, report: any, today: string, todayStatuses: a
                 <form key={value} action={saveChildStatusAction}>
                   <input type="hidden" name="childId" value={child.id as string} />
                   <input type="hidden" name="kind" value="sleep" />
+                  <input type="hidden" name="statusDate" value={reportDate} />
                   <input type="hidden" name="value" value={t(`profile.${value}`)} />
                   <button className="status-chip status-chip-sleep" type="submit">{t(`profile.${value}`)}</button>
                 </form>
@@ -362,6 +393,7 @@ function dailyReportTab(child: any, report: any, today: string, todayStatuses: a
                 <form key={value} action={saveChildStatusAction}>
                   <input type="hidden" name="childId" value={child.id as string} />
                   <input type="hidden" name="kind" value="sick" />
+                  <input type="hidden" name="statusDate" value={reportDate} />
                   <input type="hidden" name="value" value={value} />
                   <button className="status-chip status-chip-sick" type="submit">{value === "yes" ? t("child.feelingSick") : t("child.allGood")}</button>
                 </form>
@@ -372,6 +404,7 @@ function dailyReportTab(child: any, report: any, today: string, todayStatuses: a
 
         <form action={saveChildStatusAction} className="row mt-3" style={{ alignItems: "flex-end" }}>
           <input type="hidden" name="childId" value={child.id as string} />
+          <input type="hidden" name="statusDate" value={reportDate} />
           <div className="col field">
             <label className="label">{t("profile.customEntry")}</label>
             <div className="row">

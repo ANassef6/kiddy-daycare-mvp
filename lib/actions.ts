@@ -16,6 +16,7 @@ import {
   staffIdForAccount,
 } from "@/lib/auth";
 import { queryGet, queryRun, queryAll, ensureSchema, isForeignKeyViolation } from "@/lib/db";
+import { configuredReportDate } from "@/lib/report-dates";
 import {
   isAccountAccessWithdrawn,
   runWithdrawalSweep,
@@ -1181,7 +1182,11 @@ export async function checkInOutAction(formData: FormData) {
 
 export async function saveDailyReportAction(formData: FormData) {
   const childId = String(formData.get("childId") ?? "");
-  const reportDate = String(formData.get("reportDate") ?? "") || new Date().toISOString().slice(0, 10);
+  // KID-472 item 4: the report is saved for the selected date (validated — a
+  // missing or malformed value saves today, exactly as before), and the
+  // redirect lands back on the daily tab of THAT date so the saved values
+  // reload rather than swapping the view to today.
+  const reportDate = configuredReportDate(formData.get("reportDate"), new Date().toISOString().slice(0, 10));
   const me = authAccount();
   if (childId) await assertChildInScope(childId, me);
   await upsertDailyReport({
@@ -1201,7 +1206,7 @@ export async function saveDailyReportAction(formData: FormData) {
     note: String(formData.get("note") ?? ""),
     accountId: me.accountId,
   });
-  redirect(`/portal/children/${childId}`);
+  redirect(`/portal/children/${childId}?tab=daily&date=${encodeURIComponent(reportDate)}`);
 }
 
 export async function createNewsfeedAction(formData: FormData) {
@@ -1507,7 +1512,13 @@ export async function saveChildStatusAction(formData: FormData) {
       recordedAt: recordedAt || undefined,
     });
   }
-  redirect(`/portal/children/${childId}`);
+  // KID-472 item 4: stay on the daily tab of the date the staff member was
+  // viewing (status logging itself stays today-anchored, "logged instantly").
+  redirect(
+    `/portal/children/${childId}?tab=daily&date=${encodeURIComponent(
+      configuredReportDate(formData.get("statusDate"), new Date().toISOString().slice(0, 10))
+    )}`
+  );
 }
 
 export async function addContactAction(formData: FormData) {
