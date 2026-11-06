@@ -32,4 +32,5 @@ Item 8 — portal sidebar regroup:
 
 ## Production/PR record
 
-PR opened against master and merged once local checks passed (master auto-deploys on Vercel) — merge commit recorded below.
+- PR #18 (`kid472-remove-support-ui-move-nav` → `master`), checks green (Vercel pass, deployment `https://vercel.com/kiddy2/kiddy/B8seMoBqCHjEC4x5YzogitHX34zY`), merged at GitHub commit `83951ba` ("Merge pull request #18 from ANassef6/kid472-remove-support-ui-move-nav", master head `origin/master`).
+- Production deployment of the merge commit: GitHub deployment id 7603625876 (environment `Production`, sha `83951ba`), status `success` at 2026-11-06T15:19:12Z, target `https://kiddy-dbkvm60ll-kiddy2.vercel.app` (master auto-deploys on Vercel).
