@@ -89,3 +89,11 @@ author), `reportFor` carries created/updated names for the UI,
   change to the write path of any feature other than the extra INSERT. The
   daily-report hot path reuses the existing query; `reportFor` gained one
   extra LEFT JOIN (indexed by PK).
+
+## Merge + deployment evidence
+- PR #17 merged into master: merge commit `45b4552`
+  (https://github.com/ANassef6/kiddy-daycare-mvp/pull/17).
+- Vercel Preview deployment for `e216e6a`: pass (checks green).
+- Vercel Production deployment for the merge commit `45b4552`:
+  deployment id `7601357940`, created 2026-11-06T13:33:52Z, status `success`
+  (https://kiddy-nk6ygis7z-kiddy2.vercel.app).
