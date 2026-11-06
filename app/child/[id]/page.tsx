@@ -14,8 +14,10 @@ import {
 import { CheckInButton } from "@/components/CheckInButton";
 import Avatar from "@/components/Avatar";
 import ContactBadges from "@/components/ContactBadges";
+import DailyReportDateNav from "@/components/DailyReportDateNav";
 import { getBranding } from "@/lib/theme";
-import { firstInstituteId } from "@/lib/helpers";
+import { firstInstituteId, fmtDate } from "@/lib/helpers";
+import { configuredReportDate, todayIso } from "@/lib/report-dates";
 import { isPlatformOperatorRole } from "@/lib/platform";
 import { toggleLikeAction } from "@/lib/actions";
 import { i18nForAccount } from "@/lib/i18n-session";
@@ -23,7 +25,14 @@ import { tr } from "@/lib/i18n";
 
 export const dynamic = "force-dynamic";
 
-export default async function ChildDetailPage({ params }: { params: { id: string } }) {
+export default async function ChildDetailPage({
+  params,
+  searchParams,
+}: {
+  params: { id: string };
+  // KID-472 item 4: ?date= selects which past day's report the parent reads.
+  searchParams?: { date?: string };
+}) {
   const session = requireSession();
   const { dict } = await i18nForAccount(session.accountId);
   const t = (key: string, vars?: Record<string, string | number>) => tr(dict, key, vars);
@@ -43,11 +52,14 @@ export default async function ChildDetailPage({ params }: { params: { id: string
     : false;
   if (!visible && !(isPlatformOperatorRole(session.role) && requestIid)) notFound();
 
-  const today = new Date().toISOString().slice(0, 10);
+  // KID-472 item 4: today stays the default; a `?date=` value the parent
+  // navigates to is read-only for that day (validated server-side first).
+  const today = todayIso();
+  const reportDate = configuredReportDate(searchParams?.date, today);
   const status = await todayStatus(child.id);
   const checkedIn = !!status.checkedIn && !status.checkedOut;
   const [report, contacts, feed, incidents, statuses] = await Promise.all([
-    reportFor(child.id, today),
+    reportFor(child.id, reportDate),
     listContacts(child.id),
     newsfeedForChild(child.id, session.accountId),
     incidentsForChild(child.id),
@@ -112,7 +124,22 @@ export default async function ChildDetailPage({ params }: { params: { id: string
         </div>
       )}
 
-      <h2 className="title mt-5">{t("child.todaysReport")}</h2>
+      <h2 className="title mt-5">
+        {reportDate === today
+          ? t("child.todaysReport")
+          : t("child.reportForDate", { date: fmtDate(reportDate) })}
+      </h2>
+      <DailyReportDateNav
+        basePath={`/child/${child.id}`}
+        date={reportDate}
+        today={today}
+        labels={{
+          prev: t("child.reportPrevDay"),
+          next: t("child.reportNextDay"),
+          today: t("child.reportTodayChip"),
+          pickDate: t("child.reportPickDate"),
+        }}
+      />
       {report ? (
         <div className="card">
           {report.mood && (
@@ -135,7 +162,9 @@ export default async function ChildDetailPage({ params }: { params: { id: string
           {report.note && <p className="muted small mt-2"><strong>{t("common.notes")}:</strong> {report.note}</p>}
         </div>
       ) : (
-        <p className="muted small">{t("child.noReportYet")}</p>
+        <p className="muted small">
+          {reportDate === today ? t("child.noReportYet") : t("child.noReportForDate")}
+        </p>
       )}
 
       <h2 className="title mt-5">{t("child.newsfeed")}</h2>

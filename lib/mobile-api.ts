@@ -5,6 +5,7 @@ import { verifyToken, getAccount } from "./auth";
 import { queryGet, type Row } from "./db";
 import { getFirstInstitute, getInstitute, brandingFromInstitute, type Branding } from "./theme";
 import { familiesForAccount, getChild, todayStatus, reportFor } from "./store";
+import { configuredReportDate } from "./report-dates";
 
 export type MobileSession = {
   accountId: string;
@@ -60,10 +61,14 @@ export function serializeChildWithRoom(child: Row): Row {
   return { ...child, room_name: child.room_name ?? null };
 }
 
-export async function childSummary(child: Row): Promise<Row> {
+export async function childSummary(child: Row, reportDate?: string): Promise<Row> {
   const status = await todayStatus(child.id as string);
-  const today = new Date().toISOString().slice(0, 10);
-  const report = await reportFor(child.id as string, today);
+  // KID-472 item 4: `reportDate` extends the today-only payload — when an
+  // endpoint passes a date (the web pages' `?date=` contract), the same
+  // `todayReport` field carries that day's report (today when unset, so the
+  // existing mobile behavior is byte-for-byte preserved).
+  const day = configuredReportDate(reportDate, new Date().toISOString().slice(0, 10));
+  const report = await reportFor(child.id as string, day);
   return {
     child: serializeChildWithRoom(child),
     status: {
