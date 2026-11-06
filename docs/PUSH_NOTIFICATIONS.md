@@ -92,6 +92,14 @@ curl -s -X POST "https://<your-domain>/api/chatwoot/webhook?token=<secret>" \
   a clean `200 {handled:false, reason:"contact-not-mapped"}`.
 - Notification dedupe ref: `chatwoot-<conversation_id>-<message_id>` —
   Chatwoot retries never duplicate.
+- **Production instance status (2026-11-06):** webhook registered via the
+  Chatwoot admin API on `chatwoot.kiddyapp.net` (account 1, webhook id 1,
+  subscription `message_created`) with the live rotatable
+  `CHATWOOT_WEBHOOK_SECRET`; the Chatwoot → Kiddy round trip (agent reply →
+  webhook → mapped notification + best-effort push) was verified on
+  production — see `docs/evidence/kid472-push-sound/README.md`. The secret
+  is rotated by regenerating the value in the Vercel project env,
+  redeploying, and PATCHing the Chatwoot webhook URL (webhook id 1).
 
 ## Unsupported devices / opt-out
 

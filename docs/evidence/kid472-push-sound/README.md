@@ -90,13 +90,45 @@ Update 2026-11-06: production push is **ACTIVE**. Activation deployment
   engages and skips cleanly on non-agent payloads.
 - `GET /sw.js` -> `200`; `GET /notification-sound.wav` -> `200`.
 
-Remaining human steps: register the webhook in the Chatwoot admin
-(URL `https://kiddyapp.net/api/chatwoot/webhook?token=<secret>`,
-subscription `message_created`; the agent-held Chatwoot token lacks admin
-rights) and the real-device test push. Secret values are readable by the
-board after approving the fresh pending Paperclip secret proposals.
+**Chatwoot webhook registration (2026-11-06, done by agent):** re-checking the
+held Chatwoot API credential showed it is an *administrator* token on
+`chatwoot.kiddyapp.net` (account 1; the earlier "no admin rights" note was
+wrong — the previous probe hit different endpoints). The webhooks list was
+empty, so the webhook was registered via the Chatwoot API: URL
+`https://kiddyapp.net/api/chatwoot/webhook?token=<CHATWOOT_WEBHOOK_SECRET>`,
+subscription `message_created` (webhook id 1). Secret was never printed.
 
-Everything else ships and degrades cleanly without them.
+**End-to-end round trip verified on production (2026-11-06 21:53Z):**
+
+1. Posted a real agent-reply message via `POST
+   /api/v1/accounts/1/conversations/3/messages` (contact id 40, identifier =
+   Kiddy account UUID).
+2. Chatwoot fired `message_created` to the registered webhook; the Kiddy
+   endpoint verified the secret, mapped the contact, and wrote the
+   notification row (verified read-only via the Supabase REST key): table
+   `notification`, `ref = chatwoot-3-63`, `account_id` = mapped Kiddy
+   account, `activity = messages`, `kind = message`, localized
+   `senderName = "Daycare support"`, `body` = the test message text,
+   `read_at = null` (unread), timestamp `2026-11-06T21:53:06.799Z`.
+3. Push fan-out executes on the same emission path best-effort; a physical
+   device test pending a subscribed phone (below).
+
+**Secret rotation (operational hygiene):** Chatwoot's webhook API echoes the
+full `?token=` URL in its responses, which replicated the live secret into
+agent run transcripts (accepted evidence only, never repo artifacts). Per the
+no-secrets-in-transcripts constraint, `CHATWOOT_WEBHOOK_SECRET` was rotated
+(fresh locally generated value, Vercel project env upsert with the granted
+platform credential, values are not recorded in this document), the
+deployment was rebuilt, the Chatwoot webhook URL re-registered with the
+rotated token, and the round trip re-verified — see the post-rotation probes
+recorded in the issue thread. The stale pending Paperclip secret proposal for
+`kiddy/chatwoot-webhook-secret` was withdrawn and replaced with the rotated
+value.
+
+**Remaining human step:** the real-device test (parent grants push
+permission on an Android PWA/TWA while logged in, then an agent reply
+arrives with the app backgrounded). Everything else, including webhook
+registration and Chatwoot round trip, is complete and verified.
 
 ## Commit
 
