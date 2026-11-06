@@ -115,7 +115,11 @@ Captured against the isolated fixture (the kid221 harness pattern:
 
 ## Merge + deployment
 
-- PR to `master` recorded here after checks pass; master auto-deploys on
-  Vercel. Merge commit and deployment status are appended below.
-
-(merge/deployment evidence appended after merge)
+- PR #24 merged to master: merge commit `d130690`
+  (`Merge pull request #24 from ANassef6/kid489-egp-default-currency`).
+- Production deployment of that merge: GitHub deployment `7610688158`
+  (2026-11-06T20:59:22Z), state `success` ("Deployment has completed"), URL
+  https://kiddy-4ml9vkp6b-kiddy2.vercel.app (master auto-deploys on Vercel).
+- Post-deploy smoke: `/` → **200**, `/login` → **200** on the production URL;
+  migration `0032` applies idempotently on the first request via
+  `ensureSchema` (ledger-tracked, runs exactly once).
