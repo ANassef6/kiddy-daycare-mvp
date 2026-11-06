@@ -110,7 +110,7 @@ describe("KID-169 the daycare recipient contract is one set", () => {
     // assigned to Toddlers, so she joins the legitimate set. `unassigned`
     // below — the account `centerContactAccount` used to hand every parent —
     // must still not be in it.
-    expect(offered.map((r) => String(r.full_name)).sort()).toEqual(["Maria Lopez", "Room A Carer"]);
+    expect(offered.map((r) => String(r.full_name)).sort()).toEqual(["Nassef", "Room A Carer"]);
     expect(offered.map((r) => String(r.id))).not.toContain(String(unassignedAcc.id));
 
     // Every id the page can put in the form is one the action accepts.

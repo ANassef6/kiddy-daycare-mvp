@@ -28,6 +28,7 @@ import LoginPage from "@/app/login/page";
 const FORBIDDEN = [
   "Demo:",
   "admin@sunshinedaycare.test",
+  "trois4ever+admin@gmail.com",
   "parent@example.test",
   "kiddy-admin",
   "kiddy-parent",

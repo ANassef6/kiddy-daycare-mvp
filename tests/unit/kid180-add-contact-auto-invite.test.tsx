@@ -30,7 +30,7 @@ beforeEach(async () => {
   sessionCookie.value = createSessionToken({
     accountId: ownerAccountId,
     role: "owner",
-    email: "admin@sunshinedaycare.test",
+    email: "trois4ever+admin@gmail.com",
     accountConfirmed: true,
   } as never);
 });

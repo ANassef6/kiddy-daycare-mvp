@@ -64,7 +64,7 @@ async function seedMaple(subdomain = "mapletree"): Promise<{ instituteId: string
 
 async function sunshineOwner(): Promise<{ accountId: string; email: string }> {
   const row = await queryGet(
-    "SELECT a.id, a.email FROM account a WHERE a.email = 'admin@sunshinedaycare.test'"
+    "SELECT a.id, a.email FROM account a WHERE a.email = 'trois4ever+admin@gmail.com'"
   );
   return { accountId: String(row!.id), email: String(row!.email) };
 }

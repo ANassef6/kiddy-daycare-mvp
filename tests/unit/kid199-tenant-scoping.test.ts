@@ -61,7 +61,7 @@ async function seedOtherCenter(): Promise<{
 
 async function sunshineOwnerAccount(): Promise<{ accountId: string; staffId: string }> {
   const row = await queryGet(
-    "SELECT a.id, a.staff_id FROM account a WHERE a.email = 'admin@sunshinedaycare.test'"
+    "SELECT a.id, a.staff_id FROM account a WHERE a.email = 'trois4ever+admin@gmail.com'"
   );
   return { accountId: String(row!.id), staffId: String(row!.staff_id) };
 }
@@ -146,7 +146,7 @@ describe("KID-199.3 session-aware tenant scoping", () => {
     const sunshineCookie = createSessionToken({
       accountId: sunshine.accountId,
       role: "owner",
-      email: "admin@sunshinedaycare.test",
+      email: "trois4ever+admin@gmail.com",
       emailConfirmed: true,
     });
     const otherCookie = createSessionToken({

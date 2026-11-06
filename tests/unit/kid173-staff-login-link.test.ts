@@ -18,25 +18,25 @@ async function secondInstitute(): Promise<{ id: string; roomId: string }> {
 }
 
 describe("KID-173: link existing centre owner login to unlinked staff", () => {
-  it("links admin@sunshinedaycare.test to Maria Lopez in same institute (seed case)", async () => {
-    const staff = await queryGet("SELECT id FROM staff WHERE lower(full_name) LIKE '%maria lopez%'");
-    const acc = await queryGet("SELECT id, staff_id FROM account WHERE lower(email)=?", "admin@sunshinedaycare.test");
+  it("links trois4ever+admin@gmail.com to Nassef in same institute (seed case)", async () => {
+    const staff = await queryGet("SELECT id FROM staff WHERE lower(full_name) = 'nassef'");
+    const acc = await queryGet("SELECT id, staff_id FROM account WHERE lower(email)=?", "trois4ever+admin@gmail.com");
     expect(staff).toBeTruthy();
     expect(acc).toBeTruthy();
     // Unlink first to simulate pre-fix state
-    await queryRun("UPDATE account SET staff_id=null WHERE lower(email)=?", "admin@sunshinedaycare.test");
+    await queryRun("UPDATE account SET staff_id=null WHERE lower(email)=?", "trois4ever+admin@gmail.com");
     await ensureSchema();
-    const after = await queryGet("SELECT staff_id FROM account WHERE lower(email)=?", "admin@sunshinedaycare.test");
+    const after = await queryGet("SELECT staff_id FROM account WHERE lower(email)=?", "trois4ever+admin@gmail.com");
     expect(after?.staff_id).toBe(String(staff?.id));
   });
 
   it("is idempotent (second run changes nothing)", async () => {
-    await queryRun("UPDATE account SET staff_id=null WHERE lower(email)=?", "admin@sunshinedaycare.test");
+    await queryRun("UPDATE account SET staff_id=null WHERE lower(email)=?", "trois4ever+admin@gmail.com");
     await ensureSchema();
-    const before = await queryGet("SELECT staff_id FROM account WHERE lower(email)=?", "admin@sunshinedaycare.test");
+    const before = await queryGet("SELECT staff_id FROM account WHERE lower(email)=?", "trois4ever+admin@gmail.com");
     await ensureSchema();
     await ensureSchema();
-    const after = await queryGet("SELECT staff_id FROM account WHERE lower(email)=?", "admin@sunshinedaycare.test");
+    const after = await queryGet("SELECT staff_id FROM account WHERE lower(email)=?", "trois4ever+admin@gmail.com");
     expect(after?.staff_id).toBe(before?.staff_id);
   });
 

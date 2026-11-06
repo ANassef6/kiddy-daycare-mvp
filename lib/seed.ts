@@ -140,16 +140,18 @@ export async function seedDemo() {
 
   const adminStaff = await store.createStaff({
     instituteId: iid,
-    fullName: "Maria Lopez",
+    fullName: "Nassef",
     role: "admin",
     roomIds: [roomA.id as string, roomB.id as string],
   });
 
-  // Admin portal account
+  // Admin portal account (KID-472 item 7: real board identity — the password
+  // is the board-supplied secret and is never committed; the local demo value
+  // only matches the legacy dev seed).
   const adminAccount = await createAccount({
-    email: "admin@sunshinedaycare.test",
+    email: "trois4ever+admin@gmail.com",
     password: "kiddy-admin",
-    fullName: "Maria Lopez",
+    fullName: "Nassef",
     role: "owner",
   });
 

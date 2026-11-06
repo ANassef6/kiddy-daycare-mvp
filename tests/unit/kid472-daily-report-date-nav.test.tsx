@@ -108,7 +108,7 @@ async function seedPastReport(daysAgo = 3): Promise<string> {
 }
 
 async function renderStaff(date?: string): Promise<string> {
-  mockState.cookie = sessionCookieFor(ownerId, "owner", "admin@sunshinedaycare.test");
+  mockState.cookie = sessionCookieFor(ownerId, "owner", "trois4ever+admin@gmail.com");
   const html = renderToStaticMarkup(
     await StaffChildPage({ params: { id: ella }, searchParams: date ? { date } : {} })
   );
@@ -169,7 +169,7 @@ describe("KID-472 item 4: staff editor loads and saves the selected date", () =>
 
   it("saveDailyReportAction writes the selected date's row and redirects back to that date", async () => {
     const date = shiftIsoDate(todayIso(), -6);
-    mockState.cookie = sessionCookieFor(ownerId, "owner", "admin@sunshinedaycare.test");
+    mockState.cookie = sessionCookieFor(ownerId, "owner", "trois4ever+admin@gmail.com");
     const fd = new FormData();
     fd.set("childId", ella);
     fd.set("reportDate", date);
@@ -305,7 +305,7 @@ describe("KID-472 item 4: mobile API ?date extension keeps today default", () =>
 describe("KID-472 item 4: the same-child past record is shared across roles", () => {
   it("what the staff member saved for a past date is what the parent reads", async () => {
     const date = shiftIsoDate(todayIso(), -1);
-    mockState.cookie = sessionCookieFor(ownerId, "owner", "admin@sunshinedaycare.test");
+    mockState.cookie = sessionCookieFor(ownerId, "owner", "trois4ever+admin@gmail.com");
     const fd = new FormData();
     fd.set("childId", ella);
     fd.set("reportDate", date);

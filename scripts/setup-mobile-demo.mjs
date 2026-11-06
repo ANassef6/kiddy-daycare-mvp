@@ -49,7 +49,7 @@ const pool = new Pool({ connectionString: DB_URL, ssl: { rejectUnauthorized: fal
 
 const DEMO_ACCOUNTS = [
   { email: "parent@example.test", password: "kiddy-parent", role: "parent" },
-  { email: "admin@sunshinedaycare.test", password: "kiddy-admin", role: "owner" },
+  { email: "trois4ever+admin@gmail.com", password: "kiddy-admin", role: "owner" },
 ];
 
 async function ensureGotrueIdentity(account) {

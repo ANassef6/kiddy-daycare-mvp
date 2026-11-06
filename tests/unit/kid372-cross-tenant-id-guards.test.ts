@@ -101,7 +101,7 @@ beforeEach(async () => {
   sunshineTicketId = String(
     (await queryGet("SELECT id FROM support_ticket WHERE institute_id = ?", sunshineIid))!.id
   );
-  sunshineAdminId = String((await queryGet("SELECT id FROM account WHERE email = 'admin@sunshinedaycare.test'"))!.id);
+  sunshineAdminId = String((await queryGet("SELECT id FROM account WHERE email = 'trois4ever+admin@gmail.com'"))!.id);
   sunshineParentId = String((await queryGet("SELECT id FROM account WHERE email = 'parent@example.test'"))!.id);
   // The second tenant, through the real platform path, so its owner and
   // records match production shapes.
@@ -137,7 +137,7 @@ describe("KID-372: setTicketStatusAction — session + institute ownership", () 
   });
 
   it("a staff session of the ticket's own centre can flip it (positive path)", async () => {
-    sessionFor(sunshineAdminId, "admin@sunshinedaycare.test", "owner");
+    sessionFor(sunshineAdminId, "trois4ever+admin@gmail.com", "owner");
     const { setTicketStatusAction } = await import("@/lib/actions");
     const target = await redirectTargetFor(() =>
       setTicketStatusAction(formData({ ticketId: sunshineTicketId, status: "answered" }))
@@ -156,7 +156,7 @@ describe("KID-372: setTicketStatusAction — session + institute ownership", () 
       subject: "Maple pickup change",
       body: "Cross-centre probe.",
     });
-    sessionFor(sunshineAdminId, "admin@sunshinedaycare.test", "owner");
+    sessionFor(sunshineAdminId, "trois4ever+admin@gmail.com", "owner");
     const { setTicketStatusAction } = await import("@/lib/actions");
     const target = await redirectTargetFor(() =>
       setTicketStatusAction(
@@ -178,7 +178,7 @@ describe("KID-372: room detail page + updateRoomAction — institute ownership",
     mockHeaders = {
       host: SUNSHINE_HOST,
       cookie: `kiddy_sess=${encodeURIComponent(
-        createSessionToken({ accountId: sunshineAdminId, email: "admin@sunshinedaycare.test", role: "owner", emailConfirmed: true })
+        createSessionToken({ accountId: sunshineAdminId, email: "trois4ever+admin@gmail.com", role: "owner", emailConfirmed: true })
       )}`,
     };
     const { default: RoomPage } = await import("@/app/portal/rooms/[id]/page");
@@ -192,7 +192,7 @@ describe("KID-372: room detail page + updateRoomAction — institute ownership",
     mockHeaders = {
       host: SUNSHINE_HOST,
       cookie: `kiddy_sess=${encodeURIComponent(
-        createSessionToken({ accountId: sunshineAdminId, email: "admin@sunshinedaycare.test", role: "owner", emailConfirmed: true })
+        createSessionToken({ accountId: sunshineAdminId, email: "trois4ever+admin@gmail.com", role: "owner", emailConfirmed: true })
       )}`,
     };
     const { default: RoomPage } = await import("@/app/portal/rooms/[id]/page");
@@ -201,7 +201,7 @@ describe("KID-372: room detail page + updateRoomAction — institute ownership",
 
   it("updateRoomAction refuses another centre's room by raw id (no write)", async () => {
     const mapleRoom = await store.createRoom(mapleIid, "Maple Room", 5);
-    sessionFor(sunshineAdminId, "admin@sunshinedaycare.test", "owner");
+    sessionFor(sunshineAdminId, "trois4ever+admin@gmail.com", "owner");
     const { updateRoomAction } = await import("@/lib/actions");
     const target = await redirectTargetFor(() =>
       updateRoomAction(
@@ -214,7 +214,7 @@ describe("KID-372: room detail page + updateRoomAction — institute ownership",
   });
 
   it("updateRoomAction still edits the centre's own room (positive path)", async () => {
-    sessionFor(sunshineAdminId, "admin@sunshinedaycare.test", "owner");
+    sessionFor(sunshineAdminId, "trois4ever+admin@gmail.com", "owner");
     const { updateRoomAction } = await import("@/lib/actions");
     const target = await redirectTargetFor(() =>
       updateRoomAction(formData({ roomId: sunshineRoomId, name: "Toddlers II", capacity: "14", colour: "#00FF00" }))
@@ -337,7 +337,7 @@ describe("KID-372: setFormResponseStatusAction — response verified against the
   it("flips a response of the centre's own form (positive path)", async () => {
     const form = await store.createForm({ instituteId: sunshineIid, kind: "form", title: "S form" });
     const responseId = await insertResponse(String(form.id));
-    sessionFor(sunshineAdminId, "admin@sunshinedaycare.test", "owner");
+    sessionFor(sunshineAdminId, "trois4ever+admin@gmail.com", "owner");
     const { setFormResponseStatusAction } = await import("@/lib/actions");
     const target = await redirectTargetFor(() =>
       setFormResponseStatusAction(formData({ responseId, status: "contacted" }))
@@ -349,7 +349,7 @@ describe("KID-372: setFormResponseStatusAction — response verified against the
   it("refuses a response whose form belongs to another centre (no flip)", async () => {
     const mapleForm = await store.createForm({ instituteId: mapleIid, kind: "form", title: "M form" });
     const responseId = await insertResponse(String(mapleForm.id));
-    sessionFor(sunshineAdminId, "admin@sunshinedaycare.test", "owner");
+    sessionFor(sunshineAdminId, "trois4ever+admin@gmail.com", "owner");
     const { setFormResponseStatusAction } = await import("@/lib/actions");
     const target = await redirectTargetFor(() =>
       setFormResponseStatusAction(formData({ responseId, status: "archived", formId: String(mapleForm.id) }))
@@ -365,7 +365,7 @@ describe("KID-372: setFormResponseStatusAction — response verified against the
 describe("KID-372: generateFormShareLinkAction — share tokens only for own forms", () => {
   it("mints a share token for the centre's own form (positive path)", async () => {
     const form = await store.createForm({ instituteId: sunshineIid, kind: "list", title: "Own list" });
-    sessionFor(sunshineAdminId, "admin@sunshinedaycare.test", "owner");
+    sessionFor(sunshineAdminId, "trois4ever+admin@gmail.com", "owner");
     const { generateFormShareLinkAction } = await import("@/lib/actions");
     const target = await redirectTargetFor(() =>
       generateFormShareLinkAction(formData({ formId: String(form.id) }))
@@ -376,7 +376,7 @@ describe("KID-372: generateFormShareLinkAction — share tokens only for own for
 
   it("refuses to mint a share link for another centre's form by raw id", async () => {
     const mapleForm = await store.createForm({ instituteId: mapleIid, kind: "list", title: "Maple list" });
-    sessionFor(sunshineAdminId, "admin@sunshinedaycare.test", "owner");
+    sessionFor(sunshineAdminId, "trois4ever+admin@gmail.com", "owner");
     const { generateFormShareLinkAction } = await import("@/lib/actions");
     const target = await redirectTargetFor(() =>
       generateFormShareLinkAction(formData({ formId: String(mapleForm.id) }))
@@ -397,7 +397,7 @@ describe("KID-372: updateSupplyStatusAction — institute-owned supplies", () =>
       quantity: 10,
       unit: "boxes",
     });
-    sessionFor(sunshineAdminId, "admin@sunshinedaycare.test", "owner");
+    sessionFor(sunshineAdminId, "trois4ever+admin@gmail.com", "owner");
     const { updateSupplyStatusAction } = await import("@/lib/actions");
     const target = await redirectTargetFor(() =>
       updateSupplyStatusAction(formData({ id: String(supply.id), status: "donated" }))
@@ -413,7 +413,7 @@ describe("KID-372: updateSupplyStatusAction — institute-owned supplies", () =>
       quantity: 2,
       unit: "packs",
     });
-    sessionFor(sunshineAdminId, "admin@sunshinedaycare.test", "owner");
+    sessionFor(sunshineAdminId, "trois4ever+admin@gmail.com", "owner");
     const { updateSupplyStatusAction } = await import("@/lib/actions");
     const target = await redirectTargetFor(() =>
       updateSupplyStatusAction(formData({ id: String(mapleSupply.id), status: "donated" }))
@@ -458,7 +458,7 @@ describe("KID-372: createTagAction / createSmartListAction — authAccount() fir
   });
 
   it("a signed-in session writes tags into its OWN request tenant only (positive path)", async () => {
-    sessionFor(sunshineAdminId, "admin@sunshinedaycare.test", "owner");
+    sessionFor(sunshineAdminId, "trois4ever+admin@gmail.com", "owner");
     const { createTagAction, createSmartListAction } = await import("@/lib/actions");
     expect(
       await redirectTargetFor(() => createTagAction(formData({ name: "Sunshine Tag", color: "#222222" })))
