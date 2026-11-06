@@ -44,14 +44,16 @@ re-run on an isolated worktree of this branch (see below).
   `web-push` sender signature (module-mocked in tests only).
 - Build-time proof: SW, sound asset and all six API routes present in the
   production build manifest.
-- **Pending human gate:** VAPID/Webhook secrets are proposed as Paperclip
-  secrets + env bindings (`kiddy/vapid-public-key` → `env.VAPID_PUBLIC_KEY`,
-  `kiddy/vapid-private-key` → `env.VAPID_PRIVATE_KEY`,
-  `kiddy/chatwoot-webhook-secret` → `env.CHATWOOT_WEBHOOK_SECRET`); the
-  confirm-binding cards live on this issue. Until a human approves them, sets
-  the three vars on the Vercel project (`kiddy`) and registers the Chatwoot
-  webhook per `docs/PUSH_NOTIFICATIONS.md`, production pushes stay in the
-  graceful-degrade mode by design.
+- **Activation (2026-11-06, done):** the Paperclip secret-binding path stayed
+  unresolvable (three rounds of human-only confirm cards all landed http_409 —
+  plain card acceptance does not create the underlying secret), so activation
+  switched to the board-approved plan B: VAPID keys + a fresh
+  `CHATWOOT_WEBHOOK_SECRET` were generated locally, set directly on the Vercel
+  project `kiddy` (`target: [production, preview]`, type `encrypted`) with the
+  granted platform credential, and values recorded as fresh Paperclip secret
+  proposals (`kiddy/vapid-public-key`, `kiddy/vapid-private-key`,
+  `kiddy/chatwoot-webhook-secret`) for operator visibility. The prepend is
+  kept for audit; the stale withdrawn proposals never created secrets.
 
 ## Production / deployment
 
@@ -75,13 +77,26 @@ re-run on an isolated worktree of this branch (see below).
 
 ## Still pending to reach full acceptance
 
-Serial chain (rerun suite): push-send evidence on a real Android device +
-Chatwoot webhook round-trip are blocked on exactly one human gate —
-**approve the three Paperclip secret-binding cards on this issue** (KID-480),
-set the resulting `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` /
-`CHATWOOT_WEBHOOK_SECRET` on the Vercel project `kiddy`, and register the
-Chatwoot webhook per `docs/PUSH_NOTIFICATIONS.md`. Everything else ships and
-degrades cleanly without them.
+Update 2026-11-06: production push is **ACTIVE**. Activation deployment
+`dpl_6EzmWBp8xoYpzzWUirUkq7nXQiLw` (rebuild of `master`, Vercel project
+`kiddy`, READY). Probes on `https://kiddyapp.net` (and the deployment URL):
+
+- `GET /api/push/public-key` -> real VAPID public key (no longer empty).
+- `POST /api/chatwoot/webhook` unsigned -> `401
+  {"error":{"code":"unauthorized"...}}` (fail-closed with the secret
+  configured; was `503 webhook_disabled`).
+- `POST /api/chatwoot/webhook` signed (probe payload) -> `200
+  {"handled":false,"reason":"not-an-agent-message"}` — the guarded pipeline
+  engages and skips cleanly on non-agent payloads.
+- `GET /sw.js` -> `200`; `GET /notification-sound.wav` -> `200`.
+
+Remaining human steps: register the webhook in the Chatwoot admin
+(URL `https://kiddyapp.net/api/chatwoot/webhook?token=<secret>`,
+subscription `message_created`; the agent-held Chatwoot token lacks admin
+rights) and the real-device test push. Secret values are readable by the
+board after approving the fresh pending Paperclip secret proposals.
+
+Everything else ships and degrades cleanly without them.
 
 ## Commit
 
