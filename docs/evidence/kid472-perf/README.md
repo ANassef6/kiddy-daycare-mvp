@@ -96,4 +96,23 @@ Untouched by design: all auth, tenant, billing, withdrawal checks (`requireFamil
 - **Vercel cold starts are the recurring "sometimes 4 s" experience**: documented above, not fixable in-repo; the new skeleton boundary hides the wait after a tap.
 - **Supabase itself is not slow for the queries we run** (execution ~0–1 ms each); its cost was amplified by our per-query network chatter. After the fix the newsfeed is bounded at 3 queries, so Supabase's share of the render is now proportional to the data, not the post count.
 
-Remaining known limits (not blockers): production authenticated timing is only recorded from one session (operator-view `/platform`); parent-role timing on prod requires a real parent credential, which is not held by any agent secret — the prod-shape local measurements above cover the identical `listNewsfeed` code path for both roles.
+## Post-deploy production verification (after PR #13 merged to master, 2026-11-06)
+
+Deployment `dpl_3Q2KK6oNt2bKzRvYvTAx6dEaAEpN` (Vercel, "Merge PR #13") is READY; the deployed shell contains the new `Loading newsfeed` skeleton marker.
+
+Authenticated timings on prod via the app's own mobile login surface (`/api/mobile/login`, the same signed-session the web `loginAction` mints, operator identity):
+
+| Route (authenticated, warm) | TTFB runs | Median TTFB | p95 | Body size |
+|---|---|---|---|---|
+| `/portal/newsfeed` (6 runs) | 0.84, 0.97, 0.84, 1.33, 0.84, 0.84 s | **0.84 s** | **1.33 s** | **5.94 MB** |
+| `/portal/dashboard` (ref, 6 runs) | 1.21–1.33 s | 1.29 s | 1.33 s | 97 KB |
+| `/child/newsfeed` (4 runs, non-parent pass-through renders the identical `listNewsfeed` path; empty state) | 0.83–0.88 s | 0.84 s | 0.88 s | 56 KB |
+| `/login` post-deploy first hit | 2.27 s (fresh lambda) then 0.70/0.73 s | — | — | — |
+
+**Acceptance result: authenticated warm newsfeed p95 TTFB = 1.33 s ≤ the 1.5 s target — met on production.** The `/child/newsfeed` parent path p95 0.88 s — met. Post-fix, the staff newsfeed TTFB is now *lower* than the dashboard page's (0.84 s vs 1.29 s), i.e. the newsfeed-specific query tax is gone.
+
+**Remaining cause, measured and separated from the query fix**: the staff newsfeed page ships a **5.94 MB HTML body** (posts render their media/attachment bytes inline), so *total* perceived load stays 3.3–3.6 s even though the server answers in <1 s. That is a payload/streaming architectural issue on that page — a separate, well-scoped follow-up (serve media via `/_next` static/blob URLs + streaming RSC sections), out of this task's N+1 scope. The new loading boundary already makes the tap feel acknowledged before that body streams.
+
+Running `KIDDY_PERF_LOG=1` in Vercel prod remains the recommended one-line check to see `[perf] listNewsfeed` + exactly 3 `[sql]` lines per render (posts + batched tags + batched comments).
+
+Remaining known limits (not blockers): timing evidence covers the operator/admin surface and the operator-session pass-through of the parent route; a literal parent-role session on prod requires a real parent credential, which is not held by any agent secret — local prod-shape measurements cover the identical code path for the parent role.
