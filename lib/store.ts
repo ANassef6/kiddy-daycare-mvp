@@ -10,6 +10,7 @@ import {
 } from "./working-hours";
 import { feedCopyFor, type FeedCopy } from "./i18n";
 import { syncChatwootContactForAccount } from "./chatwoot-contacts";
+import { withPerfTiming } from "./perf";
 
 // ---------- Institute / branding (white-label) ----------
 export async function getInstitute(instituteId: string): Promise<Row | undefined> {
@@ -1477,7 +1478,12 @@ export async function createNewsfeedPost(data: {
 // KID-103: when forAccountId is a scoped staff account, only posts that tag at
 // least one child in an assigned classroom are returned. Owners/admins/parents
 // remain unscoped.
+// KID-472: optional server timing log behind KIDDY_PERF_LOG=1 (no-op unset).
 export async function listNewsfeed(instituteId: string, forAccountId?: string): Promise<Row[]> {
+  return withPerfTiming("listNewsfeed", () => listNewsfeedImpl(instituteId, forAccountId));
+}
+
+async function listNewsfeedImpl(instituteId: string, forAccountId?: string): Promise<Row[]> {
   const allowedRoomIds = forAccountId ? await scopedRoomIds(instituteId, forAccountId) : null;
   const scopeFilter =
     allowedRoomIds === null
@@ -1498,11 +1504,36 @@ export async function listNewsfeed(instituteId: string, forAccountId?: string): 
      ORDER BY p.created_at DESC`,
     ...args
   );
-  const results: Row[] = [];
-  for (const row of rows) {
-    const tags = await queryAll(`SELECT c.id, c.first_name, c.last_name FROM newsfeed_tag t JOIN child c ON c.id = t.child_id WHERE t.post_id = ?`, row.id);
-    const comments = await queryAll(`SELECT c.*, a.full_name FROM newsfeed_comment c JOIN account a ON a.id = c.account_id WHERE c.post_id = ? ORDER BY c.created_at ASC`, row.id);
-    results.push({ ...row, tags, comments });
+  // KID-472: batch tags + comments in two fixed queries instead of N+1
+  // per-post lookups, so query count no longer scales with post count.
+  const results: Row[] = rows.map((row) => ({ ...row, tags: [], comments: [] }));
+  if (rows.length > 0) {
+    const byId = new Map<string, Row>(rows.map((row, i) => [String(row.id), results[i]]));
+    const postIds = rows.map((row) => String(row.id));
+    const placeholders = postIds.map(() => "?").join(", ");
+    const [tagRows, commentRows] = await Promise.all([
+      queryAll(
+        `SELECT t.post_id, c.id, c.first_name, c.last_name
+         FROM newsfeed_tag t JOIN child c ON c.id = t.child_id
+         WHERE t.post_id IN (${placeholders})`,
+        ...postIds
+      ),
+      queryAll(
+        `SELECT c.*, a.full_name
+         FROM newsfeed_comment c JOIN account a ON a.id = c.account_id
+         WHERE c.post_id IN (${placeholders})
+         ORDER BY c.created_at ASC`,
+        ...postIds
+      ),
+    ]);
+    for (const tagRow of tagRows as Array<Row & { post_id: string }>) {
+      const post = byId.get(String(tagRow.post_id));
+      if (post) (post.tags as unknown[]).push({ id: tagRow.id, first_name: tagRow.first_name, last_name: tagRow.last_name });
+    }
+    for (const commentRow of commentRows as Array<Row & { post_id: string }>) {
+      const post = byId.get(String(commentRow.post_id));
+      if (post) (post.comments as unknown[]).push(commentRow);
+    }
   }
   return results;
 }

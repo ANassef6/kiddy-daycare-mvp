@@ -4,7 +4,7 @@ import ChildNavMenu from "@/components/ChildNavMenu";
 import OperatorViewBanner from "@/components/OperatorViewBanner";
 import { requireSessionWithWithdrawalCheck } from "@/lib/require";
 import { requireTenantForPage } from "@/lib/tenant";
-import { familiesForAccount, familyAccessForAccount } from "@/lib/store";
+import { familyAccessForAccount } from "@/lib/store";
 import { ensureSchema } from "@/lib/db";
 import { getBranding } from "@/lib/theme";
 import { i18nForAccount } from "@/lib/i18n-session";
@@ -30,28 +30,24 @@ export default async function ParentLayout({ children }: { children: React.React
   } catch (err) {
     console.error("ensureSchema failed on the parent layout:", err);
   }
-  const { dict } = await i18nForAccount(session.accountId);
   // KID-236: same persistent operator-view banner as the portal layout — the
-  // parent surface is a tenant surface too.
-  let operatorViewName = "";
-  if (session.operatorViewInstituteId) {
-    try {
-      operatorViewName = await instituteNameForOperatorView(session.operatorViewInstituteId);
-    } catch (err) {
-      console.error("KID-236 operator-view banner name lookup failed:", err);
-    }
-  }
-  let families: Record<string, unknown>[] = [];
-  let logoUrl: string | null = null;
-  let brandName = "Kiddy";
-  try {
-    [families] = await Promise.all([
-      familiesForAccount(session.accountId),
-      getBranding().then((b) => { logoUrl = b.logoUrl; brandName = b.name; }),
-    ]);
-  } catch {
-    // fall through
-  }
+  // parent surface is a tenant surface too. KID-472: the post-session reads
+  // below are pairwise independent, so they now run as one parallel batch;
+  // the unused familiesForAccount() call the layout never consumed is gone.
+  const [{ dict }, branding, access, operatorViewName] = await Promise.all([
+    i18nForAccount(session.accountId),
+    // branding failure falls back to neutral Kiddy defaults (unchanged).
+    getBranding().catch(() => ({ logoUrl: null as string | null, name: "Kiddy" })),
+    session.role === "parent" ? familyAccessForAccount(session.accountId) : Promise.resolve(null),
+    session.operatorViewInstituteId
+      ? instituteNameForOperatorView(session.operatorViewInstituteId).catch((err) => {
+          console.error("KID-236 operator-view banner name lookup failed:", err);
+          return "";
+        })
+      : Promise.resolve(""),
+  ]);
+  const logoUrl: string | null = branding.logoUrl;
+  const brandName: string = branding.name;
 
   const navItems = [
     { href: "/child", label: tr(dict, "nav.myChildren") },
@@ -70,7 +66,6 @@ export default async function ParentLayout({ children }: { children: React.React
   // Pickup links only register pickup time, so the nav shrinks to MyChildren.
   let visibleNav = navItems;
   if (session.role === "parent") {
-    const access = await familyAccessForAccount(session.accountId);
     if (access === "no_access") redirect("/login?error=disabled");
     if (access === "pickup") visibleNav = navItems.slice(0, 1);
   }

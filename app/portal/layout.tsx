@@ -28,27 +28,25 @@ export default async function PortalLayout({ children }: { children: React.React
   } catch (err) {
     console.error("ensureSchema failed on the portal layout:", err);
   }
-  const { locale, dict } = await i18nForAccount(session.accountId);
-  const profile = await accountProfile(session.accountId);
-  const displayName = profile.fullName || session.email;
   // KID-236: the persistent "viewing as platform operator" banner rides every
   // portal page during an operator-view session. requireTenantForPage above
   // has already refused any host other than the session's bound institute.
-  let operatorViewName = "";
-  if (session.operatorViewInstituteId) {
-    try {
-      operatorViewName = await instituteNameForOperatorView(session.operatorViewInstituteId);
-    } catch (err) {
-      console.error("KID-236 operator-view banner name lookup failed:", err);
-    }
-  }
-  let logoUrl: string | null = null;
-  let brandName = "Kiddy";
-  try {
-    const b = await getBranding();
-    logoUrl = b.logoUrl;
-    brandName = b.name;
-  } catch {}
+  // KID-472: these post-session reads are pairwise independent, so they run as
+  // one parallel batch instead of four sequential awaits.
+  const [{ locale, dict }, profile, branding, operatorViewName] = await Promise.all([
+    i18nForAccount(session.accountId),
+    accountProfile(session.accountId),
+    getBranding().catch(() => ({ logoUrl: null as string | null, name: "Kiddy" })),
+    session.operatorViewInstituteId
+      ? instituteNameForOperatorView(session.operatorViewInstituteId).catch((err) => {
+          console.error("KID-236 operator-view banner name lookup failed:", err);
+          return "";
+        })
+      : Promise.resolve(""),
+  ]);
+  const displayName = profile.fullName || session.email;
+  const logoUrl: string | null = branding.logoUrl;
+  const brandName: string = branding.name;
   return (
     <div className="shell">
       <PortalSidebar brandName={brandName} logoUrl={logoUrl} locale={locale} dict={dict} role={session.role} />

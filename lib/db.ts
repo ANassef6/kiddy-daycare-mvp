@@ -226,7 +226,17 @@ async function sqliteRun(sql: string, args: unknown[]): Promise<{ rowCount: numb
 // Shared async query API
 // ---------------------------------------------------------------------------
 export async function queryAll(sql: string, ...args: unknown[]): Promise<Row[]> {
-  return isPostgresMode() ? pgAll(sql, args) : sqliteAll(sql, args);
+  // KID-472: timing logs are opt-in (KIDDY_PERF_LOG=1); with the flag unset
+  // this is a straight passthrough with no extra work.
+  if (process.env.KIDDY_PERF_LOG !== "1") {
+    return isPostgresMode() ? pgAll(sql, args) : sqliteAll(sql, args);
+  }
+  const started = Date.now();
+  try {
+    return await (isPostgresMode() ? pgAll(sql, args) : sqliteAll(sql, args));
+  } finally {
+    console.log(`[sql] ${Math.trunc(sql.length)}b sql="${sql.slice(0, 90).replace(/\n/g, " ")}" ms=${Date.now() - started}`);
+  }
 }
 
 export async function queryGet(sql: string, ...args: unknown[]): Promise<Row | undefined> {
