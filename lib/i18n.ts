@@ -440,6 +440,13 @@ export const en = {
     sendFailedRecipient:
       "Your message was not sent. You can only message staff assigned to your child's classroom. Pick a recipient below and try again.",
     sendFailedGeneric: "Your message was not sent. Check the details and try again.",
+    // KID-534 (KID-482 D-2): a transient read failure used to throw during
+    // render and surface as a server-side 500. The page now degrades to this
+    // recoverable state instead — nothing was lost, the page just refreshes.
+    loadFailedTitle: "Some parts of your messages did not load",
+    loadFailedHint:
+      "A short problem on our side interrupted this page. Your messages are safe. Open this page again to retry.",
+    tryAgain: "Try again",
   },
   learning: {
     development: "Learning & development",
@@ -1666,6 +1673,11 @@ export const ar = {
     sendFailedRecipient:
       "لم تُرسل رسالتك. يمكنك مراسلة الموظفين المعيّنين في فصل طفلك فقط. اختر مستلمًا بالأسفل وحاول مرة أخرى.",
     sendFailedGeneric: "لم تُرسل رسالتك. راجع التفاصيل وحاول مرة أخرى.",
+    // KID-534 (KID-482 D-2) — mirror of the English recovery copy.
+    loadFailedTitle: "تعذر تحميل بعض أجزاء محادثاتك",
+    loadFailedHint:
+      "حدث خلل قصير لدينا أثناء عرض هذه الصفحة. رسائلك في أمان. افتح الصفحة مرة أخرى لإعادة المحاولة.",
+    tryAgain: "حاول مرة أخرى",
   },
   learning: {
     development: "التعلّم والتطوّر",
