@@ -11,8 +11,8 @@
 //     daycare (even when it is not the first-created institute);
 //   - every other host state — apex, legacy, unknown subdomains, anonymous,
 //     platform operator, no request scope — stays generic "Kiddy".
-//     No first-institute fallback: unlike getBranding's anonymous landing
-//     path, the title brand must never follow whichever demo daycare was
+//     No first-institute fallback — since KID-683 neither the anonymous
+//     landing path nor the title brand may follow whichever demo daycare was
 //     created first.
 //
 // Test style follows kid256 (host mocked per test, local SQLite fixture) plus
