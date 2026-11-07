@@ -89,3 +89,18 @@
 - `npm run lint` — clean (pre-existing `<img>` warnings only).
 - `npm run db:verify-migrations` — PGlite run, "All migration checks passed".
 - `npm run build` — Next.js production build succeeds.
+
+## Merge + deployment
+
+- PR #28 merged to master: merge commit `bf73186`
+  (`Merge pull request #28 from ANassef6/kid489-instapay-payment-link`),
+  branch `kid489-instapay-payment-link`, head `65eb5f7`.
+- PR checks: Vercel + Vercel Preview Comments `pass`, Supabase Preview
+  `skipping`.
+- Production deployment of that merge: GitHub deployment `7614670780`
+  (2026-11-07T01:25:38Z, vercel[bot], sha `bf73186…`), latest status
+  `21627756718` = `success` ("Deployment has completed"), URL
+  https://kiddy-9p0mw0396-kiddy2.vercel.app (master auto-deploys on Vercel).
+- Post-deploy smoke on the production URL: `/` → **200**, `/login` → **200**;
+  migration `0033` applies idempotently on the first request via
+  `ensureSchema` (ledger-tracked, runs exactly once, no data rewrites).
