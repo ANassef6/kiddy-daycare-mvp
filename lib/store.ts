@@ -3028,7 +3028,42 @@ export async function createChildBilling(data: {
     data.status ?? "pending",
     data.paymentLink || null
   );
-  return (await queryGet("SELECT * FROM child_billing WHERE id = ?", id))!;
+  const row = await queryGet("SELECT * FROM child_billing WHERE id = ?", id);
+  // KID-684: one parent notification per CREATED invoice. Best-effort — the
+  // write above always stands; a notification failure is logged, never
+        // thrown (addChildBillingAction redirects right after). The audience
+  // is parentAccountIdsForChild (role='parent' family links only), so the
+  // admin who created the invoice never self-notifies. The ref pins the
+  // billing id: a created invoice exists once, so replays/re-renders emit
+  // nothing, while every genuinely new invoice (new id) notifies.
+  try {
+    if (row) {
+      const child = await queryGet(
+        "SELECT id, first_name, last_name FROM child WHERE id = ?",
+        data.childId
+      );
+      const parents = await parentAccountIdsForChild(data.childId);
+      if (child && parents.length > 0) {
+        await emitNotifications({
+          instituteId: data.instituteId,
+          accountIds: parents,
+          activity: "billing",
+          kind: "invoice_created",
+          payload: {
+            childId: String(data.childId),
+            childName: `${child.first_name ?? ""} ${child.last_name ?? ""}`.trim(),
+            description: data.description,
+            amount: `${((Number(data.amountCents) || 0) / 100).toFixed(2)} ${normalizeCurrency(data.currency)}`,
+            dueDate: data.dueDate ?? "",
+          },
+          ref: `invoice-created-${id}`,
+        });
+      }
+    }
+  } catch (err) {
+    console.error(`KID-684 invoice-created notification failed (child=${data.childId}, billing=${id}):`, err);
+  }
+  return row!;
 }
 
 export async function updateChildBilling(billingId: string, patch: { status?: string }): Promise<void> {
@@ -3463,6 +3498,18 @@ export function notificationViewCopy(
           ? copy.busAutoCheckedInBody()
           : "";
     return { title, body: note };
+  }
+  // KID-684: invoice-created parent notifications. The payload stays
+  // locale-independent; the title names the child and the invoice, the body
+  // carries the preformatted amount and the due date when there is one.
+  if (kind === "invoice_created") {
+    const description = String(payload.description ?? "");
+    const amount = String(payload.amount ?? "");
+    const dueDate = String(payload.dueDate ?? "");
+    return {
+      title: copy.invoiceCreatedTitle(childName, description),
+      body: dueDate ? copy.invoiceBody(amount, dueDate) : amount,
+    };
   }
   return { title: String(payload.title ?? ""), body };
 }

@@ -199,7 +199,8 @@ export default async function ChildDetailPage({
         </p>
       )}
 
-      <h2 className="title mt-5">{t("child.invoicesTitle")}</h2>
+      {/* KID-684: the invoice deep-link anchor (`/child/<id>#invoices`). */}
+      <h2 className="title mt-5" id="invoices">{t("child.invoicesTitle")}</h2>
       {searchParams?.error?.startsWith("proof") && (
         <div role="alert" className="card mb-2" style={{ borderLeft: "4px solid #b91c1c" }}>
           <p className="small" style={{ margin: 0 }}>

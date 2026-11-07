@@ -1245,6 +1245,10 @@ export const en = {
     invoicePaidMeta: "Paid · {date}",
     invoiceOverdueMeta: "Overdue — pay now",
     invoicePendingMeta: "Pending",
+    // KID-684: the parent-facing "a new invoice was created for your child"
+    // notification. The child rides {child}, the invoice name rides
+    // {description}; the amount/total body reuses invoiceBody at view time.
+    invoiceCreatedTitle: "New invoice for {child}: {description}",
   },
   // KID-221: the staff newsfeed composer (Home group) — it had no localized
   // keys and spoke English inside the translated shell.
@@ -2464,6 +2468,8 @@ export const ar = {
     invoicePaidMeta: "مدفوعة · {date}",
     invoiceOverdueMeta: "متأخرة — سدّدها الآن",
     invoicePendingMeta: "معلّقة",
+    // KID-684: إشعار ولي الأمر عند إنشاء فاتورة جديدة (AR).
+    invoiceCreatedTitle: "فاتورة جديدة لـ {child}: {description}",
   },
   // KID-221: محرّر الأخبار الخاص بالفريق (قائمة الرئيسية) — لم تكن له مفاتيح
   // مترجمة وكان يتحدث بالإنجليزية داخل الهيكل المترجم.
@@ -2766,6 +2772,8 @@ export type FeedCopy = {
   invoicePaidMeta: (date: string) => string;
   invoiceOverdueMeta: () => string;
   invoicePendingMeta: () => string;
+  // KID-684: invoice-created parent notification title.
+  invoiceCreatedTitle: (child: string, description: string) => string;
   // status label resolvers for the raw DB enums that surface in the feed.
   supplyStatusLabel: (status: string) => string;
   billingStatusLabel: (status: string) => string;
@@ -2808,6 +2816,7 @@ export function feedCopyFor(locale: Locale): FeedCopy {
     invoicePaidMeta: (date) => t("feed.invoicePaidMeta", { date }),
     invoiceOverdueMeta: () => t("feed.invoiceOverdueMeta"),
     invoicePendingMeta: () => t("feed.invoicePendingMeta"),
+    invoiceCreatedTitle: (child, description) => t("feed.invoiceCreatedTitle", { child, description }),
     supplyStatusLabel: (status) =>
       status === "fulfilled"
         ? t("supplies.fulfilled")
