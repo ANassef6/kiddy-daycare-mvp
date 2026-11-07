@@ -19,7 +19,7 @@ import { queryGet, queryRun, queryAll, ensureSchema, isForeignKeyViolation } fro
 import { normalizeCurrency } from "@/lib/currency";
 import { parsePaymentLink } from "@/lib/instapay";
 import { validatePaymentProof, paymentProofFilename } from "@/lib/payment-proof";
-import { configuredReportDate } from "@/lib/report-dates";
+import { configuredReportDate, todayIso } from "@/lib/report-dates";
 import {
   isAccountAccessWithdrawn,
   runWithdrawalSweep,
@@ -1241,8 +1241,10 @@ export async function saveDailyReportAction(formData: FormData) {
   // KID-472 item 4: the report is saved for the selected date (validated — a
   // missing or malformed value saves today, exactly as before), and the
   // redirect lands back on the daily tab of THAT date so the saved values
-  // reload rather than swapping the view to today.
-  const reportDate = configuredReportDate(formData.get("reportDate"), new Date().toISOString().slice(0, 10));
+  // reload rather than swapping the view to today. KID-536 ("today" is UTC):
+  // the fallback comes from todayIso() so this copy of the rule cannot drift
+  // from the staff/parent page defaults.
+  const reportDate = configuredReportDate(formData.get("reportDate"), todayIso());
   const me = authAccount();
   if (childId) await assertChildInScope(childId, me);
   // KID-477: the audit row must distinguish a NEW report from an EDIT —
@@ -1722,9 +1724,10 @@ export async function saveChildStatusAction(formData: FormData) {
   }
   // KID-472 item 4: stay on the daily tab of the date the staff member was
   // viewing (status logging itself stays today-anchored, "logged instantly").
+  // KID-536: the fallback is the same UTC todayIso() as every other surface.
   redirect(
     `/portal/children/${childId}?tab=daily&date=${encodeURIComponent(
-      configuredReportDate(formData.get("statusDate"), new Date().toISOString().slice(0, 10))
+      configuredReportDate(formData.get("statusDate"), todayIso())
     )}`
   );
 }

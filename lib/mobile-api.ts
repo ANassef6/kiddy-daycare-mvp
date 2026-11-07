@@ -5,7 +5,7 @@ import { verifyToken, getAccount } from "./auth";
 import { queryGet, type Row } from "./db";
 import { getFirstInstitute, getInstitute, brandingFromInstitute, type Branding } from "./theme";
 import { familiesForAccount, getChild, todayStatus, reportFor } from "./store";
-import { configuredReportDate } from "./report-dates";
+import { configuredReportDate, todayIso } from "./report-dates";
 
 export type MobileSession = {
   accountId: string;
@@ -67,7 +67,7 @@ export async function childSummary(child: Row, reportDate?: string): Promise<Row
   // endpoint passes a date (the web pages' `?date=` contract), the same
   // `todayReport` field carries that day's report (today when unset, so the
   // existing mobile behavior is byte-for-byte preserved).
-  const day = configuredReportDate(reportDate, new Date().toISOString().slice(0, 10));
+  const day = configuredReportDate(reportDate, todayIso());
   const report = await reportFor(child.id as string, day);
   return {
     child: serializeChildWithRoom(child),
