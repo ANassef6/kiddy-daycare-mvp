@@ -102,6 +102,12 @@ const NON_DATA_ALLOWED = new Set(
     "inter", "nunito", "poppins", "georgia", "egp", "cad", "pcs", "pdf", "csv", "excel",
     "vikunja", "png", "jpg", "jpeg", "mb", "kbd", "kiddy",
     "aed", "usd", "gbp", "eur", "sar",
+    // KID-491: Instapay is the payment brand name shown inside the Arabic UI
+    // labels (رابط Instapay، الدفع عبر Instapay) — the brand and the protocol
+    // words it validates against stay untranslated, exactly like the proper
+    // nouns above.
+    "instapay",
+    "http", "https",
   ]
 );
 
@@ -313,8 +319,10 @@ describe("KID-221: Arabic staff/admin pages render without English UI strings", 
     {
       name: "/portal/settings",
       render: async () => {
+        // KID-491: the settings surface accepts ?error=… bounces; plain render
+        // passes an empty searchParams like the other parameterized pages.
         const { default: Page } = await import("@/app/portal/settings/page");
-        return renderToStaticMarkup((await Page()) as never);
+        return renderToStaticMarkup((await Page({ searchParams: {} })) as never);
       },
     },
   ];
