@@ -763,6 +763,177 @@ try {
         await db.all(`SELECT account_id FROM family_member WHERE child_id = 'c-far'`), []);
     }
 
+    // 0035 — KID-500 invite-activation email_confirmed repair. Accounts whose
+    // activation COMPLETED through an invite (GoTrue sign-up rate-limited or
+    // the app-side adoption, so no confirmation email ever went out and the
+    // login-time GoTrue sync never ran) keep email_confirmed = 0 forever: the
+    // admin "Resend activation" affordance and the /welcome banner contradict
+    // a login that already works (the mayoda0@gmail.com report). The redeemed
+    // single-use invite issued to the exact address IS the email-ownership
+    // proof, so the flag moves 0 → 1 — staff mirrors, all-withdrawn parents,
+    // and accounts with no accepted invite stay untouched.
+    {
+      const m35 = readFileSync(join(migrationsDir, "0035_kid500_invite_activation_email_confirmed.sql"), "utf8");
+      console.log("\n== 0035 kid500 invite-activation email_confirmed repair ==");
+      await db.run("TRUNCATE family_member, invite, contact, child, account, staff_room, staff, institute CASCADE");
+      await ins("institute", ["id", "name"], ["inst-home", "Home Centre"]);
+      for (const [id, name] of [
+        ["c-live", "Live Kid"],
+        ["c-gone", "Withdrawn Kid"],
+      ]) {
+        await ins("child", ["id", "institute_id", "first_name", "last_name"], [id, "inst-home", name, "Refaat"]);
+      }
+      await db.run(`UPDATE child SET status = 'withdrawn', active = 0 WHERE id = 'c-gone'`);
+
+      // The incident shape: alive family link + an ACCEPTED invite to the
+      // exact address, but the mirror flag still 0 (rate-limited sign-up /
+      // app-side activation — no confirmation email ever went out). Case and
+      // whitespace must not defeat the ownership match: issue the invite in
+      // the mixed-case form staff typed, exactly like a real invite row.
+      await db.all(`INSERT INTO account (id, email, password_hash, full_name, role, email_confirmed) VALUES ('ac-stuck', 'mayoda0@gmail.com', 'x', 'Mayo Refaat', 'parent', 0)`, []);
+      await ins("family_member", ["id", "account_id", "child_id", "role"], ["fm-stuck", "ac-stuck", "c-live", "parent"]);
+      await ins("invite", ["id", "institute_id", "child_id", "email", "code", "status"], ["inv-accepted", "inst-home", "c-live", "Mayoda0@Gmail.com ", "code-stuck", "accepted"]);
+      // Already-confirmed row: the repair must be a no-op here by definition.
+      await db.all(`INSERT INTO account (id, email, password_hash, full_name, role, email_confirmed) VALUES ('ac-confirmed', 'confirmed@gmail.com', 'x', 'Confirmed Parent', 'parent', 1)`, []);
+      await ins("family_member", ["id", "account_id", "child_id", "role"], ["fm-confirmed", "ac-confirmed", "c-live", "parent"]);
+      await ins("invite", ["id", "institute_id", "child_id", "email", "code", "status"], ["inv-confirmed", "inst-home", "c-live", "confirmed@gmail.com", "code-confirmed", "accepted"]);
+
+      // Decoys that must ALL stay at 0:
+      // - a staff-linked mirror (staff_id) even with an active link + accepted invite;
+      // - an admin-role account (never a parent mirror);
+      // - a parent whose ONLY link is a withdrawn child (genuine enrollment end);
+      // - a parent with a live link but NO accepted invite (a pending one is not proof);
+      // - a parent whose accepted invite was issued to a DIFFERENT address.
+      await db.all(`INSERT INTO account (id, email, password_hash, full_name, role, email_confirmed, staff_id) VALUES ('ac-staffmirror', 'staffer@gmail.com', 'x', 'Staff Mirror', 'parent', 0, 'st-fake')`, []);
+      await ins("staff", ["id", "institute_id", "full_name", "role"], ["st-fake", "inst-home", "Staff Mirror", "teacher"]);
+      await ins("family_member", ["id", "account_id", "child_id", "role"], ["fm-staffmirror", "ac-staffmirror", "c-live", "parent"]);
+      await ins("invite", ["id", "institute_id", "child_id", "email", "code", "status"], ["inv-staffmirror", "inst-home", "c-live", "staffer@gmail.com", "code-staffmirror", "accepted"]);
+      await db.all(`INSERT INTO account (id, email, password_hash, full_name, role, email_confirmed) VALUES ('ac-admin', 'adm@gmail.com', 'x', 'Admin Mirror', 'admin', 0)`, []);
+      await ins("family_member", ["id", "account_id", "child_id", "role"], ["fm-admin", "ac-admin", "c-live", "parent"]);
+      await ins("invite", ["id", "institute_id", "child_id", "email", "code", "status"], ["inv-admin", "inst-home", "c-live", "adm@gmail.com", "code-admin", "accepted"]);
+      await db.all(`INSERT INTO account (id, email, password_hash, full_name, role, email_confirmed) VALUES ('ac-goneonly', 'goneonly@gmail.com', 'x', 'Gone Only', 'parent', 0)`, []);
+      await ins("family_member", ["id", "account_id", "child_id", "role"], ["fm-goneonly", "ac-goneonly", "c-gone", "parent"]);
+      await ins("invite", ["id", "institute_id", "child_id", "email", "code", "status"], ["inv-goneonly", "inst-home", "c-gone", "goneonly@gmail.com", "code-goneonly", "accepted"]);
+      await db.all(`INSERT INTO account (id, email, password_hash, full_name, role, email_confirmed) VALUES ('ac-noinvite', 'noinvite@gmail.com', 'x', 'No Invite', 'parent', 0)`, []);
+      await ins("family_member", ["id", "account_id", "child_id", "role"], ["fm-noinvite", "ac-noinvite", "c-live", "parent"]);
+      await ins("invite", ["id", "institute_id", "child_id", "email", "code", "status"], ["inv-noinvite", "inst-home", "c-live", "noinvite@gmail.com", "code-noinvite", "pending"]);
+      await db.all(`INSERT INTO account (id, email, password_hash, full_name, role, email_confirmed) VALUES ('ac-otheraddr', 'mine@gmail.com', 'x', 'Other Address', 'parent', 0)`, []);
+      await ins("family_member", ["id", "account_id", "child_id", "role"], ["fm-otheraddr", "ac-otheraddr", "c-live", "parent"]);
+      await ins("invite", ["id", "institute_id", "child_id", "email", "code", "status"], ["inv-otheraddr", "inst-home", "c-live", "someone-else@gmail.com", "code-otheraddr", "accepted"]);
+
+      const flag = async (id) => Number((await db.all(`SELECT email_confirmed FROM account WHERE id = $1`, [id]))[0].email_confirmed);
+
+      await db.run(m35);
+      check("the rate-limited/app-side activated parent is confirmed (case-insensitive invite match)", await flag("ac-stuck"), 1);
+      check("an already-confirmed row stays confirmed", await flag("ac-confirmed"), 1);
+      check("a staff-linked account is never confirmed by the repair", await flag("ac-staffmirror"), 0);
+      check("a non-parent account is never confirmed by the repair", await flag("ac-admin"), 0);
+      check("an all-withdrawn parent stays unconfirmed", await flag("ac-goneonly"), 0);
+      check("a live-linked parent with NO accepted invite stays unconfirmed", await flag("ac-noinvite"), 0);
+      check("an accepted invite for a DIFFERENT address proves nothing", await flag("ac-otheraddr"), 0);
+
+      // Idempotence: replay the repair, then prove a fresh incident-shaped
+      // row is picked up on the next pass — production keeps running with
+      // the old mirror attached, so this must stay healable.
+      await db.run(m35);
+      check("re-running the repair changes nothing", await flag("ac-stuck"), 1);
+      check("replay keeps the decoys untouched", [
+        await flag("ac-staffmirror"),
+        await flag("ac-admin"),
+        await flag("ac-goneonly"),
+        await flag("ac-noinvite"),
+        await flag("ac-otheraddr"),
+      ], [0, 0, 0, 0, 0]);
+
+      await db.all(`INSERT INTO account (id, email, password_hash, full_name, role, email_confirmed) VALUES ('ac-late', 'late@gmail.com', 'x', 'Late Arrivals', 'parent', 0)`, []);
+      await ins("family_member", ["id", "account_id", "child_id", "role"], ["fm-late", "ac-late", "c-live", "parent"]);
+      await ins("invite", ["id", "institute_id", "child_id", "email", "code", "status"], ["inv-late", "inst-home", "c-live", "late@gmail.com", "code-late", "accepted"]);
+      await db.run(m35);
+      check("a late unconfirmed activated parent is healed on the next pass", await flag("ac-late"), 1);
+
+      // The invites that made the repairs possible stay exactly as they were.
+      const inviteStatuses = (await db.all(`SELECT id, status FROM invite ORDER BY id`))
+        .map((r) => [String(r.id), String(r.status)]);
+      check("no invite row was touched", [
+        ...inviteStatuses,
+      ].sort((a, b) => a[0].localeCompare(b[0])), [
+        ["inv-accepted", "accepted"],
+        ["inv-admin", "accepted"],
+        ["inv-confirmed", "accepted"],
+        ["inv-goneonly", "accepted"],
+        ["inv-late", "accepted"],
+        ["inv-noinvite", "pending"],
+        ["inv-otheraddr", "accepted"],
+        ["inv-staffmirror", "accepted"],
+      ]);
+    }
+
+    // ---------------------------------------------------------------------
+    // 0036 — KID-486: parent check-in/out toggle + same-day planned pickup
+    // time. The toggle defaults ON for legacy institutes (parents are never
+    // silently locked out of check-in by a deploy), and the pickup_time table
+    // enforces one entry per child per day structurally (a second same-day
+    // write must fail inside Postgres, not just in lib/store) plus a HH:MM
+    // shape guard, because a malformed layout-corrupted write would render
+    // on the attendance surfaces.
+    {
+      const m36 = readFileSync(join(migrationsDir, "0036_kid486_parent_checkin_pickup_time.sql"), "utf8");
+      console.log("\n== 0036 kid486 parent check-in toggle + pickup_time ==");
+      await db.run("TRUNCATE family_member, invite, contact, child, account, staff_room, staff, room, institute CASCADE");
+      await db.run(`INSERT INTO institute (id, name, created_at) VALUES ('inst-legacy', 'Legacy Centre', now())`);
+      await db.run(`INSERT INTO institute (id, name, created_at) VALUES ('inst-fresh', 'Fresh Centre', now())`);
+      await db.run(`INSERT INTO account (id, email, password_hash, full_name, role) VALUES ('ac-serif', 'serif@gmail.com', 'x', 'Serif', 'parent')`);
+      await db.run(`INSERT INTO child (id, institute_id, first_name, last_name) VALUES ('c-serif', 'inst-legacy', 'Serif', 'Kid')`);
+
+      await db.run(m36);
+      check("legacy institutes default the parent check-in toggle ON",
+        (await db.all(`SELECT parent_checkin_enabled FROM institute WHERE id = 'inst-legacy'`)).map((r) => Number(r.parent_checkin_enabled)), [1]);
+      check("fresh institutes get no override row (empty table assertion flies)",
+        (await db.all(`SELECT id FROM pickup_time WHERE institute_id = 'inst-fresh'`)), []);
+
+      await db.all(`INSERT INTO pickup_time (id, institute_id, child_id, account_id, pickup_date, pickup_time) VALUES ('pt-1', 'inst-legacy', 'c-serif', 'ac-serif', '2026-01-05', '15:30')`);
+      const rowsFor = async (date) => (await db.all(`SELECT id FROM pickup_time WHERE child_id = 'c-serif' AND pickup_date = $1`, [date])).map((r) => String(r.id));
+      // A refused duplicate must not poison the surrounding transaction, so
+      // the write runs inside a savepoint (same pattern as the subdomain
+      // check below).
+      let dupeRefused = false;
+      await db.run("SAVEPOINT pt_dupe");
+      try {
+        await db.all(`INSERT INTO pickup_time (id, institute_id, child_id, account_id, pickup_date, pickup_time) VALUES ('pt-2', 'inst-legacy', 'c-serif', 'ac-serif', '2026-01-05', '16:00')`);
+      } catch {
+        dupeRefused = true;
+      }
+      await db.run("ROLLBACK TO SAVEPOINT pt_dupe");
+      check("one pickup entry per child per day (unique pair refused the write)", dupeRefused && (await rowsFor("2026-01-05")) , ["pt-1"]);
+      // A different day is a different entry — the rule is per-day, not total.
+      await db.all(`INSERT INTO pickup_time (id, institute_id, child_id, account_id, pickup_date, pickup_time) VALUES ('pt-3', 'inst-legacy', 'c-serif', 'ac-serif', '2026-01-06', '15:30')`);
+      check("the next day schedules freely", rowsFor("2026-01-06"), ["pt-3"]);
+
+      const malformed = async () => {
+        await db.run("SAVEPOINT pt_bad");
+        try {
+          await db.all(`INSERT INTO pickup_time (id, institute_id, child_id, account_id, pickup_date, pickup_time) VALUES ('pt-bad', 'inst-legacy', 'c-serif', 'ac-serif', '2026-01-07', '25:99')`);
+          await db.run("RELEASE SAVEPOINT pt_bad");
+          return false;
+        } catch {
+          await db.run("ROLLBACK TO SAVEPOINT pt_bad");
+          return true;
+        }
+      };
+      check("malformed times never land (HH:MM shape guard)", await malformed(), true);
+
+      // Idempotence: re-running the migration keeps the data and the default.
+      await db.run(m36);
+      check("replay is a no-op on data",
+        (await db.all(`SELECT COUNT(*) AS c FROM pickup_time`)).map((r) => Number(r.c)), [2]);
+      check("replay keeps the toggle default ON", (await db.all(`SELECT parent_checkin_enabled FROM institute WHERE id = 'inst-legacy'`)).map((r) => Number(r.parent_checkin_enabled)), [1]);
+      const toggled = await db.all(`UPDATE institute SET parent_checkin_enabled = 0 WHERE id = 'inst-legacy' RETURNING parent_checkin_enabled`);
+      check("an admin can turn the toggle OFF", toggled.map((r) => Number(r.parent_checkin_enabled)), [0]);
+      check("cascade clean: children deleted => entries deleted",
+        (await db.all(`DELETE FROM child WHERE id = 'c-serif' RETURNING id`)).length === 1
+          && (await db.all(`SELECT COUNT(*) AS c FROM pickup_time`)).map((r) => Number(r.c)), [0]);
+    }
+
     // ---------------------------------------------------------------------
     // 0024 — one daycare per wildcard subdomain. The column plus its partial
     // unique index are the SQL-level enforcement behind lib/subdomain.ts; a

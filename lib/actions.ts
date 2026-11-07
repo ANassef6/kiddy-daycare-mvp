@@ -287,7 +287,7 @@ export async function loginAction(formData: FormData) {
 
   // Fallback: app-side verify (seeded demo accounts, or Supabase users whose
   // password was stored locally too).
-  const account = await findAccountByEmail(email);
+  let account = await findAccountByEmail(email);
   if (!account || !verifyPassword(password, account.password_hash)) {
     return { error: await gateMessage("auth.invalidEmailPassword", null) };
   }
@@ -315,6 +315,14 @@ export async function loginAction(formData: FormData) {
     // genuine all-children-withdrawn account still hears "withdrawn".
     const parentGate = await parentActivationGate(account.id, account.language);
     if (parentGate) return parentGate;
+    // KID-500: a completed self-heal may have consumed a pending invite and
+    // flipped email_confirmed (the accepted code is the ownership proof).
+    // `account` is still the pre-gate row, so re-read it before the redirect
+    // below reads the flag: without this, a just-activated parent got the
+    // minted session ALREADY saying confirmed yet was still bounced to
+    // /welcome instead of /child.
+    const refreshed = await findAccountByEmail(String(account.email));
+    if (refreshed) account = refreshed;
     const { familyAccessForAccount } = await import("@/lib/store");
     const access = await familyAccessForAccount(account.id);
     if (access === "no_access") {
@@ -581,6 +589,32 @@ export async function registerAction(formData: FormData) {
       error:
         "We couldn't activate your account right now. Try again in a moment, or ask your daycare for help.",
     };
+  }
+
+  // KID-500: the activation just succeeded, and its success IS the proof of
+  // email ownership when the invite was issued to this exact address — the
+  // single-use code could only have come from that mailbox. Flip the local
+  // mirror in that case no matter which branch ran (fresh sign-up
+  // rate-limited by the confirmation sender, the KID-123 app-side adoption
+  // with auth_user_id = null, the KID-126 already-registered resume): the old
+  // code kept email_confirmed = 0 on those paths, so an account that could
+  // already sign in kept rendering the admin "Resend activation" affordance
+  // and the /welcome banner forever (the mayoda0@gmail.com report). A
+  // mismatch (invite addressed to a different email) is not ownership
+  // evidence for this address, so the flag (and the KID-126 resend below)
+  // stay as computed. Best-effort: a failed flip is logged and leaves the
+  // pre-existing degradation (banner + resend) instead of breaking a working
+  // activation — the same-conversation KID-499 live-row read and the login
+  // /auth/confirm syncs both fix the flag later.
+  const inviteEmail = String(invite.email ?? "").trim().toLowerCase();
+  if (!emailConfirmed && inviteEmail && inviteEmail === String(account.email).trim().toLowerCase()) {
+    try {
+      await setEmailConfirmed(String(account.id), true);
+      emailConfirmed = true;
+      console.log(`KID-500 register: invite activation proves email ownership for ${account.email}; email_confirmed = 1 (invite ${String(invite.id)}).`);
+    } catch (err) {
+      console.warn(`KID-500 register: email_confirmed flip failed for ${account.email}:`, err instanceof Error ? err.message : err);
+    }
   }
 
   // Best-effort Chatwoot contact so the support team sees this account's

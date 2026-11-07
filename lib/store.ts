@@ -3304,6 +3304,17 @@ export function notificationViewCopy(
   if (kind === "message") {
     return { title: copy.messageTitle(senderName), body };
   }
+  // KID-486: a pickup contact set or changed today's planned pickup time —
+  // assigned classroom staff get this in the employee bell / feed.
+  if (kind === "pickup_time") {
+    const time = String(payload.time ?? "");
+    const note = String(payload.note ?? "");
+    return {
+      title: copy.pickupTimeTitle(childName),
+      body: copy.pickupTimeBody(time, note),
+      meta: String(payload.date ?? ""),
+    };
+  }
   // KID-480: announcements share the messages body convention (raw snippet);
   // the author rides authorName (emission writer) with senderName fallback.
   if (kind === "announcement") {
@@ -3314,6 +3325,32 @@ export function notificationViewCopy(
     const summary = body ? copy.reportBody(body) : "";
     const meta = copy.reportMeta(date);
     return { title: copy.reportTitle(childName), body: summary, meta };
+  }
+  // KID-487: the staff/parent event kinds added with general push. Titles
+  // reuse the feed copy the staff activity feed already speaks.
+  if (kind === "attendance") {
+    const edited = payload.edited === true || payload.edited === 1;
+    const type = String(payload.type ?? "");
+    const title = edited
+      ? copy.attendanceUpdatedTitle(childName)
+      : type === "out"
+        ? copy.checkedOutTitle(childName)
+        : copy.checkedInTitle(childName);
+    return { title, body: "" };
+  }
+  if (kind === "incident") {
+    return { title: copy.incidentTitle(childName), body };
+  }
+  if (kind === "supplies") {
+    return {
+      title: copy.suppliesTitle(String(payload.title ?? "")),
+      body: copy.suppliesBody(
+        String(payload.quantity ?? 1),
+        String(payload.unit ?? "pcs"),
+        body ? ` — ${body}` : ""
+      ),
+      meta: copy.suppliesMeta(copy.supplyStatusLabel(String(payload.status ?? "needed"))),
+    };
   }
   return { title: String(payload.title ?? ""), body };
 }

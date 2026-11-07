@@ -1145,4 +1145,40 @@ export function sqliteSchema(db: any): void {
               AND (invite.institute_id IS NULL OR c.institute_id IS NULL OR invite.institute_id = c.institute_id)
           )`);
     } catch {}
+    // KID-500: mirror of supabase/migrations/0035_kid500_invite_activation_email_confirmed.sql
+    // — one-time repair for the stuck email_confirmed = 0 mirror flag on
+    // parent accounts whose activation COMPLETED through an invite (the
+    // mayoda0@gmail.com shape: GoTrue sign-up rate-limited / app-side
+    // activation with no confirmation email, so the login-time flag sync
+    // never ran). Only the flag moves, 0 → 1, when ALL of these hold on live
+    // data: role = 'parent' and staff_id IS NULL (staff mirrors never
+    // qualify); an ACCEPTED invite addressed to the account's own exact
+    // lowercase/trimmed email (the redeemed single-use code IS the ownership
+    // proof — an invite to a different address proves nothing about this one);
+    // and at least one family link to a child that is neither withdrawn nor
+    // inactive, because the activation itself must still be alive (all-
+    // withdrawn parents and zero-link orphans keep the old flag — the KID-498
+    // heal governs orphans). Idempotent: flagged rows leave the candidate set
+    // on re-run, and no other column or invite row is touched.
+    try {
+      db.exec(`UPDATE account
+        SET email_confirmed = 1
+        WHERE role = 'parent'
+          AND staff_id IS NULL
+          AND COALESCE(email_confirmed, 0) = 0
+          AND EXISTS (
+            SELECT 1
+            FROM invite i
+            WHERE lower(trim(i.email)) = lower(trim(account.email))
+              AND i.status = 'accepted'
+          )
+          AND EXISTS (
+            SELECT 1
+            FROM family_member fm
+            JOIN child c ON c.id = fm.child_id
+            WHERE fm.account_id = account.id
+              AND c.status != 'withdrawn'
+              AND c.active = 1
+          )`);
+    } catch {}
 }
