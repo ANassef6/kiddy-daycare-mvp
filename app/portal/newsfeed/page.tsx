@@ -7,6 +7,7 @@ import Avatar from "@/components/Avatar";
 import { queryGet } from "@/lib/db";
 import { i18nForAccount } from "@/lib/i18n-session";
 import { fmtDateTimeFor, tr } from "@/lib/i18n";
+import { recordToolUsage } from "@/lib/tool-usage";
 
 export const dynamic = "force-dynamic";
 
@@ -18,6 +19,7 @@ export default async function PortalNewsfeedPage() {
   const { locale, dict } = await i18nForAccount(session.accountId);
   const t = (key: string, vars?: Record<string, string | number>) => tr(dict, key, vars);
   const iid = await resolveTenantInstituteId();
+  await recordToolUsage({ instituteId: String(iid ?? "") || null, accountId: session.accountId, toolKey: "newsfeed", source: "portal", metadata: null });
   // KID-103: composer children and visible posts are scoped to assigned classrooms.
   const [posts, children, rooms] = await Promise.all([
     iid ? listNewsfeed(iid, session.accountId) : Promise.resolve([]),

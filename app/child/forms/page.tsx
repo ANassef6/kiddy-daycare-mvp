@@ -4,6 +4,7 @@ import { firstInstituteId, safeJson, cap } from "@/lib/helpers";
 import { submitFormAction } from "@/lib/actions";
 import { i18nForAccount } from "@/lib/i18n-session";
 import { tr } from "@/lib/i18n";
+import { recordToolUsage } from "@/lib/tool-usage";
 
 export const dynamic = "force-dynamic";
 type Field = { id: string; label: string; type: string; required?: boolean; options?: string[] };
@@ -26,6 +27,7 @@ export default async function ParentFormsPage({ searchParams }: { searchParams: 
   const t = (key: string, vars?: Record<string, string | number>) => tr(dict, key, vars);
   const instituteId = await firstInstituteId();
   if (!instituteId) return <p className="muted">{t("forms.noInstitute")}</p>;
+  await recordToolUsage({ instituteId: String(instituteId ?? "") || null, accountId: session.accountId, toolKey: "forms", source: "child", metadata: null });
   const [forms, mine] = await Promise.all([listForms(instituteId), responsesByAccount(session.accountId)]);
   const openId = searchParams.open || searchParams.sent;
 

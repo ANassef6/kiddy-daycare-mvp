@@ -14,6 +14,7 @@ import {
 import { i18nForAccount } from "@/lib/i18n-session";
 import { fmtDateFor, fmtTimeFor } from "@/lib/i18n";
 import { tr } from "@/lib/i18n";
+import { recordToolUsage } from "@/lib/tool-usage";
 
 export const dynamic = "force-dynamic";
 
@@ -28,6 +29,7 @@ export default async function PortalDashboard() {
       </p>
     );
   }
+  await recordToolUsage({ instituteId: String(instituteId ?? "") || null, accountId: session.accountId, toolKey: "dashboard", source: "portal", metadata: null });
   // KID-58: auto check-out sweep also fires when the portal loads so nobody
   // stays checked-in past closing +3h even if a scheduler never runs.
   await runAutoCheckoutSweep(instituteId);

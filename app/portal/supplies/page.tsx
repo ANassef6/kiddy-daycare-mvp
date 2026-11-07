@@ -5,6 +5,7 @@ import { createSupplyAction, updateSupplyStatusAction } from "@/lib/actions";
 import { i18nForAccount } from "@/lib/i18n-session";
 import { tr } from "@/lib/i18n";
 import Attribution from "@/components/Attribution";
+import { recordToolUsage } from "@/lib/tool-usage";
 
 export const dynamic = "force-dynamic";
 
@@ -17,6 +18,7 @@ export default async function PortalSuppliesPage() {
   const t = (key: string, vars?: Record<string, string | number>) => tr(dict, key, vars);
   const instituteId = await firstInstituteId();
   if (!instituteId) return <p className="muted">{t("supplies.noInstitute")}</p>;
+  await recordToolUsage({ instituteId: String(instituteId ?? "") || null, accountId: session.accountId, toolKey: "supplies", source: "portal", metadata: null });
   const items = await listSupplies(instituteId);
 
   return (

@@ -16,6 +16,7 @@ import { sendParentMessageAction } from "@/lib/actions";
 import MessageComposerForm from "@/components/MessageComposerForm";
 import { i18nForAccount } from "@/lib/i18n-session";
 import { tr } from "@/lib/i18n";
+import { recordToolUsage } from "@/lib/tool-usage";
 
 export const dynamic = "force-dynamic";
 
@@ -29,6 +30,7 @@ export default async function ParentMessagesPage({
   const t = (key: string, vars?: Record<string, string | number>) => tr(dict, key, vars);
   const instituteId = await firstInstituteId();
   if (!instituteId) return <p className="muted">{t("learning.noInstitute")}</p>;
+  await recordToolUsage({ instituteId: String(instituteId ?? "") || null, accountId: session.accountId, toolKey: "messages", source: "child", metadata: null });
 
   // KID-169: the recipient list is the same set `sendParentMessageAction`
   // enforces (see lib/parent-messaging.ts). The page used to pick an

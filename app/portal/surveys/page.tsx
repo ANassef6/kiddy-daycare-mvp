@@ -2,13 +2,15 @@ import { requireSession } from "@/lib/require";
 import { listForms, formResponses } from "@/lib/store";
 import { firstInstituteId, safeJson } from "@/lib/helpers";
 import { createFormAction } from "@/lib/actions";
+import { recordToolUsage } from "@/lib/tool-usage";
 
 export const dynamic = "force-dynamic";
 
 export default async function PortalSurveysPage({ searchParams }: { searchParams: { view?: string } }) {
-  requireSession();
+  const session = requireSession();
   const instituteId = await firstInstituteId();
   if (!instituteId) return <p className="muted">No institute configured.</p>;
+  await recordToolUsage({ instituteId: String(instituteId ?? "") || null, accountId: session.accountId, toolKey: "surveys", source: "portal", metadata: null });
   const surveys = await listForms(instituteId, "survey");
   const viewId = searchParams.view;
   const active = surveys.find((f: any) => f.id === viewId);

@@ -4,6 +4,8 @@ import { familiesForAccount,listNewsfeed } from "@/lib/store";
 import { toggleLikeAction, commentAction } from "@/lib/actions";
 import { i18nForAccount } from "@/lib/i18n-session";
 import { tr } from "@/lib/i18n";
+import { recordToolUsage } from "@/lib/tool-usage";
+import type { Row } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 
@@ -12,6 +14,8 @@ export default async function ParentNewsfeedPage() {
   const { locale, dict } = await i18nForAccount(session.accountId);
   const t = (key: string, vars?: Record<string, string | number>) => tr(dict, key, vars);
   const families = await familiesForAccount(session.accountId);
+  const usageInstituteId = String((families[0] as Row)?.institute_id ?? "") || null;
+  await recordToolUsage({ instituteId: usageInstituteId, accountId: session.accountId, toolKey: "newsfeed", source: "child", metadata: null });
   const childIds = families.map((f) => f.id as string);
   const childName = Object.fromEntries(families.map((f) => [f.id, f.first_name as string]));
 

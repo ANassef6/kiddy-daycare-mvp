@@ -4,6 +4,7 @@ import { firstInstituteId } from "@/lib/helpers";
 import { createEventAction, addEventMediaAction } from "@/lib/actions";
 import { i18nForAccount } from "@/lib/i18n-session";
 import { fmtTimeFor, tr } from "@/lib/i18n";
+import { recordToolUsage } from "@/lib/tool-usage";
 
 export const dynamic = "force-dynamic";
 
@@ -18,6 +19,7 @@ export default async function PortalEventsPage({ searchParams }: { searchParams:
   const t = (key: string, vars?: Record<string, string | number>) => tr(dict, key, vars);
   const instituteId = await firstInstituteId();
   if (!instituteId) return <p className="muted">{t("events.noInstitute")}</p>;
+  await recordToolUsage({ instituteId: String(instituteId ?? "") || null, accountId: session.accountId, toolKey: "events", source: "portal", metadata: null });
   const events = await listEvents(instituteId);
   const withMedia = await Promise.all(events.map(async (e: any) => ({ ...e, media: await eventMedia(e.id) })));
   const openId = searchParams.open;

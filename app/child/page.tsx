@@ -3,11 +3,13 @@ import { familiesForAccount, todayStatus } from "@/lib/store";
 import { i18nForAccount } from "@/lib/i18n-session";
 import { tr } from "@/lib/i18n";
 import ChildCard from "@/components/ChildCard";
+import { recordToolUsage } from "@/lib/tool-usage";
 
 export const dynamic = "force-dynamic";
 
 export default async function MyChildrenPage() {
   const session = requireSession();
+  await recordToolUsage({ instituteId: null, accountId: session.accountId, toolKey: "dashboard", source: "child", metadata: null });
   const { dict } = await i18nForAccount(session.accountId);
   const t = (key: string, vars?: Record<string, string | number>) => tr(dict, key, vars);
   const families = await familiesForAccount(session.accountId);

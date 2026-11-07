@@ -1,12 +1,14 @@
 import { requireSession } from "@/lib/require";
 import { resolveTenantInstituteId } from "@/lib/tenant";
 import {listIncidents } from "@/lib/store";
+import { recordToolUsage } from "@/lib/tool-usage";
 
 export const dynamic = "force-dynamic";
 
 export default async function PortalIncidentsPage() {
-  requireSession();
+  const session = requireSession();
   const iid = await resolveTenantInstituteId();
+  await recordToolUsage({ instituteId: String(iid ?? "") || null, accountId: session.accountId, toolKey: "incidents", source: "portal", metadata: null });
   const incidents = iid ? await listIncidents(iid) : [];
 
   return (

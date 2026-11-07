@@ -3,6 +3,7 @@ import { reportCenterStats, staffPerformance, attendanceOn, listChildren, listRo
 import { firstInstituteId } from "@/lib/helpers";
 import { i18nForAccount } from "@/lib/i18n-session";
 import { fmtDateFor, tr } from "@/lib/i18n";
+import { recordToolUsage } from "@/lib/tool-usage";
 
 export const dynamic = "force-dynamic";
 
@@ -25,6 +26,7 @@ export default async function PortalReportCenterPage({
   };
   const instituteId = await firstInstituteId();
   if (!instituteId) return <p className="muted">{t("reportCenter.noInstitute")}</p>;
+  await recordToolUsage({ instituteId: String(instituteId ?? "") || null, accountId: session.accountId, toolKey: "report-center", source: "portal", metadata: null });
 
   // KID-103: report-center counts and filters respect classroom assignments.
   const [stats, performance, children, rooms, dailyReports] = await Promise.all([

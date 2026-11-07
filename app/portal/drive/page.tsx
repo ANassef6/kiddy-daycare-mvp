@@ -2,6 +2,7 @@ import { requireSession } from "@/lib/require";
 import { listDriveFiles, listChildren } from "@/lib/store";
 import { firstInstituteId, cap } from "@/lib/helpers";
 import { addDriveFileAction } from "@/lib/actions";
+import { recordToolUsage } from "@/lib/tool-usage";
 
 export const dynamic = "force-dynamic";
 
@@ -9,6 +10,7 @@ export default async function PortalDrivePage() {
   const session = requireSession();
   const instituteId = await firstInstituteId();
   if (!instituteId) return <p className="muted">No institute configured.</p>;
+  await recordToolUsage({ instituteId: String(instituteId ?? "") || null, accountId: session.accountId, toolKey: "drive", source: "portal", metadata: null });
   // KID-103: drive lists and share-with dropdown are scoped to assigned classrooms.
   const [files, children] = await Promise.all([
     listDriveFiles(instituteId, session.accountId),

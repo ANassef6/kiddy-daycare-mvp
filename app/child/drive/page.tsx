@@ -3,6 +3,8 @@ import { familiesForAccount, driveFilesFor } from "@/lib/store";
 import { cap, dedupeById } from "@/lib/helpers";
 import { i18nForAccount } from "@/lib/i18n-session";
 import { tr } from "@/lib/i18n";
+import { recordToolUsage } from "@/lib/tool-usage";
+import type { Row } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 
@@ -24,6 +26,8 @@ export default async function ParentDrivePage() {
   const { dict } = await i18nForAccount(session.accountId);
   const t = (key: string, vars?: Record<string, string | number>) => tr(dict, key, vars);
   const families = await familiesForAccount(session.accountId);
+  const usageInstituteId = String((families[0] as Row)?.institute_id ?? "") || null;
+  await recordToolUsage({ instituteId: usageInstituteId, accountId: session.accountId, toolKey: "drive", source: "child", metadata: null });
   // DEF-003: driveFilesFor(institute, childId) includes the institute-wide
   // rows (child_id NULL) for every linked child, so institute-wide files
   // used to render once per child — duplicate rows sharing one React key.

@@ -3,6 +3,8 @@ import { familiesForAccount, observationsForChild } from "@/lib/store";
 import { cap, fmtDate } from "@/lib/helpers";
 import { i18nForAccount } from "@/lib/i18n-session";
 import { tr } from "@/lib/i18n";
+import { recordToolUsage } from "@/lib/tool-usage";
+import type { Row } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 
@@ -11,6 +13,8 @@ export default async function ParentLearningPage() {
   const { dict } = await i18nForAccount(session.accountId);
   const t = (key: string, vars?: Record<string, string | number>) => tr(dict, key, vars);
   const families = await familiesForAccount(session.accountId);
+  const usageInstituteId = String((families[0] as Row)?.institute_id ?? "") || null;
+  await recordToolUsage({ instituteId: usageInstituteId, accountId: session.accountId, toolKey: "learning", source: "child", metadata: null });
   const children = await Promise.all(
     families.map(async (c: any) => ({ child: c, observations: await observationsForChild(c.id) }))
   );

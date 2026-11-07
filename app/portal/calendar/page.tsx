@@ -2,13 +2,15 @@ import Link from "next/link";
 import { requireSession } from "@/lib/require";
 import { listEvents } from "@/lib/store";
 import { firstInstituteId, cap, fmtDate, fmtTime } from "@/lib/helpers";
+import { recordToolUsage } from "@/lib/tool-usage";
 
 export const dynamic = "force-dynamic";
 
 export default async function PortalCalendarPage() {
-  requireSession();
+  const session = requireSession();
   const instituteId = await firstInstituteId();
   if (!instituteId) return <p className="muted">No institute configured.</p>;
+  await recordToolUsage({ instituteId: String(instituteId ?? "") || null, accountId: session.accountId, toolKey: "calendar", source: "portal", metadata: null });
   const events = await listEvents(instituteId, true);
 
   return (
