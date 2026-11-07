@@ -130,7 +130,7 @@ export default async function ChildBillingPage({
       ) : (
         <table className="data">
           <thead>
-            <tr><th>Description</th><th>Amount</th><th>Period</th><th>Due date</th><th>Status</th><th>Pay</th><th>Created</th><th>By</th></tr>
+            <tr><th>Description</th><th>Amount</th><th>Period</th><th>Due date</th><th>Status</th><th>Pay</th><th>Proof</th><th>Created</th><th>By</th></tr>
           </thead>
           <tbody>
             {bills.map((b: any) => (
@@ -152,6 +152,20 @@ export default async function ChildBillingPage({
                 <td className="small">
                   {b.payment_link ? (
                     <a href={String(b.payment_link)} target="_blank" rel="noreferrer">{tr(dict, "child.payWithInstapay")}</a>
+                  ) : "—"}
+                </td>
+                <td className="small">
+                  {/* KID-489 item 3 (KID-492): the parent's uploaded proof,
+                      visible to the center admin — open the file, then keep
+                      updating the invoice status through the control above. */}
+                  {b.payment_proof_url ? (
+                    <div>
+                      <a href={String(b.payment_proof_url)} target="_blank" rel="noreferrer">View proof</a>
+                      {b.payment_proof_uploaded_at ? (
+                        <div className="muted">{new Date(String(b.payment_proof_uploaded_at)).toLocaleDateString()}</div>
+                      ) : null}
+                      {b.payment_reference ? <div className="muted">Ref: {String(b.payment_reference)}</div> : null}
+                    </div>
                   ) : "—"}
                 </td>
                 <td className="small">{new Date(b.created_at).toLocaleDateString()}</td>

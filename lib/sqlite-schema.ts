@@ -435,6 +435,13 @@ export function sqliteSchema(db: any): void {
     due_date TEXT,
     status TEXT NOT NULL DEFAULT 'pending',
     payment_link TEXT,
+    -- KID-489 item 3 (KID-492): the parent's payment-proof upload (mirror of
+    -- supabase/migrations/0034_kid489_payment_proof.sql). Nullable — invoices
+    -- without a proof keep their pre-KID-492 shape. An upload never writes
+    -- the status; the admin stays the only status writer.
+    payment_proof_url TEXT,
+    payment_proof_uploaded_at TEXT,
+    payment_reference TEXT,
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
   );
 

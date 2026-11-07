@@ -221,6 +221,17 @@ export const en = {
     payWithInstapay: "Pay with Instapay",
     invoiceDue: "Due {date}",
     noInvoices: "No invoices yet.",
+    // KID-489 item 3 (KID-492): the parent's payment-proof upload on the
+    // invoices section. The upload never marks the invoice paid — the center
+    // reviews the proof and updates the status itself.
+    payProofUpload: "Upload payment proof",
+    payProofReplace: "Replace proof",
+    payProofView: "View uploaded proof",
+    payProofPlaceholder: "Reference / transaction number (optional)",
+    payProofPendingReview: "Proof uploaded — awaiting the center's review.",
+    payProofErrorType: "Only PNG, JPG or PDF files are accepted. Nothing was uploaded.",
+    payProofErrorSize: "The file is larger than the 5 MB limit. Nothing was uploaded.",
+    payProofErrorUpload: "The upload did not go through. Nothing was saved — please try again.",
     pickupContacts: "Pickup & contacts",
     noContacts: "No contacts added.",
     pickup: "Pickup",
@@ -1156,6 +1167,10 @@ export const en = {
     suppliesMeta: "Status: {status}",
     billingTitle: "Billing: {description}",
     billingMeta: "{amount} {currency} · {status}",
+    // KID-489 item 3 (KID-492): the admin's payment-proof activity item.
+    paymentProofTitle: "Payment proof for {child} needs review",
+    paymentProofBody: "{description} — the parent uploaded a payment proof. Open the child's billing to view it and update the invoice status.",
+    paymentProofMeta: "Reference: {reference}",
     checkedInTitle: "Checked in: {name}",
     checkedOutTitle: "Checked out: {name}",
     incidentTitle: "Incident: {name}",
@@ -1457,6 +1472,16 @@ export const ar = {
     payWithInstapay: "الدفع عبر Instapay",
     invoiceDue: "الاستحقاق {date}",
     noInvoices: "لا توجد فواتير بعد.",
+    // KID-489 item 3 (KID-492): رفع إثبات الدفع من الوالدين (AR) — الرفع لا
+    // يغيّر حالة الفاتورة؛ الادارة هي من تحدّث الحالة بعد المراجعة.
+    payProofUpload: "ارفع إثبات الدفع",
+    payProofReplace: "استبدال الإثبات",
+    payProofView: "عرض الإثبات المرفوع",
+    payProofPlaceholder: "رقم المرجع / العملية (اختياري)",
+    payProofPendingReview: "تم رفع الإثبات — بانتظار مراجعة الإدارة.",
+    payProofErrorType: "الملفات المقبولة هي PNG أو JPG أو PDF فقط. لم يُرفع أي شيء.",
+    payProofErrorSize: "الملف أكبر من الحد 5 ميجابايت. لم يُرفع أي شيء.",
+    payProofErrorUpload: "لم يكتمل الرفع. لم يُحفظ أي شيء — يرجى المحاولة مرة أخرى.",
     pickupContacts: "الاستلام وجهات الاتصال",
     noContacts: "لا توجد جهات اتصال.",
     pickup: "استلام",
@@ -2308,6 +2333,10 @@ export const ar = {
     suppliesMeta: "الحالة: {status}",
     billingTitle: "الفواتير: {description}",
     billingMeta: "{amount} {currency} · {status}",
+    // KID-489 item 3 (KID-492): عنصر إثبات الدفع في تغذية الإدارة (AR).
+    paymentProofTitle: "إثبات دفعة {child} بحاجة للمراجعة",
+    paymentProofBody: "‏{description} — رفع الوالد إثبات الدفع. افتح فواتير الطفل لعرضه وتحديث حالة الفاتورة.",
+    paymentProofMeta: "المرجع: {reference}",
     checkedInTitle: "سجّل الحضور: {name}",
     checkedOutTitle: "سجّل الانصراف: {name}",
     incidentTitle: "حادث: {name}",
@@ -2597,6 +2626,10 @@ export type FeedCopy = {
   suppliesMeta: (status: string) => string;
   billingTitle: (description: string) => string;
   billingMeta: (amount: string, currency: string, status: string) => string;
+  // KID-489 item 3 (KID-492): payment-proof feed entries.
+  paymentProofTitle: (child: string) => string;
+  paymentProofBody: (description: string) => string;
+  paymentProofMeta: (reference: string) => string;
   checkedInTitle: (name: string) => string;
   checkedOutTitle: (name: string) => string;
   incidentTitle: (name: string) => string;
@@ -2634,6 +2667,9 @@ export function feedCopyFor(locale: Locale): FeedCopy {
     suppliesMeta: (status) => t("feed.suppliesMeta", { status }),
     billingTitle: (description) => t("feed.billingTitle", { description }),
     billingMeta: (amount, currency, status) => t("feed.billingMeta", { amount, currency, status }),
+    paymentProofTitle: (child) => t("feed.paymentProofTitle", { child }),
+    paymentProofBody: (description) => t("feed.paymentProofBody", { description }),
+    paymentProofMeta: (reference) => t("feed.paymentProofMeta", { reference }),
     checkedInTitle: (name) => t("feed.checkedInTitle", { name }),
     checkedOutTitle: (name) => t("feed.checkedOutTitle", { name }),
     incidentTitle: (name) => t("feed.incidentTitle", { name }),

@@ -18,6 +18,7 @@ import {
 import { queryGet, queryRun, queryAll, ensureSchema, isForeignKeyViolation } from "@/lib/db";
 import { normalizeCurrency } from "@/lib/currency";
 import { parsePaymentLink } from "@/lib/instapay";
+import { validatePaymentProof, paymentProofFilename } from "@/lib/payment-proof";
 import { configuredReportDate } from "@/lib/report-dates";
 import {
   isAccountAccessWithdrawn,
@@ -62,6 +63,7 @@ import {
   markRead,
   createChildBilling,
   updateChildBilling,
+  setChildBillingPaymentProof,
   updateChildPhoto,
   updateStaffPhoto,
   toggleLike,
@@ -3005,6 +3007,98 @@ export async function updateBillingStatusAction(formData: FormData) {
     }
   }
   redirect(`/portal/children/${childId}/billing`);
+}
+
+// ---- KID-489 item 3 (KID-492): the parent's payment-proof upload ----
+// A parent attaches a payment screenshot/PDF to one of their OWN family's
+// invoices. The action authorizes FIRST (raw-id fail-closed, KID-372), then
+// validates the file at the boundary, then uploads, then writes the row —
+// so an unsupported/oversize file never creates a partial record. It never
+// touches the status column: a proof arriving keeps the invoice pending; the
+// center admin reviews the proof and updates the status themselves through
+// the existing control. The upload is also the only writer of the proof
+// columns, so the admin's derived activity item (recentActivityFeed, fed by
+// payment_proof_uploaded_at) appears once per invoice state, never per page
+// load.
+export async function uploadPaymentProofAction(formData: FormData) {
+  const me = requireAuthSession();
+  const billingId = String(formData.get("billingId") ?? "");
+  const file = formData.get("file") as File | null;
+  // The invoice row is the authority for tenancy AND the family check below;
+  // authorize before anything else, exactly like the other KID-372 guards.
+  const billing = billingId
+    ? await queryGet("SELECT id, child_id, institute_id FROM child_billing WHERE id = ?", billingId)
+    : null;
+  const requestIid = await firstInstituteId();
+  if (!billing || !requestIid || String(billing.institute_id ?? "") !== requestIid) {
+    // A missing row or a foreign institute is refused fail closed: no data
+    // leaks back — the child id this form came from may be forged together
+    // with it.
+    console.error("KID-492 refused a payment-proof upload by raw id:", me.email);
+    redirect(KID372_TENANT_REFUSAL);
+  }
+  const billingChildId = String(billing!.child_id ?? "");
+  const back = `/child/${billingChildId}`;
+  // "A parent must not overwrite another family's upload": the session needs
+  // its own family_member link to THIS child (a no_access link is not family
+  // access). Staff/admin never appear on the parent surface's invoice card.
+  const family = await queryGet(
+    "SELECT 1 AS ok FROM family_member WHERE account_id = ? AND child_id = ? AND role != 'no_access'",
+    me.accountId,
+    billingChildId
+  );
+  if (!family) {
+    console.error("KID-492 refused a payment-proof upload with no family link:", me.email);
+    redirect(KID372_TENANT_REFUSAL);
+  }
+  // Boundary validation — before any storage or DB write.
+  if (!file || file.size === 0) redirect(`${back}?error=proofType`);
+  const proof = validatePaymentProof(file);
+  if (!proof.ok) redirect(`${back}?error=proof${proof.code === "size" ? "Size" : "Type"}`);
+  // Storage upload into the per-invoice folder, following the existing
+  // kiddy-public pattern; a random suffix keeps the object unguessable.
+  const { supabaseConfigured, getSupabase } = await import("@/lib/supabase");
+  if (!supabaseConfigured()) {
+    console.error("KID-492 payment proof upload: no storage configured; nothing stored");
+    redirect(`${back}?error=proofUpload`);
+  }
+  const supabase = getSupabase();
+  const filename = paymentProofFilename(
+    String(billing!.institute_id),
+    billingId,
+    proof.ext,
+    crypto.randomUUID()
+  );
+  const { error } = await supabase.storage
+    .from("kiddy-public")
+    .upload(filename, file, { contentType: file.type, upsert: false });
+  if (error) {
+    console.error("KID-492 payment proof storage upload failed:", error.message);
+    redirect(`${back}?error=proofUpload`);
+  }
+  const { data: urlData } = supabase.storage.from("kiddy-public").getPublicUrl(filename);
+  if (!urlData?.publicUrl) {
+    console.error("KID-492 payment proof upload: storage returned no public URL; nothing stored");
+    redirect(`${back}?error=proofUpload`);
+  }
+  const reference = String(formData.get("paymentReference") ?? "").trim().slice(0, 200) || null;
+  // Only now the row is touched — columns move together, status untouched.
+  await setChildBillingPaymentProof(billingId, {
+    proofUrl: urlData.publicUrl,
+    proofUploadedAt: new Date().toISOString(),
+    reference,
+  });
+  // KID-477: attribution without URL data on the trail.
+  await recordAuditEvent({
+    instituteId: String(billing!.institute_id),
+    actorAccountId: me.accountId,
+    action: "update",
+    entityType: "child_billing",
+    entityId: billingId,
+    summary: "Payment proof uploaded for an invoice",
+    metadata: { childId: billingChildId, hasPaymentProof: true },
+  });
+  redirect(`${back}?proof=uploaded`);
 }
 
 // ---- #8 Newsfeed likes (client calls this) ----
