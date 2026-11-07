@@ -41,9 +41,10 @@ export function brandingFromInstitute(institute: Row | undefined): Branding {
 // still reflect within this window — no redeploy required.
 const BRANDING_TTL_MS = 30_000;
 let _brandingCache: { at: number; value: Branding } | null = null;
-// KID-199.3r: subdomain branding is per HOST, so the single legacy slot above
-// (generic/anonymous apex traffic) cannot hold it — a second daycare's
-// subdomain would render the first cached brand for the TTL window.
+// KID-683: the generic-host slot now holds only the anonymous platform
+// default (no tenant). Per-daycare subdomain branding is per HOST in the map
+// below — a second daycare's subdomain would otherwise render the first
+// cached brand for the TTL window.
 const _hostBrandingCache = new Map<string, { at: number; value: Branding }>();
 
 export async function getBranding(): Promise<Branding> {
@@ -67,38 +68,35 @@ export async function getBranding(): Promise<Branding> {
       return b;
     }
   } catch {
-    // no request scope (tests/scripts): the legacy fallback path below
+    // no request scope (tests/scripts): the anonymous/session path below
   }
-  // KID-199.3: branding follows the session's own daycare (generic hosts).
-  // Anonymous visitors (login/landing) keep the legacy first-institute
-  // branding and the TTL cache. Signed-in staff/parents resolve per request —
-  // no cache, or the second daycare would render the first daycare's brand
-  // for 30s.
+  // Signed-in on a generic host: branding follows the session's own daycare.
+  // Signed-in staff/parents resolve per request — no cache, or the second
+  // daycare would render the first daycare's brand for 30s.
   let institute: Row | undefined;
-  let cacheable = false;
+  let sessionResolved = false;
   try {
     const headers = (await import("next/headers")).headers;
     const session = readSessionFromCookie(headers().get("cookie"));
     if (session) {
+      sessionResolved = true;
       if (isPlatformOperatorRole(session.role)) {
         institute = undefined;
       } else {
         const iid = await primaryInstituteIdForAccount(session.accountId);
         institute = iid ? await storeGetInstitute(iid) : undefined;
       }
-    } else {
-      cacheable = true;
     }
   } catch {
-    // no request scope (tests/scripts): use the legacy fallback path
-    cacheable = true;
+    // no request scope (tests/scripts): nothing to resolve
   }
-  if (cacheable) {
-    if (_brandingCache && now - _brandingCache.at < BRANDING_TTL_MS) {
-      return _brandingCache.value;
-    }
-    institute = await getFirstInstitute();
-    const b = brandingFromInstitute(institute);
+  // KID-683: anonymous visitors on generic hosts (kiddyapp.net landing pages,
+  // /login, /register, password reset) see ONLY the platform brand. The
+  // legacy first-institute fallback leaked the first-created daycare's name,
+  // logo and brand image onto the public portal. A daycare's brand reaches an
+  // anonymous caller solely through its own subdomain (handled above).
+  if (!sessionResolved) {
+    const b = brandingFromInstitute(undefined);
     _brandingCache = { at: now, value: b };
     return b;
   }

@@ -351,9 +351,26 @@ describe("KID-199.3r branding follows the host", () => {
     expect((await getBranding()).name).toBe("Kiddy");
   });
 
-  it("anonymous branding on the apex keeps the legacy first-institute fallback", async () => {
+  it("anonymous branding on the apex is the platform brand, never a tenant (KID-683)", async () => {
     await seedMaple();
     mockHeaders = { host: APEX };
-    expect((await getBranding()).name).toBe("Sunshine Daycare");
+    const b = await getBranding();
+    expect(b.name).toBe("Kiddy");
+    // No daycare asset may reach the platform portal through the anonymous
+    // path — assert the seed's Sunshine logo/brand image are absent, not just
+    // that the name matches (absence of data, not a kind label).
+    expect(b.logoUrl).toBeNull();
+    expect(b.brandImageUrl).toBeNull();
+    // And it must not be Sunshine's theme colors either.
+    expect(b.primaryColor).toBe("#3B82F6");
+  });
+
+  it("signed-in branding on the apex is the account's own daycare (KID-683)", async () => {
+    const maple = await seedMaple();
+    mockHeaders = {
+      host: APEX,
+      cookie: cookieFor(maple.ownerAccountId, "owner", "owner@mapletree.test"),
+    };
+    expect((await getBranding()).name).toBe("Maple Tree Daycare");
   });
 });
