@@ -1,0 +1,23 @@
+# Server-action POST exactly as the page's "Mark all as read" form fallback
+# submits it (progressive-enhancement path; the hydrated JS path posts the
+# same action). Cookie: kiddy_sess=<production session token for the demo admin>.
+
+POST /portal/notifications HTTP/1.1
+Cookie: kiddy_sess=<token>
+Content-Type: multipart/form-data; boundary=...
+
+id=all
+$ACTION_ID_3d83812f7687c16a267fcc21795e6b0e2ecea184=<empty>
+
+→ HTTP/1.1 200 OK   (action runs markAllNotificationsRead(me.accountId) and revalidates /portal/notifications + /child/notifications)
+
+# Store state after the POST:
+# SELECT kind, read_at FROM notification ORDER BY created_at DESC LIMIT 6
+# → message rows: read_at = 2026-11-07T18:15:...Z  (was NULL)
+# unreadNotificationCount(admin) → 0
+# GET /api/notifications/unread → {"count":0,"at":...}
+
+# Re-rendered page after the action (server HTML):
+#   aria-label="Unread notification" buttons: 0
+#   ">Mark read<" buttons: 0
+#   bell role="status" unread badge span: 0
