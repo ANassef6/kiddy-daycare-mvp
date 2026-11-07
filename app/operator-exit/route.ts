@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { apexDomain } from "@/lib/subdomain";
 import { recordPlatformAccess } from "@/lib/operator-view";
-import { readSessionFromCookieValue } from "@/lib/auth";
+import { readSessionFromCookieValue, sessionCookieOptions } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
@@ -37,6 +37,6 @@ export async function POST(request: NextRequest) {
   );
   // Host-only clear (no Domain): only this subdomain's operator-view cookie
   // is affected.
-  res.cookies.set("kiddy_sess", "", { httpOnly: true, path: "/", maxAge: 0 });
+  res.cookies.set("kiddy_sess", "", sessionCookieOptions(0));
   return res;
 }

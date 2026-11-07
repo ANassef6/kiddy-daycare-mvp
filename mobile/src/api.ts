@@ -1,3 +1,4 @@
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { API_ORIGIN } from "./config";
 import type {
   BootstrapPayload,
@@ -17,6 +18,43 @@ export class ApiError extends Error {
   }
 }
 
+// KID-686: the watched symptom — the app asked for email + password on EVERY
+// cold start — was not a server-side session problem at all. The web app mints
+// a 30-day signed session cookie and browsers (including the Android TWA's
+// WebView) keep it without any client code. But the standalone RN app kept its
+// bearer token in a module-level variable, i.e. in memory only: every process
+// restart threw it away and the user had to sign in again. The token is now
+// persisted in AsyncStorage (never the raw email/password — KID-686 forbids
+// storing raw credentials) and restored on boot; an expired/revoked token
+// still bounces to login through the existing 401 → clearSession path.
+const SESSION_KEY = "kiddy.session.token";
+
+export async function restoreSession(): Promise<boolean> {
+  try {
+    const stored = await AsyncStorage.getItem(SESSION_KEY);
+    if (stored) {
+      token = stored;
+      return true;
+    }
+  } catch {
+    // Storage unavailable (private mode, corrupt state): stay signed out
+    // rather than crash the boot sequence. No silent swallow of a login.
+  }
+  return false;
+}
+
+async function persistToken(value: string | null): Promise<void> {
+  try {
+    if (value === null) await AsyncStorage.removeItem(SESSION_KEY);
+    else await AsyncStorage.setItem(SESSION_KEY, value);
+  } catch (err) {
+    // A failed persist never blocks the in-memory session the user just
+    // earned: they stay signed in for this run, and next launch simply asks
+    // again. Logged so the cause is never silent (AGENTS: no silent failures).
+    console.log("KID-686 session persist failed:", err);
+  }
+}
+
 let token: string | null = null;
 
 export function hasSession(): boolean {
@@ -25,6 +63,7 @@ export function hasSession(): boolean {
 
 export function clearSession(): void {
   token = null;
+  void persistToken(null);
 }
 
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
@@ -57,6 +96,7 @@ export const api = {
       body: JSON.stringify({ email, password }),
     });
     token = body.token;
+    await persistToken(token);
     return body;
   },
 

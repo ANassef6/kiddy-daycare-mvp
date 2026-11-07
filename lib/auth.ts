@@ -4,7 +4,24 @@ import { ROLES } from "./role";
 import { PLATFORM_OPERATOR_ROLE } from "./platform";
 
 const COOKIE = "kiddy_sess";
-const TOKEN_SECRET = process.env.SESSION_SECRET ?? "dev-only-secret-change-me";
+// KID-686: an env var can carry an EMPTY string. `??` does not fall back on ""
+// (only null/undefined), so a deployment whose SESSION_SECRET is set-but-empty
+// silently signed every session with the publicly-known empty-key HMAC. `||`
+// guarantees a non-empty signing key; production additionally gets one loud
+// startup warning (KID-686: the prod project has had an empty SESSION_SECRET
+// since Aug 2026, which also means rotating or first-setting the real secret
+// invalidates every existing cookie exactly once — users log in again, the
+// session then persists a full 30 days from that login).
+const TOKEN_SECRET = process.env.SESSION_SECRET || "dev-only-secret-change-me";
+let warnedSecret = false;
+if (TOKEN_SECRET === "dev-only-secret-change-me" && !warnedSecret && process.env.NODE_ENV === "production") {
+  warnedSecret = true;
+  console.error(
+    "KID-686: SESSION_SECRET is missing or empty in production — falling back to the public dev default. " +
+    "Sessions still last 30 days, but the token signature is forgeable by anyone with account data. " +
+    "Set a real SESSION_SECRET in the deploy env (a one-time global logout is expected on rotation)."
+  );
+}
 
 type DbRow = Row & {
   id: string;
@@ -119,15 +136,38 @@ export function readSessionFromCookieValue(value: string | null | undefined): Se
   return readSessionFromCookie(`${COOKIE}=${value}`);
 }
 
+// KID-686: the 30-day persistent session cookie. `Secure` is added whenever
+// the app runs in the deploy environment (production targets are always
+// served over HTTPS there) — never in local dev, which must keep working
+// over plain http://localhost. Every writer of the kiddy_sess cookie (the
+// login server action, the /api/logout route, logoutAction, the operator
+// entry/exit routes and these header builders) shares these attributes, so
+// the suite pins the cookie surface exactly once.
+export function sessionCookieSecureFlag(): boolean {
+  return process.env.NODE_ENV === "production";
+}
+
+export function sessionCookieOptions(maxAgeSeconds: number) {
+  return {
+    httpOnly: true,
+    sameSite: "lax" as const,
+    path: "/",
+    secure: sessionCookieSecureFlag(),
+    maxAge: maxAgeSeconds,
+  };
+}
+
 export function sessionCookieHeader(session: Session): Record<string, string> {
   const value = createSessionToken(session);
   return {
-    "Set-Cookie": `${COOKIE}=${value}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${30 * 24 * 3600}`,
+    "Set-Cookie": `${COOKIE}=${value}; Path=/; HttpOnly; SameSite=Lax${sessionCookieSecureFlag() ? "; Secure" : ""}; Max-Age=${30 * 24 * 3600}`,
   };
 }
 
 export function clearSessionCookieHeader(): Record<string, string> {
-  return { "Set-Cookie": `${COOKIE}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0` };
+  return {
+    "Set-Cookie": `${COOKIE}=; Path=/; HttpOnly; SameSite=Lax${sessionCookieSecureFlag() ? "; Secure" : ""}; Max-Age=0`,
+  };
 }
 
 // ---- account helpers ----
