@@ -53,6 +53,7 @@ export function sqliteSchema(db: any): void {
     language TEXT NOT NULL DEFAULT 'en',
     auth_user_id TEXT,
     email_confirmed INTEGER NOT NULL DEFAULT 1,
+    must_change_password INTEGER NOT NULL DEFAULT 0,
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
   );
 
@@ -791,6 +792,11 @@ export function sqliteSchema(db: any): void {
   const staffCols = db.prepare("PRAGMA table_info(staff)").all() as { name: string }[];
   if (!staffCols.some((c) => c.name === "photo_url")) {
     db.exec("ALTER TABLE staff ADD COLUMN photo_url TEXT");
+  }
+  // KID-495: mirror of supabase/migrations/0036_kid495_temp_password.sql.
+  const accountCols = db.prepare("PRAGMA table_info(account)").all() as { name: string }[];
+  if (!accountCols.some((c) => c.name === "must_change_password")) {
+    db.exec("ALTER TABLE account ADD COLUMN must_change_password INTEGER NOT NULL DEFAULT 0");
   }
   const obsCols = db.prepare("PRAGMA table_info(learning_observation)").all() as { name: string }[];
   if (!obsCols.some((c) => c.name === "age_group")) {

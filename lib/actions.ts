@@ -7,6 +7,9 @@ import { LANG_COOKIE, tenancyDisabledMessage, getDictionary, localeOf, tr, type 
 import {
   createAccount,
   findAccountByEmail,
+  getAccount,
+  mustChangePasswordFor,
+  updateAccountPassword,
   verifyPassword,
   createSessionToken,
   setPin,
@@ -1570,7 +1573,9 @@ export async function addStaffAction(formData: FormData) {
   // account. The admin shares the credentials; staff can change the password
   // later via "Forgot password".
   if (email && !(await findAccountByEmail(email))) {
-    const staffAccount = await createAccount({ email, password, fullName, role: "staff" });
+    // KID-495: this password is a temporary credential the admin shares
+    // out-of-band, so the flag makes account settings prompt for a change.
+    const staffAccount = await createAccount({ email, password, fullName, role: "staff", mustChangePassword: true });
     await queryRun("UPDATE account SET staff_id = ? WHERE email = ?", staff.id, email);
     await syncChatwootContactForAccount(String(staffAccount.id));
     // Best-effort GoTrue identity so the reset-password email flow works later.
@@ -1649,6 +1654,8 @@ export async function linkStaffLoginAction(formData: FormData) {
     password,
     fullName: String(staff.full_name ?? ""),
     role: "staff",
+    // KID-495: the admin-chosen password is shared out-of-band too.
+    mustChangePassword: true,
   });
   await queryRun("UPDATE account SET staff_id = ? WHERE id = ?", staffId, String(account.id));
   await queryRun("UPDATE staff SET email = ? WHERE id = ?", email, staffId);
@@ -1679,6 +1686,169 @@ function genTempPassword(): string {
   let out = "";
   for (let i = 0; i < 12; i++) out += alphabet[Math.floor(Math.random() * alphabet.length)];
   return out;
+}
+
+// KID-495: change-password for every signed-in surface (staff/admin and
+// parent). Verifies the CURRENT password against the app hash, enforces a
+// minimum of 8 characters, updates the Supabase GoTrue password when the
+// account holds a GoTrue identity, and ALWAYS rewrites the app-side
+// account.password_hash (that hash is what login falls back to). Success also
+// clears must_change_password so the temp-password banner disappears.
+export async function changePasswordAction(formData: FormData) {
+  await ensureSchema();
+  const me = authAccount();
+  const account = await getAccount(me.accountId);
+  if (!account) redirect("/login");
+
+  const current = String(formData.get("currentPassword") ?? "");
+  const next = String(formData.get("newPassword") ?? "");
+  const confirm = String(formData.get("confirmPassword") ?? "");
+  const back = me.role === "parent" ? "/child/settings" : "/portal/account";
+
+  if (next.length < 8) redirect(`${back}?pw=short`);
+  if (next !== confirm) redirect(`${back}?pw=mismatch`);
+  if (!current || !verifyPassword(current, account.password_hash)) redirect(`${back}?pw=wrong`);
+
+  // GoTrue side (existence-gated, non-blocking): the signInWithPassword call
+  // proves the CURRENT password against GoTrue and establishes the session
+  // updateUser needs. A GoTrue failure never aborts the change — the app-side
+  // hash is the login fallback, and the failure is logged loudly so a stale
+  // GoTrue password is visible instead of silent.
+  if (supabaseConfigured() && account.auth_user_id) {
+    try {
+      const { data, error } = await getSupabase().auth.signInWithPassword({
+        email: account.email,
+        password: current,
+      });
+      if (error || !data.user) {
+        console.error(
+          `KID-495 changePassword: GoTrue sign-in failed for ${account.email} — updating the app-side hash only:`,
+          error instanceof Error ? error.message : error ?? new Error("no user")
+        );
+      } else {
+        const { error: updateError } = await getSupabase().auth.updateUser({ password: next });
+        if (updateError) {
+          console.error(
+            `KID-495 changePassword: GoTrue password update failed for ${account.email} — updating the app-side hash only:`,
+            updateError.message
+          );
+        }
+      }
+    } catch (err) {
+      console.error(
+        `KID-495 changePassword: GoTrue call threw for ${account.email} — updating the app-side hash only:`,
+        err instanceof Error ? err.message : err
+      );
+    }
+  }
+
+  await updateAccountPassword(account.id, next);
+  redirect(`${back}?pw=changed`);
+}
+
+// KID-495: admin-created parent login beside the invite flow. The daycare
+// enters (or generates) a temporary password, shares it in person, and the
+// parent is marked must_change_password. The account links through the same
+// family/sibling logic registration uses; tenant checks ride the existing
+// child-scope assert. Never puts the credential in a redirect URL.
+export async function createParentLoginAction(formData: FormData) {
+  await ensureSchema();
+  const me = authAccount();
+  const instituteId = await firstInstituteId();
+  const childId = String(formData.get("childId") ?? "") || null;
+  if (childId) await assertChildInScope(childId, me);
+  const relationship = String(formData.get("relationship") ?? "parent").trim() || "parent";
+  const { isContactRelationship } = await import("@/lib/contact-relationship");
+  if (!isContactRelationship(relationship)) {
+    redirect("/portal/children?parent=relationship");
+  }
+  const email = String(formData.get("email") ?? "").trim().toLowerCase();
+  const passwordInput = String(formData.get("password") ?? "").trim();
+  const fullName = String(formData.get("fullName") ?? "").trim();
+  if (!isValidInviteEmail(email)) redirect("/portal/children?parent=invalid-email");
+  if (passwordInput.length < 8) redirect("/portal/children?parent=short-password");
+  if (!fullName) redirect("/portal/children?parent=missing-name");
+  if (await findAccountByEmail(email)) redirect(`/portal/children?parent=exists&email=${encodeURIComponent(email)}`);
+
+  const account = await createAccount({
+    email,
+    password: passwordInput,
+    fullName,
+    role: "parent",
+    // No invite code is consumed: the admin IS the authorization, so the
+    // account is born confirmed (no /welcome confirmation detour).
+    emailConfirmed: true,
+    mustChangePassword: true,
+  });
+
+  if (childId) await linkFamily(account.id, childId, relationship);
+  if (instituteId) {
+    try {
+      await linkSiblingsByParentEmail(account.id, email, String(instituteId), childId);
+    } catch (err) {
+      console.error(
+        `KID-495 createParentLogin: sibling auto-link failed for ${email}:`,
+        err instanceof Error ? err.message : err
+      );
+    }
+    // KID-477: an admin-created login is an admin-authored change — one
+    // attributed audit row (name + email, never the password).
+    await recordAuditEvent({
+      instituteId,
+      actorAccountId: me.accountId,
+      action: "create",
+      entityType: "account",
+      entityId: String(account.id),
+      summary: `Created a parent login for ${fullName} (${email})`,
+      metadata: { childId: childId ?? null, relationship },
+    });
+  }
+  await syncChatwootContactForAccount(String(account.id));
+
+  // Best-effort GoTrue identity so forgot-password/reset works later. A
+  // failure must not roll back the app-side account (logged, not silent) —
+  // the app-side hash already signs the parent in.
+  if (supabaseConfigured()) {
+    try {
+      await getSupabase().auth.signUp({
+        email,
+        password: passwordInput,
+        options: { emailRedirectTo: `${publicOrigin(requestOrigin())}/auth/confirm` },
+      });
+    } catch (err) {
+      console.error(
+        `KID-495 createParentLogin: GoTrue signUp failed for ${email}:`,
+        err instanceof Error ? err.message : err
+      );
+    }
+  }
+
+  redirect(`/portal/children?parent=created&email=${encodeURIComponent(email)}`);
+}
+
+// KID-495: after /reset-password updates the password in Supabase GoTrue, the
+// verified client passes the reset session's access token so the server can
+// project the same change onto the app-side account.password_hash (login
+// falls back to that hash). Unauthenticated calls are rejected: only a
+// Supabase access token that verifies NOW and belongs to exactly this email
+// authorizes the write.
+export async function syncAppPasswordAfterResetAction(email: string, password: string, accessToken: string) {
+  if (!supabaseConfigured()) return { ok: false as const, reason: "not-configured" };
+  const cleanEmail = String(email ?? "").trim().toLowerCase();
+  if (!isValidInviteEmail(cleanEmail) || !password || !accessToken) {
+    return { ok: false as const, reason: "missing-input" };
+  }
+  const { data, error } = await getSupabase().auth.getUser(String(accessToken));
+  if (error || !data.user || String(data.user.email ?? "").toLowerCase() !== cleanEmail) {
+    console.error(
+      "KID-495 reset-sync: reset token did not verify against GoTrue for the submitted email; app-side hash left unchanged."
+    );
+    return { ok: false as const, reason: "unverified" };
+  }
+  const account = await findAccountByEmail(cleanEmail);
+  if (!account) return { ok: false as const, reason: "no-account" };
+  await updateAccountPassword(account.id, password);
+  return { ok: true as const };
 }
 
 export async function addRoomAction(formData: FormData) {

@@ -9,7 +9,7 @@ import { ensureSchema } from "@/lib/db";
 import { getBranding } from "@/lib/theme";
 import { i18nForAccount } from "@/lib/i18n-session";
 import { tr } from "@/lib/i18n";
-import { accountProfile } from "@/lib/auth";
+import { accountProfile, getAccount, mustChangePasswordFor } from "@/lib/auth";
 import { unreadNotificationCount } from "@/lib/store";
 import { instituteNameForOperatorView } from "@/lib/operator-view";
 
@@ -38,7 +38,7 @@ export default async function PortalLayout({ children }: { children: React.React
   // KID-474: the bell's unread badge counts the durable notification rows
   // (message recipients get a row from the send path; reads bridge back via
   // markRead/markThreadRead).
-  const [{ locale, dict }, profile, branding, operatorViewName, staffUnread] = await Promise.all([
+  const [{ locale, dict }, profile, branding, operatorViewName, staffUnread, tempPasswordFlagged] = await Promise.all([
     i18nForAccount(session.accountId),
     accountProfile(session.accountId),
     getBranding().catch(() => ({ logoUrl: null as string | null, name: "Kiddy" })),
@@ -52,6 +52,14 @@ export default async function PortalLayout({ children }: { children: React.React
       console.error("KID-474 staff bell unread count failed:", err);
       return 0;
     }),
+    // KID-495: the temp-password prompt is non-blocking UI guidance — a failed
+    // read must never break the portal shell, so it degrades to "not flagged".
+    getAccount(session.accountId)
+      .then((row) => !!row && mustChangePasswordFor(row))
+      .catch((err) => {
+        console.error("KID-495 portal must_change_password read failed:", err);
+        return false;
+      }),
   ]);
   const displayName = profile.fullName || session.email;
   const logoUrl: string | null = branding.logoUrl;
@@ -98,6 +106,27 @@ export default async function PortalLayout({ children }: { children: React.React
             {tr(dict, "topbar.emailNotConfirmed")}
             <Link href="/welcome" className="small" style={{ marginLeft: 8, fontWeight: 600 }}>
               {tr(dict, "topbar.confirmEmail")}
+            </Link>
+          </div>
+        )}
+        {/* KID-495: temp-password accounts are prompted (never locked out) to
+            change their password in account settings; a successful change
+            clears the flag and this banner disappears. */}
+        {tempPasswordFlagged && (
+          <div
+            className="small"
+            role="alert"
+            style={{
+              background: "#fffbeb",
+              border: "1px solid #f59e0b",
+              borderRadius: 8,
+              padding: "8px 12px",
+              marginBottom: 12,
+            }}
+          >
+            {tr(dict, "account.tempPasswordBanner")}
+            <Link href="/portal/account" className="small" style={{ marginLeft: 8, fontWeight: 600 }}>
+              {tr(dict, "account.tempPasswordBannerAction")}
             </Link>
           </div>
         )}

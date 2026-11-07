@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { syncAppPasswordAfterResetAction } from "@/lib/actions";
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
 const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
@@ -85,10 +86,30 @@ export default function ResetPasswordPage() {
     if (accessToken) {
       await supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken });
     }
-    const { error: updateError } = await supabase.auth.updateUser({ password });
+    const { error: updateError, data: updateData } = await supabase.auth.updateUser({ password });
     if (updateError) {
       setError(updateError.message);
       return;
+    }
+    // KID-495: sign-in falls back to the app-side hash when GoTrue is
+    // unavailable, so the reset must reach account.password_hash too. The
+    // reset-issued access token is the proof: the server re-verifies it
+    // against GoTrue and only updates the hash for the same email.
+    const email = updateData.user?.email ?? "";
+    let proofToken = accessToken ?? "";
+    if (!proofToken) {
+      const { data: sessionData } = await supabase.auth.getSession();
+      proofToken = sessionData.session?.access_token ?? "";
+    }
+    if (email && proofToken) {
+      try {
+        const syncOk = await syncAppPasswordAfterResetAction(email, password, proofToken);
+        if (!syncOk.ok) {
+          console.error("KID-495 reset-password: app-side hash sync failed:", syncOk.reason);
+        }
+      } catch (err) {
+        console.error("KID-495 reset-password: app-side hash sync threw:", err instanceof Error ? err.message : err);
+      }
     }
     setStatus("done");
   }
