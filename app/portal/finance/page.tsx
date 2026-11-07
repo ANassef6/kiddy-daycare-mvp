@@ -4,6 +4,7 @@ import { listInstituteBilling, getInstitute } from "@/lib/store";
 import { firstInstituteId, cap } from "@/lib/helpers";
 import { updateBillingStatusAction } from "@/lib/actions";
 import { DEFAULT_CURRENCY, normalizeCurrency } from "@/lib/currency";
+import { recordToolUsage } from "@/lib/tool-usage";
 
 export const dynamic = "force-dynamic";
 
@@ -30,9 +31,10 @@ export default async function PortalFinancePage({
 }: {
   searchParams?: { tab?: string; q?: string; status?: string; to?: string; from?: string };
 }) {
-  requireSession();
+  const session = requireSession();
   const instituteId = await firstInstituteId();
   if (!instituteId) return <p className="muted">No institute configured.</p>;
+  await recordToolUsage({ instituteId: String(instituteId ?? "") || null, accountId: session.accountId, toolKey: "finance", source: "portal", metadata: null });
   // KID-489 item 1 (KID-490): display fallbacks follow the center's default
   // currency; each invoice row still shows its own stored currency first.
   const center = await getInstitute(instituteId);

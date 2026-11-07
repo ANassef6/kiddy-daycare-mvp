@@ -1,17 +1,29 @@
-// KID-244: the per-daycare billing settings page a superadmin reaches via the
-// gear icon on the /platform daycare list (app/platform/page.tsx). Plain
-// server-rendered form like the rest of the repo — plan, the four editable
-// amounts, and the first billed cycle date — guarded by the same double
-// check every other platform surface uses: internal sentinel session AND the
-// env allowlist (accessing is not a role, KID-199.4r).
+// KID-244 (billing settings) + KID-481 (Insights tab): the per-daycare page a
+// superadmin reaches via the gear icon on the /platform daycare list
+// (app/platform/page.tsx). Two tabs behind one URL:
+//   ?tab=billing (default) — the unchanged KID-244 form: plan, the four
+//     editable amounts, and the first billed cycle date.
+//   ?tab=insights           — the cross-tenant tool-usage view (insights-view).
+// Guarded by the same double check every other platform surface uses:
+// internal sentinel session role AND the env allowlist (accessing is not a
+// role, KID-199.4r).
 import { redirect } from "next/navigation";
 import { requireSession } from "@/lib/require";
 import { isPlatformOperatorEmail, isPlatformOperatorRole } from "@/lib/platform";
 import { getInstitute } from "@/lib/store";
-import { enrolledChildCount } from "@/lib/billing";import { BILLING_PLANS, BILLING_DEFAULTS, cycleAmountEgp, getDaycareBilling, type DaycareBilling } from "@/lib/billing";
+import { enrolledChildCount } from "@/lib/billing";
+import { BILLING_PLANS, BILLING_DEFAULTS, cycleAmountEgp, getDaycareBilling, type DaycareBilling } from "@/lib/billing";
 import { updateDaycareBillingAction } from "@/lib/actions";
 import { i18nForAccount } from "@/lib/i18n-session";
 import { tr } from "@/lib/i18n";
+import {
+  backfillToolUsageEstimates,
+  insightsTimeframe,
+  recordToolUsage,
+  countToolUsageRows,
+  toolInsights,
+} from "@/lib/tool-usage";
+import { InsightsView } from "./insights-view";
 
 export const dynamic = "force-dynamic";
 
@@ -32,7 +44,14 @@ export default async function DaycareBillingPage({
   searchParams,
 }: {
   params: { id: string };
-  searchParams: { saved?: string; error?: string };
+  searchParams: {
+    saved?: string;
+    error?: string;
+    tab?: string;
+    days?: string;
+    from?: string;
+    to?: string;
+  };
 }) {
   const session = requireSession();
   if (!isPlatformOperatorRole(session.role) || !isPlatformOperatorEmail(session.email)) {
@@ -47,10 +66,85 @@ export default async function DaycareBillingPage({
   const saved = searchParams.saved === "1";
   const error = searchParams.error ? (ERRORS[searchParams.error] ?? ERRORS.unknown) : "";
 
+  // KID-481: the tab. Anything that is not literally "insights" is billing —
+  // the pre-existing default stays the default.
+  const tab = searchParams.tab === "insights" ? "insights" : "billing";
+  const contextBase = `/platform/daycares/${instituteId}/billing`;
+  // Tab bar: links (real hrefs, middle-clickable) into both tabs of the
+  // same per-daycare surface.
+  const tabLink = (which: "billing" | "insights", label: string, ariaActive: boolean) => (
+    <a
+      href={which === "billing" ? contextBase : `${contextBase}?tab=insights`}
+      className="btn"
+      style={{
+        textDecoration: "none",
+        fontWeight: ariaActive ? 700 : 400,
+        borderBottom: ariaActive ? "2px solid currentColor" : "none",
+      }}
+      aria-current={ariaActive ? "page" : undefined}
+    >
+      {label}
+    </a>
+  );
+
+  // KID-481: the operator's own visit counts toward usage history too —
+  // billing-tab visits as tool_key "billing", insights visits with the same
+  // key plus a surface marker. Best-effort; never blocks the page.
+  await recordToolUsage({
+    instituteId,
+    accountId: session.accountId,
+    toolKey: "billing",
+    source: "platform",
+    metadata: tab === "insights" ? { surface: "insights" } : null,
+  });
+
+  if (tab === "insights") {
+    // Aggregate-only view. Custom ?from/?to fail closed into the 30-day
+    // preset (warnCustom tells the operator the fallback happened).
+    const customWanted =
+      searchParams.from !== undefined || searchParams.to !== undefined;
+    const customValid =
+      /^\d{4}-\d{2}-\d{2}$/.test(String(searchParams.from ?? "")) &&
+      /^\d{4}-\d{2}-\d{2}$/.test(String(searchParams.to ?? ""));
+    const tf = customWanted
+      ? insightsTimeframe({ from: searchParams.from, to: searchParams.to }, new Date())
+      : insightsTimeframe({ days: searchParams.days }, new Date());
+    const warnCustom = customWanted && !customValid;
+    // KID-481: one-time historical backfill — the first insights view seeds
+    // estimate rows, labeled estimates in metadata, from existing domain
+    // tables. Idempotent by construction (NOT EXISTS per daycare+tool).
+    let backfilled = 0;
+    if ((await countToolUsageRows("WHERE source = 'backfill'")) === 0) {
+      backfilled = await backfillToolUsageEstimates();
+    }
+    const insights = await toolInsights(tf);
+    return (
+      <div dir={dir}>
+        <h1 className="title">{tr(dict, "platform.billingTitle")}</h1>
+        <div className="card mb-4">
+          {tabLink("billing", tr(dict, "platform.billingTab"), false)}
+          {tabLink("insights", tr(dict, "platform.insightsTab"), true)}
+        </div>
+        <InsightsView
+          inst={inst}
+          insights={insights}
+          dict={dict}
+          backfilled={backfilled}
+          warnCustom={warnCustom}
+        />
+      </div>
+    );
+  }
+
   return (
     <div dir={dir}>
       <h1 className="title">{tr(dict, "platform.billingTitle")}</h1>
       <p className="subtitle">{String(inst.name)}</p>
+
+      <div className="card mb-4">
+        {tabLink("billing", tr(dict, "platform.billingTab"), true)}
+        {tabLink("insights", tr(dict, "platform.insightsTab"), false)}
+      </div>
 
       {/* KID-245: the generated invoices for this daycare (Finance/2) — the
           list where the operator overrides amounts and marks invoices paid. */}
@@ -143,7 +237,6 @@ export default async function DaycareBillingPage({
               min={0}
               defaultValue={billing.annualAmountEgp}
             />
-            <span className="small muted">{tr(dict, "platform.billingAnnualHint")}</span>
           </div>
         </div>
         <button className="btn btn-primary" type="submit">

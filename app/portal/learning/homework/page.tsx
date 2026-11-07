@@ -4,6 +4,7 @@ import { firstInstituteId } from "@/lib/helpers";
 import { assignHomeworkAction } from "@/lib/actions";
 import { i18nForAccount } from "@/lib/i18n-session";
 import { fmtDateFor, tr } from "@/lib/i18n";
+import { recordToolUsage } from "@/lib/tool-usage";
 
 export const dynamic = "force-dynamic";
 
@@ -16,6 +17,7 @@ export default async function PortalHomeworkPage() {
   const t = (key: string, vars?: Record<string, string | number>) => tr(dict, key, vars);
   const instituteId = await firstInstituteId();
   if (!instituteId) return <p className="muted">{t("homework.noInstitute")}</p>;
+  await recordToolUsage({ instituteId: String(instituteId ?? "") || null, accountId: session.accountId, toolKey: "learning", source: "portal", metadata: { view: "homework" } });
   // KID-103: homework list and child picker are scoped to assigned classrooms.
   const [items, children] = await Promise.all([
     listHomework(instituteId, session.accountId),

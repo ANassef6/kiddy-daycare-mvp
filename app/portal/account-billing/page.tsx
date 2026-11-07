@@ -16,6 +16,7 @@ import { i18nForAccount } from "@/lib/i18n-session";
 import { tr } from "@/lib/i18n";
 import { getInstitute } from "@/lib/store";
 import { getDaycareBilling, listInvoices, type DaycareInvoice, type DaycareBilling } from "@/lib/billing";
+import { recordToolUsage } from "@/lib/tool-usage";
 
 export const dynamic = "force-dynamic";
 
@@ -54,6 +55,7 @@ export default async function PortalAccountBillingPage() {
       </div>
     );
   }
+  await recordToolUsage({ instituteId: String(instituteId ?? "") || null, accountId: session.accountId, toolKey: "billing", source: "portal", metadata: null });
   const inst = await getInstitute(instituteId);
   if (!inst) redirect("/portal/dashboard");
   const [billing, invoices] = await Promise.all([

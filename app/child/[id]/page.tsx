@@ -25,6 +25,7 @@ import { isPlatformOperatorRole } from "@/lib/platform";
 import { toggleLikeAction } from "@/lib/actions";
 import { i18nForAccount } from "@/lib/i18n-session";
 import { tr } from "@/lib/i18n";
+import { recordToolUsage } from "@/lib/tool-usage";
 
 export const dynamic = "force-dynamic";
 
@@ -54,6 +55,7 @@ export default async function ChildDetailPage({
     ? await isChildVisibleToAccount(requestIid, session.accountId, String(child.id))
     : false;
   if (!visible && !(isPlatformOperatorRole(session.role) && requestIid)) notFound();
+  await recordToolUsage({ instituteId: String(child.institute_id ?? "") || null, accountId: session.accountId, toolKey: "children", source: "child", metadata: null });
 
   // KID-472 item 4: today stays the default; a `?date=` value the parent
   // navigates to is read-only for that day (validated server-side first).

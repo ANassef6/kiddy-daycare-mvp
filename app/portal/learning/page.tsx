@@ -6,6 +6,7 @@ import { queryGet } from "@/lib/db";
 import ObservationModalTrigger from "@/components/ObservationModalTrigger";
 import { i18nForAccount } from "@/lib/i18n-session";
 import { fmtDateTimeFor, tr } from "@/lib/i18n";
+import { recordToolUsage } from "@/lib/tool-usage";
 
 export const dynamic = "force-dynamic";
 
@@ -29,6 +30,7 @@ export default async function PortalLearningPage() {
   } catch {}
   const instituteId = await firstInstituteId();
   if (!instituteId) return <p className="muted">{t("learning.noInstitute")}</p>;
+  await recordToolUsage({ instituteId: String(instituteId ?? "") || null, accountId: session.accountId, toolKey: "learning", source: "portal", metadata: null });
   // KID-103: observations and the child picker are scoped to assigned classrooms.
   const [observations, children] = await Promise.all([
     listObservations(instituteId, session.accountId),

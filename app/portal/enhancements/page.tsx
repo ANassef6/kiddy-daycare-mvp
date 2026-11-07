@@ -22,6 +22,7 @@ import { tr } from "@/lib/i18n";
 import { getInstitute } from "@/lib/store";
 import { listEnhancementRequests, type EnhancementRequest, type EnhancementStatus } from "@/lib/enhancements";
 import { createEnhancementRequestAction } from "@/lib/actions";
+import { recordToolUsage } from "@/lib/tool-usage";
 
 export const dynamic = "force-dynamic";
 
@@ -60,6 +61,7 @@ export default async function PortalEnhancementsPage({
   const { dict, dir } = await i18nForAccount(session.accountId);
   const instituteId = await resolveTenantInstituteId();
   if (!instituteId) return <div><p>{tr(dict, "enhancements.noRequests")}</p></div>;
+  await recordToolUsage({ instituteId: String(instituteId ?? "") || null, accountId: session.accountId, toolKey: "enhancements", source: "portal", metadata: null });
   const institute = await getInstitute(instituteId);
   if (!institute) redirect("/portal/dashboard");
   const requests = await listEnhancementRequests(instituteId);

@@ -5,6 +5,7 @@ import { listChildren, listRoomsScoped } from "@/lib/store";
 import { addChildAction, inviteParentAction } from "@/lib/actions";
 import Avatar from "@/components/Avatar";
 import RelationshipSelect from "@/components/RelationshipSelect";
+import { recordToolUsage } from "@/lib/tool-usage";
 
 export const dynamic = "force-dynamic";
 
@@ -30,6 +31,7 @@ export default async function PortalChildrenPage({
 }) {
   const session = requireSession();
   const instituteId = await resolveTenantInstituteId();
+  await recordToolUsage({ instituteId: String(instituteId ?? "") || null, accountId: session.accountId, toolKey: "children", source: "portal", metadata: null });
   const statusFilter = searchParams.status ?? "";
   // KID-103: children list and room choices are scoped to assigned classrooms.
   const [children, rooms] = await Promise.all([

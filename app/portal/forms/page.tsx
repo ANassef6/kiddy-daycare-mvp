@@ -3,6 +3,7 @@ import { requireSession } from "@/lib/require";
 import { listForms, formResponses, formResponseStatusCounts, formResponsesForInstitute, FORM_RESPONSE_STATUSES } from "@/lib/store";
 import { firstInstituteId, cap } from "@/lib/helpers";
 import { createFormAction, generateFormShareLinkAction, setFormResponseStatusAction } from "@/lib/actions";
+import { recordToolUsage } from "@/lib/tool-usage";
 
 export const dynamic = "force-dynamic";
 
@@ -15,9 +16,10 @@ export default async function PortalFormsPage({
 }: {
   searchParams: { view?: string; q?: string; status?: string; type?: string; form?: string };
 }) {
-  requireSession();
+  const session = requireSession();
   const instituteId = await firstInstituteId();
   if (!instituteId) return <p className="muted">No institute configured.</p>;
+  await recordToolUsage({ instituteId: String(instituteId ?? "") || null, accountId: session.accountId, toolKey: "forms", source: "portal", metadata: null });
   const forms = await listForms(instituteId);
   const viewId = searchParams.view;
   const active = forms.find((f: any) => f.id === viewId);

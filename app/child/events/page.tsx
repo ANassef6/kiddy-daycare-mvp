@@ -3,6 +3,7 @@ import { listEvents, eventMedia, listVideos } from "@/lib/store";
 import { firstInstituteId, cap } from "@/lib/helpers";
 import { i18nForAccount } from "@/lib/i18n-session";
 import { tr } from "@/lib/i18n";
+import { recordToolUsage } from "@/lib/tool-usage";
 
 export const dynamic = "force-dynamic";
 
@@ -24,6 +25,7 @@ export default async function ParentEventsPage() {
   const t = (key: string, vars?: Record<string, string | number>) => tr(dict, key, vars);
   const instituteId = await firstInstituteId();
   if (!instituteId) return <p className="muted">{t("events.noInstitute")}</p>;
+  await recordToolUsage({ instituteId: String(instituteId ?? "") || null, accountId: session.accountId, toolKey: "events", source: "child", metadata: null });
 
   const [events, videos] = await Promise.all([listEvents(instituteId, true), listVideos(instituteId)]);
   const withMedia = await Promise.all(

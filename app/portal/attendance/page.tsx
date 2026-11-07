@@ -3,6 +3,7 @@ import { resolveTenantInstituteId } from "@/lib/tenant";
 import { requireSession } from "@/lib/require";
 import {attendanceOn, runAutoCheckoutSweep, scopedRoomIds, listRooms } from "@/lib/store";
 import { AttendanceCheckIn } from "@/components/AttendanceCheckIn";
+import { recordToolUsage } from "@/lib/tool-usage";
 
 export const dynamic = "force-dynamic";
 
@@ -13,6 +14,7 @@ export default async function PortalAttendancePage({
 }) {
   const session = requireSession();
   const iid = await resolveTenantInstituteId();
+  await recordToolUsage({ instituteId: String(iid ?? "") || null, accountId: session.accountId, toolKey: "attendance", source: "portal", metadata: null });
   const day = searchParams.day ?? new Date().toISOString().slice(0, 10);
   const q = searchParams.q ?? "";
   const roomId = searchParams.room ?? "";

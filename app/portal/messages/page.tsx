@@ -18,6 +18,7 @@ import { firstInstituteId, fmtDate, fmtTime } from "@/lib/helpers";
 import { sendMessageAction, sendComposerAction, replyThreadAction } from "@/lib/actions";
 import { i18nForAccount } from "@/lib/i18n-session";
 import { tr } from "@/lib/i18n";
+import { recordToolUsage } from "@/lib/tool-usage";
 
 export const dynamic = "force-dynamic";
 
@@ -31,6 +32,7 @@ export default async function PortalMessagesPage({
   const t = (key: string, vars?: Record<string, string | number>) => tr(dict, key, vars);
   const instituteId = await firstInstituteId();
   if (!instituteId) return <p className="muted">{t("learning.noInstitute")}</p>;
+  await recordToolUsage({ instituteId: String(instituteId ?? "") || null, accountId: session.accountId, toolKey: "messages", source: "portal", metadata: null });
 
   const [parents, channels, conversations, threads, totalUnread] = await Promise.all([
     parentAccountsScoped(instituteId, session.accountId),

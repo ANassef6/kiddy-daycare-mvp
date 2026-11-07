@@ -7,6 +7,7 @@ import { i18nForAccount } from "@/lib/i18n-session";
 import { tr } from "@/lib/i18n";
 import RecipientsPicker from "@/components/RecipientsPicker";
 import { queryGet } from "@/lib/db";
+import { recordToolUsage } from "@/lib/tool-usage";
 
 export const dynamic = "force-dynamic";
 
@@ -16,6 +17,7 @@ export default async function PortalActivitiesPage() {
   const t = (key: string, vars?: Record<string, string | number>) => tr(dict, key, vars);
   const instituteId = await firstInstituteId();
   if (!instituteId) return <p className="muted">{t("learning.noInstitute")}</p>;
+  await recordToolUsage({ instituteId: String(instituteId ?? "") || null, accountId: session.accountId, toolKey: "learning", source: "portal", metadata: { view: "activities" } });
 
   // KID-103: activity newsfeed, child picker, and room choices respect classroom scoping.
   const [media, events, newsfeed, children, rooms] = await Promise.all([

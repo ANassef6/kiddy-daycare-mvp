@@ -3,6 +3,8 @@ import { familiesForAccount, incidentsForChild } from "@/lib/store";
 import { acknowledgeIncidentAction } from "@/lib/actions";
 import { i18nForAccount } from "@/lib/i18n-session";
 import { fmtDateTimeFor, tr } from "@/lib/i18n";
+import { recordToolUsage } from "@/lib/tool-usage";
+import type { Row } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 
@@ -15,6 +17,8 @@ export default async function ParentIncidentsPage() {
   const { locale, dict } = await i18nForAccount(session.accountId);
   const t = (key: string, vars?: Record<string, string | number>) => tr(dict, key, vars);
   const families = await familiesForAccount(session.accountId);
+  const usageInstituteId = String((families[0] as Row)?.institute_id ?? "") || null;
+  await recordToolUsage({ instituteId: usageInstituteId, accountId: session.accountId, toolKey: "incidents", source: "child", metadata: null });
   const incidents: any[] = [];
   for (const f of families) {
     for (const i of await incidentsForChild(f.id as string)) {

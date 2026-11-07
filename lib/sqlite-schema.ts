@@ -682,6 +682,24 @@ export function sqliteSchema(db: any): void {
   CREATE INDEX IF NOT EXISTS idx_audit_institute_created ON audit_event (institute_id, created_at DESC);
   CREATE INDEX IF NOT EXISTS idx_audit_entity ON audit_event (entity_type, entity_id, created_at DESC);
   CREATE INDEX IF NOT EXISTS idx_audit_actor ON audit_event (actor_account_id, created_at DESC);
+
+  -- KID-481: mirror of supabase/migrations/0033_tool_usage_event.sql — one row
+  -- per recorded tool usage (KID-481 Insights). Same event style as
+  -- audit_event above: add-only, tenant-scoped, bounded JSON metadata.
+  -- occurred_at stays TEXT on SQLite (identity with every other table here);
+  -- toolInsights() compares it lexicographically like listAuditEvents does.
+  CREATE TABLE IF NOT EXISTS tool_usage_event (
+    id TEXT PRIMARY KEY,
+    institute_id TEXT REFERENCES institute(id) ON DELETE CASCADE,
+    account_id TEXT REFERENCES account(id) ON DELETE SET NULL,
+    tool_key TEXT NOT NULL,
+    source TEXT NOT NULL DEFAULT 'portal',
+    metadata TEXT,
+    occurred_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+  CREATE INDEX IF NOT EXISTS idx_tool_usage_institute_when ON tool_usage_event (institute_id, occurred_at DESC);
+  CREATE INDEX IF NOT EXISTS idx_tool_usage_tool_when ON tool_usage_event (tool_key, occurred_at DESC);
+  CREATE INDEX IF NOT EXISTS idx_tool_usage_account_when ON tool_usage_event (account_id, occurred_at DESC);
   `);
 
   // Idempotent column backfills for databases created before these columns

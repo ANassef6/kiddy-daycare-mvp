@@ -7,6 +7,7 @@ import { listRooms, listChildren, staffRooms } from "@/lib/store";
 import { addRoomAction } from "@/lib/actions";
 import { i18nForAccount } from "@/lib/i18n-session";
 import { tr } from "@/lib/i18n";
+import { recordToolUsage } from "@/lib/tool-usage";
 
 export const dynamic = "force-dynamic";
 
@@ -18,6 +19,7 @@ export default async function PortalRoomsPage() {
   const { dict } = await i18nForAccount(session.accountId);
   const t = (key: string, vars?: Record<string, string | number>) => tr(dict, key, vars);
   const iid = await resolveTenantInstituteId();
+  await recordToolUsage({ instituteId: String(iid ?? "") || null, accountId: session.accountId, toolKey: "rooms", source: "portal", metadata: null });
   const allRooms = iid ? await listRooms(iid) : [];
   const children = iid ? await listChildren(iid) : [];
 

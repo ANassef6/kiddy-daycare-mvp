@@ -10,6 +10,7 @@ import Avatar from "@/components/Avatar";
 import ResendActivationButton from "@/components/ResendActivationButton";
 import { getBranding } from "@/lib/theme";
 import AddStaffForm from "./AddStaffForm";
+import { recordToolUsage } from "@/lib/tool-usage";
 
 export const dynamic = "force-dynamic";
 
@@ -29,6 +30,7 @@ export default async function PortalStaffPage({
 }) {
   const session = requireSession();
   const iid = await resolveTenantInstituteId();
+  await recordToolUsage({ instituteId: String(iid ?? "") || null, accountId: session.accountId, toolKey: "staff", source: "portal", metadata: null });
   const [staff, rooms] = await Promise.all([
     iid ? listStaff(iid) : Promise.resolve([]),
     iid ? listRooms(iid) : Promise.resolve([]),
