@@ -96,6 +96,8 @@ export default async function DaycareInvoicesPage({
                 <th className="label" style={{ padding: 8 }}>{tr(dict, "platform.invoiceTotal")}</th>
                 <th className="label" style={{ padding: 8 }}>{tr(dict, "platform.invoiceDue")}</th>
                 <th className="label" style={{ padding: 8 }}>{tr(dict, "platform.invoiceStatus")}</th>
+                {/* KID-737: the owner's uploaded subscription-payment proof. */}
+                <th className="label" style={{ padding: 8 }}>{tr(dict, "platform.invoiceProof")}</th>
               </tr>
             </thead>
             <tbody>
@@ -129,6 +131,32 @@ export default async function DaycareInvoicesPage({
                       <div className="small muted">
                         {tr(dict, "platform.invoicePaidAt")}: {inv.paidAt.slice(0, 10)}
                       </div>
+                    )}
+                  </td>
+                  {/* KID-737: the proof the daycare owner uploaded before
+                      payment. An upload never changes the status — this is
+                      review-only, and the proof stays visible after the
+                      invoice is paid for history. */}
+                  <td className="small" style={{ padding: 8 }}>
+                    {inv.paymentProofUrl ? (
+                      <div>
+                        <a href={inv.paymentProofUrl} target="_blank" rel="noreferrer">
+                          {tr(dict, "platform.invoiceProofView")}
+                        </a>
+                        {inv.paymentProofUploadedAt && (
+                          <div className="small muted">
+                            {tr(dict, "platform.invoiceProofUploaded")}:{" "}
+                            {inv.paymentProofUploadedAt.slice(0, 10)}
+                          </div>
+                        )}
+                        {inv.paymentReference && (
+                          <div className="small muted">
+                            {tr(dict, "platform.invoiceProofRef")}: {inv.paymentReference}
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      "—"
                     )}
                   </td>
                 </tr>

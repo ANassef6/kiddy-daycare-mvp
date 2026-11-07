@@ -1004,6 +1004,47 @@ export async function updateInvoiceAmountAction(formData: FormData) {
   redirect(`${back}?saved=1`);
 }
 
+// ---------------------------------------------------------------------------
+// KID-737: the platform-wide Instapay payment link. The operator's only
+// writer — the link the daycare owner's Account billing page opens for every
+// unpaid subscription invoice (the parent invoices keep their own per-invoice
+// links). The link is one PLATFORM setting (not per daycare), stored in
+// platform_setting under key 'instapay_url' (lib/platform-settings.ts).
+// ---------------------------------------------------------------------------
+
+/** KID-737: the operator sets or clears the platform Instapay link.
+ *  Validation shares lib/instapay.parsePaymentLink with the parent-invoice
+ *  link boundaries: blank clears the setting, an absolute http/https URL is
+ *  stored as given, anything else (relative paths, javascript:, ftp:, garbage)
+ *  is refused — a broken link can never be stored, so the owner side can
+ *  always safely open it in a new tab. Every save is attributed per operator. */
+export async function setPlatformInstapayAction(formData: FormData) {
+  const operator = requirePlatformOperator();
+  const link = parsePaymentLink(formData.get("instapayUrl"));
+  if (!link.ok) {
+    // Fail the save, never store a broken link; the page renders the same
+    // wording for every invalid shape (the parser returns one error code).
+    redirect("/platform?instapay=invalid");
+  }
+  const { setPlatformSetting, PLATFORM_INSTAPAY_KEY } = await import("@/lib/platform-settings");
+  await setPlatformSetting(PLATFORM_INSTAPAY_KEY, link.value, operator.accountId);
+  // KID-477: saved/cleared are both attributed, with NO URL value in the audit
+  // payload (the link is not a secret, but the trail stays value-free).
+  await recordAuditEvent({
+    instituteId: null,
+    actorAccountId: operator.accountId,
+    action: "update",
+    entityType: "platform_setting",
+    entityId: PLATFORM_INSTAPAY_KEY,
+    summary: link.value
+      ? "Set the platform Instapay payment link"
+      : "Cleared the platform Instapay payment link",
+    metadata: { key: PLATFORM_INSTAPAY_KEY, cleared: !link.value },
+  });
+  revalidatePath("/platform");
+  redirect("/platform?instapay=saved");
+}
+
 /** KID-245: the operator marks an invoice paid. The engine (lib/billing.ts)
  *  stamps paid_at and re-activates the daycare as soon as no other unpaid
  *  overdue invoice remains — the billing block lifts. */
@@ -3324,6 +3365,100 @@ export async function uploadPaymentProofAction(formData: FormData) {
     entityId: billingId,
     summary: "Payment proof uploaded for an invoice",
     metadata: { childId: billingChildId, hasPaymentProof: true },
+  });
+  redirect(`${back}?proof=uploaded`);
+}
+
+// ---- KID-737: the daycare owner's subscription-payment proof ----
+// The same authorize -> validate -> upload -> write chain as the parent proof
+// above, but for the DAYCARE'S OWN subscription invoices (daycare_invoice):
+// an owner attaches a payment screenshot/PDF to one of their daycare's unpaid
+// invoices before paying via the platform Instapay link. Role, tenancy and
+// invoice-status checks run BEFORE any storage or database write, so a wrong
+// caller never leaves a partial record. The upload never writes the status
+// column: the platform operator reviews the proof and keeps marking the
+// invoice paid through the existing control, and the proof stays visible for
+// history afterwards. A replacement upload before payment replaces the whole
+// proof snapshot (three columns move together — lib/billing.ts writer).
+export async function uploadDaycareInvoiceProofAction(formData: FormData) {
+  const me = requireAuthSession();
+  const invoiceId = String(formData.get("invoiceId") ?? "");
+  const file = formData.get("file") as File | null;
+  const back = "/portal/account-billing";
+  // Owner-only: admins and staff do not pay the daycare's subscription; the
+  // page tabs agree (exact-owner gate), a forged POST must not drift.
+  if (!isOwnerRole(me.role)) {
+    console.error("KID-737 refused a subscription payment-proof upload by a non-owner role:", me.email);
+    redirect(KID372_TENANT_REFUSAL);
+  }
+  // KID-372: the raw invoice id alone is not authorization — the row's
+  // institute must match the REQUEST tenant (a foreign id is a refusal with
+  // no leak, never a first-institute fallback).
+  const requestIid = await firstInstituteId();
+  const invoice = invoiceId
+    ? await queryGet("SELECT id, institute_id, status FROM daycare_invoice WHERE id = ?", invoiceId)
+    : null;
+  if (!invoice || !requestIid || String(invoice.institute_id ?? "") !== requestIid) {
+    console.error("KID-737 refused a subscription payment-proof upload by raw id:", me.email);
+    redirect(KID372_TENANT_REFUSAL);
+  }
+  // A proof rides an UNPAID invoice only: a paid invoice no longer accepts
+  // one (fail closed BEFORE validation/storage), and only pending/overdue
+  // rows exist on this surface — anything else is refused at the boundary.
+  const status = String(invoice!.status ?? "");
+  if (status !== "pending" && status !== "overdue") {
+    console.error("KID-737 refused a payment-proof upload for invoice status:", status);
+    redirect(`${back}?proofError=paid`);
+  }
+  // Boundary validation — before any storage or DB write.
+  if (!file || file.size === 0) redirect(`${back}?proofError=proofType`);
+  const proof = validatePaymentProof(file);
+  if (!proof.ok) redirect(`${back}?proofError=proof${proof.code === "size" ? "Size" : "Type"}`);
+  // Storage upload into the per-invoice folder under the same payments/
+  // root the parent proofs use; the random suffix keeps the object
+  // unguessable to another daycare.
+  const { supabaseConfigured, getSupabase } = await import("@/lib/supabase");
+  if (!supabaseConfigured()) {
+    console.error("KID-737 payment proof upload: no storage configured; nothing stored");
+    redirect(`${back}?proofError=proofUpload`);
+  }
+  const supabase = getSupabase();
+  const filename = paymentProofFilename(
+    String(invoice!.institute_id),
+    invoiceId,
+    proof.ext,
+    crypto.randomUUID()
+  );
+  const { error } = await supabase.storage
+    .from("kiddy-public")
+    .upload(filename, file, { contentType: file.type, upsert: false });
+  if (error) {
+    console.error("KID-737 payment proof storage upload failed:", error.message);
+    redirect(`${back}?proofError=proofUpload`);
+  }
+  const { data: urlData } = supabase.storage.from("kiddy-public").getPublicUrl(filename);
+  if (!urlData?.publicUrl) {
+    console.error("KID-737 payment proof upload: storage returned no public URL; nothing stored");
+    redirect(`${back}?proofError=proofUpload`);
+  }
+  const reference = String(formData.get("paymentReference") ?? "").trim().slice(0, 200) || null;
+  // Only now the row is touched — the three proof columns move together,
+  // the status column is untouched.
+  const { setDaycareInvoicePaymentProof } = await import("@/lib/billing");
+  await setDaycareInvoicePaymentProof(invoiceId, {
+    proofUrl: urlData.publicUrl,
+    proofUploadedAt: new Date().toISOString(),
+    reference,
+  });
+  // KID-477: attribution without URL data on the trail.
+  await recordAuditEvent({
+    instituteId: String(invoice!.institute_id),
+    actorAccountId: me.accountId,
+    action: "update",
+    entityType: "daycare_invoice",
+    entityId: invoiceId,
+    summary: "Payment proof uploaded for a subscription invoice",
+    metadata: { statusBefore: status, hasPaymentProof: true },
   });
   redirect(`${back}?proof=uploaded`);
 }

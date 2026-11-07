@@ -17,7 +17,9 @@ import {
   createDaycareAction,
   updateDaycareSubdomainAction,
   enterDaycareAsAdminAction,
+  setPlatformInstapayAction,
 } from "@/lib/actions";
+import { getPlatformInstapayUrl, getPlatformSetting, PLATFORM_INSTAPAY_KEY } from "@/lib/platform-settings";
 import { i18nForAccount } from "@/lib/i18n-session";
 import { tr } from "@/lib/i18n";
 import { apexDomain, daycarePublicUrl, subdomainUrl } from "@/lib/subdomain";
@@ -59,7 +61,7 @@ const ENTRY_ERRORS: Record<string, string> = {
 export default async function PlatformDaycaresPage({
   searchParams,
 }: {
-  searchParams: { created?: string; error?: string; edit?: string; prefix?: string };
+  searchParams: { created?: string; error?: string; edit?: string; prefix?: string; instapay?: string };
 }) {
   const session = requireSession();
   // Same double check as the layout + every server action: internal sentinel
@@ -69,6 +71,15 @@ export default async function PlatformDaycaresPage({
   }
   const { dict, dir } = await i18nForAccount(session.accountId);
   const institutes = await listInstitutesForPlatform();
+  // KID-737: the platform-wide Instapay link card state (saved/invalid
+  // banner) and the currently stored link.
+  const instapay = searchParams.instapay === "saved" || searchParams.instapay === "invalid"
+    ? searchParams.instapay
+    : "";
+  const [instapayUrl, instapayMeta] = await Promise.all([
+    getPlatformInstapayUrl(),
+    getPlatformSetting(PLATFORM_INSTAPAY_KEY),
+  ]);
   const created = searchParams.created === "1";
   // KID-227: an error carrying `edit` belongs to a row (the inline prefix
   // save); only create-flow errors render the page-wide banner.
@@ -105,6 +116,55 @@ export default async function PlatformDaycaresPage({
       )}
       {createError && <div className="card mb-4 banner-error">{createError}</div>}
       {entryError && <div className="card mb-4 banner-error">{entryError}</div>}
+
+      {/* KID-737: the platform-wide Instapay link — ONE card for the whole
+          platform (the subscription payment is KiddyApp's, not a daycare's).
+          The same blank/invalid handling as every other operator save: blank
+          clears the link, a broken link bounces back refused and cannot be
+          stored. */}
+      <div className="card mb-4">
+        <h3 className="subtitle">{tr(dict, "platform.instapayCardTitle")}</h3>
+        <p className="small muted">{tr(dict, "platform.instapayCardHint")}</p>
+        {instapay === "saved" && (
+          <div className="card mb-4 banner-success">{tr(dict, "platform.instapaySaved")}</div>
+        )}
+        {instapay === "invalid" && (
+          <div className="card mb-4 banner-error">{tr(dict, "platform.instapayInvalid")}</div>
+        )}
+        {instapayUrl ? (
+          <p className="small" style={{ wordBreak: "break-all" }}>
+            {tr(dict, "platform.instapayUpdatedAt", {
+              date: String(instapayMeta?.uploadedAt ?? "").slice(0, 10),
+            })}
+          </p>
+        ) : (
+          <p className="small muted">{tr(dict, "platform.instapayNotSet")}</p>
+        )}
+        <form action={setPlatformInstapayAction} style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "flex-end" }}>
+          <div className="field" style={{ flexGrow: 1, minWidth: 280 }}>
+            <label className="label" htmlFor="platform-instapay-url">
+              {tr(dict, "platform.instapayLabel")}
+            </label>
+            <input
+              className="input"
+              id="platform-instapay-url"
+              name="instapayUrl"
+              type="url"
+              inputMode="url"
+              defaultValue={instapayUrl ?? ""}
+              placeholder="https://instapay.eg/…"
+            />
+          </div>
+          <button className="btn btn-primary" type="submit">
+            {tr(dict, "platform.instapaySave")}
+          </button>
+          {instapayUrl ? (
+            <button className="btn" type="submit" name="instapayUrl" value="">
+              {tr(dict, "platform.instapayClear")}
+            </button>
+          ) : null}
+        </form>
+      </div>
 
       <div className="table-scroll">
         <table className="card" style={{ width: "100%", borderCollapse: "collapse", marginBottom: 16 }}>

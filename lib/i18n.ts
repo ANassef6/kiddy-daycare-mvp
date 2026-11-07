@@ -960,6 +960,24 @@ export const en = {
     invoiceBackToBilling: "Billing settings",
     invoiceDaycareBlocked:
       "This daycare is currently disabled because of an overdue invoice. Mark the invoice paid to restore its users' access.",
+    // KID-737: the operator's card for the platform Instapay link on
+    // /platform, and the Proof column on the per-daycare invoice list.
+    instapayCardTitle: "Subscription payment link (Instapay)",
+    instapayCardHint:
+      "Every daycare owner sees this link next to an unpaid subscription invoice, pays it, and uploads a proof of payment for you to review.",
+    instapayLabel: "Instapay link",
+    instapayNotSet: "Not set yet — owners cannot see a payment link until you save one.",
+    instapayUpdatedAt: "Updated {date}",
+    instapaySave: "Save link",
+    instapayClear: "Clear link",
+    instapayInvalid:
+      "That payment link is not a valid address. Use an https:// or http:// link, or clear the field to remove the link.",
+    instapaySaved: "Payment link saved. Owners now see it on unpaid subscription invoices.",
+    invoiceProof: "Proof",
+    invoiceProofView: "View proof",
+    invoiceProofNone: "No proof",
+    invoiceProofUploaded: "Uploaded",
+    invoiceProofRef: "Ref",
   },
   // KID-246: the owner's own "Account billing" page under Tools — plan and
   // rates are read-only here (the platform team manages them); the invoice
@@ -999,6 +1017,24 @@ export const en = {
     overdueWarning:
       "Invoice {cycle} is overdue ({amount} EGP). Pay it now — the daycare is disabled while an invoice stays unpaid.",
     autoDisableHint: "The platform disables the daycare from the due date onward until the invoice is paid.",
+    // KID-737: the platform Instapay link and the owner's payment-proof
+    // upload on the subscription invoice table.
+    colPay: "Pay",
+    colProof: "Proof",
+    payWithInstapay: "Pay with Instapay",
+    payNoLink:
+      "The platform has not set a payment link yet — pay by the usual channel and the link appears here once it is configured.",
+    proofView: "View proof",
+    proofUploadedOn: "Uploaded {date}",
+    proofUploadLabel: "Share a proof of payment (PNG, JPG or PDF, up to 5 MB)",
+    proofUploadBtn: "Share proof of payment",
+    proofReplaceBtn: "Replace proof",
+    proofReferencePlaceholder: "Payment reference (optional)",
+    proofSaved: "Payment proof received. The platform team will review it — the invoice stays in your list until it is marked paid.",
+    proofErrorType: "Attach a PNG, JPG or PDF file (5 MB at most).",
+    proofErrorSize: "The file is too large — the maximum is 5 MB.",
+    proofErrorUpload: "The upload failed. Please try again.",
+    proofErrorPaid: "This invoice is already paid, so it no longer accepts a proof upload.",
   },
   // KID-258 A1 (KID-264): the owner-only "Enhancements requests" page under
   // Tools. Submit carries title + description ONLY — the Kiddy team sets
@@ -2223,6 +2259,24 @@ export const ar = {
     invoiceBackToBilling: "إعدادات الفاتورة",
     invoiceDaycareBlocked:
       "هذه الروضة موقوفة حاليًا بسبب فاتورة متأخرة. سجّل الفاتورة كمدفوعة لإعادة تفعيل حسابات مستخدميها.",
+    // KID-737: بطاقة المشغّل لرابط إنستا باي على /platform، وعمود إثبات
+    // الدفع في قائمة فواتير كل روضة. (التوأم العربي.)
+    instapayCardTitle: "رابط الدفع بالاشتراك (إنستا باي)",
+    instapayCardHint:
+      "يرى كل مالك روضة هذا الرابط بجوار الفاتورة غير المسددة، ويدفع بها، ثم يرفع إثبات الدفع لتقوم بمراجعته.",
+    instapayLabel: "رابط إنستا باي",
+    instapayNotSet: "لم يُضبَط بعد — لن يرى المالكون رابط دفع حتى تحفظ واحدًا.",
+    instapayUpdatedAt: "آخر تحديث {date}",
+    instapaySave: "حفظ الرابط",
+    instapayClear: "محو الرابط",
+    instapayInvalid:
+      "رابط الدفع ليس عنوانًا صالحًا. استخدم رابط https:// أو http://، أو امحُ الحقل لإزالة الرابط.",
+    instapaySaved: "حُفظ رابط الدفع. يراه المالكون الآن على فواتير الاشتراك غير المسددة.",
+    invoiceProof: "الإثبات",
+    invoiceProofView: "عرض الإثبات",
+    invoiceProofNone: "لا إثبات",
+    invoiceProofUploaded: "مرفوع",
+    invoiceProofRef: "مرجع",
   },
   // KID-258 A1 (KID-264): صفحة "طلبات التحسينات" الخاصة بالمالك فقط تحت
   // الأدوات. الإرسال يتبع العنوان والوصف فقط — الأولوية/التقدير/التواريخ
@@ -2579,6 +2633,24 @@ export const ar = {
     overdueWarning:
       "فاتورة الدورة {cycle} متأخرة ({amount} جنيه). سدّدها الآن — الروضة موقوفة طالما الفاتورة غير مسددة.",
     autoDisableHint: "تُوقف المنصّة الروضة من تاريخ الاستحقاق حتى تسديد الفاتورة.",
+    // KID-737: رابط إنستا باي من المنصّة ورفع إثبات الدفع على جدول فواتير
+    // الاشتراك. (التوأم العربي.)
+    colPay: "الدفع",
+    colProof: "الإثبات",
+    payWithInstapay: "الدفع عبر إنستا باي",
+    payNoLink:
+      "لم تضبط المنصّة رابط دفع بعد — ادفع عبر القائمة المعتادة وسيظهر الرابط هنا بمجرد حفظه.",
+    proofView: "عرض الإثبات",
+    proofUploadedOn: "مرفوع في {date}",
+    proofUploadLabel: "شارك إثبات دفع (PNG أو JPG أو PDF، حتى 5 ميجابايت)",
+    proofUploadBtn: "مشاركة إثبات الدفع",
+    proofReplaceBtn: "استبدال الإثبات",
+    proofReferencePlaceholder: "مرجع الدفع (اختياري)",
+    proofSaved: "استلمنا إثبات الدفع. سيراجعه فريق المنصّة — تبقى الفاتورة في قائمتك إلى أن تُسجَّل مدفوعة.",
+    proofErrorType: "أرفق ملف PNG أو JPG أو PDF (5 ميجابايت على الأكثر).",
+    proofErrorSize: "الملف أكبر من الحد المسموح — الحد الأقصى 5 ميجابايت.",
+    proofErrorUpload: "فشل الرفع. برجاء المحاولة مرة أخرى.",
+    proofErrorPaid: "هذه الفاتورة مدفوعة بالفعل، لذا لم تقبل رفع إثبات.",
   },
   help: {
     title: "مركز المساعدة",
