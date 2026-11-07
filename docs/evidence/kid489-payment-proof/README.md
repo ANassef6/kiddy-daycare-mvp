@@ -96,6 +96,26 @@ admin keeps the existing status control.
 
 - `npm test` (full suite) — **76/76 test files green, 815/815 tests passed**
   (2026-11-07, worktree box-shared with the concurrent KID-491 run).
+- Post-rebase on master (after the concurrent KID-481 merge) : tsc clean,
+  kid489 suite re-run 24/24, db:verify-migrations green, lint 0 errors,
+  next build green.
+
+## Merge + deployment
+
+- PR **#30** merged to master: merge commit **fe9b72149a2b1ad53507aa03b7001d5669f90999**
+  (branch `kid489-payment-proof`, commit a9465b6).
+- Vercel production deployment for the merge commit: **success**
+  (commit status "Vercel" state=success on 2026-11-07, ~04:35Z).
+- Post-deploy production smoke on `https://kiddyapp.net`: `/` → 200, `/login` → 200.
+- NOTE (pre-existing, not from this change): the "Supabase Preview" CI check fails with
+  `duplicate key ... (version)=(0032)` in `supabase_migrations.schema_migrations` —
+  the ledger PK collides on the two files both prefixed `0032_`
+  (0032_center_default_currency.sql, 0032_push_subscriptions.sql). The identical
+  failure is present on the previous KID-491 merge commit (48f4aab). The App's own
+  migration chain (db:verify-migrations on PGlite) applies in filename order and is
+  green; the app's runtime PG schema path does not depend on the Supabase CLI ledger.
+  Fixing the ledger requires renaming an already-recorded migration — a Supabase
+  project-owner action, raised for the board rather than patched here.
 
 ## Honest limitations
 
