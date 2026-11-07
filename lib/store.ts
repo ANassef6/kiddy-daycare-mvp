@@ -7,6 +7,7 @@ import {
   encodeWorkingHours,
   checkInOpen,
   closeCutoff,
+  busAutoOffCutoff,
   type WorkingWeek,
 } from "./working-hours";
 import { feedCopyFor, type FeedCopy } from "./i18n";
@@ -1243,7 +1244,7 @@ export async function autoCheckoutStaff(
 export async function runAutoCheckoutSweep(
   instituteId: string,
   now = new Date()
-): Promise<{ children: Row[]; staff: Row[]; at: string; reason: string | null; cutoff: string | null }> {
+): Promise<{ children: Row[]; staff: Row[]; busOff: Row[]; at: string; reason: string | null; cutoff: string | null }> {
   const week = await getWorkingHours(instituteId);
   const cutoff = closeCutoff(week, now);
   const stamp = now.toISOString();
@@ -1251,6 +1252,7 @@ export async function runAutoCheckoutSweep(
     return {
       children: [],
       staff: [],
+      busOff: [],
       at: stamp,
       reason: cutoff ? "before cutoff" : "no working hours configured for today",
       cutoff: cutoff ? cutoff.toISOString() : null,
@@ -1287,6 +1289,9 @@ export async function runAutoCheckoutSweep(
   return {
     children: childrenOut,
     staff: staffOut,
+    // KID-494: the close+2h bus safety net rides the same sweep so every
+    // existing call site (attendance surfaces + the cron route) runs both.
+    busOff: (await runBusAutoOffSweep(instituteId, now)).children,
     at: stamp,
     reason: "close + 3h reached",
     cutoff: cutoff.toISOString(),
@@ -1317,6 +1322,193 @@ export async function checkedInNow(instituteId: string, accountId?: string): Pro
      ORDER BY r.name, c.first_name`,
     ...args
   );
+}
+
+// KID-489 item 5 (KID-494): bus on/off status. The state lives as an append-
+// only ledger (`bus_event`, migration 0035) — today's status is always the
+// LATEST event of the day, never a mutable column. Transitions carry the auto
+// check-in/check-out side effects on the existing `check_in` rows so
+// todayStatus/attendanceOn and the 3h auto-checkout keep working untouched,
+// and every transition emits exactly one durable parent notification
+// (dedupe rides emitNotifications' (account_id, ref) uniqueness).
+//
+
+/** Latest bus event for the child on `day` (YYYY-MM-DD), if any. */
+export async function latestBusEvent(childId: string, day: string): Promise<Row | undefined> {
+  return queryGet(
+    `SELECT be.*, a.full_name AS recorded_by_name
+     FROM bus_event be LEFT JOIN account a ON a.id = be.account_id
+     WHERE be.child_id = ? AND date(be.recorded_at) = ?
+     ORDER BY be.recorded_at DESC, be.id DESC LIMIT 1`,
+    childId,
+    day
+  );
+}
+
+/** Latest bus event per child for the staff roster — one indexed query, no
+ *  N+1, restricted to the institute's active children for the day shown. */
+export async function busStatusByChild(
+  instituteId: string,
+  day: string
+): Promise<Record<string, Row>> {
+  const rows = await queryAll(
+    `SELECT be.child_id, be.id, be.type, be.auto, be.recorded_at
+     FROM bus_event be
+     JOIN child c ON c.id = be.child_id
+     WHERE c.institute_id = ? AND date(be.recorded_at) = ?
+     ORDER BY be.recorded_at DESC, be.id DESC`,
+    instituteId,
+    day
+  );
+  const map: Record<string, Row> = {};
+  for (const row of rows) {
+    const childId = String(row.child_id);
+    if (!map[childId]) map[childId] = row;
+  }
+  return map;
+}
+
+/** Parent audience — the family accounts linked through family_member. */
+async function parentAccountIdsForChild(childId: string): Promise<string[]> {
+  const rows = await queryAll(
+    `SELECT fm.account_id FROM family_member fm
+     JOIN account a ON a.id = fm.account_id
+     WHERE fm.child_id = ? AND a.role = 'parent'`,
+    childId
+  );
+  return rows.map((r) => String(r.account_id));
+}
+
+/** Records a bus transition (staff button or the close+2h sweep).
+ *
+ *  Idempotent per day: setting the same type the latest event already has
+ *  inserts nothing and emits nothing, so repeated sweeps never duplicate.
+ *
+ *  Side effects (exactly the issue spec):
+ *    - ON  bus and the child is not checked out -> auto check-out row
+ *      (existing autoCheckoutChild) so attendance flips consistently; an
+ *      already-checked-out child gets no duplicate event.
+ *    - OFF bus and the child is not checked in -> auto check-in row.
+ *    - One durable parent notification per inserted transition.
+ *
+ *  The side-effect rows are plain `check_in` writes: todayStatus,
+ *  attendanceOn, the 3h sweep and the reports read them unchanged. */
+export async function setBusStatus(data: {
+  childId: string;
+  accountId: string;
+  type: "on" | "off";
+  auto?: boolean;
+  recordedAt?: string;
+  /** Stable dedupe ref for system (sweep) emissions — keeps "notify once" */
+  /** across repeated sweeps even if two land near-simultaneously. */
+  notificationRef?: string;
+}): Promise<{ event: Row; inserted: boolean; sideEffect: "check_out" | "check_in" | null }> {
+  const child = await queryGet("SELECT id, institute_id, first_name, last_name FROM child WHERE id = ?", data.childId);
+  if (!child) throw new Error(`setBusStatus: child ${data.childId} not found`);
+  const recordedAt = data.recordedAt ?? new Date().toISOString();
+  const day = recordedAt.slice(0, 10);
+  const latest = await latestBusEvent(data.childId, day);
+  if (latest && String(latest.type) === data.type) {
+    return { event: latest, inserted: false, sideEffect: null };
+  }
+  const id = uid();
+  await queryRun(
+    `INSERT INTO bus_event (id, child_id, account_id, type, auto, recorded_at)
+     VALUES (?, ?, ?, ?, ?, ?)`,
+    id,
+    data.childId,
+    data.accountId,
+    data.type,
+    data.auto ? 1 : 0,
+    recordedAt
+  );
+  const event = (await queryGet("SELECT * FROM bus_event WHERE id = ?", id))!;
+
+  // Attendance side effect: flip the missing half of the day on check_in.
+  const status = await todayStatus(data.childId);
+  const lastType = status.lastEvent ? String(status.lastEvent.type) : undefined;
+  let sideEffect: "check_out" | "check_in" | null = null;
+  if (data.type === "on" && lastType !== "out") {
+    await autoCheckoutChild(data.childId, new Date(recordedAt), data.accountId);
+    sideEffect = "check_out";
+  }
+  if (data.type === "off" && lastType !== "in") {
+    // Direct check-in row: the bus gate records arrival regardless of the
+    // center's opening time — the bus IS the arrival, and the auto-off sweep
+    // fires after closing when "not open yet" would always block.
+    await queryRun("INSERT INTO check_in (id, child_id, account_id, type, is_edit) VALUES (?, ?, ?, 'in', 0)", uid(), data.childId, data.accountId);
+    sideEffect = "check_in";
+  }
+
+  // One durable parent notification per transition. The manual ref is the
+  // event id (never re-emitted); the sweep ref pins child+day so repeated
+  // sweeps or a race emit exactly once via the (account_id, ref) unique key.
+  const ref =
+    data.notificationRef ??
+    `bus-${id}`;
+  try {
+    const parents = await parentAccountIdsForChild(data.childId);
+    await emitNotifications({
+      instituteId: String(child.institute_id ?? ""),
+      accountIds: parents,
+      activity: "attendance",
+      kind: data.type === "on" ? "bus_on" : "bus_off",
+      payload: {
+        childId: String(data.childId),
+        childName: `${child.first_name ?? ""} ${child.last_name ?? ""}`.trim(),
+        auto: data.auto ? 1 : 0,
+        sideEffect: sideEffect ?? "",
+      },
+      ref,
+      createdAt: recordedAt,
+    });
+  } catch (err) {
+    console.error(`KID-494 bus notification emission failed (child=${data.childId}, event=${id}):`, err);
+  }
+  return { event, inserted: true, sideEffect };
+}
+
+/** The bus safety net: everyone still "on bus" 2 hours after today's closing
+ *  time is set off-bus by the system. Idempotent — setBusStatus's
+ *  latest-event check makes a second sweep a no-op, and pinned
+ *  `bus-auto-off-<child>-<day>` refs keep the parent notification single. */
+export async function runBusAutoOffSweep(
+  instituteId: string,
+  now = new Date()
+): Promise<{ children: Row[]; cutoff: string | null; reason: string }> {
+  const week = await getWorkingHours(instituteId);
+  const cutoff = busAutoOffCutoff(week, now);
+  const stamp = now.toISOString();
+  if (!cutoff || now < cutoff) {
+    return {
+      children: [],
+      cutoff: cutoff ? cutoff.toISOString() : null,
+      reason: cutoff ? "before bus cutoff" : "no working hours configured for today",
+    };
+  }
+  const actor = await systemAccountId();
+  const today = stamp.slice(0, 10);
+  const due = await queryAll(
+    `SELECT c.id, c.first_name, c.last_name
+     FROM child c
+     WHERE c.institute_id = ? AND c.active = 1
+       AND (SELECT type FROM bus_event WHERE child_id = c.id AND date(recorded_at) = ? ORDER BY recorded_at DESC, id DESC LIMIT 1) = 'on'`,
+    instituteId,
+    today
+  );
+  const off: Row[] = [];
+  for (const child of due) {
+    const res = await setBusStatus({
+      childId: String(child.id),
+      accountId: actor,
+      type: "off",
+      auto: true,
+      recordedAt: stamp,
+      notificationRef: `bus-auto-off-${String(child.id)}-${today}`,
+    });
+    if (res.inserted) off.push(child);
+  }
+  return { children: off, cutoff: cutoff.toISOString(), reason: "close + 2h reached" };
 }
 
 // ---------- Child status log (mood/diaper/sleep/sick; timestamped, multi-entry) ----------
@@ -3249,6 +3441,22 @@ export function notificationViewCopy(
     const summary = body ? copy.reportBody(body) : "";
     const meta = copy.reportMeta(date);
     return { title: copy.reportTitle(childName), body: summary, meta };
+  }
+  // KID-494: bus transitions. The payload carries the locale-independent
+  // names/flags; view copy localizes both the title and the side-effect note
+  // (auto check-out on ON, auto check-in on OFF, and the sweep auto-off).
+  if (kind === "bus_on" || kind === "bus_off") {
+    const sideEffect = String(payload.sideEffect ?? "");
+    const auto = Number(payload.auto ?? 0) === 1;
+    const title = kind === "bus_on" ? copy.busOnTitle(childName) : copy.busOffTitle(childName);
+    const note = auto && kind === "bus_off"
+      ? copy.busAutoOffBody()
+      : sideEffect === "check_out"
+        ? copy.busAutoCheckedOutBody()
+        : sideEffect === "check_in"
+          ? copy.busAutoCheckedInBody()
+          : "";
+    return { title, body: note };
   }
   return { title: String(payload.title ?? ""), body };
 }

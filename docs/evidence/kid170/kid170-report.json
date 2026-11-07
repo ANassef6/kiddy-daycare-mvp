@@ -1,0 +1,25 @@
+{
+  "stamp": "2026-10-15T21:10:32.921Z",
+  "results": [
+    {
+      "name": "error notice in DOM names the classroom rule (?error=recipient)",
+      "pass": true,
+      "detail": "count=1 text=\"Your message was not sent. You can only message staff assigned to your child's classroom. Pick a recipient below and try again.\""
+    },
+    {
+      "name": "message stored and reappears (happy path)",
+      "pass": false,
+      "detail": "MSG=KID-170 happy-path 2026-10-15T21-10-26-812Z visible=false"
+    },
+    {
+      "name": "plain vs error page md5 differ (KID-169 B4)",
+      "pass": true,
+      "detail": "plain=2d6cb59783e36e767ec524c177719c56 error=b4968a94501f880940c82cec1b2331c5 (both were 452d5b2cb799af9c182b6727644a2c7d before the fix)"
+    },
+    {
+      "name": "forged send refused to ?error=recipient",
+      "pass": false,
+      "detail": "{\"status\":500,\"finalUrl\":\"https://kiddy-one.vercel.app/child/messages\",\"snippet\":\"<!DOCTYPE html><html><head><meta charSet=\\\"utf-8\\\"/><meta name=\\\"viewport\\\" content=\\\"width=device-width\\\"/><title>500: Internal Server Error</title><meta name=\\\"next-\"}"
+    }
+  ]
+}

@@ -13,6 +13,12 @@
 
 export const AUTO_CHECKOUT_GRACE_HOURS = 3;
 
+// KID-489 item 5 (KID-494): the bus safety net — a child left on the bus when
+// staff forgot the "off bus" transition is auto set off this many hours
+// after the center's closing time (before, and independently of, the 3h
+// attendance auto-checkout cutoff).
+export const BUS_AUTO_OFF_GRACE_HOURS = 2;
+
 export const DAY_KEYS = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"] as const;
 export const DAY_LABELS = [
   "Sunday",
@@ -146,5 +152,19 @@ export function closeCutoff(week: WorkingWeek, now = new Date()): Date | undefin
   if (!parsed) return undefined;
   const cutoff = new Date(now);
   cutoff.setHours(parsed.h + AUTO_CHECKOUT_GRACE_HOURS, parsed.m, 0, 0);
+  return cutoff;
+}
+
+// KID-494: moment 2 hours after today's closing time (the auto off-bus
+// cutoff), or undefined when today has no configured close time. Runs ahead
+// of the 3h attendance cutoff so the bus sweep fires first.
+export function busAutoOffCutoff(week: WorkingWeek, now = new Date()): Date | undefined {
+  if (!workingHoursConfigured(week)) return undefined;
+  const day = week[todayKey(now)];
+  if (!day) return undefined;
+  const parsed = parseHM(day.close);
+  if (!parsed) return undefined;
+  const cutoff = new Date(now);
+  cutoff.setHours(parsed.h + BUS_AUTO_OFF_GRACE_HOURS, parsed.m, 0, 0);
   return cutoff;
 }

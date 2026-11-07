@@ -26,6 +26,7 @@ import {
   isChildInScope,
   scopedRoomIds,
   messagingRoomIds,
+  setBusStatus,
 } from "@/lib/store";
 import {
   getInviteByCode,
@@ -1234,6 +1235,37 @@ export async function checkInOutAction(formData: FormData) {
     redirect(referer.split("?")[0] + "?checked=1");
   }
   redirect(`/child/${childId}`);
+}
+
+// KID-489 item 5 (KID-494): staff sets a child on/off the bus. The write
+// itself is setBusStatus (idempotent per day, dedupe on the latest event);
+// the auto check-in/check-out side effects and the parent notification ride
+// inside it, so the action only validates, scopes, audits and revalidates.
+export async function busStatusAction(formData: FormData) {
+  const childId = String(formData.get("childId") ?? "");
+  const type = String(formData.get("type") ?? "") as "on" | "off";
+  const me = requireAuthSession();
+  if (childId && (type === "on" || type === "off")) {
+    // Bus transitions are staff-controlled: parents set none.
+    if (me.role === "parent") {
+      redirect("/child?error=role");
+    }
+    await assertChildInScope(childId, me);
+    await setBusStatus({ childId, accountId: me.accountId, type });
+    // KID-477: bus transitions are user-visible mutations on the audit trail.
+    const instituteId = await firstInstituteId();
+    await recordAuditEvent({
+      instituteId: instituteId ?? null,
+      actorAccountId: me.accountId,
+      action: type === "on" ? "bus_on" : "bus_off",
+      entityType: "bus",
+      entityId: childId,
+      summary: type === "on" ? "Set on bus" : "Set off bus",
+      metadata: null,
+    });
+  }
+  revalidatePath("/portal/attendance");
+  return { ok: true as const };
 }
 
 export async function saveDailyReportAction(formData: FormData) {

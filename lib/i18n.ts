@@ -181,6 +181,11 @@ export const en = {
     notCheckedInYet: "Not checked in yet",
     checkedInAt: "Checked in at {time}",
     checkedOutAt: "Checked out at {time}",
+    // KID-494: the parent-facing bus status badge.
+    busOn: "On the bus",
+    busOff: "Off the bus",
+    busOnAt: "On the bus at {time}",
+    busOffAt: "Off the bus at {time}",
   },
   child: {
     myChildren: "My children",
@@ -1185,6 +1190,12 @@ export const en = {
     paymentProofMeta: "Reference: {reference}",
     checkedInTitle: "Checked in: {name}",
     checkedOutTitle: "Checked out: {name}",
+    // KID-494: bus transition notification copy.
+    busOnTitle: "{name} got on the bus",
+    busOffTitle: "{name} got off the bus",
+    busAutoCheckedOutBody: "Checked out automatically — on the way home by bus.",
+    busAutoCheckedInBody: "Checked in automatically — arrived at the center by bus.",
+    busAutoOffBody: "Off-bus was set automatically after working hours — your child is safe.",
     incidentTitle: "Incident: {name}",
     reportedBy: "Reported by {name}",
     messageTitle: "Message from {name}",
@@ -1445,6 +1456,11 @@ export const ar = {
     notCheckedInYet: "لم يسجّل الحضور بعد",
     checkedInAt: "سجّل الحضور في {time}",
     checkedOutAt: "سجّل الانصراف في {time}",
+    // KID-494: شارة حالة الباص التي يراها الوالد.
+    busOn: "في الباص",
+    busOff: "نزل من الباص",
+    busOnAt: "استقل الباص في {time}",
+    busOffAt: "نزل من الباص في {time}",
   },
   child: {
     myChildren: "أطفالي",
@@ -2361,6 +2377,12 @@ export const ar = {
     paymentProofMeta: "المرجع: {reference}",
     checkedInTitle: "سجّل الحضور: {name}",
     checkedOutTitle: "سجّل الانصراف: {name}",
+    // KID-494: نص إشعار حركة الباص.
+    busOnTitle: "استقل {name} باص الروضة",
+    busOffTitle: "نزل {name} من الباص",
+    busAutoCheckedOutBody: "سُجّل الانصراف تلقائيًا — في طريق العودة إلى المنزل بالباص.",
+    busAutoCheckedInBody: "سُجّل الحضور تلقائيًا — وصل إلى الروضة بالباص.",
+    busAutoOffBody: "سُجّل النزول تلقائيًا بعد ساعات العمل للتأكد من أمان طفلك.",
     incidentTitle: "حادث: {name}",
     reportedBy: "بلّغ عنه {name}",
     messageTitle: "رسالة من {name}",
@@ -2654,6 +2676,12 @@ export type FeedCopy = {
   paymentProofMeta: (reference: string) => string;
   checkedInTitle: (name: string) => string;
   checkedOutTitle: (name: string) => string;
+  // KID-494: bus on/off notification entries.
+  busOnTitle: (name: string) => string;
+  busOffTitle: (name: string) => string;
+  busAutoCheckedOutBody: () => string;
+  busAutoCheckedInBody: () => string;
+  busAutoOffBody: () => string;
   incidentTitle: (name: string) => string;
   reportedBy: (name: string) => string;
   // KID-474: message + daily report feed entries (staff derived feed and
@@ -2694,6 +2722,11 @@ export function feedCopyFor(locale: Locale): FeedCopy {
     paymentProofMeta: (reference) => t("feed.paymentProofMeta", { reference }),
     checkedInTitle: (name) => t("feed.checkedInTitle", { name }),
     checkedOutTitle: (name) => t("feed.checkedOutTitle", { name }),
+    busOnTitle: (name) => t("feed.busOnTitle", { name }),
+    busOffTitle: (name) => t("feed.busOffTitle", { name }),
+    busAutoCheckedOutBody: () => t("feed.busAutoCheckedOutBody"),
+    busAutoCheckedInBody: () => t("feed.busAutoCheckedInBody"),
+    busAutoOffBody: () => t("feed.busAutoOffBody"),
     incidentTitle: (name) => t("feed.incidentTitle", { name }),
     reportedBy: (name) => t("feed.reportedBy", { name }),
     messageTitle: (name) => t("feed.messageTitle", { name }),
