@@ -3,6 +3,7 @@ import PortalSidebar from "@/components/PortalSidebar";
 import PortalAccountMenu from "@/components/PortalAccountMenu";
 import OperatorViewBanner from "@/components/OperatorViewBanner";
 import NotificationBell from "@/components/NotificationBell";
+import NotificationSoundWatcher from "@/components/NotificationSoundWatcher";
 import { requireSessionWithWithdrawalCheck } from "@/lib/require";
 import { requireTenantForPage } from "@/lib/tenant";
 import { ensureSchema } from "@/lib/db";
@@ -134,6 +135,13 @@ export default async function PortalLayout({ children }: { children: React.React
           <OperatorViewBanner instituteName={operatorViewName} dict={dict} />
         )}
         {children}
+        {/* KID-685: the KID-480 in-app sound watcher now rides the portal
+            shell too — a new unread row for the signed-in staff account plays
+            the bundled beep when the browser allows it (audio needs a prior
+            user interaction on the page and is not guaranteed in a hidden
+            tab; the watcher degrades silently and honors the KID-480
+            "kiddy:notificationSound" off switch). */}
+        <NotificationSoundWatcher />
       </main>
     </div>
   );
