@@ -311,27 +311,28 @@ async function pumpDirectionA(state) {
     const messages = await listConversationMessages(conv.conversationId);
     if (!messages.length) continue;
     const maxScanned = Math.max(...messages.map((m) => m.id));
-    const cursor = Number(state.cursors[conv.conversationId] ?? 0);
+    const seen = new Set(state.seen[conv.conversationId] ?? []);
     if (!(conv.conversationId in state.cursors)) {
-      // Fresh state (bootstrapped/corrupt-reset): anchor at "now" so pre-relay
-      // history never bursts into tasks.
+      // Fresh state (bootstrapped/corrupt-reset): anchor the frontier and mark
+      // current history as seen, so pre-relay messages never burst into tasks.
       state.cursors[conv.conversationId] = maxScanned;
+      state.seen[conv.conversationId] = messages
+        .map((m) => String(m.id))
+        .slice(-64);
       log("cursor_anchored", { conversationId: conv.conversationId, cursor: maxScanned });
       continue;
     }
-    if (maxScanned <= cursor) continue;
-    // Advance the cursor up front: crash-window recovery rests on the
-    // idempotencyKey dedupe, the seen[] set and the tag search, so a failed
-    // create below never blocks or replays future scans.
-    state.cursors[conv.conversationId] = maxScanned;
-    const seen = new Set(state.seen[conv.conversationId] ?? []);
+    // Candidates are gated by seen[] + the existing-tag search, NOT by the
+    // cursor: a create that failed earlier stays un-forwarded and must retry
+    // on the next tick, while already-forwarded ids are blocked by seen[] and
+    // a duplicate task would be blocked by the tag search.
     const candidates = messages
-      .filter((m) => Number(m.id) > cursor)
       .filter(isForwardableUserMessage)
       .filter((m) => !seen.has(String(m.id)))
       .filter((m) => !knownIds.has(String(m.id)))
       .sort((a, b) => a.id - b.id)
       .slice(0, Math.max(0, maxMessagesPerConversation));
+    state.cursors[conv.conversationId] = Math.max(maxScanned, Number(state.cursors[conv.conversationId] ?? 0));
     for (const m of candidates) {
       try {
         const task = await createRelayTask({ ...conv, message: m });
