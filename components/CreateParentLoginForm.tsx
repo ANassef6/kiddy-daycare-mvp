@@ -18,6 +18,8 @@ function generatePassword(): string {
 // enters or generates a temporary password, shares it in person, and the
 // parent is asked to change it after the first sign-in (must_change_password).
 // The relationship dropdown stays a server component, passed in as a node.
+// KID-733: the child is REQUIRED — a parent account must always be attached
+// to a child, so the browse-any option is gone and the select is required.
 export default function CreateParentLoginForm({
   labels,
   kids,
@@ -35,8 +37,10 @@ export default function CreateParentLoginForm({
       <div className="row">
         <div className="col field">
           <label className="label">{labels.childLabel}</label>
-          <select className="select" name="childId">
-            <option value="">{labels.childAny}</option>
+          <select className="select" name="childId" required defaultValue="">
+            <option value="" disabled>
+              {labels.childPlaceholder}
+            </option>
             {kids.map((k) => <option key={k.id} value={String(k.id)}>{k.first_name} {k.last_name}</option>)}
           </select>
         </div>
