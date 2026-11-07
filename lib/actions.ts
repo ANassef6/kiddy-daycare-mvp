@@ -3585,7 +3585,11 @@ export async function markNotificationReadAction(formData: FormData) {
   } else if (id) {
     await markNotificationRead(me.accountId, id);
   }
+  // KID-685: the read action is shared by both shells now — the parent center
+  // (/child/notifications) and the staff/admin center (/portal/notifications).
+  // Both server surfaces must refresh, or a portal bell keeps a cleared count.
   revalidatePath("/child/notifications");
+  revalidatePath("/portal/notifications");
 }
 
 export async function saveParentNotificationPrefsAction(formData: FormData) {

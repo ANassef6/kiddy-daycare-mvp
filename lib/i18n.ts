@@ -655,7 +655,8 @@ export const en = {
   },
   notifications: {
     title: "Notifications",
-    subtitle: "Recent activity from newsfeed, homework, supplies, billing, attendance, and incidents.",
+    subtitle: "Notifications for your account, plus recent activity from newsfeed, homework, supplies, billing, attendance, and incidents.",
+    activityTitle: "Recent activity",
     managePrefs: "Manage preferences",
     noActivity: "No recent activity.",
   },
@@ -1936,7 +1937,8 @@ export const ar = {
   },
   notifications: {
     title: "الإشعارات",
-    subtitle: "النشاط الحديث من الأخبار والواجبات والمستلزمات والفواتير والحضور والحوادث.",
+    subtitle: "إشعارات حسابك مع النشاط الحديث من الأخبار والواجبات والمستلزمات والفواتير والحضور والحوادث.",
+    activityTitle: "النشاط الحديث",
     managePrefs: "إدارة التفضيلات",
     noActivity: "لا يوجد نشاط حديث.",
   },
