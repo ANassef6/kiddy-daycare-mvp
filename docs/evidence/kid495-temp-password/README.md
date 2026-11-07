@@ -1,6 +1,10 @@
 # KID-495 evidence — KID-489/6 temp-password change for staff and parent accounts
 
-Branch: `kid495-temp-password` → `master` (PR + merge commit recorded here when merged).
+Branch: `kid495-temp-password` → master via **PR #41**, merge commit **30b560a**.
+
+Deployment: production deployment **7620567047** (sha `30b560a`, 2026-11-07T11:30:54Z) →
+state **success** ("Deployment has completed"); live smoke on the master auto-deploy:
+`https://kiddyapp.net` and `https://kiddyapp.net/login` both **HTTP 200**.
 
 ## What shipped
 
@@ -48,7 +52,16 @@ Branch: `kid495-temp-password` → `master` (PR + merge commit recorded here whe
 | `npm run lint` | exit 0 (pre-existing `no-img-element` warnings in untouched files only) |
 | `npm run db:verify-migrations` | "All migration checks passed" (PGlite chain includes 0036) |
 | `npm run build` (next build) | exit 0 |
-| `npm test` (full suite) | recorded below after the run completes |
+| `npm test` (full suite) | **82 files / 882 tests, all green, exit 0** |
+
+## Merge + deployment
+
+| Step | Result |
+| --- | --- |
+| PR | https://github.com/ANassef6/kiddy-daycare-mvp/pull/41 — Vercel preview `pass`, Supabase Preview `skipping` (the pre-existing 0032 duplicate-migration-version ledger condition documented on KID-491/492 — not touched by this branch) |
+| Merge commit | `30b560a` |
+| Production deploy | id 7620567047, sha `30b560a`, state `success` |
+| Live smoke | `/` and `/login` on kiddyapp.net both HTTP 200 |
 
 ## Acceptance mapping
 
