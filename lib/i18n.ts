@@ -559,6 +559,11 @@ export const en = {
     logo: "Logo",
     brandImage: "Brand image",
     upload: "Upload",
+    // KID-493: honest upload feedback — storage missing vs upload failed.
+    uploadStorageError:
+      "Image storage (Supabase Storage) is not configured, so the image could not be uploaded. Nothing was saved.",
+    uploadFailedError:
+      "The image upload failed. Your previous logo and brand image are unchanged.",
     daycareName: "Daycare name",
     primaryColor: "Primary color",
     accentColor: "Accent color",
@@ -1788,6 +1793,11 @@ export const ar = {
     logo: "الشعار",
     brandImage: "صورة العلامة",
     upload: "رفع",
+    // KID-493: ردود فعل صريحة عند فشل الرفع — تخزين غير مُعد مقابل فشل الرفع.
+    uploadStorageError:
+      "لم يتم إعداد وحدة تخزين الصور (Supabase Storage)، ولذلك لم يتم رفع الصورة. لم يُحفظ أي تغيير.",
+    uploadFailedError:
+      "فشل رفع الصورة. لم يتغير شعارك السابق ولا صورة علامتك.",
     daycareName: "اسم الحضّانة",
     primaryColor: "اللون الأساسي",
     accentColor: "اللون المميز",

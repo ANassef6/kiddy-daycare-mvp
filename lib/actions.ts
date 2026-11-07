@@ -2031,6 +2031,11 @@ export async function saveBrandingAction(formData: FormData) {
       metadata: { primaryColor: String(formData.get("primaryColor") ?? ""), accentColor: String(formData.get("accentColor") ?? "") },
     });
   }
+  const { clearBrandingCache } = await import("@/lib/theme");
+  // KID-493: name/color saves purge the branding cache so the updated
+  // name/logo/banner renders on the next navigation, not after the TTL window.
+  clearBrandingCache();
+  revalidatePath("/", "layout");
   redirect("/portal/settings");
 }
 
@@ -2790,11 +2795,22 @@ export async function uploadBrandingImageAction(formData: FormData) {
   if (!file || file.size === 0) redirect("/portal/settings");
 
   // KID-199.4r: shares the storage path with the /platform daycare creation.
-  const url = await uploadBrandingFile(file, instituteId, kind);
-  if (url) {
-    const column = kind === "logo" ? "logo_url" : "brand_image_url";
-    await updateInstitute(instituteId, { [column]: url });
+  // KID-493: upload feedback is honest now — missing storage or a failed
+  // upload redirects back with an error banner instead of silently keeping
+  // the previous branding, and a success purges the short-lived branding
+  // cache + revalidates so the banner/logo updates on the next navigation.
+  if (!supabaseConfigured()) {
+    redirect("/portal/settings?error=upload-storage");
   }
+  const url = await uploadBrandingFile(file, instituteId, kind);
+  if (!url) {
+    redirect("/portal/settings?error=upload-failed");
+  }
+  const column = kind === "logo" ? "logo_url" : "brand_image_url";
+  await updateInstitute(instituteId, { [column]: url });
+  const { clearBrandingCache } = await import("@/lib/theme");
+  clearBrandingCache();
+  revalidatePath("/", "layout");
   redirect("/portal/settings");
 }
 

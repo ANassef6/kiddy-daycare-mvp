@@ -33,9 +33,24 @@ export default async function PortalSettingsPage({
   const week = iid ? await getWorkingHours(iid) : {};
   const b = brandingFromInstitute(institute as any);
 
+  // KID-493: every upload bounces back to this page — surface the reason as a
+  // localized banner (storage unconfigured vs failed upload) instead of the
+  // previous silent no-op that kept the old branding with no explanation.
+  const uploadError =
+    searchParams?.error === "upload-storage"
+      ? tr(dict, "settings.uploadStorageError")
+      : searchParams?.error === "upload-failed"
+        ? tr(dict, "settings.uploadFailedError")
+        : null;
+
   return (
     <div>
       <h1 className="title">{tr(dict, "settings.title")}</h1>
+      {uploadError && (
+        <div role="alert" className="banner-error" style={{ padding: "10px 12px", marginBottom: 16, borderRadius: 8 }} dir="auto">
+          <bdi>{uploadError}</bdi>
+        </div>
+      )}
       <p className="subtitle">
         {tr(dict, "settings.subtitle")}{" "}
         <a href="/portal/rooms" className="small" style={{ fontWeight: 600, marginLeft: 4 }}>
@@ -103,11 +118,13 @@ export default async function PortalSettingsPage({
         <div className="mt-3"><button className="btn btn-primary" type="submit">{tr(dict, "settings.saveCenterDetails")}</button></div>
       </form>
 
+      {/* KID-493: the preview lockup stacks — logo above the full name — so it
+          matches how the brand renders on the real surfaces. */}
       <div className="card mb-4" style={{ background: `linear-gradient(135deg, ${b.primaryColor}, ${b.accentColor})`, color: "#fff" }}>
-        <div className="row" style={{ alignItems: "center", gap: 12 }}>
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 10, textAlign: "center", padding: "10px 8px" }}>
           {b.logoUrl && (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={b.logoUrl} alt="" width={48} height={48} style={{ borderRadius: 12, objectFit: "cover", background: "#fff" }} />
+            <img src={b.logoUrl} alt="" width={48} height={48} style={{ borderRadius: 12, objectFit: "cover", background: "#fff", flex: "none" }} />
           )}
           <div>
             <div style={{ fontWeight: 800, fontSize: 22 }}>{b.name}</div>

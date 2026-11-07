@@ -411,6 +411,24 @@ table.data th {
   color: #fff;
 }
 
+/* KID-493: the bare `.shell-side a { display: block }` above out-specifies
+   `.site-brand` (class+type beats class) — the sidebar brand link collapsed
+   back to block, so the logo and the name never stacked. Re-declare the
+   stacked lockup with an equal-or-higher specificity and let the full name
+   wrap within the 220px column instead of clipping. */
+.shell-side a.site-brand {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 8px 4px;
+}
+
+.shell-side a.site-brand .brand {
+  overflow-wrap: anywhere;
+  white-space: normal;
+  text-align: center;
+}
+
 /* Expandable portal sidebar (main item → sub-menus) */
 .portal-nav {
   display: flex;
@@ -665,8 +683,9 @@ table.data th {
   .child-header .site-brand {
     /* flex-basis 0 (not auto): the brand's hypothetical main size must be
        tiny so the row never wraps — a long white-label daycare name then
-       truncates inside the grown brand box instead of pushing the pinned
-       sign-out button off-screen. */
+       stays inside the grown brand box. KID-493: the name now wraps beneath
+       the logo instead of truncating (acceptance: no clipped name), while
+       the pinned sign-out action keeps its place in the header row. */
     flex: 1 1 0;
     min-width: 0;
     overflow: hidden;
@@ -674,9 +693,8 @@ table.data th {
 
   .child-header .site-brand .brand {
     min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    overflow-wrap: anywhere;
+    white-space: normal;
   }
 
   .child-header .site-logo {
@@ -811,17 +829,48 @@ body {
   border-bottom: 1px solid var(--color-border);
 }
 
+/* KID-493: the brand lockup stacks — logo above the complete daycare name
+   (never beside or overlapping), matching the approved logo.png layout. A
+   column layout is direction-agnostic (no RTL mirroring needed) and the name
+   wraps instead of truncating so long white-label names stay readable. */
 .site-brand {
   display: inline-flex;
+  flex-direction: column;
   align-items: center;
-  gap: var(--space-2);
+  row-gap: var(--space-2);
+  column-gap: var(--space-2);
   font-weight: 800;
   font-size: 18px;
   color: var(--brand-primary);
+  text-align: center;
+}
+
+/* Long names wrap inside the available brand box instead of clipping. */
+.site-brand .brand {
+  overflow-wrap: anywhere;
+  white-space: normal;
 }
 
 .site-logo {
   border-radius: 8px;
+  object-fit: cover;
+  flex: none;
+}
+
+/* KID-493: the tenant's uploaded brand image tops every page as a responsive
+   banner. Rendered straight from the branding the root layout already
+   resolved; the component renders nothing (no wrapper, no gap, no layout
+   shift) when a daycare has no image set. */
+.brand-banner {
+  width: 100%;
+  background: var(--color-surface);
+}
+
+.brand-banner img {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: 220px;
   object-fit: cover;
 }
 
