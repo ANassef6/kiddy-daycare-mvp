@@ -312,6 +312,13 @@ async function pumpDirectionA(state) {
     if (!messages.length) continue;
     const maxScanned = Math.max(...messages.map((m) => m.id));
     const cursor = Number(state.cursors[conv.conversationId] ?? 0);
+    if (!(conv.conversationId in state.cursors)) {
+      // Fresh state (bootstrapped/corrupt-reset): anchor at "now" so pre-relay
+      // history never bursts into tasks.
+      state.cursors[conv.conversationId] = maxScanned;
+      log("cursor_anchored", { conversationId: conv.conversationId, cursor: maxScanned });
+      continue;
+    }
     if (maxScanned <= cursor) continue;
     // Advance the cursor up front: crash-window recovery rests on the
     // idempotencyKey dedupe, the seen[] set and the tag search, so a failed

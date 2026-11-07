@@ -47,25 +47,31 @@ children of [KID-502](/KID/issues/KID-502)) creates an execution issue assigned
 to Cody. The run:
 
 1. Reads the `relay_state` document on [KID-502](/KID/issues/KID-502)
-   (cursors + relay-task ledger). Missing/malformed → the run FAILS; bootstraps
-   the document manually on KID-502 (set each mapped conversation's cursor to
-   the newest message id already present, so pre-relay history never bursts).
+   (cursors + open/closed relay-task ledger). Missing or malformed → the run
+   rebuilds it and anchors every mapped conversation's cursor at the newest
+   message id already present, so pre-relay history never bursts.
 2. **Direction A** — for each mapped conversation, fetches messages newer than
-   the cursor and turns every human-operator message into a Paperclip task
-   assigned to the mapped agent, quoted in the task body with the relay tag
+   the cursor and turns every human-operator message into a standalone
+   Paperclip task assigned to the mapped agent (the tasks are NOT children of
+   the anchor: the delegation-cycle guard rejects anchor-chain children whose
+   assignee also created an ancestor, e.g. Cody under KID-501/502). The task
+   quotes the message in its body and carries the relay tag
    `cw-relay:cw-msg:<conversationId>:<messageId>` as the creation
    `idempotencyKey` (collisions resolve by tag lookup, no duplicates).
    Private notes, activity/system items, other senders, other inboxes, and
-   unmapped conversations are skipped (cursor still advances past them).
-   The cursor only advances past a message after its task was created
-   successfully; a create failure retries on the next tick.
-3. **Direction B** — for every `open` ledger task, fetches comments and
-   mirrors comments authored by the assigned agent into the mapped
-   conversation as Chatwoot **incoming** messages tagged with
-   `echo_id: cw-relay:<taskId>:<commentId>`, skipping comment ids Chatwoot
-   already echoed (re-check of recent messages). Terminal tasks get a
-   one-line closure notice only if the agent never replied, then their ledger
-   entry is marked `closed`.
+   unmapped conversations are skipped. The cursor advances to the newest
+   scanned id once candidates are picked; a failed create is retried by the
+   dedupe backstops (seen ids + tag search) on the next tick.
+3. **Direction B** — for every `open` ledger task, fetches comments newer than
+   `lastMirroredCommentId` and mirrors comments authored by the assigned agent
+   into the mapped conversation as Chatwoot **incoming** messages tagged with
+   `echo_id: cw-relay:<taskId>:<commentId>`. Dedupe is triple-layered: the
+   monotone comment cursor, the task's `mirroredCommentIds` window, and a
+   same-content backstop against the conversation's latest messages (echo ids
+   are not returned by the Chatwoot message list, so the content backstop is
+   what survives state resets). Terminal tasks get an honest one-line closure
+   notice only if the agent never wrote a mirrored reply, then their ledger
+   entry moves to the closed ledger.
 4. Writes the updated `relay_state` back with revision-safe
    `baseRevisionId`; a 409 (concurrent tick) fails the run loudly and the next
    tick retries. On partial Direction B failure the state is not persisted.
