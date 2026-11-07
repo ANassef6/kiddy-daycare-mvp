@@ -1,4 +1,7 @@
 // KID-480: web push (VAPID) for the PWA/TWA parent surface.
+// KID-487: the same pipeline is now the general rule — staff accounts
+// subscribe from the portal and receive every emitted notification kind with
+// role-resolved deep links; push rides emitNotifications for all kinds.
 //
 // Server-only module: it stores subscriptions, gates delivery on the
 // account's `notification_pref` (channel 'push', mirroring the KID-474
@@ -71,17 +74,54 @@ export async function pushCopyFor(
   return { title, body };
 }
 
+// KID-487: the same event deep-links to the parent surface (/child/...) or the
+// staff portal (/portal/...) depending on the receiving account's role. Staff
+// roles: owner/admin/teacher/caregiver — everything else lands parent-side.
+export const STAFF_ROLES = ["owner", "admin", "teacher", "caregiver"] as const;
+
+export function isStaffRole(role: string | null | undefined): boolean {
+  return (STAFF_ROLES as readonly string[]).includes(String(role ?? ""));
+}
+
 /** Deep link the service worker opens / focuses on notification click. */
-export function pushDeepUrl(kind: string, payload: Record<string, unknown>): string {
+export function pushDeepUrl(
+  kind: string,
+  payload: Record<string, unknown>,
+  role?: string | null
+): string {
+  const childId = String(payload.childId ?? "");
+  if (isStaffRole(role)) {
+    if (kind === "message") {
+      const threadId = String(payload.threadId ?? "");
+      return threadId ? `/portal/messages?thread=${threadId}` : "/portal/messages";
+    }
+    if (kind === "daily_report") return childId ? `/portal/children/${childId}` : "/portal/reports";
+    if (kind === "announcement" || kind === "newsfeed") return "/portal/newsfeed";
+    if (kind === "chatwoot_message") return "/portal/support";
+    if (kind === "attendance") return "/portal/attendance";
+    // KID-486: the planned-pickup set/changed event (same emission pipeline).
+    if (kind === "pickup_time") return childId ? `/portal/children/${childId}` : "/portal/attendance";
+    if (kind === "incident") return "/portal/incidents";
+    if (kind === "event") return "/portal/calendar";
+    if (kind === "homework") return "/portal/learning/homework";
+    if (kind === "supplies") return "/portal/supplies";
+    if (kind === "billing") return "/portal/finance";
+    if (kind === "test") return "/portal/notifications";
+    return "/portal";
+  }
   if (kind === "message") {
     const threadId = String(payload.threadId ?? "");
     return threadId ? `/child/messages?thread=${threadId}` : "/child/messages";
   }
-  if (kind === "daily_report") {
-    const childId = String(payload.childId ?? "");
-    return childId ? `/child/${childId}` : "/child";
-  }
+  if (kind === "daily_report") return childId ? `/child/${childId}` : "/child";
+  if (kind === "announcement" || kind === "newsfeed") return "/child/newsfeed";
   if (kind === "chatwoot_message") return "/child/support";
+  if (kind === "attendance") return childId ? `/child/${childId}` : "/child";
+  // KID-486: planned-pickup events are pickup-surface events; parents follow
+  // the child profile.
+  if (kind === "pickup_time") return childId ? `/child/${childId}` : "/child";
+  if (kind === "incident") return "/child/incidents";
+  if (kind === "event") return "/child/events";
   if (kind === "test") return "/child/notifications";
   return "/child/newsfeed";
 }
@@ -225,11 +265,15 @@ export async function sendPushToAccounts(
         continue;
       }
       const { title, body } = await pushCopyFor(accountId, data.kind, data.payload);
+      // KID-487: the deep link follows the receiving account's surface — a
+      // teacher/owner lands in the staff portal, a parent inside the PWA.
+      const roleRow = await queryGet("SELECT role FROM account WHERE id = ?", accountId);
+      const role = String(roleRow?.role ?? "parent");
       const payload: PushPayload = {
         title,
         body,
         icon: "/brand-icon.svg",
-        url: pushDeepUrl(data.kind, data.payload),
+        url: pushDeepUrl(data.kind, data.payload, role),
         tag: data.ref,
       };
       for (const subscription of subscriptions) {

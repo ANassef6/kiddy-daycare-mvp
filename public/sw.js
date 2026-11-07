@@ -5,8 +5,10 @@
  * a missing key or an unsupported browser must never break the page (the tab
  * still works without the worker; only background pushes degrade).
  *
- * Registration: components/ServiceWorkerRegister mounts on the parent shell
- * and registers this file with scope "/" when the browser supports it.
+ * Registration: components/ServiceWorkerRegister mounts on both authenticated
+ * shells — the parent surface (app/child) and the staff portal
+ * (app/portal, KID-487) — and registers this file with scope "/" when the
+ * browser supports it. Staff and parent notifications share one worker.
  */
 const ICON = "/brand-icon.svg";
 
@@ -31,15 +33,18 @@ self.addEventListener("push", (event) => {
     icon: data.icon || ICON,
     // bad/sound: Android plays the default notification sound automatically;
     // the icon/badge reuse the existing tenant brand asset.
+    // KID-487: silent:false keeps the audible default where the platform
+    // honors it (Chromium); iOS/Home-Screen web push uses the system sound.
+    silent: false,
     tag: data.tag || undefined,
-    data: { url: data.url || "/child" },
+    data: { url: data.url || "/" },
   };
   event.waitUntil(self.registration.showNotification(title, options));
 });
 
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
-  const url = (event.notification.data && event.notification.data.url) || "/child";
+  const url = (event.notification.data && event.notification.data.url) || "/";
   event.waitUntil(
     (async () => {
       const all = await self.clients.matchAll({ type: "window", includeUncontrolled: true });

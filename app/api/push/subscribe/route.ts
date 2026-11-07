@@ -9,10 +9,13 @@ import { ensureDefaultPushPrefs } from "@/lib/store";
 // the signed-in account. The endpoint is UNIQUE (migration 0032): re-pointing
 // an existing browser keeps one row per device; disabling an activity stays
 // in notification_pref, so subscribing here only fills opt-in gaps.
+// KID-487: role-agnostic — staff accounts subscribe the same way and the
+// default push pref rows follow the RECEIVING surface (portal activities for
+// staff roles, parent activities for parents).
 export const dynamic = "force-dynamic";
 
 const noStore = { "Cache-Control": "no-store" };
-type SessionLike = { accountId: string } | null;
+type SessionLike = { accountId: string; role?: string } | null;
 
 function session(): SessionLike {
   return readSessionFromCookieValue(cookies().get("kiddy_sess")?.value ?? null) as SessionLike;
@@ -46,7 +49,12 @@ export async function POST(request: Request) {
   try {
     await ensureSchema();
     await savePushSubscription(String(s.accountId), shaped, request.headers.get("user-agent") ?? undefined);
-    await ensureDefaultPushPrefs(String(s.accountId));
+    const { isStaffRole } = await import("@/lib/push");
+    const { PARENT_NOTIFICATION_ACTIVITIES, NOTIFICATION_ACTIVITIES } = await import("@/lib/store");
+    await ensureDefaultPushPrefs(
+      String(s.accountId),
+      isStaffRole(s.role) ? (NOTIFICATION_ACTIVITIES as unknown as readonly string[]) : PARENT_NOTIFICATION_ACTIVITIES
+    );
     return NextResponse.json({ ok: true }, { headers: noStore });
   } catch (err) {
     console.error("KID-480 push subscribe failed:", err);

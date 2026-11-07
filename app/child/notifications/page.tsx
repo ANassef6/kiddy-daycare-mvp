@@ -9,6 +9,7 @@ import {
   type NotificationPayload,
 } from "@/lib/store";
 import { markNotificationReadAction } from "@/lib/actions";
+import { pushDeepUrl } from "@/lib/push";
 
 export const dynamic = "force-dynamic";
 
@@ -72,14 +73,10 @@ export default async function ChildNotificationsPage() {
               const view = notificationViewCopy(String(row.kind ?? ""), parsed, copy);
               // KID-474 deep links: threads open the parent messaging thread,
               // daily reports open the child's page with the report.
-              let href = "/child";
-              if (String(row.kind ?? "") === "message") {
-                const threadId = parsed.threadId ? String(parsed.threadId) : null;
-                href = threadId ? `/child/messages?thread=${threadId}` : "/child/messages";
-              } else if (String(row.kind ?? "") === "daily_report") {
-                const childId = parsed.childId ? String(parsed.childId) : "";
-                href = childId ? `/child/${childId}` : "/child";
-              }
+              // KID-487: the per-kind map is shared with the push sender
+              // (lib/push pushDeepUrl) so the parent list, the service-worker
+              // click, and the staff portal all land on the same page shape.
+              let href = pushDeepUrl(String(row.kind ?? ""), parsed) || "/child";
               const when = new Date(String(row.created_at));
               return (
                 <div
