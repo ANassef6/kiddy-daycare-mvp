@@ -79,6 +79,12 @@ export default async function ChildNotificationsPage() {
               } else if (String(row.kind ?? "") === "daily_report") {
                 const childId = parsed.childId ? String(parsed.childId) : "";
                 href = childId ? `/child/${childId}` : "/child";
+              } else if (String(row.kind ?? "") === "invoice_created") {
+                // KID-684: a new invoice opens the parent's invoice section
+                // on the child surface — the same role-correct deep link the
+                // push payload carries.
+                const childId = parsed.childId ? String(parsed.childId) : "";
+                href = childId ? `/child/${childId}#invoices` : "/child";
               }
               const when = new Date(String(row.created_at));
               return (

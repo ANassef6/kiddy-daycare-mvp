@@ -82,6 +82,11 @@ export function pushDeepUrl(kind: string, payload: Record<string, unknown>): str
     return childId ? `/child/${childId}` : "/child";
   }
   if (kind === "chatwoot_message") return "/child/support";
+  // KID-684: a new invoice opens the parent child surface's invoice section.
+  if (kind === "invoice_created") {
+    const childId = String(payload.childId ?? "");
+    return childId ? `/child/${childId}#invoices` : "/child";
+  }
   if (kind === "test") return "/child/notifications";
   return "/child/newsfeed";
 }
