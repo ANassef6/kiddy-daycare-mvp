@@ -5,6 +5,7 @@ import OperatorViewBanner from "@/components/OperatorViewBanner";
 import NotificationBell from "@/components/NotificationBell";
 import ServiceWorkerRegister from "@/components/ServiceWorkerRegister";
 import NotificationSoundWatcher from "@/components/NotificationSoundWatcher";
+import { getAccount, mustChangePasswordFor } from "@/lib/auth";
 import { requireSessionWithWithdrawalCheck } from "@/lib/require";
 import { requireTenantForPage } from "@/lib/tenant";
 import { familyAccessForAccount, unreadNotificationCount } from "@/lib/store";
@@ -37,7 +38,7 @@ export default async function ParentLayout({ children }: { children: React.React
   // parent surface is a tenant surface too. KID-472: the post-session reads
   // below are pairwise independent, so they now run as one parallel batch;
   // the unused familiesForAccount() call the layout never consumed is gone.
-  const [{ dict }, branding, access, operatorViewName, parentUnread] = await Promise.all([
+  const [{ dict }, branding, access, operatorViewName, parentUnread, tempPasswordFlagged] = await Promise.all([
     i18nForAccount(session.accountId),
     // branding failure falls back to neutral Kiddy defaults (unchanged).
     getBranding().catch(() => ({ logoUrl: null as string | null, name: "Kiddy" })),
@@ -53,6 +54,14 @@ export default async function ParentLayout({ children }: { children: React.React
       console.error("KID-474 parent bell unread count failed:", err);
       return 0;
     }),
+    // KID-495: nonBlocking temp-password prompt — a failed read degrades to
+    // "not flagged" so the parent shell never breaks.
+    getAccount(session.accountId)
+      .then((row) => !!row && mustChangePasswordFor(row))
+      .catch((err) => {
+        console.error("KID-495 parent must_change_password read failed:", err);
+        return false;
+      }),
   ]);
   const logoUrl: string | null = branding.logoUrl;
   const brandName: string = branding.name;
@@ -95,6 +104,27 @@ export default async function ParentLayout({ children }: { children: React.React
           {tr(dict, "topbar.emailNotConfirmed")}
           <Link href="/welcome" className="small" style={{ marginLeft: 8, fontWeight: 600 }}>
             {tr(dict, "topbar.confirmEmail")}
+          </Link>
+        </div>
+      )}
+      {/* KID-495: temp-password parents are prompted (never locked out) to
+          change their password in settings; a successful change clears the
+          flag and this banner disappears. */}
+      {tempPasswordFlagged && (
+        <div
+          className="small"
+          role="alert"
+          style={{
+            background: "#fffbeb",
+            border: "1px solid #f59e0b",
+            borderRadius: 8,
+            padding: "8px 12px",
+            marginTop: 12,
+          }}
+        >
+          {tr(dict, "account.tempPasswordBanner")}
+          <Link href="/child/settings" className="small" style={{ marginLeft: 8, fontWeight: 600 }}>
+            {tr(dict, "account.tempPasswordBannerAction")}
           </Link>
         </div>
       )}

@@ -1,11 +1,12 @@
 import { requireSession } from "@/lib/require";
-import { accountProfile } from "@/lib/auth";
+import { accountProfile, getAccount, mustChangePasswordFor } from "@/lib/auth";
 import { i18nForAccount } from "@/lib/i18n-session";
 import { tr } from "@/lib/i18n";
 import { getNotificationPrefs, NOTIFICATION_ACTIVITIES } from "@/lib/store";
 import { saveNotificationPrefsAction, uploadAccountPhotoAction } from "@/lib/actions";
 import Avatar from "@/components/Avatar";
 import LanguageSettingsCard from "@/components/LanguageSettingsCard";
+import ChangePasswordCard from "@/components/ChangePasswordCard";
 
 export const dynamic = "force-dynamic";
 
@@ -21,11 +22,17 @@ const NOTIFICATION_LABELS: Record<string, string> = {
   events: "Events",
 };
 
-export default async function PortalAccountPage({ searchParams }: { searchParams: { saved?: string } }) {
+export default async function PortalAccountPage({ searchParams }: { searchParams: { saved?: string; pw?: string } }) {
   const session = requireSession();
   const { locale, dict } = await i18nForAccount(session.accountId);
   const profile = await accountProfile(session.accountId);
   const prefs = await getNotificationPrefs(session.accountId);
+  // KID-495: temp-password accounts get a prominent (non-blocking) hint above
+  // the card, and the card itself rides the pw= feedback from the action.
+  const [tempPasswordFlagged, pwStatus] = await Promise.all([
+    getAccount(session.accountId).then((row) => row && mustChangePasswordFor(row)),
+    Promise.resolve(searchParams.pw),
+  ]);
   const displayName = profile.fullName || session.email;
 
   const on = (activity: string, channel: string) => {
@@ -57,6 +64,19 @@ export default async function PortalAccountPage({ searchParams }: { searchParams
       </div>
 
       <LanguageSettingsCard locale={locale} dict={dict} />
+
+      {/* KID-495: change password — verifies current, min 8 chars, updates
+          GoTrue + app hash, clears the temp-password flag. */}
+      <ChangePasswordCard dict={dict} status={pwStatus} />
+      {tempPasswordFlagged && pwStatus !== "changed" && (
+        <div
+          className="card mb-4"
+          role="alert"
+          style={{ borderLeft: "4px solid #b45309", background: "#fffbeb" }}
+        >
+          <strong>{tr(dict, "account.tempPasswordFlagged")}</strong>
+        </div>
+      )}
 
       <div className="card mb-4">
         <h3 className="subtitle">{tr(dict, "account.notificationPrefs")}</h3>

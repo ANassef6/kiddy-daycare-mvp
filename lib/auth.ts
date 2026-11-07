@@ -15,6 +15,9 @@ type DbRow = Row & {
   pin: string | null;
   language: string;
   email_confirmed: number | null;
+  // KID-495: 1 = the current password is a temporary credential the daycare
+  // shared out-of-band; cleared on the first successful change-password.
+  must_change_password: number | null;
 };
 
 export function hashPassword(pw: string): string {
@@ -128,7 +131,7 @@ export function clearSessionCookieHeader(): Record<string, string> {
 }
 
 // ---- account helpers ----
-const ACCOUNT_SELECT = `id, email, password_hash, full_name, role, pin, language, auth_user_id, email_confirmed, created_at`;
+const ACCOUNT_SELECT = `id, email, password_hash, full_name, role, pin, language, auth_user_id, email_confirmed, must_change_password, created_at`;
 
 export async function createAccount(data: {
   email: string;
@@ -139,6 +142,9 @@ export async function createAccount(data: {
   language?: string;
   authUserId?: string | null;
   emailConfirmed?: boolean;
+  // KID-495: set when the account is activated with a temporary password
+  // shared out-of-band by the daycare.
+  mustChangePassword?: boolean;
 }): Promise<DbRow> {
   const id = crypto.randomUUID();
   // KID-199.4r: daycare accounts are created with real daycare roles only.
@@ -153,8 +159,8 @@ export async function createAccount(data: {
     ROLES.includes(effectiveRole as (typeof ROLES)[number]) || internal.includes(effectiveRole);
   if (!allowed) throw new Error(`account-role-not-assignable: ${effectiveRole}`);
   await queryRun(
-    `INSERT INTO account (id, email, password_hash, full_name, role, pin, language, auth_user_id, email_confirmed)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO account (id, email, password_hash, full_name, role, pin, language, auth_user_id, email_confirmed, must_change_password)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     id,
     data.email.toLowerCase(),
     hashPassword(data.password),
@@ -163,7 +169,8 @@ export async function createAccount(data: {
     data.pin ? crypto.createHash("sha256").update(data.pin).digest("hex") : null,
     data.language ?? "en",
     data.authUserId ?? null,
-    data.emailConfirmed === false ? 0 : 1
+    data.emailConfirmed === false ? 0 : 1,
+    data.mustChangePassword ? 1 : 0
   );
   return (await queryGet(`SELECT ${ACCOUNT_SELECT} FROM account WHERE id = ?`, id)) as DbRow;
 }
@@ -175,6 +182,29 @@ export async function setEmailConfirmed(accountId: string, confirmed: boolean): 
 export function emailConfirmedFor(account: DbRow | undefined): boolean {
   if (!account) return true;
   return account.email_confirmed !== 0;
+}
+
+// KID-495: reads the temp-password flag off an account row (missing column /
+// NULL on a legacy tree reads as "not flagged", never as a lock-out).
+export function mustChangePasswordFor(account: DbRow | undefined): boolean {
+  return !!account?.must_change_password;
+}
+
+// KID-495: flips the temp-password flag. UI guidance only — no session or
+// permission change rides on it.
+export async function setMustChangePassword(accountId: string, value: boolean): Promise<void> {
+  await queryRun("UPDATE account SET must_change_password = ? WHERE id = ?", value ? 1 : 0, accountId);
+}
+
+// KID-495: replaces the stored password hash (hashPassword of the NEW
+// password) and clears the temp-password flag — one write so callers cannot
+// update the password while leaving the banner up.
+export async function updateAccountPassword(accountId: string, newPassword: string): Promise<void> {
+  await queryRun(
+    "UPDATE account SET password_hash = ?, must_change_password = 0 WHERE id = ?",
+    hashPassword(newPassword),
+    accountId
+  );
 }
 
 export async function loginWithPin(pin: string, accountId: string): Promise<boolean> {

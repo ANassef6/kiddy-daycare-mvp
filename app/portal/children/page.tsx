@@ -5,7 +5,10 @@ import { listChildren, listRoomsScoped } from "@/lib/store";
 import { addChildAction, inviteParentAction } from "@/lib/actions";
 import Avatar from "@/components/Avatar";
 import RelationshipSelect from "@/components/RelationshipSelect";
+import CreateParentLoginForm from "@/components/CreateParentLoginForm";
 import { recordToolUsage } from "@/lib/tool-usage";
+import { i18nForAccount } from "@/lib/i18n-session";
+import { tr } from "@/lib/i18n";
 
 export const dynamic = "force-dynamic";
 
@@ -27,10 +30,11 @@ function statusTone(status?: string | null): "green" | "gray" | "red" | undefine
 export default async function PortalChildrenPage({
   searchParams,
 }: {
-  searchParams: { error?: string; status?: string; invite?: string; email?: string; code?: string; activationUrl?: string; inviteDetail?: string; prefillEmail?: string };
+  searchParams: { error?: string; status?: string; invite?: string; email?: string; code?: string; activationUrl?: string; inviteDetail?: string; prefillEmail?: string; parent?: string };
 }) {
   const session = requireSession();
   const instituteId = await resolveTenantInstituteId();
+  const { dict } = await i18nForAccount(session.accountId);
   await recordToolUsage({ instituteId: String(instituteId ?? "") || null, accountId: session.accountId, toolKey: "children", source: "portal", metadata: null });
   const statusFilter = searchParams.status ?? "";
   // KID-103: children list and room choices are scoped to assigned classrooms.
@@ -50,9 +54,39 @@ export default async function PortalChildrenPage({
   // with no login and no pending invite yet. Only valid emails are accepted.
   const rawPrefill = String(searchParams.prefillEmail ?? "").trim().toLowerCase();
   const prefillEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(rawPrefill) && rawPrefill.length <= 200 ? rawPrefill : "";
+  // KID-495: outcome of createParentLoginAction (created | exists | invalid-email
+  // | relationship | short-password | missing-name). The password never rides
+  // the URL — the admin sees it in the form they typed it into.
+  const parentLoginStatus = searchParams.parent;
+  const parentLoginCreated = parentLoginStatus === "created";
+  const parentLoginEmail = searchParams.email;
 
   return (
     <div>
+      {parentLoginStatus && (
+        <div
+          role="status"
+          className="card mt-3"
+          style={{ borderLeft: `4px solid ${parentLoginCreated ? "#047857" : "#b91c1c"}` }}
+        >
+          {parentLoginCreated ? (
+            <div className="small">
+              <p style={{ margin: "0 0 4px" }}>
+                <strong>{tr(dict, "children.parentLoginCreated")}</strong>
+              </p>
+              <p style={{ margin: 0 }} className="muted">
+                {tr(dict, "children.parentLoginCreatedHint")}
+                {parentLoginEmail ? <> — <strong>{parentLoginEmail}</strong></> : null}
+              </p>
+            </div>
+          ) : (
+            <p className="small" style={{ margin: 0 }}>
+              {tr(dict, "children.parentLoginError")}
+              {parentLoginStatus !== "exists" && parentLoginEmail ? <> ({parentLoginEmail})</> : null}
+            </p>
+          )}
+        </div>
+      )}
       {inviteStatus && (
         <div
           role="status"
@@ -206,6 +240,26 @@ export default async function PortalChildrenPage({
         </div>
         <button className="btn btn-accent" type="submit">Send invite</button>
       </form>
+
+      {/* KID-495: admin-created parent login beside the invite flow — a
+          temporary password shared in person instead of an activation email. */}
+      <h2 className="title mt-5" id="create-parent-login">{tr(dict, "children.createParentLoginTitle")}</h2>
+      <CreateParentLoginForm
+        labels={{
+          hint: tr(dict, "children.createParentLoginHint"),
+          childLabel: tr(dict, "children.createParentLoginChild"),
+          childAny: tr(dict, "children.createParentLoginChildAny"),
+          nameLabel: tr(dict, "children.createParentLoginName"),
+          emailLabel: tr(dict, "children.createParentLoginEmail"),
+          relationshipLabel: tr(dict, "children.createParentLoginRelationship"),
+          passwordLabel: tr(dict, "children.createParentLoginPassword"),
+          passwordPlaceholder: tr(dict, "children.changePasswordMinLengthHint"),
+          generateBtn: tr(dict, "children.createParentLoginGenerate"),
+          submitBtn: tr(dict, "children.createParentLoginSubmit"),
+        }}
+        kids={children.map((c: any) => ({ id: String(c.id), first_name: String(c.first_name), last_name: String(c.last_name) }))}
+        relationship={<RelationshipSelect name="relationship" />}
+      />
     </div>
   );
 }
