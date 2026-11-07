@@ -132,6 +132,18 @@ a {
   margin-bottom: var(--space-4);
 }
 
+/* KID-489/7: header cells for data tables. Deliberately NOT `.label` — that
+   class sets `display: block`, which stacks <th> cells vertically inside the
+   table row (the enhancements table bug). Table-cell layout stays untouched,
+   the text keeps the label's visual weight and aligns with its column. */
+.table-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-muted);
+  text-align: start;
+  white-space: nowrap;
+}
+
 .row {
   display: flex;
   gap: var(--space-3);

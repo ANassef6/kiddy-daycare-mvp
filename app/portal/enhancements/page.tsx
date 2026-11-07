@@ -1,11 +1,14 @@
 // KID-258 A1 (KID-264): the daycare owner's "Enhancements requests" page
 // under Tools (/portal/enhancements).
 //
-// Owner-only on BOTH surfaces: the sidebar tab rides the exact owner gate
-// (components/PortalSidebar.tsx, same `role === "owner"` test as Account
-// billing — KID-246, NOT isAdminRole), and this page re-checks the session so
-// a direct URL visit by any other role is refused — the tab and the route can
-// never drift apart.
+// KID-489/7: the page stays owner-only, EXCEPT the platform superadmin, who
+// can open it (read-only, link only) to reach the "Open in Vikunja" link —
+// the link and its column are a superadmin-only operational surface and must
+// never reach a center owner/admin/staff DOM. The session check below is
+// enforced TWO ways: role must be the platform sentinel AND the email must
+// sit on the operator allowlist (the same double gate every /platform page
+// uses), so a tampered sentinel-role cookie without an allowlisted email
+// still falls through to the owner-only refusal.
 //
 // Submit = title + description ONLY (locked answer on KID-258: the Kiddy team
 // sets priority/estimate/due date in Vikunja). The app NEVER calls the sync
@@ -16,6 +19,7 @@
 import { redirect } from "next/navigation";
 import { requireSession } from "@/lib/require";
 import { isOwnerRole } from "@/lib/role";
+import { isPlatformOperatorEmail, isPlatformOperatorRole } from "@/lib/platform";
 import { resolveTenantInstituteId } from "@/lib/tenant";
 import { i18nForAccount } from "@/lib/i18n-session";
 import { tr } from "@/lib/i18n";
@@ -53,7 +57,12 @@ export default async function PortalEnhancementsPage({
   searchParams: { submitted?: string; error?: string };
 }) {
   const session = requireSession();
-  if (!isOwnerRole(session.role)) {
+  // KID-489/7: the platform superadmin gets the same page with the Vikunja
+  // link column; everyone who is neither the owner nor the superadmin is
+  // refused exactly as before.
+  const superadminView =
+    isPlatformOperatorRole(session.role) && isPlatformOperatorEmail(session.email);
+  if (!isOwnerRole(session.role) && !superadminView) {
     // Admins, staff and carers render the portal; parents have their own
     // shell. Nothing here is theirs to see — a redirect is a quiet refusal.
     redirect("/portal/dashboard");
@@ -127,19 +136,24 @@ export default async function PortalEnhancementsPage({
           <table className="card" style={{ width: "100%", borderCollapse: "collapse" }}>
             <thead>
               <tr>
-                <th className="label" style={{ textAlign: dir === "rtl" ? "right" : "left", padding: 8 }}>
+                {/* KID-489/7: header cells carry a table-specific class, NOT
+                    `.label` — that class sets `display: block`, which stacks
+                    every header cell vertically inside the table row. */}
+                <th className="table-label" style={{ textAlign: dir === "rtl" ? "right" : "left", padding: 8 }}>
                   {tr(dict, "enhancements.colTitle")}
                 </th>
-                <th className="label" style={{ padding: 8 }}>{tr(dict, "enhancements.colStatus")}</th>
-                <th className="label" style={{ padding: 8 }}>{tr(dict, "enhancements.colPriority")}</th>
-                <th className="label" style={{ padding: 8 }}>{tr(dict, "enhancements.colEstimate")}</th>
-                <th className="label" style={{ padding: 8 }}>{tr(dict, "enhancements.colDue")}</th>
-                <th className="label" style={{ padding: 8 }}>{tr(dict, "enhancements.colDelivery")}</th>
-                <th className="label" style={{ padding: 8 }}>{tr(dict, "enhancements.colLinear")}</th>
+                <th className="table-label" style={{ padding: 8 }}>{tr(dict, "enhancements.colStatus")}</th>
+                <th className="table-label" style={{ padding: 8 }}>{tr(dict, "enhancements.colPriority")}</th>
+                <th className="table-label" style={{ padding: 8 }}>{tr(dict, "enhancements.colEstimate")}</th>
+                <th className="table-label" style={{ padding: 8 }}>{tr(dict, "enhancements.colDue")}</th>
+                <th className="table-label" style={{ padding: 8 }}>{tr(dict, "enhancements.colDelivery")}</th>
+                {superadminView && (
+                  <th className="table-label" style={{ padding: 8 }}>{tr(dict, "enhancements.colLinear")}</th>
+                )}
               </tr>
             </thead>
             <tbody>
-              {requests.map((req) => requestRow(dict, dir, req))}
+              {requests.map((req) => requestRow(dict, dir, req, superadminView))}
             </tbody>
           </table>
         </div>
@@ -148,7 +162,12 @@ export default async function PortalEnhancementsPage({
   );
 }
 
-function requestRow(dict: import("@/lib/i18n").Dict, dir: string, req: EnhancementRequest) {
+function requestRow(
+  dict: import("@/lib/i18n").Dict,
+  dir: string,
+  req: EnhancementRequest,
+  superadminView: boolean
+) {
   return (
     <tr key={req.id} style={{ borderTop: "1px solid #e5e7eb" }}>
       <td className="small" style={{ padding: 8, textAlign: dir === "rtl" ? "right" : "left" }}>
@@ -171,15 +190,19 @@ function requestRow(dict: import("@/lib/i18n").Dict, dir: string, req: Enhanceme
       <td className="small" style={{ padding: 8 }}>{req.estimate ?? "—"}</td>
       <td className="small" style={{ padding: 8 }}>{req.dueDate || "—"}</td>
       <td className="small" style={{ padding: 8 }}>{req.expectedDelivery || "—"}</td>
-      <td className="small" style={{ padding: 8 }}>
-        {req.linearIssueUrl ? (
-          <a href={req.linearIssueUrl} target="_blank" rel="noreferrer" title={req.linearIssueId}>
-            {tr(dict, "enhancements.linearLink")}
-          </a>
-        ) : (
-          "—"
-        )}
-      </td>
+      {/* KID-489/7: superadmin-only. Not even an empty placeholder cell — the
+          center owner's DOM carries no trace of the link surface at all. */}
+      {superadminView && (
+        <td className="small" style={{ padding: 8 }}>
+          {req.linearIssueUrl ? (
+            <a href={req.linearIssueUrl} target="_blank" rel="noreferrer" title={req.linearIssueId}>
+              {tr(dict, "enhancements.linearLink")}
+            </a>
+          ) : (
+            "—"
+          )}
+        </td>
+      )}
     </tr>
   );
 }

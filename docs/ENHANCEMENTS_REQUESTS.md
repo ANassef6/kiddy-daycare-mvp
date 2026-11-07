@@ -1,6 +1,6 @@
 # Kiddy — Enhancements requests (owner-only, Vikunja-synced)
 
-_Last updated 2026-11-04 (KID-466; documents KID-258 A1 + A2 as shipped)._
+_Last updated 2026-11-07 (KID-489 item 7; documents KID-258 A1 + A2 as shipped)._
 
 ## 1. Feature note
 
@@ -36,9 +36,18 @@ Owner-only **Tools → Enhancements requests** page at `/portal/enhancements`.
 - **Read-back fields shown to the owner.** Status, priority
   (Vikunja numeric 4/3/2/1 → urgent/high/medium/low; 0 or unmapped names omitted),
   estimate (always "—" for Vikunja-synced rows — no Vikunja equivalent), due date,
-  expected delivery **= the Vikunja task's due date** (no estimate/milestone
-  equivalent), and the link column (labelled "Vikunja" / "Open in Vikunja" as shipped —
-  it opens the Vikunja task).
+  and expected delivery **= the Vikunja task's due date** (no estimate/milestone
+  equivalent).
+- **Vikunja link is superadmin-only (KID-489 item 7).** The request list's link
+  column — column header "Vikunja", cell link "Open in Vikunja" /
+  "افتح في Vikunja" — renders ONLY for the platform superadmin
+  (`isPlatformOperatorRole(session.role) && isPlatformOperatorEmail(session.email)`,
+  the same double gate as every /platform surface). Center owners, admins,
+  staff, carers and parents never see the header or the link in their DOM; the
+  page stays fully usable for owners without it. This pairs with the "Enter as
+  admin" operator view: the superadmin opens the daycare's own subdomain and
+  reaches the link there. The link column is also omitted entirely (not an
+  empty cell) for non-superadmin viewers.
 - **Delay.** Status changes appear after the next routine sweep. The schedule
   trigger is labelled "15-min sync sweep"; the observed cron at doc time is
   `0 * * * *` UTC (hourly) — allow one sweep interval before expecting movement.
