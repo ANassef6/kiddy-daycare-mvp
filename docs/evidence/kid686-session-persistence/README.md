@@ -45,6 +45,19 @@ The report bundles two different surfaces with different answers:
   /data/artifacts/o_592984585559925554/…, per-run URIs above); the run records are
   inspectable at the Skyvern instance.
 
+## Post-deployment verification (deploy dpl_J6VaQw4L2A9ELT3YpyDrActRqUkL, PR #51, master c50c646)
+
+The production deploy carries the rotated SESSION_SECRET + this PR's code:
+- smoke: https://kiddyapp.net/ and /login HTTP 200 immediately after the deploy;
+- re-login task `tsk_v2_594433476889234646` — operator signs in fresh on the new deploy;
+- **reopen leg** `tsk_v2_594433975105441244` — a NEW browser process on the same
+  persistent profile opens /platform and reports `page_type: "signed-in platform
+  dashboard", heading "Daycares", operator_email trois4ever+superadmin@gmail.com,
+  sign_out_button_present: true` on the post-deploy app.
+Every cookie minted before the deploy (signed with the empty key) invalidates once —
+users re-login exactly once, the session then persists the full 30 days with unforgeable
+signatures.
+
 So the WEB surface was never losing sessions — the complaint's web leg is not
 reproducible (one 30-day window fixed at login, refresh only re-issued on
 re-login, matching the plan's "defined period" while keeping logout working).
