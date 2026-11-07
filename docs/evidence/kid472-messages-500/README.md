@@ -147,8 +147,42 @@ path the deployed composer forms close over — on the real data layer:
    `sendMessageAction` reply → parent re-read of the direct surface renders
    both messages.
 
-## 7. Deployment
+## 7. PR merge + production deployment
 
-Recorded after merge (see §7 at the bottom of this file — merged via PR to
-master; master auto-deploys on Vercel; the production soak re-run is recorded
-there).
+| Check | Result |
+|---|---|
+| PR | [#35](https://github.com/ANassef6/kiddy-daycare-mvp/pull/35) `kid472-messages-500` → master, **merged** |
+| Merge commit on master | `a1596cf` ("Merge pull request #35 from ANassef6/kid472-messages-500") |
+| GitHub commit status on `a1596cf` | `Vercel — success — Deployment has completed` → deployment [`dpl_76Wb9izc…`](https://vercel.com/kiddy2/kiddy/76Wb9izcaxc8mFuurLoX8df8qRYP) |
+| Pre-checks on the PR branch | `Vercel` pass (Deployment completed, `dpl_2dKzrYhm…`), `Vercel Preview Comments` pass, `Supabase Preview` skipping (same pre-existing ledger rename note as PRs #30–#32, owner action record in KID-492 evidence) |
+
+### Production soak re-run (live tenant, signed-in parent, deployed fixed build)
+
+Target `https://sunshine.kiddyapp.net/child/messages`, parent session obtained
+through the normal REST login endpoint (`POST /api/mobile/login` — legitimate
+product surface; the parent account is the seeded demo parent Grace Nguyen;
+the credential lives only inside the one invocation, never in text/commits):
+
+| Phase | Request shape | Result |
+|---|---|---|
+| Sequential | 60 × `GET /child/messages` | **60 × HTTP 200** |
+| Sequential | 60 × `GET /child/messages?thread=mv84upyq-862jfta1` | **60 × HTTP 200** |
+| Parallel burst | 6 rounds × 10 concurrent (alternating direct/thread) | **60 × HTTP 200** |
+
+**Total: 180 live production loads, 180 × HTTP 200, 0 × 5xx — no recurrence of
+the digest error page.** The thread surface renders on the QA-observed tenant
+(`Nassef` participants visible in the thread card), and the direct surface
+still renders the live composer (`data-testid="messages-send"` present).
+
+### Production round-trip note
+
+The production write legs (parent send / staff reply) go through server
+actions bound to client-component closures — not callable outside a browser —
+so the round-trip regression is pinned at the real-action level in the
+regression suite (§6.1–6.4: exact payload shapes the deployed forms post,
+production action code, real data layer, fresh server renders re-read).
+The parent GET re-read legs were additionally executed live in production
+(§7 soak: direct + thread surfaces, 200 × 120).
+
+No credentials, tokens, internal ids beyond route/thread renders, or secrets
+appear in this file or the repo.
