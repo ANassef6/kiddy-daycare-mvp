@@ -11,6 +11,7 @@ import {
   incidentsForChild,
   statusesForChild,
   listChildBilling,
+  latestBusEvent,
 } from "@/lib/store";
 import { CheckInButton } from "@/components/CheckInButton";
 import Avatar from "@/components/Avatar";
@@ -65,6 +66,10 @@ export default async function ChildDetailPage({
   const reportDate = configuredReportDate(searchParams?.date, today);
   const status = await todayStatus(child.id);
   const checkedIn = !!status.checkedIn && !status.checkedOut;
+  // KID-494: the parent sees the current bus status derived from the bus
+  // ledger — the same write path the staff roster and the sweep use.
+  const bus = await latestBusEvent(String(child.id), today);
+  const onBus = bus ? String(bus.type) === "on" : false;
   const [report, contacts, feed, incidents, statuses, invoices] = await Promise.all([
     reportFor(child.id, reportDate),
     listContacts(child.id),
@@ -102,6 +107,14 @@ export default async function ChildDetailPage({
             <span className="badge badge-green">{t("attendees.checkedIn")}</span>
           ) : (
             <span className="badge">{t("attendees.notCheckedInYet")}</span>
+          )}
+          {/* KID-494: the parent-facing bus badge — On bus (green) while the
+              child is riding the bus, Off bus (gray) once set by staff or by
+              the close+2h sweep. */}
+          {bus && (
+            <span className={`badge ${onBus ? "badge-green" : "badge-gray"}`}>
+              {onBus ? t("attendees.busOn") : t("attendees.busOff")}
+            </span>
           )}
         </div>
 

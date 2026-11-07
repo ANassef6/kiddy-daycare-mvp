@@ -165,6 +165,20 @@ export function sqliteSchema(db: any): void {
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
   );
 
+  -- KID-489 item 5 (KID-494): bus on/off ledger (mirror of
+  -- supabase/migrations/0035_kid494_bus_status.sql). Today's bus status is
+  -- derived from the latest event of the day; the auto flag marks
+  -- system-written (close+2h sweep) transitions.
+  CREATE TABLE IF NOT EXISTS bus_event (
+    id TEXT PRIMARY KEY,
+    child_id TEXT NOT NULL REFERENCES child(id) ON DELETE CASCADE,
+    account_id TEXT NOT NULL REFERENCES account(id) ON DELETE CASCADE,
+    type TEXT NOT NULL CHECK (type IN ('on', 'off')),
+    auto INTEGER NOT NULL DEFAULT 0,
+    recorded_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+  CREATE INDEX IF NOT EXISTS idx_bus_event_child ON bus_event (child_id, recorded_at DESC);
+
   CREATE TABLE IF NOT EXISTS child_status (
     id TEXT PRIMARY KEY,
     child_id TEXT NOT NULL REFERENCES child(id) ON DELETE CASCADE,

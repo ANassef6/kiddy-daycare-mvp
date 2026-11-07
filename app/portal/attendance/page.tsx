@@ -1,8 +1,9 @@
 import Link from "next/link";
 import { resolveTenantInstituteId } from "@/lib/tenant";
 import { requireSession } from "@/lib/require";
-import {attendanceOn, runAutoCheckoutSweep, scopedRoomIds, listRooms } from "@/lib/store";
+import {attendanceOn, runAutoCheckoutSweep, scopedRoomIds, listRooms, busStatusByChild } from "@/lib/store";
 import { AttendanceCheckIn } from "@/components/AttendanceCheckIn";
+import { BusStatusButtons } from "@/components/BusStatusButtons";
 import { recordToolUsage } from "@/lib/tool-usage";
 
 export const dynamic = "force-dynamic";
@@ -20,7 +21,8 @@ export default async function PortalAttendancePage({
   const roomId = searchParams.room ?? "";
 
   // Auto check-out sweep: anyone still checked-in 3h after closing gets
-  // checked out by the system before attendance is rendered.
+  // checked out by the system before attendance is rendered. KID-494: the
+  // same sweep also auto-sets off-bus (close +2h) for children staff left on.
   const sweep = iid ? await runAutoCheckoutSweep(iid) : undefined;
 
   // Resolve the rooms this account may see.
@@ -43,6 +45,9 @@ export default async function PortalAttendancePage({
       })
     : [];
 
+  // KID-494: the current bus status per child, served in one indexed query.
+  const busByChild = iid ? await busStatusByChild(iid, day) : {};
+
   return (
     <div>
       <h1 className="title">Today&apos;s attendance</h1>
@@ -55,13 +60,19 @@ export default async function PortalAttendancePage({
           automatically ({sweep?.children.length ?? 0} child, {sweep?.staff.length ?? 0} staff).
         </p>
       )}
-      {sweep && (sweep.children.length > 0 || sweep.staff.length > 0) && (
+      {sweep && (sweep.children.length > 0 || sweep.staff.length > 0 || sweep.busOff.length > 0) && (
         <p className="small muted">
           Auto check-out run at {new Date(sweep.at).toLocaleTimeString()}:{" "}
           {sweep.children.map((c: any) => `${c.first_name} ${c.last_name}`).join(", ")}
           {sweep.children.length > 0 && sweep.staff.length > 0 ? " — " : ""}
           {sweep.staff.map((s: any) => `${s.full_name}`).join(", ")}
           {sweep.staff.length > 0 ? " (staff)" : ""} checked out by the system after closing +3h.
+          {sweep.busOff.length > 0 && (
+            <>
+              {" "}Bus auto-off (closing +2h):{" "}
+              {sweep.busOff.map((c: any) => `${c.first_name} ${c.last_name}`).join(", ")} — parents notified.
+            </>
+          )}
         </p>
       )}
 
@@ -92,25 +103,44 @@ export default async function PortalAttendancePage({
 
       <table className="data">
         <thead>
-          <tr><th>Child</th><th>Room</th><th>Status</th><th>Checked in</th><th>Checked out</th><th>Action</th></tr>
+          <tr>
+            <th>Child</th>
+            <th>Room</th>
+            <th>Status</th>
+            <th>Bus</th>
+            <th>Checked in</th>
+            <th>Checked out</th>
+            <th>Action</th>
+          </tr>
         </thead>
         <tbody>
-          {rows.map((r: any) => (
-            <tr key={r.id}>
-              <td><strong>{r.first_name} {r.last_name}</strong></td>
-              <td>{r.room_name ?? "—"}</td>
-              <td>
-                {r.last_event === "in" ? <span className="badge badge-green">Checked in</span>
-                : r.last_event === "out" ? <span className="badge badge-gray">Checked out</span>
-                : <span className="badge">Absent</span>}
-              </td>
-              <td className="small">{time(r.checked_in_at)}</td>
-              <td className="small">{time(r.checked_out_at)}</td>
-              <td>
-                <AttendanceCheckIn childId={r.id as string} lastEvent={r.last_event} />
-              </td>
-            </tr>
-          ))}
+          {rows.map((r: any) => {
+            const bus = busByChild[String(r.id)];
+            return (
+              <tr key={r.id}>
+                <td><strong>{r.first_name} {r.last_name}</strong></td>
+                <td>{r.room_name ?? "—"}</td>
+                <td>
+                  {r.last_event === "in" ? <span className="badge badge-green">Checked in</span>
+                  : r.last_event === "out" ? <span className="badge badge-gray">Checked out</span>
+                  : <span className="badge">Absent</span>}
+                </td>
+                <td>
+                  {bus?.type === "on" ? <span className="badge badge-green">On bus</span>
+                  : bus?.type === "off" ? <span className="badge badge-gray">Off bus</span>
+                  : <span className="badge">—</span>}
+                </td>
+                <td className="small">{time(r.checked_in_at)}</td>
+                <td className="small">{time(r.checked_out_at)}</td>
+                <td>
+                  <div className="row" style={{ gap: 8 }}>
+                    <AttendanceCheckIn childId={r.id as string} lastEvent={r.last_event} />
+                    <BusStatusButtons childId={r.id as string} busEvent={bus ? { type: String(bus.type), auto: Number(bus.auto) === 1 } : undefined} />
+                  </div>
+                </td>
+              </tr>
+            );
+          })}
         </tbody>
       </table>
       {rows.length === 0 && <p className="muted small mt-3">No children match the current filters.</p>}
