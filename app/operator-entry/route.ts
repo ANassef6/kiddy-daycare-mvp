@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ensureSchema, queryGet } from "@/lib/db";
-import { getAccount } from "@/lib/auth";
+import { getAccount, sessionCookieOptions } from "@/lib/auth";
 import { isPlatformOperatorEmail } from "@/lib/platform";
 import { instituteIdBySubdomain } from "@/lib/store";
 import { splitSubdomainHost } from "@/lib/subdomain";
@@ -98,11 +98,6 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(`${origin}/login?error=operator-entry-invalid`, 302);
   }
   const res = NextResponse.redirect(`${origin}/portal/dashboard`, 302);
-  res.cookies.set("kiddy_sess", operatorViewSessionToken(grant!), {
-    httpOnly: true,
-    sameSite: "lax",
-    path: "/",
-    maxAge: OPERATOR_VIEW_COOKIE_MAX_AGE_S,
-  });
+  res.cookies.set("kiddy_sess", operatorViewSessionToken(grant!), sessionCookieOptions(OPERATOR_VIEW_COOKIE_MAX_AGE_S));
   return res;
 }

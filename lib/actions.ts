@@ -18,6 +18,7 @@ import {
   emailConfirmedFor,
   staffIdForAccount,
 } from "@/lib/auth";
+import { sessionCookieOptions } from "@/lib/auth";
 import { queryGet, queryRun, queryAll, ensureSchema, isForeignKeyViolation } from "@/lib/db";
 import { normalizeCurrency } from "@/lib/currency";
 import { parsePaymentLink } from "@/lib/instapay";
@@ -135,12 +136,14 @@ async function setSession(email: string) {
   // issued on sunshine.<apex> is never SENT to mapletree.<apex> by the
   // browser. The app-level host gates (loginHostGate + requireTenantForPage)
   // are the second line of defense for anything that does arrive cross-host.
-  cookies().set(SESSION_COOKIE, token, {
-    httpOnly: true,
-    sameSite: "lax",
-    path: "/",
-    maxAge: 30 * 24 * 3600,
-  });
+  // KID-199.3r: no explicit `domain` — the cookie is host-only, so a session
+  // issued on sunshine.<apex> is never SENT to mapletree.<apex> by the
+  // browser. The app-level host gates (loginHostGate + requireTenantForPage)
+  // are the second line of defense for anything that does arrive cross-host.
+  // KID-686: the attributes (httpOnly / Secure on HTTPS / SameSite=Lax /
+  // 30-day max-age) come from the shared helper in lib/auth so the test
+  // suite pins the browser-visible cookie surface exactly once.
+  cookies().set(SESSION_COOKIE, token, sessionCookieOptions(30 * 24 * 3600));
   return account;
 }
 
@@ -585,7 +588,10 @@ export async function requestPasswordResetAction(formData: FormData) {
 }
 
 export async function logoutAction() {
-  cookies().set(SESSION_COOKIE, "", { httpOnly: true, path: "/", maxAge: 0 });
+  // KID-686: logout invalidates the browser copy (Max-Age=0). The token is
+  // stateless (signed, self-expiring), so there is no server-side table to
+  // purge; the client-side clear mirrors the /api/logout route.
+  cookies().set(SESSION_COOKIE, "", sessionCookieOptions(0));
   redirect("/");
 }
 
@@ -3585,7 +3591,11 @@ export async function markNotificationReadAction(formData: FormData) {
   } else if (id) {
     await markNotificationRead(me.accountId, id);
   }
+  // KID-685: the read action is shared by both shells now — the parent center
+  // (/child/notifications) and the staff/admin center (/portal/notifications).
+  // Both server surfaces must refresh, or a portal bell keeps a cleared count.
   revalidatePath("/child/notifications");
+  revalidatePath("/portal/notifications");
 }
 
 export async function saveParentNotificationPrefsAction(formData: FormData) {

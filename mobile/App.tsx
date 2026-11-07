@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { ActivityIndicator, StyleSheet, View } from "react-native";
 import { ThemeProvider } from "./src/components";
-import { hasSession } from "./src/api";
+import { hasSession, restoreSession } from "./src/api";
 import { LoginScreen } from "./src/screens/LoginScreen";
 import { HomeScreen } from "./src/screens/HomeScreen";
 import { ChildScreen } from "./src/screens/ChildScreen";
@@ -13,12 +13,24 @@ type Route = { name: "home" } | { name: "child"; id: string } | { name: "billing
 
 export default function App() {
   const [boot, setBoot] = useState<BootstrapPayload | null>(null);
-  const [authed, setAuthed] = useState(hasSession());
+  const [authed, setAuthed] = useState(false);
   const [checkedSession, setCheckedSession] = useState(false);
   const [route, setRoute] = useState<Route>({ name: "home" });
 
   useEffect(() => {
-    setCheckedSession(true);
+    // KID-686: restore the persisted 30-day session token before the first
+    // auth decision, so a cold start resumes the previous session instead of
+    // always rendering the login screen.
+    let cancelled = false;
+    restoreSession().then(() => {
+      if (!cancelled) {
+        setAuthed(hasSession());
+        setCheckedSession(true);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   if (!checkedSession) {

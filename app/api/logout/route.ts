@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requestOrigin } from "@/lib/url";
+import { sessionCookieOptions } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
@@ -15,7 +16,9 @@ function logoutResponse(): NextResponse {
   const origin = requestOrigin();
   const res = NextResponse.redirect(origin ? origin : "http://localhost", { status: 302 });
   res.headers.set("location", origin ? `${origin}/login` : "/login");
-  res.cookies.set("kiddy_sess", "", { httpOnly: true, path: "/", maxAge: 0 });
+  // KID-686: attributes shared with loginAction/logoutAction via the pinned
+  // helper — Max-Age=0 deletes the browser copy immediately.
+  res.cookies.set("kiddy_sess", "", sessionCookieOptions(0));
   return res;
 }
 
