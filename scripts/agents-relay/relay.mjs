@@ -281,7 +281,10 @@ async function createRelayTask({ agentId, agentName, conversationId, message }) 
     title: `Chatwoot Agents (conv ${conversationId}, msg ${message.id}) -> ${agentName}`,
     description,
     assigneeAgentId: agentId,
-    parentId: anchorIssueId,
+    // Standalone: the anchor chain (KID-501/502) was created by Cody, and the
+    // delegation-cycle guard rejects children assigned to mapped agents that
+    // also sit in that chain.
+    parentId: null,
     projectId: tasksProjectId,
     goalId: tasksGoalId,
     priority: "medium",
