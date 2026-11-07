@@ -14,6 +14,7 @@ import {
   listMedia,
   listConsents,
   isChildInScope,
+  getPickupTime,
 } from "@/lib/store";
 import {
   saveDailyReportAction,
@@ -75,7 +76,7 @@ export default async function PortalChildPage({
   // semantics ("logged instantly"), so it stays pinned to today.
   const today = todayIso();
   const reportDate = configuredReportDate(searchParams.date, today);
-  const [report, contacts, incidents, status, todayStatuses, observations, billing, media, consents, rooms] =
+  const [report, contacts, incidents, status, todayStatuses, observations, billing, media, consents, rooms, plannedPickup] =
     await Promise.all([
       reportFor(child.id, reportDate),
       listContacts(child.id),
@@ -87,6 +88,8 @@ export default async function PortalChildPage({
       iid ? listMedia(iid, child.id) : Promise.resolve([]),
       iid ? listConsents(iid) : Promise.resolve([]),
       iid ? listRooms(iid) : Promise.resolve([]),
+      // KID-486: the pickup contact's planned time for today.
+      getPickupTime(String(child.id), today),
     ]);
   const meal = safeJson(report?.meal);
   const branding = await getBranding();
@@ -261,6 +264,13 @@ export default async function PortalChildPage({
           <p className="subtitle" style={{ marginBottom: 0 }}>
             {t("profile.room", { room: child.room_name ?? "—" })} · {child.dob ? t("profile.dob", { date: fmtDate(child.dob) }) : ""}{child.gender ? ` · ${cap(child.gender)}` : ""} · {t("profile.today")}{" "}
             {status.lastEvent ? cap(status.lastEvent.type) : t("profile.notReportedYet")}
+            {" · "}
+            {/* KID-486: the pickup contact's planned time is staff-visible. */}
+            {plannedPickup
+              ? plannedPickup.note
+                ? t("child.plannedPickupNote", { time: String(plannedPickup.pickup_time), note: String(plannedPickup.note) })
+                : t("child.plannedPickup", { time: String(plannedPickup.pickup_time) })
+              : t("child.noPlannedPickup")}
           </p>
         </div>
         <form action={uploadPhotoAction} style={{ display: "flex", gap: 8, alignItems: "center" }}>

@@ -61,6 +61,7 @@ export const en = {
     noData: "No data yet.",
     unread: "unread",
     saving: "Saving…",
+    errorUnknown: "Something went wrong. Please try again.",
     group: "Group",
     private: "Private",
     thread: "Thread",
@@ -171,6 +172,10 @@ export const en = {
     demoInquiries: "Demo & inquiry requests",
     newestSubmissions: "Newest submissions from the public site's book-a-demo form.",
     openInquiries: "Open inquiries",
+    // KID-486: today's planned pickups hand staff the same schedule parents
+    // see — joined to the same day's attendance views.
+    plannedPickups: "Planned pickups today",
+    plannedPickupsEmpty: "No planned pickups for today yet.",
   },
   attendees: {
     attendance: "Attendance",
@@ -181,6 +186,29 @@ export const en = {
     notCheckedInYet: "Not checked in yet",
     checkedInAt: "Checked in at {time}",
     checkedOutAt: "Checked out at {time}",
+  },
+  // KID-486: planned same-day pickup — the pickup user's minimal page, the
+  // parent-facing confirmation, the staff views, and the notification copy.
+  pickup: {
+    title: "Today's pickup",
+    timeLabel: "Pickup time",
+    noteLabel: "Note (optional)",
+    notePlaceholder: "e.g. Grandma will pick him up",
+    save: "Save pickup time",
+    update: "Update pickup time",
+    remove: "Cancel pickup",
+    none: "No pickup time planned yet for today.",
+    planned: "Planned today: {time}",
+    upcoming: "My upcoming pickups",
+    saved: "Pickup time saved — your child's room staff were notified.",
+    removed: "Planned pickup cancelled.",
+    errNotToday: "Pickup times can only be scheduled for today.",
+    errInvalidDate: "That date could not be read. Use today's date.",
+    errInvalidTime: "Enter a valid time in the 24-hour HH:MM form.",
+    errClosedDay: "The center is closed today — pickup times cannot be scheduled for a closed day.",
+    errOutsideHours: "The time must fall within the center's working hours for today.",
+    errPastTime: "That time has already passed. Choose a later time today.",
+    childHeading: "Planned pickup for your children",
   },
   child: {
     myChildren: "My children",
@@ -222,6 +250,11 @@ export const en = {
     incidentReports: "Incident reports",
     acknowledged: "Acknowledged",
     needsAcknowledgement: "Needs acknowledgement",
+    // KID-486: the parent check-in gate + planned-pickup chip on child detail.
+    plannedPickup: "Planned pickup: {time}",
+    plannedPickupNote: "Planned pickup: {time} — {note}",
+    noPlannedPickup: "No planned pickup for today.",
+    checkinDisabled: "Your daycare has turned off parent check-in/out, so you can watch today's attendance but not operate it.",
     helpAndSupport: "Help & Support",
     backToChildren: "My children",
   },
@@ -569,6 +602,14 @@ export const en = {
     dayFriday: "Friday",
     daySaturday: "Saturday",
     today: "today",
+    // KID-486: admin toggle — parents may operate their child's check-in/out.
+    parentCheckinTitle: "Parent check-in/out",
+    parentCheckinHint:
+      "Let parents and guardians check their children in and out from their own app. Family contacts stay read-only, and pickup contacts schedule pickup times only. Attendance is unaffected for staff.",
+    parentCheckinOn: "Parents can check in/out",
+    parentCheckinOff: "Parents cannot check in/out",
+    saveParentCheckin: "Save parent check-in setting",
+    parentCheckinSaved: "Parent check-in/out setting saved.",
   },
   account: {
     settingsTitle: "Account settings",
@@ -587,6 +628,15 @@ export const en = {
     // KID-480: push column in the notification preferences table.
     push: "Push",
     saveNotificationPrefs: "Save preferences",
+    // KID-486: the parent-side account editor (name/password/photo only touch
+    // the account's own row — never child records).
+    fullName: "Your name",
+    newPassword: "New password",
+    newPasswordHint: "Leave empty to keep your current password (at least 8 characters when set).",
+    newPasswordTooShort: "The new password is too short — use at least 8 characters.",
+    photo: "Profile photo",
+    saveDetails: "Save account details",
+    detailsSaved: "Account details saved.",
   },
   notifications: {
     title: "Notifications",
@@ -1100,6 +1150,11 @@ export const en = {
     reportTitle: "Daily report: {name}",
     // KID-480: announcement (newsfeed post) push/notification title.
     announcementTitle: "New post from {name}",
+    // KID-487: pickup time changed — the edit pass on attendance.
+    attendanceUpdatedTitle: "Pickup time updated: {name}",
+    // KID-486: the pickup contact's own scheduling notification.
+    pickupTimeTitle: "Pickup planned: {name}",
+    pickupTimeBody: "Today the planned pickup time is {time}{note}",
     reportBody: "{summary}",
     reportMeta: "Report for {date}",
     invoiceBody: "Total {amount} · due {date}",
@@ -1182,6 +1237,32 @@ export const en = {
     incidentsNothing: "No incident reports for your children.",
     incidentsPendingAck: "Pending acknowledgement",
   },
+  // KID-487: the staff portal account surface — localized activity labels for
+  // the preferences table and the push-subscription card (EN/AR).
+  portal: {
+    prefNewsfeed: "Newsfeed posts",
+    prefHomework: "Homework",
+    prefSupplies: "Supplies",
+    prefBilling: "Billing",
+    prefAttendance: "Attendance",
+    prefIncidents: "Incidents",
+    prefMessages: "Messages",
+    prefDailyReport: "Daily reports",
+    prefEvents: "Events",
+    pushTitle: "Push notifications",
+    pushHint:
+      "Get a status-bar notification on your phone when a pickup time, incident, message, or announcement arrives — even while the app is closed.",
+    pushEnable: "Enable push notifications",
+    pushDisable: "Turn off",
+    pushEnabled: "Push notifications are on for this device.",
+    pushDenied: "Notifications are blocked for this site. Unblock them in your browser settings, then try again.",
+    pushUnsupported: "This browser or device does not support push notifications. You will still get in-app notifications.",
+    pushNotConfigured: "Push is not set up on this server yet. In-app notifications still work.",
+    pushTestButton: "Send test notification",
+    pushTestSent: "Test notification sent — check this device.",
+    soundLabel: "Play a sound for in-app notifications",
+    soundHint: "Short beep when something new arrives while the app is open. Sounds on background pushes follow your device's notification settings.",
+  },
   // KID-260: Help Center chrome. The EN/AR toggle here is the HELP language,
   // independent of the account app language (it defaults to it).
   help: {
@@ -1234,6 +1315,7 @@ export const ar = {
     noData: "لا توجد بيانات بعد.",
     unread: "غير مقروء",
     saving: "جارٍ الحفظ…",
+    errorUnknown: "حدث خطأ ما. يرجى المحاولة مرة أخرى.",
     group: "مجموعة",
     private: "خاص",
     thread: "محادثة",
@@ -1344,6 +1426,9 @@ export const ar = {
     demoInquiries: "طلبات العرض والاستفسارات",
     newestSubmissions: "أحدث الطلبات من نموذج حجز العرض في الموقع العام.",
     openInquiries: "فتح الاستفسارات",
+    // KID-486.
+    plannedPickups: "مواعيد الاستلام المخططة اليوم",
+    plannedPickupsEmpty: "لا توجد مواعيد استلام مخططة لليوم بعد.",
   },
   attendees: {
     attendance: "الحضور",
@@ -1354,6 +1439,28 @@ export const ar = {
     notCheckedInYet: "لم يسجّل الحضور بعد",
     checkedInAt: "سجّل الحضور في {time}",
     checkedOutAt: "سجّل الانصراف في {time}",
+  },
+  // KID-486: planned same-day pickup (AR twin).
+  pickup: {
+    title: "موعد الاستلام اليوم",
+    timeLabel: "وقت الاستلام",
+    noteLabel: "ملاحظة (اختياري)",
+    notePlaceholder: "مثلًا: الجدة ستستلمه",
+    save: "حفظ وقت الاستلام",
+    update: "تحديث وقت الاستلام",
+    remove: "إلغاء الاستلام",
+    none: "لم يُحدد موعد استلام لليوم بعد.",
+    planned: "مخطط اليوم: {time}",
+    upcoming: "مواعيد الاستلام القادمة",
+    saved: "تم حفظ وقت الاستلام — تم إشعار فريق فصل طفلك.",
+    removed: "تم إلغاء موعد الاستلام.",
+    errNotToday: "يمكن جدولة مواعيد الاستلام لليوم فقط.",
+    errInvalidDate: "تعذّرت قراءة هذا التاريخ. استخدم تاريخ اليوم.",
+    errInvalidTime: "أدخل وقتًا صحيحًا بصيغة ٢٤ ساعة HH:MM.",
+    errClosedDay: "المركز مغلق اليوم — لا يمكن جدولة مواعيد الاستلام في يوم مغلق.",
+    errOutsideHours: "يجب أن يقع الوقت داخل ساعات عمل المركز لليوم.",
+    errPastTime: "لقد مر هذا الوقت. اختر وقتًا لاحقًا اليوم.",
+    childHeading: "مواعيد الاستلام المخططة لأطفالك",
   },
   child: {
     myChildren: "أطفالي",
@@ -1394,7 +1501,12 @@ export const ar = {
     emergency: "طوارئ",
     incidentReports: "تقارير الحوادث",
     acknowledged: "تم الإقرار",
-    needsAcknowledgement: "يحتاج إلى إقرار",
+    needsAcknowledgement: "بانتظار الإقرار",
+    // KID-486.
+    plannedPickup: "الاستلام المخطط: {time}",
+    plannedPickupNote: "الاستلام المخطط: {time} — {note}",
+    noPlannedPickup: "لا يوجد استلام مخطط لليوم.",
+    checkinDisabled: "أوقف المركز تسجيل الحضور والانصراف من قِبل أولياء الأمور، لذا يمكنك متابعة حضور اليوم فقط دون تشغيله.",
     helpAndSupport: "المساعدة والدعم",
     backToChildren: "أطفالي",
   },
@@ -1712,6 +1824,14 @@ export const ar = {
     dayFriday: "الجمعة",
     daySaturday: "السبت",
     today: "اليوم",
+    // KID-486.
+    parentCheckinTitle: "تسجيل الحضور والانصراف لأولياء الأمور",
+    parentCheckinHint:
+      "اسمح لأولياء الأمور بتسجيل حضور أطفالهم وانصرافهم من تطبيقهم. جهات الاتصال العائلية تظل للقراءة فقط وجهات الاستلام تختار مواعيد الاستلام فقط. حضور الفريق لا يتأثر.",
+    parentCheckinOn: "يمكن لأولياء الأمور تسجيل الحضور والانصراف",
+    parentCheckinOff: "لا يمكن لأولياء الأمور تسجيل الحضور والانصراف",
+    saveParentCheckin: "حفظ إعداد تسجيل الحضور لأولياء الأمور",
+    parentCheckinSaved: "تم حفظ إعداد تسجيل الحضور والانصراف لأولياء الأمور.",
   },
   account: {
     settingsTitle: "إعدادات الحساب",
@@ -1729,6 +1849,14 @@ export const ar = {
     inApp: "داخل التطبيق",
     push: "فوري",
     saveNotificationPrefs: "حفظ التفضيلات",
+    // KID-486.
+    fullName: "اسمك",
+    newPassword: "كلمة مرور جديدة",
+    newPasswordHint: "اتركها فارغة للاحتفاظ بكلمة المرور الحالية (٨ أحرف على الأقل عند التعيين).",
+    newPasswordTooShort: "كلمة المرور الجديدة قصيرة جدًا — استخدم ٨ أحرف على الأقل.",
+    photo: "الصورة الشخصية",
+    saveDetails: "حفظ بيانات الحساب",
+    detailsSaved: "تم حفظ بيانات الحساب.",
   },
   notifications: {
     title: "الإشعارات",
@@ -2188,6 +2316,11 @@ export const ar = {
     messageTitle: "رسالة من {name}",
     reportTitle: "تقرير يومي: {name}",
     announcementTitle: "منشور جديد من {name}",
+    // KID-487: تحديث وقت الاستلام — مسار تعديل الحضور.
+    attendanceUpdatedTitle: "تحديث وقت الاستلام: {name}",
+    // KID-486.
+    pickupTimeTitle: "الاستلام المخطط: {name}",
+    pickupTimeBody: "اليوم وقت الاستلام المخطط {time}{note}",
     reportBody: "{summary}",
     reportMeta: "تقرير يوم {date}",
     invoiceBody: "الإجمالي {amount} · الاستحقاق {date}",
@@ -2269,6 +2402,32 @@ export const ar = {
     newsfeedCommentPlaceholder: "أضف تعليقًا…",
     incidentsNothing: "لا توجد تقارير حوادث لأطفالك.",
     incidentsPendingAck: "بانتظار الإقرار",
+  },
+  // KID-487: سطحة حساب الفريق في البوابة — تسميات النشاطات المحليّة لجدول
+  // التفضيلات وبطاقة الاشتراك في الإشعارات الفورية (EN/AR).
+  portal: {
+    prefNewsfeed: "منشورات آخر الأخبار",
+    prefHomework: "الواجبات",
+    prefSupplies: "المستلزمات",
+    prefBilling: "الإصدار المالي",
+    prefAttendance: "الحضور والانصراف",
+    prefIncidents: "الحوادث",
+    prefMessages: "الرسائل",
+    prefDailyReport: "التقارير اليومية",
+    prefEvents: "الفعاليات",
+    pushTitle: "الإشعارات الفورية",
+    pushHint:
+      "استلم إشعارًا في شريط حالة هاتفك عند تسجيل وقت استلام أو تقرير حادث أو وصول رسالة أو إعلان — حتى عندما يكون التطبيق مغلقًا.",
+    pushEnable: "تشغيل الإشعارات الفورية",
+    pushDisable: "إيقاف",
+    pushEnabled: "الإشعارات الفورية مفعّلة لهذا الجهاز.",
+    pushDenied: "الإشعارات محجوبة لهذا الموقع. أزل الحجب من إعدادات المتصفح ثم أعد المحاولة.",
+    pushUnsupported: "هذا المتصفح أو الجهاز لا يدعم الإشعارات الفورية. ستستمر الإشعارات داخل التطبيق.",
+    pushNotConfigured: "الإشعارات الفورية غير مضبوطة على هذا الخادم بعد. تعمل الإشعارات داخل التطبيق.",
+    pushTestButton: "أرسل إشعارًا تجريبيًا",
+    pushTestSent: "تم إرسال الإشعار التجريبي — تحقق من هذا الجهاز.",
+    soundLabel: "شغّل صوتًا للإشعارات داخل التطبيق",
+    soundHint: "نغمة قصيرة عند وصول شيء جديد والتطبيق مفتوح. صوت الإشعارات في الخلفية يتبع إعدادات إشعارات جهازك.",
   },
   // KID-246: page "فواتير الحساب" الخاصة بمالك الروضة — الخطة والأسعار
   // للعرض فقط هنا (فريق المنصّة يديرها)، وسجل الفواتير هو سجلات
@@ -2480,6 +2639,11 @@ export type FeedCopy = {
   reportTitle: (name: string) => string;
   // KID-480: newsfeed announcements pushed to parents.
   announcementTitle: (name: string) => string;
+  // KID-487: pickup-time changed (edited attendance) notification title.
+  attendanceUpdatedTitle: (name: string) => string;
+  // KID-486: the pickup contact's own scheduling notification.
+  pickupTimeTitle: (name: string) => string;
+  pickupTimeBody: (time: string, note: string) => string;
   reportBody: (summary: string) => string;
   reportMeta: (date: string) => string;
   invoiceBody: (amount: string, date: string) => string;
@@ -2514,6 +2678,9 @@ export function feedCopyFor(locale: Locale): FeedCopy {
     messageTitle: (name) => t("feed.messageTitle", { name }),
     reportTitle: (name) => t("feed.reportTitle", { name }),
     announcementTitle: (name) => t("feed.announcementTitle", { name }),
+    attendanceUpdatedTitle: (name) => t("feed.attendanceUpdatedTitle", { name }),
+    pickupTimeTitle: (name) => t("feed.pickupTimeTitle", { name }),
+    pickupTimeBody: (time, note) => t("feed.pickupTimeBody", { time, note }),
     reportBody: (summary) => t("feed.reportBody", { summary }),
     reportMeta: (date) => t("feed.reportMeta", { date }),
     invoiceBody: (amount, date) => t("feed.invoiceBody", { amount, date }),

@@ -1,5 +1,5 @@
 import { requireFamilyPage } from "@/lib/require";
-import { listForms, responsesByAccount, getForm } from "@/lib/store";
+import { listForms, responsesByAccount, getForm, familyAccessForAccount } from "@/lib/store";
 import { firstInstituteId, safeJson, cap } from "@/lib/helpers";
 import { submitFormAction } from "@/lib/actions";
 import { i18nForAccount } from "@/lib/i18n-session";
@@ -24,6 +24,11 @@ export default async function ParentFormsPage({ searchParams }: { searchParams: 
   const session = await requireFamilyPage("/child/forms");
   const { dict } = await i18nForAccount(session.accountId);
   const t = (key: string, vars?: Record<string, string | number>) => tr(dict, key, vars);
+  // KID-486: family links read the forms/surveys; filling one in is a parent
+  // link's business action (the server action refuses the rest).
+  const access =
+    session.role === "parent" ? ((await familyAccessForAccount(session.accountId)) ?? "parent") : null;
+  const canAct = access === "parent";
   const instituteId = await firstInstituteId();
   if (!instituteId) return <p className="muted">{t("forms.noInstitute")}</p>;
   const [forms, mine] = await Promise.all([listForms(instituteId), responsesByAccount(session.accountId)]);
@@ -46,11 +51,11 @@ export default async function ParentFormsPage({ searchParams }: { searchParams: 
                 <div style={{ fontWeight: 700, fontSize: 17 }}>{f.title}</div>
                 <div className="muted small" dir="auto">{formKindLabel(String(f.kind ?? "form"), t)} · {t("forms.responsesSoFar", { count: f.response_count })}{f.description ? ` — ${f.description}` : ""}</div>
               </div>
-              {fields.length > 0 && openId !== f.id && (
+              {fields.length > 0 && canAct && openId !== f.id && (
                 <a className="btn btn-primary" href={`/child/forms?open=${f.id}`}>{t("forms.fillIn")}</a>
               )}
             </div>
-            {fields.length > 0 && openId === f.id && (
+              {fields.length > 0 && canAct && openId === f.id && (
               <form action={submitFormAction} className="mt-3">
                 <input type="hidden" name="formId" value={f.id} />
                 {fields.map((field, i) => (

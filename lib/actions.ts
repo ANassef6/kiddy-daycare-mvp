@@ -16,7 +16,7 @@ import {
   staffIdForAccount,
 } from "@/lib/auth";
 import { queryGet, queryRun, queryAll, ensureSchema, isForeignKeyViolation } from "@/lib/db";
-import { configuredReportDate } from "@/lib/report-dates";
+import { configuredReportDate, todayIso } from "@/lib/report-dates";
 import {
   isAccountAccessWithdrawn,
   runWithdrawalSweep,
@@ -1202,6 +1202,18 @@ async function assertChildInScope(childId: string, me: SessionCookie): Promise<v
     );
     redirect("/login?error=wrong-tenant");
   }
+  // KID-486: a parent-role account passes ONLY through its own family_member
+  // row — isChildInScope alone returns true for every parent (the classroom
+  // scope is a staff concept), which let a forged child id borrow any
+  // child-scoped write (photos, statuses, contacts, drive files, billing).
+  // Family-link ownership is now the parent gate for every child-scoped child.
+  if (me.role === "parent") {
+    const { isChildVisibleToAccount } = await import("@/lib/store");
+    if (!(await isChildVisibleToAccount(instituteId, me.accountId, childId))) {
+      redirect("/child?error=scope");
+    }
+    return;
+  }
   if (!(await isChildInScope(instituteId, me.accountId, childId))) {
     redirect("/portal/children?error=scope");
   }
@@ -1267,6 +1279,97 @@ async function assertFamilyAction(me: SessionCookie, action: string): Promise<vo
   const access = (await familyAccessForAccount(me.accountId)) ?? "parent";
   if (access === "no_access" || !isActionAllowed(access, action)) {
     redirect("/child?error=role");
+  }
+}
+
+// KID-486: the mirror of refuseCaregiver for parent-role accounts. Portal
+// record writers (child details, statuses, photos, contacts, billing, daily
+// reports) are staff surfaces; a parent POSTing them directly — even for its
+// own child — never writes center records. Parents write only through the
+// parent-tier actions this file drops at the access ladder above.
+function refuseParentAccount(me: { role: string; email?: string }, back = "/child?error=role"): void {
+  if (me.role !== "parent") return;
+  console.error("KID-486 refused a parent account on a staff record write:", me.email);
+  redirect(back);
+}
+
+// KID-486 enforcement fix 2 — family-link ownership on parent-tier writes
+// against a raw record id. Call AFTER the access ladder, BEFORE the write.
+// Callers pass the already-read row (consent/incident/form); missing rows are
+// refused fail-closed, the redirect mirrors the scope error.
+
+/** True when the parent holds the family link for this child. */
+async function parentLinkedToChild(me: SessionCookie, childId: string): Promise<boolean> {
+  const { familiesForAccount } = await import("@/lib/store");
+  const families = await familiesForAccount(me.accountId);
+  return families.some((f) => String(f.id) === childId);
+}
+
+/** Consent response: child-scoped consents need the parent's own child;
+ *  center-wide consents need the parent's own center (the REQUEST tenant,
+ *  never the legacy first-institute fallback). */
+async function assertParentOwnsConsent(me: SessionCookie, consentId: string): Promise<void> {
+  if (me.role !== "parent") return;
+  const row = await queryGet(
+    "SELECT institute_id, child_id FROM consent_request WHERE id = ?",
+    consentId
+  );
+  if (!row) redirect("/child/consents?error=scope");
+  const instituteId = await firstInstituteId();
+  const childId = row.child_id ? String(row.child_id) : "";
+  if (childId) {
+    if (!(await parentLinkedToChild(me, childId))) {
+      console.error("KID-486 refused a consent response outside the parent's own children:", me.email);
+      redirect("/child/consents?error=scope");
+    }
+  } else if (!instituteId || String(row.institute_id ?? "") !== instituteId) {
+    console.error("KID-486 refused a foreign center-wide consent response:", me.email);
+    redirect(KID372_TENANT_REFUSAL);
+  }
+}
+
+/** Incident acknowledgement: the incident must belong to the parent's child. */
+async function assertParentOwnsIncident(me: SessionCookie, incidentId: string): Promise<void> {
+  if (me.role !== "parent") return;
+  const row = await queryGet(
+    "SELECT child_id FROM incident_report WHERE id = ?",
+    incidentId
+  );
+  const childId = row?.child_id ? String(row.child_id) : "";
+  if (!row || !childId || !(await parentLinkedToChild(me, childId))) {
+    console.error("KID-486 refused an incident acknowledgement outside the parent's own children:", me.email);
+    redirect("/child/incidents?error=scope");
+  }
+}
+
+/** Form submission: the form template belongs to the parent's REQUEST tenant
+ *  and any submitted childId is family-linked. */
+async function assertParentOwnsForm(me: SessionCookie, formId: string, childId: string): Promise<void> {
+  if (me.role !== "parent") return;
+  const instituteId = await firstInstituteId();
+  const row = await queryGet(
+    "SELECT institute_id FROM form_template WHERE id = ?",
+    formId
+  );
+  if (!row || !instituteId || String(row.institute_id ?? "") !== instituteId) {
+    console.error("KID-486 refused a form submission from a foreign form template:", me.email);
+    redirect(KID372_TENANT_REFUSAL);
+  }
+  if (childId && !(await parentLinkedToChild(me, childId))) {
+    console.error("KID-486 refused a form submission on a child outside the family links:", me.email);
+    redirect("/child/forms?error=scope");
+  }
+}
+
+// KID-486: the pickup user's scheduled time. Ownership = the family_member
+// row for (account, child) — the pickup page only children it is linked to.
+async function assertPickupLink(me: SessionCookie, childId: string): Promise<void> {
+  if (me.role !== "parent") return;
+  const { familyLinkRoleForChild } = await import("@/lib/store");
+  const role = await familyLinkRoleForChild(me.accountId, childId);
+  if (!role) {
+    console.error("KID-486 refused a pickup-time write on a child outside the family links:", me.email);
+    redirect("/child?error=scope");
   }
 }
 
@@ -1357,13 +1460,29 @@ export async function checkInOutAction(formData: FormData) {
   if (childId && (type === "in" || type === "out")) {
     await assertChildInScope(childId, me);
     const instituteId = await firstInstituteId();
-    // KID-58: no one can check in before the center opens.
-    if (type === "in") {
+    // KID-486: a parent-role check-in/out is allowed ONLY by the center
+    // toggle and only on a child THIS account holds a `parent` link to —
+    // family/pickup links never operate attendance (they were already
+    // refused by the access ladder; this pins the per-child ownership when
+    // an account mixes link types across children).
+    if (me.role === "parent") {
       if (instituteId) {
-        const policy = await checkInAllowed(String(instituteId));
-        if (!policy.allowed) {
-          return { error: policy.error ?? "Check-in is not allowed at this time." };
+        const { parentCheckinEnabled, familyLinkRoleForChild } = await import("@/lib/store");
+        if (!(await parentCheckinEnabled(instituteId))) {
+          redirect("/child?error=checkin-disabled");
         }
+        if ((await familyLinkRoleForChild(me.accountId, childId)) !== "parent") {
+          redirect("/child?error=role");
+        }
+        // KID-58: no one can check in before the center opens.
+        if (type === "in") {
+          const policy = await checkInAllowed(String(instituteId));
+          if (!policy.allowed) {
+            return { error: policy.error ?? "Check-in is not allowed at this time." };
+          }
+        }
+      } else {
+        redirect("/login?error=wrong-tenant");
       }
     }
     await checkChildInOut({ childId, accountId: me.accountId, type });
@@ -1386,6 +1505,197 @@ export async function checkInOutAction(formData: FormData) {
   redirect(`/child/${childId}`);
 }
 
+// ---- KID-486: the pickup user's same-day planned pickup time ----
+
+/** Localizes a pickup-time validation failure for the acting account. */
+async function pickupErrorMessage(me: SessionCookie, code: string): Promise<string> {
+  const { i18nForAccount } = await import("@/lib/i18n-session");
+  const { dict } = await i18nForAccount(me.accountId);
+  return tr(dict, `pickup.${code}`);
+}
+
+export async function savePickupTimeAction(formData: FormData) {
+  const me = authAccount();
+  refuseCaregiver(me);
+  // Only pickup links schedule pickup times (parents/family/none denied by
+  // the ladder; pickup-time actions are pickup-only by definition).
+  await assertFamilyAction(me, "savePickupTime");
+  await ensureSchema();
+  const instituteId = await firstInstituteId();
+  if (!instituteId) redirect("/login?error=wrong-tenant");
+
+  const childId = String(formData.get("childId") ?? "");
+  const time = String(formData.get("time") ?? "").trim();
+  const note = String(formData.get("note") ?? "").trim();
+  if (!childId) redirect("/child");
+  // Ownership: the pickup link row, not the classroom scope.
+  await assertPickupLink(me, childId);
+
+  const { checkPickupTime } = await import("@/lib/pickup-time");
+  const { getWorkingHours } = await import("@/lib/store");
+  const week = await getWorkingHours(instituteId);
+  const date = todayIso();
+  const check = checkPickupTime({ week, date, time });
+  if (!check.ok) {
+    const keyMap: Record<string, string> = {
+      notToday: "errNotToday",
+      invalidDate: "errInvalidDate",
+      invalidTime: "errInvalidTime",
+      closedDay: "errClosedDay",
+      outsideHours: "errOutsideHours",
+      pastTime: "errPastTime",
+    };
+    return { error: await pickupErrorMessage(me, keyMap[check.error] ?? "errInvalidTime") };
+  }
+
+  const { storePickupTime } = await import("@/lib/store");
+  const stored = await storePickupTime({
+    instituteId: String(instituteId),
+    childId,
+    accountId: me.accountId,
+    date,
+    time,
+    note: note || undefined,
+  });
+  if (stored.ok) {
+    const child = await queryGet(
+      "SELECT first_name, last_name FROM child WHERE id = ?",
+      childId
+    );
+    // KID-486: assigned classroom staff are notified in-app on every
+    // set-or-change; the audit row keeps the schedule change on the trail.
+    const { emitNotifications } = await import("@/lib/store");
+    try {
+      await emitNotifications({
+        instituteId: String(instituteId),
+        accountIds: stored.teacherAccountIds,
+        activity: "attendance",
+        kind: "pickup_time",
+        payload: {
+          childName: child ? `${String(child.first_name ?? "")} ${String(child.last_name ?? "")}`.trim() : "",
+          time,
+          note: note || "",
+          date,
+          changed: stored.changed === "updated",
+        },
+        ref: `pickup-${childId}-${date}-${stored.changed}-${Date.now()}`,
+      });
+    } catch (err) {
+      console.error(`KID-486 pickup-time notification failed (child=${childId}):`, err);
+    }
+    await recordAuditEvent({
+      instituteId: String(instituteId),
+      actorAccountId: me.accountId,
+      action: stored.changed === "updated" ? "update" : "create",
+      entityType: "pickup_time",
+      entityId: String(stored.row.id),
+      summary: `${stored.changed === "updated" ? "Changed" : "Planned"} the pickup time for ${String(
+        child?.first_name ?? ""
+      )} ${String(child?.last_name ?? "")}`.trim(),
+      metadata: { date, time, note: note || undefined },
+    });
+  }
+  redirect("/child?saved=1");
+}
+
+export async function cancelPickupTimeAction(formData: FormData) {
+  const me = authAccount();
+  refuseCaregiver(me);
+  await assertFamilyAction(me, "cancelPickupTime");
+  await ensureSchema();
+  const instituteId = await firstInstituteId();
+  const childId = String(formData.get("childId") ?? "");
+  if (!instituteId || !childId) redirect("/child");
+  await assertPickupLink(me, childId);
+  const date = todayIso();
+  const { deletePickupTime, getPickupTime } = await import("@/lib/store");
+  const before = await getPickupTime(childId, date);
+  if (before && (await deletePickupTime(childId, date, me.accountId))) {
+    await recordAuditEvent({
+      instituteId: String(instituteId),
+      actorAccountId: me.accountId,
+      action: "delete",
+      entityType: "pickup_time",
+      entityId: String(before.id),
+      summary: `Cancelled today's planned pickup`,
+      metadata: { date: date, time: String(before.pickup_time ?? "") },
+    });
+  }
+  redirect("/child?saved=cancelled");
+}
+
+// ---- KID-486: the parent-side account details editor ----
+
+/** A parent-tier account edits ONLY its own row: display name, password,
+ *  photo. No institute_id, role, staff link or child record passes through —
+ *  the patch is a fixed field list, not a generic update. */
+export async function updateParentAccountAction(formData: FormData) {
+  const me = authAccount();
+  if (me.role !== "parent") redirect("/portal/account");
+  await ensureSchema();
+  const fullName = String(formData.get("fullName") ?? "").trim();
+  const password = String(formData.get("password") ?? "");
+  const photo = formData.get("photo");
+  const patch: Record<string, unknown> = {};
+  if (fullName) patch.full_name = fullName;
+  if (password) {
+    if (password.length < 8) {
+      redirect("/child/settings?error=short-password");
+    }
+    const { hashPassword } = await import("@/lib/auth");
+    patch.password_hash = hashPassword(password);
+  }
+  if (photo instanceof File && photo.size > 0 && photo.size <= 2_500_000) {
+    const buf = Buffer.from(await photo.arrayBuffer());
+    const mime = photo.type || "application/octet-stream";
+    patch.photo_url = `data:${mime};base64,${buf.toString("base64")}`;
+  }
+  if (Object.keys(patch).length > 0) {
+    await queryRun(
+      `UPDATE account SET ${Object.keys(patch)
+        .map((k) => `${k} = ?`)
+        .join(", ")} WHERE id = ?`,
+      ...Object.values(patch),
+      me.accountId
+    );
+  }
+  redirect("/child/settings?saved=1");
+}
+
+// ---- KID-486: the center-wide parent check-in/out toggle (admin-only) ----
+
+export async function saveParentCheckinToggleAction(formData: FormData) {
+  const me = requireAuthSession();
+  refuseCaregiver(me);
+  // Admin-only surface; a parent POSTing it directly is pushed back to /child.
+  if (me.role === "parent") {
+    redirect("/child?error=role");
+  }
+  const instituteId = await requireInstitute();
+  if (!instituteId) redirect("/login?error=wrong-tenant");
+  const { isAdminRole } = await import("@/lib/role");
+  if (!isAdminRole(me.role)) redirect("/portal/dashboard?error=readonly");
+
+  const enabled = String(formData.get("parentCheckin") ?? "") === "on";
+  const before = await (await import("@/lib/store")).parentCheckinEnabled(String(instituteId));
+  await updateInstitute(String(instituteId), { parent_checkin_enabled: enabled ? 1 : 0 });
+  // KID-477: the toggle is a center-policy change — audited with the from/to.
+  if (before !== enabled) {
+    await recordAuditEvent({
+      instituteId: String(instituteId),
+      actorAccountId: me.accountId,
+      action: "update",
+      entityType: "institute_setting",
+      entityId: String(instituteId),
+      summary: enabled
+        ? "Allowed parents to check in/out"
+        : "Stopped parents from checking in/out",
+      metadata: { setting: "parent_checkin_enabled", from: before ? 1 : 0, to: enabled ? 1 : 0 },
+    });
+  }
+  redirect("/portal/settings?saved=parentcheckin");
+}
+
 export async function saveDailyReportAction(formData: FormData) {
   const childId = String(formData.get("childId") ?? "");
   // KID-472 item 4: the report is saved for the selected date (validated — a
@@ -1395,6 +1705,9 @@ export async function saveDailyReportAction(formData: FormData) {
   const reportDate = configuredReportDate(formData.get("reportDate"), new Date().toISOString().slice(0, 10));
   const me = authAccount();
   refuseCaregiver(me);
+  // KID-486: portal record writers are staff surfaces — a parent POSTing
+  // them directly never writes center records.
+  refuseParentAccount(me);
   if (childId) await assertChildInScope(childId, me);
   // KID-477: the audit row must distinguish a NEW report from an EDIT —
   // check presence before the upsert overwrites the row.
@@ -1525,6 +1838,10 @@ export async function respondConsentAction(formData: FormData) {
   await assertFamilyAction(me, "respondConsent");
   const consentId = String(formData.get("id") ?? "");
   const status = String(formData.get("status") ?? "approved") as "approved" | "denied";
+  // KID-486: the consent must belong to one of the responder's own children —
+  // or be center-wide for the parent's own center. A raw id that matches
+  // neither is refused before the status ever flips.
+  await assertParentOwnsConsent(me, consentId);
   await respondConsent(consentId, status);
   // KID-477: a parent decision is a record mutation — attributed per parent.
   const row = await queryGet("SELECT institute_id FROM consent_request WHERE id = ?", consentId);
@@ -1576,6 +1893,8 @@ export async function acknowledgeIncidentAction(formData: FormData) {
   // KID-112: incident acknowledgement is parent-only (family/pickup denied).
   await assertFamilyAction(me, "acknowledgeIncident");
   const incidentId = String(formData.get("id") ?? "");
+  // KID-486: the incident must belong to one of the acker's own children.
+  await assertParentOwnsIncident(me, incidentId);
   await acknowledgeIncident(incidentId);
   // KID-477: the acknowledgement flips the record — one attributed row per parent.
   const row = await queryGet("SELECT institute_id FROM incident_report WHERE id = ?", incidentId);
@@ -1893,6 +2212,7 @@ export async function updateRoomAction(formData: FormData) {
 // #5b child status log: one timestamped entry per interaction, multiple per day.
 export async function saveChildStatusAction(formData: FormData) {
   const me = authAccount();
+  refuseParentAccount(me);
   await ensureSchema();
   const childId = String(formData.get("childId") ?? "");
   if (childId) await assertChildInScope(childId, me);
@@ -1921,6 +2241,9 @@ export async function saveChildStatusAction(formData: FormData) {
 export async function addContactAction(formData: FormData) {
   const me = authAccount();
   refuseCaregiver(me);
+  // KID-486: portal record writers are staff surfaces — a parent POSTing
+  // them directly never writes center records.
+  refuseParentAccount(me);
   const childId = String(formData.get("childId") ?? "");
   if (childId) await assertChildInScope(childId, me);
   // KID-112: relationship is a required 4-option enum — reject free text.
@@ -2453,6 +2776,9 @@ export async function submitFormAction(formData: FormData) {
   // KID-112: form submissions are parent-only (family/pickup denied).
   await assertFamilyAction(me, "submitForm");
   const formId = String(formData.get("formId") ?? "");
+  // KID-486: the form belongs to the parent's center and any childId on the
+  // submission is family-linked.
+  await assertParentOwnsForm(me, formId, String(formData.get("childId") ?? ""));
   await ensureSchema();
   const answers: Record<string, string> = {};
   for (let i = 0; i < 20; i++) {
@@ -2508,6 +2834,9 @@ export async function createTagAction(formData: FormData) {
 export async function setChildTagsAction(formData: FormData) {
   const me = authAccount();
   refuseCaregiver(me);
+  // KID-486: portal record writers are staff surfaces — a parent POSTing
+  // them directly never writes center records.
+  refuseParentAccount(me);
   const childId = String(formData.get("childId") ?? "");
   if (childId) {
     await assertChildInScope(childId, me);
@@ -2994,6 +3323,9 @@ export async function uploadPhotoAction(formData: FormData) {
   await ensureSchema();
   const me = authAccount();
   refuseCaregiver(me);
+  // KID-486: portal record writers are staff surfaces — a parent POSTing
+  // them directly never writes center records.
+  refuseParentAccount(me);
   const entityType = String(formData.get("entityType") ?? ""); // "child" | "staff"
   const entityId = String(formData.get("entityId") ?? "");
   const file = formData.get("file") as File | null;
@@ -3087,6 +3419,9 @@ export async function updateChildDetailsAction(formData: FormData) {
   await ensureSchema();
   const me = authAccount();
   refuseCaregiver(me);
+  // KID-486: portal record writers are staff surfaces — a parent POSTing
+  // them directly never writes center records.
+  refuseParentAccount(me);
   const childId = String(formData.get("childId") ?? "");
   if (!childId) redirect("/portal/children");
   await assertChildInScope(childId, me);
@@ -3134,6 +3469,9 @@ export async function addChildBillingAction(formData: FormData) {
   await ensureSchema();
   const me = authAccount();
   refuseCaregiver(me);
+  // KID-486: portal record writers are staff surfaces — a parent POSTing
+  // them directly never writes center records.
+  refuseParentAccount(me);
   const instituteId = await firstInstituteId();
   const childId = String(formData.get("childId") ?? "");
   if (!instituteId || !childId) redirect("/portal/children");
@@ -3166,6 +3504,9 @@ export async function addChildBillingAction(formData: FormData) {
 export async function updateBillingStatusAction(formData: FormData) {
   const me = authAccount();
   refuseCaregiver(me);
+  // KID-486: portal record writers are staff surfaces — a parent POSTing
+  // them directly never writes center records.
+  refuseParentAccount(me);
   const billingId = String(formData.get("billingId") ?? "");
   const status = String(formData.get("status") ?? "pending");
   const childId = String(formData.get("childId") ?? "");
@@ -3440,7 +3781,9 @@ export async function saveNotificationPrefsAction(formData: FormData) {
   await ensureSchema();
   const { setNotificationPref, NOTIFICATION_ACTIVITIES } = await import("@/lib/store");
   for (const activity of NOTIFICATION_ACTIVITIES as readonly string[]) {
-    for (const channel of ["email", "inapp"]) {
+    // KID-487: the push checkbox joins the staff matrix like the parent page —
+    // emitNotifications/browser-send gate on the channel 'push' opt-out.
+    for (const channel of ["email", "inapp", "push"]) {
       const key = `${activity}_${channel}`;
       await setNotificationPref(me.accountId, activity, channel, formData.get(key) === "on");
     }

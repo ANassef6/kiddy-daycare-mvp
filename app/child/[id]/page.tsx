@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { requireSession } from "@/lib/require";
+import { requireFamilyPage } from "@/lib/require";
 import {
   getChild,
   isChildVisibleToAccount,
@@ -10,6 +10,10 @@ import {
   newsfeedForChild,
   incidentsForChild,
   statusesForChild,
+  familyAccessForAccount,
+  familyLinkRoleForChild,
+  parentCheckinEnabled,
+  getPickupTime,
 } from "@/lib/store";
 import { CheckInButton } from "@/components/CheckInButton";
 import Avatar from "@/components/Avatar";
@@ -34,7 +38,10 @@ export default async function ChildDetailPage({
   // KID-472 item 4: ?date= selects which past day's report the parent reads.
   searchParams?: { date?: string };
 }) {
-  const session = requireSession();
+  // KID-486: the shared access gate — pickup links are redirected to /child,
+  // family links pass (view-only is enforced by actions), no_access never
+  // reaches a parent page.
+  const session = await requireFamilyPage(`/child/${params.id}`);
   const { dict, locale } = await i18nForAccount(session.accountId);
   const t = (key: string, vars?: Record<string, string | number>) => tr(dict, key, vars);
   const child = await getChild(params.id);
@@ -53,9 +60,26 @@ export default async function ChildDetailPage({
     : false;
   if (!visible && !(isPlatformOperatorRole(session.role) && requestIid)) notFound();
 
+  // KID-486: the family-link access tier drives what this page allows.
+  // Pickup links never reach here (isPathAllowedForPickup denies /child/:id);
+  // family links read everything but see no check-in/out button, no like
+  // button. A full parent link keeps its attendance loop — but only when the
+  // center-wide parent check-in/out switch is on.
+  const access =
+    session.role === "parent" ? ((await familyAccessForAccount(session.accountId)) ?? "parent") : null;
+  const canCheckInOut =
+    access === "parent" &&
+    !!requestIid &&
+    (await parentCheckinEnabled(requestIid)) &&
+    (await familyLinkRoleForChild(session.accountId, String(child.id))) === "parent";
+
+  // KID-486: today's planned pickup rides the header so parents and staff
+  // share the same schedule line (the pickup contact may still edit it).
+  const today = todayIso();
+  const plannedPickup = await getPickupTime(String(child.id), today);
+
   // KID-472 item 4: today stays the default; a `?date=` value the parent
   // navigates to is read-only for that day (validated server-side first).
-  const today = todayIso();
   const reportDate = configuredReportDate(searchParams?.date, today);
   const status = await todayStatus(child.id);
   const checkedIn = !!status.checkedIn && !status.checkedOut;
@@ -95,8 +119,22 @@ export default async function ChildDetailPage({
         </div>
 
         <div className="mt-4">
-          <CheckInButton childId={child.id as string} checkedIn={checkedIn} dict={dict} />
+          {/* KID-486: the loop is parent-link + center-toggle only. Family
+              links read attendance; the server actions refuse the rest. */}
+          {canCheckInOut ? (
+            <CheckInButton childId={child.id as string} checkedIn={checkedIn} dict={dict} />
+          ) : access === "parent" ? (
+            <p className="muted small">{t("child.checkinDisabled")}</p>
+          ) : null}
         </div>
+
+        <p className="muted small mt-2">
+          {plannedPickup
+            ? plannedPickup.note
+              ? t("child.plannedPickupNote", { time: String(plannedPickup.pickup_time), note: String(plannedPickup.note) })
+              : t("child.plannedPickup", { time: String(plannedPickup.pickup_time) })
+            : t("child.noPlannedPickup")}
+        </p>
 
         {status.lastEvent && (
           <p className="muted small mt-2">
@@ -181,20 +219,28 @@ export default async function ChildDetailPage({
       ) : (
         feed.map((post: any) => (
           <div className="card mb-4" key={post.id}>
-            <div className="row" style={{ justifyContent: "space-between", alignItems: "center" }}>
-              <div className="small muted">{post.author_name} · {new Date(post.created_at).toLocaleString()}</div>
-              <form action={toggleLikeAction}>
-                <input type="hidden" name="postId" value={post.id} />
-                <button
-                  type="submit"
-                  className={post.liked ? "badge badge-green" : "badge badge-gray"}
-                  style={{ cursor: "pointer", border: "none", fontSize: 12 }}
-                  title={post.liked ? t("child.unlike") : t("child.like")}
-                >
-                  {post.liked ? "♥" : "♡"} {post.like_count}
-                </button>
-              </form>
-            </div>
+              <div className="row" style={{ justifyContent: "space-between", alignItems: "center" }}>
+                <div className="small muted">{post.author_name} · {new Date(post.created_at).toLocaleString()}</div>
+                {/* KID-486: likes are a business action — parent links only.
+                    family/pickup keep the count as read-only text. */}
+                {access === "parent" ? (
+                  <form action={toggleLikeAction}>
+                    <input type="hidden" name="postId" value={post.id} />
+                    <button
+                      type="submit"
+                      className={post.liked ? "badge badge-green" : "badge badge-gray"}
+                      style={{ cursor: "pointer", border: "none", fontSize: 12 }}
+                      title={post.liked ? t("child.unlike") : t("child.like")}
+                    >
+                      {post.liked ? "♥" : "♡"} {post.like_count}
+                    </button>
+                  </form>
+                ) : (
+                  <span className={post.liked ? "badge badge-green" : "badge badge-gray"} style={{ fontSize: 12 }}>
+                    {post.liked ? "♥" : "♡"} {post.like_count}
+                  </span>
+                )}
+              </div>
             <p className="mt-2">{post.body}</p>
             {post.media_url && <img src={post.media_url} alt="" style={{ width: "100%", maxHeight: 360, objectFit: "cover", borderRadius: 8, marginTop: 10 }} />}
           </div>

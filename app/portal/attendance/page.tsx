@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { resolveTenantInstituteId } from "@/lib/tenant";
 import { requirePortalPage } from "@/lib/require";
-import {attendanceOn, runAutoCheckoutSweep, scopedRoomIds, listRooms } from "@/lib/store";
+import {attendanceOn, runAutoCheckoutSweep, scopedRoomIds, listRooms, pickupTimesForDate} from "@/lib/store";
 import { AttendanceCheckIn } from "@/components/AttendanceCheckIn";
 
 export const dynamic = "force-dynamic";
@@ -40,6 +40,12 @@ export default async function PortalAttendancePage({
         search: q || undefined,
       })
     : [];
+
+  // KID-486: the pickup contact's planned time rides the same table — staff
+  // plan around it without leaving the attendance view. Not room-scoped (a
+  // roster view shows r.id child ids, so the join by child cannot leak).
+  const pickupRows = iid ? await pickupTimesForDate(iid, day) : [];
+  const pickupByChild = new Map(pickupRows.map((p: any) => [String(p.child_id), p]));
 
   return (
     <div>
@@ -90,10 +96,12 @@ export default async function PortalAttendancePage({
 
       <table className="data">
         <thead>
-          <tr><th>Child</th><th>Room</th><th>Status</th><th>Checked in</th><th>Checked out</th><th>Action</th></tr>
+          <tr><th>Child</th><th>Room</th><th>Status</th><th>Checked in</th><th>Checked out</th><th>Planned pickup</th><th>Action</th></tr>
         </thead>
         <tbody>
-          {rows.map((r: any) => (
+          {rows.map((r: any) => {
+            const pickup = pickupByChild.get(String(r.id));
+            return (
             <tr key={r.id}>
               <td><strong>{r.first_name} {r.last_name}</strong></td>
               <td>{r.room_name ?? "—"}</td>
@@ -104,11 +112,21 @@ export default async function PortalAttendancePage({
               </td>
               <td className="small">{time(r.checked_in_at)}</td>
               <td className="small">{time(r.checked_out_at)}</td>
+              <td className="small">
+                {/* KID-486: planned pickup from the pickup contact. */}
+                {pickup ? (
+                  <span>
+                    <strong>{String(pickup.pickup_time)}</strong>
+                    {pickup.note ? <span style={{ color: "#64748b" }}> · {String(pickup.note)}</span> : null}
+                  </span>
+                ) : "—"}
+              </td>
               <td>
                 <AttendanceCheckIn childId={r.id as string} lastEvent={r.last_event} />
               </td>
             </tr>
-          ))}
+            );
+          })}
         </tbody>
       </table>
       {rows.length === 0 && <p className="muted small mt-3">No children match the current filters.</p>}

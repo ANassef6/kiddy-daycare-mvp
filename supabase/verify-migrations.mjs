@@ -907,7 +907,7 @@ try {
       check("one pickup entry per child per day (unique pair refused the write)", dupeRefused && (await rowsFor("2026-01-05")) , ["pt-1"]);
       // A different day is a different entry — the rule is per-day, not total.
       await db.all(`INSERT INTO pickup_time (id, institute_id, child_id, account_id, pickup_date, pickup_time) VALUES ('pt-3', 'inst-legacy', 'c-serif', 'ac-serif', '2026-01-06', '15:30')`);
-      check("the next day schedules freely", rowsFor("2026-01-06"), ["pt-3"]);
+      check("the next day schedules freely", await rowsFor("2026-01-06"), ["pt-3"]);
 
       const malformed = async () => {
         await db.run("SAVEPOINT pt_bad");

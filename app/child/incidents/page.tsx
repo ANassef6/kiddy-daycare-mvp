@@ -1,5 +1,5 @@
 import { requireFamilyPage } from "@/lib/require";
-import { familiesForAccount, incidentsForChild } from "@/lib/store";
+import { familiesForAccount, familyAccessForAccount, incidentsForChild } from "@/lib/store";
 import { acknowledgeIncidentAction } from "@/lib/actions";
 import { i18nForAccount } from "@/lib/i18n-session";
 import { fmtDateTimeFor, tr } from "@/lib/i18n";
@@ -14,6 +14,11 @@ export default async function ParentIncidentsPage() {
   const session = await requireFamilyPage("/child/incidents");
   const { locale, dict } = await i18nForAccount(session.accountId);
   const t = (key: string, vars?: Record<string, string | number>) => tr(dict, key, vars);
+  // KID-486: family links read the incident reports; acknowledging is a
+  // parent link's business action (the server action refuses the rest).
+  const access =
+    session.role === "parent" ? ((await familyAccessForAccount(session.accountId)) ?? "parent") : null;
+  const canAcknowledge = access === "parent";
   const families = await familiesForAccount(session.accountId);
   const incidents: any[] = [];
   for (const f of families) {
@@ -45,7 +50,7 @@ export default async function ParentIncidentsPage() {
               </span>
             </div>
             <p className="mt-2">{i.description}</p>
-            {!i.acknowledged && (
+            {!i.acknowledged && canAcknowledge && (
               <form action={acknowledgeIncidentAction} className="mt-3">
                 <input type="hidden" name="id" value={i.id} />
                 <button className="btn btn-accent" type="submit">{t("profile.acknowledge")}</button>

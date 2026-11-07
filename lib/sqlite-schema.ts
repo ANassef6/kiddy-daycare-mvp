@@ -18,6 +18,7 @@ export function sqliteSchema(db: any): void {
     contact TEXT,
     address TEXT,
     active INTEGER NOT NULL DEFAULT 1,
+    parent_checkin_enabled INTEGER NOT NULL DEFAULT 1,
     subdomain TEXT,
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
   );
@@ -51,6 +52,8 @@ export function sqliteSchema(db: any): void {
     language TEXT NOT NULL DEFAULT 'en',
     auth_user_id TEXT,
     email_confirmed INTEGER NOT NULL DEFAULT 1,
+    -- KID-486: the parent-side account editor writes the account's own avatar.
+    photo_url TEXT,
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
   );
 
@@ -162,6 +165,27 @@ export function sqliteSchema(db: any): void {
     planned_out TEXT,
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
   );
+
+  -- KID-486: same-day planned pickup time (mirror of
+  -- supabase/migrations/0036_kid486_parent_checkin_pickup_time.sql). Written
+  -- only by the pickup user, only for today, inside the center's working
+  -- hours; the UNIQUE pair is the structural one-entry-per-child-per-day rule.
+  CREATE TABLE IF NOT EXISTS pickup_time (
+    id TEXT PRIMARY KEY,
+    institute_id TEXT NOT NULL REFERENCES institute(id) ON DELETE CASCADE,
+    child_id TEXT NOT NULL REFERENCES child(id) ON DELETE CASCADE,
+    account_id TEXT NOT NULL REFERENCES account(id) ON DELETE CASCADE,
+    pickup_date TEXT NOT NULL,
+    pickup_time TEXT NOT NULL,
+    note TEXT,
+    created_by_account_id TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+    UNIQUE (child_id, pickup_date)
+  );
+  CREATE INDEX IF NOT EXISTS idx_pickup_time_child_date ON pickup_time (child_id, pickup_date);
+  CREATE INDEX IF NOT EXISTS idx_pickup_time_account ON pickup_time (account_id, pickup_date);
+  CREATE INDEX IF NOT EXISTS idx_pickup_time_institute_date ON pickup_time (institute_id, pickup_date);
 
   CREATE TABLE IF NOT EXISTS child_status (
     id TEXT PRIMARY KEY,
@@ -697,6 +721,15 @@ export function sqliteSchema(db: any): void {
   // KID-199.3: mirror of supabase/migrations/0022_institute_active.sql.
   if (!instCols.some((c) => c.name === "active")) {
     db.exec("ALTER TABLE institute ADD COLUMN active INTEGER NOT NULL DEFAULT 1");
+  }
+  // KID-486: mirror of the 0036 parent check-in/out toggle (default ON).
+  if (!instCols.some((c) => c.name === "parent_checkin_enabled")) {
+    db.exec("ALTER TABLE institute ADD COLUMN parent_checkin_enabled INTEGER NOT NULL DEFAULT 1");
+  }
+  // KID-486: the account's own avatar column (parent account editor).
+  const acctCols = db.prepare("PRAGMA table_info(account)").all() as { name: string }[];
+  if (!acctCols.some((c) => c.name === "photo_url")) {
+    db.exec("ALTER TABLE account ADD COLUMN photo_url TEXT");
   }
   // KID-199.3r: mirror of supabase/migrations/0024_institute_subdomain.sql.
   // The unique index is created after the backfill below so two legacy rows

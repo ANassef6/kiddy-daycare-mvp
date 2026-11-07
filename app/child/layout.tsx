@@ -78,11 +78,14 @@ export default async function ParentLayout({ children }: { children: React.React
 
   // KID-112: no_access links never render parent pages (login already blocks;
   // this covers sessions issued before the admin disabled the account).
-  // Pickup links only register pickup time, so the nav shrinks to MyChildren.
+  // KID-486: pickup links only see the minimal /child pickup page, so the nav
+  // shrinks to MyChildren. Family links are view-only: the messages item
+  // disappears from their nav (requireFamilyPage redirects the page too).
   let visibleNav = navItems;
   if (session.role === "parent") {
     if (access === "no_access") redirect("/login?error=disabled");
     if (access === "pickup") visibleNav = navItems.slice(0, 1);
+    if (access === "family") visibleNav = navItems.filter((n) => n.href !== "/child/messages");
   }
 
   return (

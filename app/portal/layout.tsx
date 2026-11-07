@@ -1,8 +1,11 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import PortalSidebar from "@/components/PortalSidebar";
 import PortalAccountMenu from "@/components/PortalAccountMenu";
 import OperatorViewBanner from "@/components/OperatorViewBanner";
 import NotificationBell from "@/components/NotificationBell";
+import ServiceWorkerRegister from "@/components/ServiceWorkerRegister";
+import NotificationSoundWatcher from "@/components/NotificationSoundWatcher";
 import { requireSessionWithWithdrawalCheck } from "@/lib/require";
 import { requireTenantForPage } from "@/lib/tenant";
 import { ensureSchema } from "@/lib/db";
@@ -17,6 +20,12 @@ export const dynamic = "force-dynamic";
 
 export default async function PortalLayout({ children }: { children: React.ReactNode }) {
   const session = await requireSessionWithWithdrawalCheck();
+  // KID-486: the portal is the staff surface. Parent-role accounts are bounced
+  // to /child at the shell — no portal page, no portal action, no sidebar for
+  // them (the per-page requirePortalPage gates stay as defense-in-depth).
+  if (session.role === "parent") {
+    redirect("/child");
+  }
   // KID-199.3r: on a daycare subdomain the portal serves ONLY the host tenant.
   // Unknown subdomains land on the neutral error page; a session of another
   // daycare is fail-closed refused with the "belongs to <other>" message.
@@ -116,6 +125,13 @@ export default async function PortalLayout({ children }: { children: React.React
         )}
         {children}
       </main>
+      {/* KID-487: the staff portal registers the same service worker as the
+          parent shell (scope "/" is shared per origin) so staff accounts can
+          subscribe to web push from /portal/account, and the in-app sound
+          watcher works there too — /api/notifications/unread is session-
+          gated, not parent-gated. */}
+      <ServiceWorkerRegister />
+      <NotificationSoundWatcher />
     </div>
   );
 }

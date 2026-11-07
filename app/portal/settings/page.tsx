@@ -2,8 +2,8 @@ import { redirect } from "next/navigation";
 import { resolveTenantInstituteId } from "@/lib/tenant";
 import { requirePortalPage } from "@/lib/require";
 import { isAdminRole } from "@/lib/role";
-import {getInstitute, getWorkingHours } from "@/lib/store";
-import { saveBrandingAction, saveCenterDetailsAction, uploadBrandingImageAction } from "@/lib/actions";
+import {getInstitute, getWorkingHours, parentCheckinEnabled } from "@/lib/store";
+import { saveBrandingAction, saveCenterDetailsAction, saveParentCheckinToggleAction, uploadBrandingImageAction } from "@/lib/actions";
 import { brandingFromInstitute } from "@/lib/theme";
 import Avatar from "@/components/Avatar";
 import LanguageSettingsCard from "@/components/LanguageSettingsCard";
@@ -13,7 +13,11 @@ import { WorkingHoursEditor } from "@/components/WorkingHoursEditor";
 
 export const dynamic = "force-dynamic";
 
-export default async function PortalSettingsPage() {
+export default async function PortalSettingsPage({
+  searchParams,
+}: {
+  searchParams: { saved?: string };
+}) {
   const session = requirePortalPage("/portal/settings");
   // KID-105 #15: Center details (and the rest of center configuration) is
   // admin-only. Staff landing here are sent back to the dashboard.
@@ -24,6 +28,10 @@ export default async function PortalSettingsPage() {
   const iid = await resolveTenantInstituteId();
   const institute = iid ? await getInstitute(iid) : undefined;
   const week = iid ? await getWorkingHours(iid) : {};
+  // KID-486: the parent check-in/out toggle defaults ON (parentCheckinEnabled
+  // treats a missing column value as enabled); the form posts the switch
+  // state and the action audits the change.
+  const parentCheckinOn = iid ? await parentCheckinEnabled(iid) : true;
   const b = brandingFromInstitute(institute as any);
 
   return (
@@ -61,6 +69,27 @@ export default async function PortalSettingsPage() {
           }}
         />
       </div>
+
+      {/* KID-486: the center-wide parent check-in/out switch. Admin-only
+          (the page already redirected non-admins), audited on change. */}
+      <form className="card mb-4" action={saveParentCheckinToggleAction}>
+        <h3 className="subtitle">{tr(dict, "settings.parentCheckinTitle")}</h3>
+        <p className="small muted">{tr(dict, "settings.parentCheckinHint")}</p>
+        {searchParams.saved === "parentcheckin" && (
+          <p className="badge badge-green" style={{ display: "inline-block" }}>
+            {tr(dict, "settings.parentCheckinSaved")}
+          </p>
+        )}
+        <div className="row" style={{ alignItems: "center", gap: 12, marginTop: 8 }}>
+          <label className="row small" style={{ alignItems: "center", gap: 8 }}>
+            <input type="checkbox" name="parentCheckin" defaultChecked={parentCheckinOn} />
+            <strong>{parentCheckinOn ? tr(dict, "settings.parentCheckinOn") : tr(dict, "settings.parentCheckinOff")}</strong>
+          </label>
+          <button className="btn btn-primary" type="submit">
+            {tr(dict, "settings.saveParentCheckin")}
+          </button>
+        </div>
+      </form>
 
       <form className="card mb-4" action={saveCenterDetailsAction}>
         <h3 className="subtitle">{tr(dict, "settings.centerDetails")}</h3>

@@ -228,7 +228,7 @@ export async function accountProfile(accountId: string): Promise<{
   photoUrl?: string | null;
 }> {
   const row = await queryGet(
-    `SELECT a.id, a.email, a.full_name, a.role, a.staff_id, s.photo_url
+    `SELECT a.id, a.email, a.full_name, a.role, a.staff_id, COALESCE(s.photo_url, a.photo_url) AS photo_url
      FROM account a
      LEFT JOIN staff s ON s.id = a.staff_id
      WHERE a.id = ?`,

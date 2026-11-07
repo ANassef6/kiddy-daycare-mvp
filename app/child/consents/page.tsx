@@ -1,5 +1,5 @@
 import { requireFamilyPage } from "@/lib/require";
-import { familiesForAccount } from "@/lib/store";
+import { familiesForAccount, familyAccessForAccount } from "@/lib/store";
 import { queryAll } from "@/lib/db";
 import { respondConsentAction } from "@/lib/actions";
 import { i18nForAccount } from "@/lib/i18n-session";
@@ -19,6 +19,11 @@ export default async function ParentConsentsPage() {
   const session = await requireFamilyPage("/child/consents");
   const { dict } = await i18nForAccount(session.accountId);
   const t = (key: string, vars?: Record<string, string | number>) => tr(dict, key, vars);
+  // KID-486: family links read the consent requests; answering is a parent
+  // link's business action (the server action refuses the rest).
+  const access =
+    session.role === "parent" ? ((await familyAccessForAccount(session.accountId)) ?? "parent") : null;
+  const canRespond = access === "parent";
   const families = await familiesForAccount(session.accountId);
   const childIds = families.map((f) => f.id as string);
   const consents = childIds.length
@@ -49,7 +54,7 @@ export default async function ParentConsentsPage() {
                 <span className={badge.css}>{badge.label}</span>
               </div>
               {c.body && <p className="mt-2" dir="auto">{c.body}</p>}
-              {c.status === "pending" && (
+              {c.status === "pending" && canRespond && (
                 <form className="row mt-3" action={respondConsentAction}>
                   <input type="hidden" name="id" value={c.id} />
                   <button className="btn btn-accent" name="status" value="approved" type="submit">{t("consents.approve")}</button>

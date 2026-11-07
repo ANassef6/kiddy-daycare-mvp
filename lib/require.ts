@@ -53,15 +53,21 @@ export function refuseCaregiver(
 
 // KID-112: call at the top of every /child page with its own pathname.
 // - no_access family links (or a withdrawn account) can never view parent pages.
-// - pickup links may only see the children list, child detail (pickup
-//   registration), and account settings. Everything else redirects to /child.
-// - parent/family links pass through (write actions enforce the rest).
+// - KID-486 pickup links see ONLY the minimal /child pickup page (plus its own
+//   account settings). Child detail and every section page redirect back to /child.
+// - KID-486 family links are view-only: every /child section page reads fine,
+//   but the messages surface (page AND nav) is gone for them — a family link
+//   reaching /child/messages is redirected to /child.
+// Every write action enforces the rest server-side (lib/actions.ts).
 export async function requireFamilyPage(pathname: string) {
   const session = await requireSessionWithWithdrawalCheck();
   if (session.role !== "parent") return session;
   const { familyAccessForAccount } = await import("@/lib/store");
   const access = (await familyAccessForAccount(session.accountId)) ?? "parent";
   if (access === "no_access") redirect("/login?error=disabled");
+  if (access === "family" && (pathname === "/child/messages" || pathname.startsWith("/child/messages/"))) {
+    redirect("/child");
+  }
   if (access === "pickup" && !isPathAllowedForPickup(pathname)) redirect("/child");
   return session;
 }

@@ -10,6 +10,7 @@ import {
   recentReports,
   listContactRequests,
   runAutoCheckoutSweep,
+  pickupTimesForDate,
 } from "@/lib/store";
 import { i18nForAccount } from "@/lib/i18n-session";
 import { fmtDateFor, fmtTimeFor } from "@/lib/i18n";
@@ -47,6 +48,15 @@ export default async function PortalDashboard() {
   const openIncidents = ((incidentCount as any)?.c as number) ?? 0;
   const reports = await recentReports(instituteId, 1, session.accountId);
   const latestReport = reports[0];
+  // KID-486: today's planned pickups join the same schedule the parents and
+  // the attendance table already speak — scoped by the viewer's classrooms.
+  const today = new Date().toISOString().slice(0, 10);
+  const [allPickups, viewerRoomIds] = await Promise.all([
+    pickupTimesForDate(instituteId, today),
+    listRoomsScoped(instituteId, session.accountId),
+  ]);
+  const viewerRoomIdSet = new Set((viewerRoomIds as any[]).map((r) => String(r.id)));
+  const plannedPickups = allPickups.filter((p: any) => viewerRoomIdSet.has(String(p.room_id)));
 
   return (
     <div>
@@ -71,6 +81,27 @@ export default async function PortalDashboard() {
                 </Link>
                 <span className="small muted">
                   {c.room_name ?? tr(dict, "dashboard.noRoom")} · {fmtTimeFor(locale, c.checked_in_at)}
+                </span>
+              </div>
+            ))
+          )}
+          <Link className="small mt-2" href="/portal/attendance">{tr(dict, "dashboard.viewFullAttendance")} →</Link>
+        </div>
+
+        {/* KID-486: the pickup contacts' planned schedule rides the dashboard. */}
+        <div className="card">
+          <h3 className="subtitle">{tr(dict, "dashboard.plannedPickups")}</h3>
+          {plannedPickups.length === 0 ? (
+            <p className="muted small">{tr(dict, "dashboard.plannedPickupsEmpty")}</p>
+          ) : (
+            plannedPickups.map((p: any) => (
+              <div className="list-item" key={p.id}>
+                <Link href={`/portal/children/${p.child_id}`} style={{ fontWeight: 600 }}>
+                  {p.first_name} {p.last_name}
+                </Link>
+                <span className="small muted">
+                  {String(p.pickup_time)}
+                  {p.note ? ` · ${String(p.note)}` : ""}
                 </span>
               </div>
             ))

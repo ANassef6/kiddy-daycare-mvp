@@ -311,7 +311,9 @@ describe("KID-221: Arabic staff/admin pages render without English UI strings", 
       name: "/portal/settings",
       render: async () => {
         const { default: Page } = await import("@/app/portal/settings/page");
-        return renderToStaticMarkup((await Page()) as never);
+        // KID-486: the settings page now reads ?saved= so the call needs the
+        // props object other pages already accept.
+        return renderToStaticMarkup((await Page({ searchParams: {} })) as never);
       },
     },
   ];

@@ -1183,7 +1183,61 @@ export async function checkChildInOut(data: {
 }): Promise<Row> {
   const id = uid();
   await queryRun("INSERT INTO check_in (id, child_id, account_id, type, is_edit) VALUES (?, ?, ?, ?, ?)", id, data.childId, data.accountId, data.type, data.isEdit ? 1 : 0);
+  // KID-487: a pickup-time event is when the pickup time is SET (a check-in/
+  // out is recorded) or CHANGED (an explicit edit) — the assigned staff and
+  // the family get a durable notification + push through the emit
+  // choke point. The actor is excluded from their own event.
+  try {
+    await emitPickupEvent({
+      childId: data.childId,
+      rowId: id,
+      type: data.type,
+      edited: !!data.isEdit,
+      actorAccountId: data.accountId,
+    });
+  } catch (err) {
+    console.error(`KID-487 pickup notification emission failed (check_in=${id}):`, err);
+  }
   return (await queryGet("SELECT * FROM check_in WHERE id = ?", id))!;
+}
+
+/** KID-487: push-style emission for check-in/check-out ("pickup time") rows.
+ *  Audience: assigned classroom staff + the child's family parents, minus the
+ *  acting account. Best-effort; writes its fresh rows through the shared
+ *  emitNotifications fan-out so in-app prefs and push gating stay identical. */
+async function emitPickupEvent(data: {
+  childId: string;
+  rowId: string;
+  type: "in" | "out";
+  edited: boolean;
+  actorAccountId: string;
+  createdAt?: string;
+}): Promise<void> {
+  const child = await queryGet(
+    "SELECT id, first_name, last_name, institute_id, room_id FROM child WHERE id = ?",
+    data.childId
+  );
+  if (!child) return;
+  const [staff, parents] = await Promise.all([
+    child.room_id ? roomStaffIds(String(child.institute_id), String(child.room_id)) : Promise.resolve([] as string[]),
+    familyParentsForChildren([data.childId], [data.actorAccountId]),
+  ]);
+  const staffAudience = staff.filter((id) => id !== String(data.actorAccountId));
+  await emitNotifications({
+    instituteId: String(child.institute_id ?? ""),
+    accountIds: [...staffAudience, ...parents],
+    activity: "attendance",
+    kind: "attendance",
+    payload: {
+      childId: String(child.id),
+      childName: `${child.first_name ?? ""} ${child.last_name ?? ""}`.trim(),
+      type: data.type,
+      edited: data.edited,
+      actorAccountId: String(data.actorAccountId ?? ""),
+    },
+    ref: `checkin-${data.rowId}`,
+    createdAt: data.createdAt,
+  });
 }
 
 export async function todayStatus(childId: string): Promise<{ checkedIn?: Row; checkedOut?: Row; lastEvent?: Row }> {
@@ -1267,6 +1321,183 @@ export async function checkInAllowed(
   return checkInOpen(week, now);
 }
 
+// ---------- KID-486: parent check-in/out toggle + planned pickup time ----------
+
+/** The center-wide "parents may check in/out" switch. Defaults ON: a missing
+ *  column value (NULL, legacy row before the 0036 migration) and a missing
+ *  institute both read as enabled, so a deploy can never silently lock every
+ *  parent out of check-in. */
+export async function parentCheckinEnabled(instituteId: string): Promise<boolean> {
+  if (!instituteId) return true;
+  try {
+    const row = await queryGet("SELECT parent_checkin_enabled FROM institute WHERE id = ?", instituteId);
+    if (!row) return true;
+    return Number(row.parent_checkin_enabled ?? 1) !== 0;
+  } catch (err) {
+    // Fail open: only a broken schema could land here, and check-in being
+    // temporarily available beats every parent locked out of it.
+    console.error("KID-486 parentCheckinEnabled lookup failed:", err);
+    return true;
+  }
+}
+
+/** Per-child family-link role — the server-side proof that a write on a
+ *  specific child comes from someone actually linked to THAT child (a
+ *  parent-role session with no link or only weaker links is refused). */
+export async function familyLinkRoleForChild(accountId: string, childId: string): Promise<string | null> {
+  const row = await queryGet("SELECT role FROM family_member WHERE account_id = ? AND child_id = ? LIMIT 1", accountId, childId);
+  return row ? String(row.role ?? "").toLowerCase() : null;
+}
+
+export async function getPickupTime(childId: string, date: string): Promise<Row | undefined> {
+  try {
+    return await queryGet(
+      "SELECT * FROM pickup_time WHERE child_id = ? AND pickup_date = ? LIMIT 1",
+      childId,
+      date
+    );
+  } catch (err) {
+    console.error("KID-486 getPickupTime failed:", err);
+    return undefined;
+  }
+}
+
+/** Planned pickup rows for a whole institute/day — the staff views (child
+ *  profile, attendance, dashboard) read these. */
+export async function pickupTimesForDate(instituteId: string, date: string): Promise<Row[]> {
+  try {
+    return await queryAll(
+      `SELECT pt.*, c.first_name, c.last_name, c.photo_url, c.room_id
+       FROM pickup_time pt
+       JOIN child c ON c.id = pt.child_id
+       WHERE pt.institute_id = ? AND pt.pickup_date = ?
+       ORDER BY c.first_name, c.last_name`,
+      instituteId,
+      date
+    );
+  } catch (err) {
+    console.error("KID-486 pickupTimesForDate failed:", err);
+    return [];
+  }
+}
+
+/** The pickup user's own entries from a date onwards (their minimal page). */
+export async function pickupTimesForAccount(accountId: string, fromDate: string): Promise<Row[]> {
+  try {
+    return await queryAll(
+      `SELECT pt.*, c.first_name, c.last_name, c.photo_url
+       FROM pickup_time pt
+       JOIN child c ON c.id = pt.child_id
+       WHERE pt.account_id = ? AND pt.pickup_date >= ?
+       ORDER BY pt.pickup_date ASC, pt.pickup_time ASC`,
+      accountId,
+      fromDate
+    );
+  } catch (err) {
+    console.error("KID-486 pickupTimesForAccount failed:", err);
+    return [];
+  }
+}
+
+export type StoredPickupTime =
+  | { ok: true; row: Row; changed: "created" | "updated"; teacherAccountIds: string[] }
+  | { ok: false };
+
+/** Create or replace today's planned pickup time for one child. The unique
+ *  (child_id, pickup_date) pair is the one-entry-per-child-per-day rule; the
+ *  assigned classroom staff get an in-app notification when the time is set
+ *  or changed. Validation must run BEFORE this call (lib/pickup-time.ts). */
+export async function storePickupTime(data: {
+  instituteId: string;
+  childId: string;
+  accountId: string;
+  date: string;
+  time: string;
+  note?: string;
+  /** The picker's own account id — stamped into the row and the audit copy. */
+}): Promise<StoredPickupTime> {
+  try {
+    const existing = await getPickupTime(data.childId, data.date);
+    if (existing) {
+      await queryRun(
+        "UPDATE pickup_time SET pickup_time = ?, note = ?, updated_at = ?, account_id = ? WHERE id = ?",
+        data.time,
+        data.note ?? null,
+        new Date().toISOString(),
+        data.accountId,
+        String(existing.id)
+      );
+      const row = (await queryGet("SELECT * FROM pickup_time WHERE id = ?", String(existing.id)))!;
+      return { ok: true, row, changed: "updated", teacherAccountIds: await pickupTeachersForChild(data.instituteId, data.childId) };
+    }
+    const id = uid();
+    await queryRun(
+      `INSERT INTO pickup_time (id, institute_id, child_id, account_id, pickup_date, pickup_time, note, created_by_account_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      id,
+      data.instituteId,
+      data.childId,
+      data.accountId,
+      data.date,
+      data.time,
+      data.note ?? null,
+      data.accountId
+    );
+    const row = (await queryGet("SELECT * FROM pickup_time WHERE id = ?", id))!;
+    return { ok: true, row, changed: "created", teacherAccountIds: await pickupTeachersForChild(data.instituteId, data.childId) };
+  } catch (err) {
+    console.error(`KID-486 storePickupTime failed (child=${data.childId}, date=${data.date}):`, err);
+    return { ok: false };
+  }
+}
+
+/** Cancel: only the row's own owner (or the newer setter) may remove it. */
+export async function deletePickupTime(childId: string, date: string, accountId: string): Promise<boolean> {
+  try {
+    const res = await queryRun(
+      "DELETE FROM pickup_time WHERE child_id = ? AND pickup_date = ? AND account_id = ?",
+      childId,
+      date,
+      accountId
+    );
+    return (res?.rowCount ?? 0) !== 0;
+  } catch (err) {
+    console.error(`KID-486 deletePickupTime failed (child=${childId}):`, err);
+    return false;
+  }
+}
+
+/** Accounts of the classroom staff actually assigned to the child's room —
+ *  the "assigned teachers" the pickup change notifies. */
+export async function pickupTeachersForChild(instituteId: string, childId: string): Promise<string[]> {
+  try {
+    const child = await queryGet("SELECT room_id FROM child WHERE id = ? AND institute_id = ?", childId, instituteId);
+    const roomId = child?.room_id ? String(child.room_id) : null;
+    if (!roomId) return [];
+    return await roomStaffIds(instituteId, roomId);
+  } catch (err) {
+    console.error(`KID-486 assigned-teacher lookup failed (child=${childId}):`, err);
+    return [];
+  }
+}
+
+/** KID-486: message notifications are suppressed for parent accounts whose
+ *  family links are view-only (family/pickup/no_access) — they lost the
+ *  messages page, so an unread badge pointing at it would be a lie. Staff and
+ *  full parents keep their notifications as before. */
+export async function receivesMessageNotification(accountId: string): Promise<boolean> {
+  try {
+    const acct = await queryGet("SELECT role FROM account WHERE id = ?", accountId);
+    if (String(acct?.role ?? "") !== "parent") return true;
+    const access = await familyAccessForAccount(accountId);
+    return access === null || access === "parent";
+  } catch (err) {
+    console.error(`KID-486 message-notification gate failed (account=${accountId}):`, err);
+    return false;
+  }
+}
+
+
 // The "system" actor for unattended mutations (auto check-outs). A hidden
 // account so every check_in/staff_status row keeps a real actor reference.
 // Always verified against the DB (no module cache) so rows stay valid even if
@@ -1300,6 +1531,21 @@ export async function autoCheckoutChild(
     actorAccountId,
     at.toISOString()
   );
+  // KID-487: the auto check-out is the pickup time "changed automatically" —
+  // staff and the family learn the child left (system-made) like any pickup
+  // event. Best-effort, same choke point as the manual path.
+  try {
+    await emitPickupEvent({
+      childId,
+      rowId: id,
+      type: "out",
+      edited: false,
+      actorAccountId,
+      createdAt: at.toISOString(),
+    });
+  } catch (err) {
+    console.error(`KID-487 auto checkout notification emission failed (check_in=${id}):`, err);
+  }
   return (await queryGet("SELECT * FROM check_in WHERE id = ?", id))!;
 }
 
@@ -1515,9 +1761,11 @@ export async function upsertDailyReport(data: {
   // KID-474: a NEW daily report notifies the child's parent audience (the
   // family accounts linked through family_member) with an unread item; the
   // stable child+date ref never emits a second row for an update pass.
+  // KID-487: the assigned classroom staff get the same durable row + push
+  // (same ref — dedupe is per account), minus the report's author.
   try {
     const child = await queryGet(
-      "SELECT first_name, last_name, institute_id FROM child WHERE id = ?",
+      "SELECT first_name, last_name, institute_id, room_id FROM child WHERE id = ?",
       data.childId
     );
     if (child) {
@@ -1527,9 +1775,16 @@ export async function upsertDailyReport(data: {
          WHERE fm.child_id = ? AND a.role = 'parent'`,
         data.childId
       );
+      const staff = child.room_id
+        ? (await roomStaffIds(String(child.institute_id), String(child.room_id))).filter(
+            (rid) => rid !== String(data.accountId ?? "")
+          )
+        : [];
       await emitNotifications({
         instituteId: String(child.institute_id ?? ""),
-        accountIds: parents.map((p) => String(p.account_id)),
+        accountIds: [
+          ...new Set([...parents.map((p) => String(p.account_id)), ...staff]),
+        ],
         activity: "daily_report",
         kind: "daily_report",
         payload: {
@@ -1610,6 +1865,9 @@ export async function createNewsfeedPost(data: {
   // emitNotifications path so the fan-out keeps one copy pipeline: the
   // audience is the tagged children's family accounts, or every parent of
   // the daycare when a post has no tags (a center-wide announcement).
+  // KID-487: the same emission reaches the staff audience — the rooms of the
+  // tagged children, or every staff account for a center-wide post (minus
+  // the author). One event, one room it lands in, per-account URL/copy.
   try {
     const author = await queryGet("SELECT full_name FROM account WHERE id = ?", data.accountId);
     const tagged = data.tagChildIds?.length
@@ -1627,9 +1885,28 @@ export async function createNewsfeedPost(data: {
            WHERE c.institute_id = ? AND ac.role = 'parent'`,
           data.instituteId
         );
+    let staffAudience: string[] = [];
+    if (data.tagChildIds?.length) {
+      const childRows = await queryAll(
+        `SELECT DISTINCT room_id FROM child
+         WHERE id IN (${(data.tagChildIds ?? []).map(() => "?").join(", ")}) AND room_id IS NOT NULL`,
+        ...(data.tagChildIds ?? [])
+      );
+      const roomIds = childRows.map((r) => String(r.room_id));
+      const roomStaff = new Set<string>();
+      for (const rid of roomIds) {
+        for (const sid of await roomStaffIds(data.instituteId, rid)) roomStaff.add(sid);
+      }
+      roomStaff.delete(String(data.accountId));
+      staffAudience = [...roomStaff];
+    } else {
+      staffAudience = await staffCenterAudience(data.instituteId, [String(data.accountId)]);
+    }
     await emitNotifications({
       instituteId: data.instituteId,
-      accountIds: tagged.map((r) => String(r.account_id)),
+      accountIds: [
+        ...new Set([...tagged.map((r) => String(r.account_id)), ...staffAudience]),
+      ],
       activity: "newsfeed",
       kind: "announcement",
       payload: {
@@ -1762,20 +2039,25 @@ export async function sendMessage(data: {
   // KID-474: the durable in-app notification rides the same write — the
   // recipient (any role) gets a row for their unread badge and center, and
   // message rows never duplicate thanks to the stable per-message ref.
+  // KID-486: view-only family links (family/pickup/no_access) lost the
+  // messages page, so their message notifications are suppressed instead of
+  // lighting a badge that nothing can open.
   try {
-    const sender = await queryGet("SELECT full_name FROM account WHERE id = ?", data.senderAccountId);
-    await emitNotifications({
-      instituteId: data.instituteId,
-      accountIds: [data.recipientAccountId],
-      activity: "messages",
-      kind: "message",
-      payload: {
-        senderName: String(sender?.full_name ?? ""),
-        body: String(data.body).slice(0, 280),
-        threadId: data.threadId ?? null,
-      },
-      ref: `msg-${id}`,
-    });
+    if (await receivesMessageNotification(data.recipientAccountId)) {
+      const sender = await queryGet("SELECT full_name FROM account WHERE id = ?", data.senderAccountId);
+      await emitNotifications({
+        instituteId: data.instituteId,
+        accountIds: [data.recipientAccountId],
+        activity: "messages",
+        kind: "message",
+        payload: {
+          senderName: String(sender?.full_name ?? ""),
+          body: String(data.body).slice(0, 280),
+          threadId: data.threadId ?? null,
+        },
+        ref: `msg-${id}`,
+      });
+    }
   } catch (err) {
     console.error(`KID-474 message notification emission failed (message=${id}):`, err);
   }
@@ -2026,6 +2308,47 @@ export async function roomStaffIds(instituteId: string, roomId: string): Promise
   return rows.map((r) => String(r.id));
 }
 
+// KID-487: staff audiences for notification emission. Room events (a child's
+// pickup time) reach the assigned classroom staff; center-wide events
+// (supplies) reach every staff-role account linked to a staff row of the
+// institute. `excludeAccountIds` keeps the acting account out of its own
+// events. Owners/admins always ride the staff join (their staff row exists),
+// unlinked accounts resolve to nothing by design.
+export async function staffCenterAudience(
+  instituteId: string,
+  excludeAccountIds: string[] = []
+): Promise<string[]> {
+  const rows = await queryAll(
+    `SELECT DISTINCT a.id
+     FROM account a
+     JOIN staff s ON s.id = a.staff_id
+     WHERE s.institute_id = ? AND a.role IN ('teacher','caregiver','admin','owner')`,
+    instituteId
+  );
+  const exclude = new Set(excludeAccountIds.map(String));
+  return rows.map((r) => String(r.id)).filter((id) => !exclude.has(id));
+}
+
+// KID-487: parents linked to the given children through family_member
+// (role 'parent' — KID-112 pickup-role contacts are actors, not an
+// audience), excluding the acting account so nobody is notified of their
+// own action.
+export async function familyParentsForChildren(
+  childIds: string[],
+  excludeAccountIds: string[] = []
+): Promise<string[]> {
+  const ids = childIds.filter(Boolean);
+  if (ids.length === 0) return [];
+  const rows = await queryAll(
+    `SELECT DISTINCT fm.account_id FROM family_member fm
+     JOIN account a ON a.id = fm.account_id
+     WHERE fm.child_id IN (${ids.map(() => "?").join(", ")}) AND a.role = 'parent'`,
+    ...ids
+  );
+  const exclude = new Set(excludeAccountIds.map(String));
+  return rows.map((r) => String(r.account_id)).filter((id) => !exclude.has(id));
+}
+
 export async function roomParentIds(instituteId: string, roomId: string): Promise<string[]> {
   const rows = await queryAll(
     `SELECT DISTINCT a.id FROM account a
@@ -2230,6 +2553,36 @@ export async function createIncident(data: {
     data.type ?? "incident",
     data.description
   );
+  // KID-487: the staff of the child's room + the family get a durable
+  // notification + push for every new incident report. Best-effort.
+  try {
+    const child = await queryGet(
+      "SELECT first_name, last_name, room_id FROM child WHERE id = ?",
+      data.childId
+    );
+    const staff = child?.room_id
+      ? (await roomStaffIds(data.instituteId, String(child.room_id))).filter(
+          (rid) => rid !== String(data.accountId)
+        )
+      : [];
+    const parents = await familyParentsForChildren([data.childId]);
+    await emitNotifications({
+      instituteId: data.instituteId,
+      accountIds: [...staff, ...parents],
+      activity: "incidents",
+      kind: "incident",
+      payload: {
+        incidentId: id,
+        childId: String(data.childId),
+        childName: child ? `${child.first_name ?? ""} ${child.last_name ?? ""}`.trim() : "",
+        body: String(data.description ?? "").slice(0, 160),
+        reportedByAccountId: String(data.accountId),
+      },
+      ref: `incident-${id}`,
+    });
+  } catch (err) {
+    console.error(`KID-487 incident notification emission failed (incident=${id}):`, err);
+  }
   return (await queryGet("SELECT * FROM incident_report WHERE id = ?", id))!;
 }
 
@@ -2343,6 +2696,34 @@ export async function createEvent(data: {
     data.description ?? "",
     data.accountId ?? null
   );
+  // KID-487: a new event notifies the whole parent body (every parent in the
+  // daycare — events are center-wide) with push through the choke point.
+  try {
+    const parents = await queryAll(
+      `SELECT DISTINCT fm.account_id FROM family_member fm
+       JOIN child c ON c.id = fm.child_id
+       JOIN account a ON a.id = fm.account_id
+       WHERE c.institute_id = ? AND a.role = 'parent'`,
+      data.instituteId
+    );
+    await emitNotifications({
+      instituteId: data.instituteId,
+      accountIds: parents.map((r) => String(r.account_id)),
+      activity: "events",
+      kind: "event",
+      payload: {
+        eventId: id,
+        title: String(data.title ?? ""),
+        body: String(data.description ?? "").slice(0, 160),
+        eventDate: data.eventDate,
+        startTime: data.startTime ?? "",
+        location: data.location ?? "",
+      },
+      ref: `event-${id}`,
+    });
+  } catch (err) {
+    console.error(`KID-487 event notification emission failed (event=${id}):`, err);
+  }
   return (await queryGet("SELECT * FROM event WHERE id = ?", id))!;
 }
 
@@ -3004,6 +3385,39 @@ export async function createHomework(data: {
     data.dueDate || null,
     data.accountId ?? null
   );
+  // KID-487: homework reaches the assignment's classroom staff via push
+  // (child-scoped → the room; child-less → center-wide staff). Best-effort.
+  try {
+    let audience: string[] = [];
+    if (data.childId) {
+      const child = await queryGet(
+        "SELECT institute_id, room_id FROM child WHERE id = ?",
+        data.childId
+      );
+      if (child?.room_id) {
+        audience = (await roomStaffIds(String(child.institute_id), String(child.room_id))).filter(
+          (rid) => rid !== String(data.accountId ?? "")
+        );
+      }
+    } else {
+      audience = await staffCenterAudience(data.instituteId, data.accountId ? [data.accountId] : []);
+    }
+    await emitNotifications({
+      instituteId: data.instituteId,
+      accountIds: audience,
+      activity: "homework",
+      kind: "homework",
+      payload: {
+        homeworkId: nid,
+        title: String(data.title ?? ""),
+        body: String(data.description ?? "").slice(0, 160),
+        dueDate: data.dueDate ?? "",
+      },
+      ref: `homework-${nid}`,
+    });
+  } catch (err) {
+    console.error(`KID-487 homework notification emission failed (homework=${nid}):`, err);
+  }
   return (await queryGet("SELECT * FROM homework WHERE id = ?", nid))!;
 }
 
@@ -3043,6 +3457,28 @@ export async function createSupply(data: {
     data.notes ?? "",
     data.accountId ?? null
   );
+  // KID-487: a new supply request is center-wide staff knowledge — every
+  // staff-role account gets a durable notification + push.
+  try {
+    const audience = await staffCenterAudience(data.instituteId, data.accountId ? [data.accountId] : []);
+    await emitNotifications({
+      instituteId: data.instituteId,
+      accountIds: audience,
+      activity: "supplies",
+      kind: "supplies",
+      payload: {
+        supplyId: id,
+        title: String(data.title ?? ""),
+        quantity: String(data.quantity ?? 1),
+        unit: String(data.unit ?? "pcs"),
+        notes: String(data.notes ?? ""),
+        status: "needed",
+      },
+      ref: `supply-${id}`,
+    });
+  } catch (err) {
+    console.error(`KID-487 supplies notification emission failed (supply=${id}):`, err);
+  }
   return (await queryGet("SELECT * FROM supply_request WHERE id = ?", id))!;
 }
 
@@ -3134,17 +3570,22 @@ export async function setNotificationPref(
   );
 }
 
-// KID-480: on browser push subscribe, give every parent activity an explicit
-// enabled 'push' row so the parent's choice is durable in the settings table.
-// An explicitly saved row (e.g. a prior opt-out) is never overwritten — only
-// gaps are filled. A missing row already defaults to enabled for push.
-export async function ensureDefaultPushPrefs(accountId: string): Promise<void> {
+// KID-480: on browser push subscribe, give every activity that can reach this
+// account an explicit enabled 'push' row so the choice is durable in the
+// settings table. An explicitly saved row (e.g. a prior opt-out) is never
+// overwritten — only gaps are filled. A missing row already defaults to
+// enabled for push. KID-487: the caller passes the activity list matching the
+// surface (parent activities for parents, the staff list for the portal).
+export async function ensureDefaultPushPrefs(
+  accountId: string,
+  activities: readonly string[] = (PARENT_NOTIFICATION_ACTIVITIES as unknown) as readonly string[]
+): Promise<void> {
   const rows = await queryAll(
     `SELECT activity FROM notification_pref WHERE account_id = ? AND channel = 'push'`,
     accountId
   );
   const existing = new Set(rows.map((r) => String(r.activity)));
-  for (const activity of PARENT_NOTIFICATION_ACTIVITIES as readonly string[]) {
+  for (const activity of activities) {
     if (!existing.has(activity)) {
       await queryRun(
         `INSERT INTO notification_pref (account_id, activity, channel, enabled)
@@ -3883,7 +4324,7 @@ export type ParentActivationHeal =
 export async function healParentActivation(accountId: string): Promise<ParentActivationHeal> {
   const { getPendingInvitesByEmail } = await import("./invite-email");
   const { isContactRelationship, parseContactRelationship } = await import("./contact-relationship");
-  const account = await queryGet("SELECT role, email FROM account WHERE id = ?", accountId);
+  const account = await queryGet("SELECT role, email, email_confirmed FROM account WHERE id = ?", accountId);
   if (!account || String(account.role) !== "parent") return { status: "none" };
   const email = String(account.email ?? "").trim().toLowerCase();
   if (!email) return { status: "none" };
@@ -3926,6 +4367,23 @@ export async function healParentActivation(accountId: string): Promise<ParentAct
     // Single-use consumption, exactly like the register tail: only a still-
     // pending row moves, so a replayed heal can never re-open a used invite.
     await queryRun("UPDATE invite SET status = 'accepted' WHERE id = ? AND status = 'pending'", inviteId);
+    // KID-500: consuming the pending invite completes the activation, and the
+    // single-use code addressed to this exact email is the ownership proof —
+    // mirror the register tail (lib/actions.ts) and flip the local
+    // email_confirmed flag here too, so an app-side-only activation (GoTrue
+    // sign-up rate-limited or auth_user_id null, the mayoda0@gmail.com shape)
+    // does not keep rendering "Resend activation" and the /welcome banner.
+    // Strictly better-than-nothing, never worse: the flag only ever moves 0 →
+    // 1 (gate on the already-selected row) and a failed update is logged, not
+    // thrown — a heal that just fixed the login must not fail the login.
+    if (Number((account as { email_confirmed?: number | null }).email_confirmed ?? 1) === 0) {
+      try {
+        await queryRun("UPDATE account SET email_confirmed = 1 WHERE id = ? AND email_confirmed = 0", accountId);
+        console.log(`KID-500: healParentActivation set email_confirmed = 1 for account ${accountId} (accepted invite ${inviteId} proves the address).`);
+      } catch (err) {
+        console.warn(`KID-500: healParentActivation email_confirmed flip failed for account ${accountId}:`, err instanceof Error ? err.message : err);
+      }
+    }
     console.log(`KID-498: healParentActivation linked account ${accountId} to child ${childId} via invite ${inviteId} (role ${linkRole}).`);
     return { status: "linked", childId, inviteId };
   }

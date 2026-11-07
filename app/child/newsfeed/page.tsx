@@ -1,6 +1,6 @@
 import { requireFamilyPage } from "@/lib/require";
 import { resolveTenantInstituteId } from "@/lib/tenant";
-import { familiesForAccount,listNewsfeed } from "@/lib/store";
+import { familiesForAccount, familyAccessForAccount, listNewsfeed } from "@/lib/store";
 import { toggleLikeAction, commentAction } from "@/lib/actions";
 import { i18nForAccount } from "@/lib/i18n-session";
 import { tr } from "@/lib/i18n";
@@ -11,6 +11,11 @@ export default async function ParentNewsfeedPage() {
   const session = await requireFamilyPage("/child/newsfeed");
   const { locale, dict } = await i18nForAccount(session.accountId);
   const t = (key: string, vars?: Record<string, string | number>) => tr(dict, key, vars);
+  // KID-486: family links read the newsfeed; likes/comments are business
+  // actions and belong to parent links (the server actions refuse the rest).
+  const access =
+    session.role === "parent" ? ((await familyAccessForAccount(session.accountId)) ?? "parent") : null;
+  const canAct = access === "parent";
   const families = await familiesForAccount(session.accountId);
   const childIds = families.map((f) => f.id as string);
   const childName = Object.fromEntries(families.map((f) => [f.id, f.first_name as string]));
@@ -36,17 +41,23 @@ export default async function ParentNewsfeedPage() {
                 <div className="small muted" dir="auto">
                   {post.author_name} · {new Date(post.created_at).toLocaleString(locale === "ar" ? "ar-EG" : undefined)}
                 </div>
-                <form action={toggleLikeAction}>
-                  <input type="hidden" name="postId" value={post.id} />
-                  <button
-                    type="submit"
-                    className={post.liked ? "badge badge-green" : "badge badge-gray"}
-                    style={{ cursor: "pointer", border: "none", fontSize: 12 }}
-                    title={post.liked ? t("child.unlike") : t("child.like")}
-                  >
+                {canAct ? (
+                  <form action={toggleLikeAction}>
+                    <input type="hidden" name="postId" value={post.id} />
+                    <button
+                      type="submit"
+                      className={post.liked ? "badge badge-green" : "badge badge-gray"}
+                      style={{ cursor: "pointer", border: "none", fontSize: 12 }}
+                      title={post.liked ? t("child.unlike") : t("child.like")}
+                    >
+                      {post.liked ? "♥" : "♡"} {post.like_count}
+                    </button>
+                  </form>
+                ) : (
+                  <span className={post.liked ? "badge badge-green" : "badge badge-gray"} style={{ fontSize: 12 }}>
                     {post.liked ? "♥" : "♡"} {post.like_count}
-                  </button>
-                </form>
+                  </span>
+                )}
               </div>
               {forChild && (
                 <span className="badge badge-green mt-2" style={{ marginTop: 8 }}>
@@ -63,12 +74,14 @@ export default async function ParentNewsfeedPage() {
               {post.comments?.map((c: any) => (
                 <div className="small mt-1" key={c.id}><strong>{c.full_name}:</strong> {c.body}</div>
               ))}
-              <form action={commentAction} className="row mt-3">
-                <input type="hidden" name="postId" value={post.id} />
-                <input type="hidden" name="fromParent" value="1" />
-                <input className="input" name="body" placeholder={t("newsfeed.addCommentPlaceholder")} required style={{ flex: 1 }} />
-                <button className="btn btn-ghost" type="submit">{t("newsfeed.comment")}</button>
-              </form>
+              {canAct && (
+                <form action={commentAction} className="row mt-3">
+                  <input type="hidden" name="postId" value={post.id} />
+                  <input type="hidden" name="fromParent" value="1" />
+                  <input className="input" name="body" placeholder={t("newsfeed.addCommentPlaceholder")} required style={{ flex: 1 }} />
+                  <button className="btn btn-ghost" type="submit">{t("newsfeed.comment")}</button>
+                </form>
+              )}
             </div>
           );
         })

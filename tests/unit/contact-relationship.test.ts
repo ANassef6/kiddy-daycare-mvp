@@ -54,22 +54,37 @@ describe("access ladder", () => {
     }
   });
 
-  it("family is limited: no consents/forms/incidents/support, but loop + messaging work", () => {
-    expect(isActionAllowed("family", "respondConsent")).toBe(false);
-    expect(isActionAllowed("family", "submitForm")).toBe(false);
-    expect(isActionAllowed("family", "acknowledgeIncident")).toBe(false);
-    expect(isActionAllowed("family", "createSupportTicket")).toBe(false);
-    expect(isActionAllowed("family", "checkInOut")).toBe(true);
-    expect(isActionAllowed("family", "sendMessage")).toBe(true);
-    expect(isActionAllowed("family", "comment")).toBe(true);
+  // KID-486: family links are VIEW-ONLY — deny by default; the allowlist is
+  // exactly the account-self set.
+  it("family is view-only: every business action is denied", () => {
+    for (const action of [
+      "respondConsent", "submitForm", "acknowledgeIncident", "createSupportTicket",
+      "checkInOut", "sendMessage", "comment", "toggleLike", "addDriveFile",
+    ]) {
+      expect(isActionAllowed("family", action)).toBe(false);
+    }
+    // The account-self allowlist still works (own language + notification prefs).
+    expect(isActionAllowed("family", "saveLanguage")).toBe(true);
+    expect(isActionAllowed("family", "saveParentNotificationPrefs")).toBe(true);
+    expect(isActionAllowed("family", "savePickupTime")).toBe(false);
   });
 
-  it("pickup may only register pickup time", () => {
-    expect(isActionAllowed("pickup", "checkInOut")).toBe(true);
+  it("pickup schedules pickup time and nothing else", () => {
+    expect(isActionAllowed("pickup", "savePickupTime")).toBe(true);
+    expect(isActionAllowed("pickup", "cancelPickupTime")).toBe(true);
+    expect(isActionAllowed("pickup", "checkInOut")).toBe(false);
     expect(isActionAllowed("pickup", "sendMessage")).toBe(false);
     expect(isActionAllowed("pickup", "respondConsent")).toBe(false);
+    // Pickup-time actions are pickup-only — even full parents never hold them.
+    expect(isActionAllowed("parent", "savePickupTime")).toBe(false);
+    expect(isActionAllowed("parent", "cancelPickupTime")).toBe(false);
+    expect(isActionAllowed("family", "savePickupTime")).toBe(false);
+  });
+
+  it("pickup may only reach the minimal page", () => {
     expect(isPathAllowedForPickup("/child")).toBe(true);
-    expect(isPathAllowedForPickup("/child/abc123")).toBe(true);
+    // KID-486: child detail is out of scope — only account settings remain.
+    expect(isPathAllowedForPickup("/child/abc123")).toBe(false);
     expect(isPathAllowedForPickup("/child/settings")).toBe(true);
     expect(isPathAllowedForPickup("/child/newsfeed")).toBe(false);
     expect(isPathAllowedForPickup("/child/messages")).toBe(false);

@@ -3,7 +3,9 @@ import { ensureSchema } from "@/lib/db";
 import { i18nForAccount } from "@/lib/i18n-session";
 import { tr } from "@/lib/i18n";
 import { getNotificationPrefs, PARENT_NOTIFICATION_ACTIVITIES } from "@/lib/store";
-import { saveParentNotificationPrefsAction } from "@/lib/actions";
+import { saveParentNotificationPrefsAction, updateParentAccountAction } from "@/lib/actions";
+import { accountProfile } from "@/lib/auth";
+import Avatar from "@/components/Avatar";
 import LanguageSettingsCard from "@/components/LanguageSettingsCard";
 import PushNotificationsCard from "@/components/PushNotificationsCard";
 
@@ -25,12 +27,15 @@ const PARENT_ACTIVITY_LABEL_KEYS: Record<string, string> = {
 export default async function ParentSettingsPage({
   searchParams,
 }: {
-  searchParams: { saved?: string };
+  searchParams: { saved?: string; error?: string };
 }) {
   const session = requireSession();
   const { locale, dict } = await i18nForAccount(session.accountId);
   await ensureSchema();
   const prefs = await getNotificationPrefs(session.accountId);
+  // KID-486: the self-account editor needs the live profile (name + avatar).
+  const profile = await accountProfile(session.accountId);
+  const displayName = profile.fullName || session.email;
 
   const on = (activity: string, channel: string) => {
     const hit = (prefs as { activity: string; channel: string; enabled: unknown }[]).find(
@@ -60,6 +65,47 @@ export default async function ParentSettingsPage({
     <div>
       <h1 className="title">{tr(dict, "account.settingsTitle")}</h1>
       <LanguageSettingsCard locale={locale} dict={dict} />
+
+      {/* KID-486: every parent-tier account (parent / family / pickup) edits
+          its OWN details — name, password, photo. The action updates the
+          account's own row only; child records are never reachable here. */}
+      <div className="card mb-4">
+        <h3 className="subtitle">{tr(dict, "account.settingsSubtitle")}</h3>
+        {searchParams.saved && (
+          <p className="badge badge-green" style={{ display: "inline-block" }}>
+            {tr(dict, "account.detailsSaved")}
+          </p>
+        )}
+        {searchParams.error === "short-password" && (
+          <p className="small" style={{ color: "#dc2626", fontWeight: 600 }}>
+            {tr(dict, "account.newPasswordTooShort")}
+          </p>
+        )}
+        <form action={updateParentAccountAction} encType="multipart/form-data" className="mt-3">
+          <div className="row" style={{ alignItems: "center", gap: 16 }}>
+            <Avatar src={profile.photoUrl} name={displayName} size={64} />
+            <div style={{ flex: 1 }}>
+              <h2 className="subtitle" style={{ margin: 0 }}>{displayName}</h2>
+              <div className="small muted">{session.email}</div>
+            </div>
+          </div>
+          <div className="field mt-3">
+            <label className="label">{tr(dict, "account.fullName")}</label>
+            <input className="input" name="fullName" defaultValue={profile.fullName} />
+          </div>
+          <div className="field">
+            <label className="label">{tr(dict, "account.photo")}</label>
+            <input className="input" type="file" name="photo" accept="image/*" />
+          </div>
+          <div className="field">
+            <label className="label">{tr(dict, "account.newPassword")}</label>
+            <input className="input" type="password" name="password" autoComplete="new-password" />
+            <p className="small muted">{tr(dict, "account.newPasswordHint")}</p>
+          </div>
+          <button className="btn btn-primary" type="submit">{tr(dict, "account.saveDetails")}</button>
+        </form>
+      </div>
+
       <div className="card mb-4">
         <PushNotificationsCard labels={pushLabels} />
       </div>
