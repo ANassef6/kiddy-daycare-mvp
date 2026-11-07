@@ -2807,11 +2807,15 @@ export async function createChildBilling(data: {
   period?: string;
   dueDate?: string;
   status?: string;
+  // KID-489 item 2 (KID-491): the per-invoice Instapay payment link. Callers
+  // validate the URL at their boundary (lib/instapay.ts); blank/omitted
+  // stores NULL, so an invoice without a link keeps its pre-KID-491 shape.
+  paymentLink?: string | null;
 }): Promise<Row> {
   const id = uid();
   await queryRun(
-    `INSERT INTO child_billing (id, child_id, institute_id, description, amount_cents, currency, period, due_date, status)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO child_billing (id, child_id, institute_id, description, amount_cents, currency, period, due_date, status, payment_link)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     id,
     data.childId,
     data.instituteId,
@@ -2823,7 +2827,8 @@ export async function createChildBilling(data: {
     normalizeCurrency(data.currency),
     data.period ?? null,
     data.dueDate ?? null,
-    data.status ?? "pending"
+    data.status ?? "pending",
+    data.paymentLink || null
   );
   return (await queryGet("SELECT * FROM child_billing WHERE id = ?", id))!;
 }

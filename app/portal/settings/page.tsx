@@ -14,7 +14,13 @@ import { WorkingHoursEditor } from "@/components/WorkingHoursEditor";
 
 export const dynamic = "force-dynamic";
 
-export default async function PortalSettingsPage() {
+export default async function PortalSettingsPage({
+  searchParams,
+}: {
+  // KID-489 item 2 (KID-491): save actions bounce back with ?error=… so the
+  // rejection reason can render as a localized banner above the form.
+  searchParams?: { error?: string };
+}) {
   const session = requireSession();
   // KID-105 #15: Center details (and the rest of center configuration) is
   // admin-only. Staff landing here are sent back to the dashboard.
@@ -80,7 +86,21 @@ export default async function PortalSettingsPage() {
           </div>
         </div>
         <div className="field"><label className="label">{tr(dict, "settings.address")}</label><input className="input" name="address" defaultValue={String(institute?.address ?? "")} placeholder={tr(dict, "settings.addressPlaceholder")} /></div>
-        <button className="btn btn-primary" type="submit">{tr(dict, "settings.saveCenterDetails")}</button>
+        {/* KID-489 item 2 (KID-491): the center's Instapay payment link — the
+            default every new child invoice form prefills. http/https URLs
+            only; an invalid value is rejected with a banner instead of being
+            stored. */}
+        <div className="field">
+          <label className="label">{tr(dict, "settings.instapayLink")}</label>
+          <input className="input" name="instapayUrl" type="url" inputMode="url" defaultValue={String(institute?.instapay_url ?? "")} placeholder={tr(dict, "settings.instapayLinkPlaceholder")} />
+          <p className="small muted">{tr(dict, "settings.instapayLinkHint")}</p>
+        </div>
+        {searchParams?.error === "instapay" && (
+          <div role="alert" className="card" style={{ borderLeft: "4px solid #b91c1c" }}>
+            <p className="small" style={{ margin: 0 }}>{tr(dict, "settings.instapayLinkInvalid")}</p>
+          </div>
+        )}
+        <div className="mt-3"><button className="btn btn-primary" type="submit">{tr(dict, "settings.saveCenterDetails")}</button></div>
       </form>
 
       <div className="card mb-4" style={{ background: `linear-gradient(135deg, ${b.primaryColor}, ${b.accentColor})`, color: "#fff" }}>

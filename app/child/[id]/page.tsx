@@ -10,6 +10,7 @@ import {
   newsfeedForChild,
   incidentsForChild,
   statusesForChild,
+  listChildBilling,
 } from "@/lib/store";
 import { CheckInButton } from "@/components/CheckInButton";
 import Avatar from "@/components/Avatar";
@@ -18,6 +19,7 @@ import DailyReportDateNav from "@/components/DailyReportDateNav";
 import Attribution from "@/components/Attribution";
 import { getBranding } from "@/lib/theme";
 import { firstInstituteId, fmtDate } from "@/lib/helpers";
+import { DEFAULT_CURRENCY } from "@/lib/currency";
 import { configuredReportDate, todayIso } from "@/lib/report-dates";
 import { isPlatformOperatorRole } from "@/lib/platform";
 import { toggleLikeAction } from "@/lib/actions";
@@ -59,12 +61,17 @@ export default async function ChildDetailPage({
   const reportDate = configuredReportDate(searchParams?.date, today);
   const status = await todayStatus(child.id);
   const checkedIn = !!status.checkedIn && !status.checkedOut;
-  const [report, contacts, feed, incidents, statuses] = await Promise.all([
+  const [report, contacts, feed, incidents, statuses, invoices] = await Promise.all([
     reportFor(child.id, reportDate),
     listContacts(child.id),
     newsfeedForChild(child.id, session.accountId),
     incidentsForChild(child.id),
     statusesForChild(child.id, today),
+    // KID-489 item 2 (KID-491): the parent's own invoices for this child. The
+    // KID-372 gate above already refused any child the account has no
+    // family link to, so this read can only surface the viewer's own
+    // family's billing data — never another daycare family's.
+    listChildBilling(child.id),
   ]);
 
   const meal = safeJson(report?.meal);
@@ -173,6 +180,39 @@ export default async function ChildDetailPage({
         <p className="muted small">
           {reportDate === today ? t("child.noReportYet") : t("child.noReportForDate")}
         </p>
+      )}
+
+      <h2 className="title mt-5">{t("child.invoicesTitle")}</h2>
+      {invoices.length === 0 ? (
+        <p className="muted small">{t("child.noInvoices")}</p>
+      ) : (
+        <div className="card" style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          {invoices.map((b: any) => (
+            <div className="list-item small" key={b.id}>
+              <div>
+                <strong>{b.period ?? b.description}</strong>
+                {b.due_date ? (
+                  <div className="muted">{t("child.invoiceDue", { date: fmtDate(b.due_date) })}</div>
+                ) : null}
+              </div>
+              <div style={{ textAlign: "right", display: "flex", alignItems: "center", gap: 10 }}>
+                <div>
+                  <strong>
+                    {String(b.currency ?? DEFAULT_CURRENCY)} {((Number(b.amount_cents) || 0) / 100).toFixed(2)}
+                  </strong>
+                  <div>
+                    <span className={`badge ${b.status === "paid" ? "badge-green" : b.status === "overdue" ? "badge-red" : "badge-gray"}`}>{String(b.status ?? "pending")}</span>
+                  </div>
+                </div>
+                {b.payment_link && (
+                  <a className="btn btn-accent" href={String(b.payment_link)} target="_blank" rel="noreferrer">
+                    {t("child.payWithInstapay")}
+                  </a>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
       )}
 
       <h2 className="title mt-5">{t("child.newsfeed")}</h2>

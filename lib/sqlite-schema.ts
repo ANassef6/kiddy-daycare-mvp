@@ -20,6 +20,7 @@ export function sqliteSchema(db: any): void {
     active INTEGER NOT NULL DEFAULT 1,
     subdomain TEXT,
     default_currency TEXT NOT NULL DEFAULT 'EGP',
+    instapay_url TEXT,
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
   );
 
@@ -433,6 +434,7 @@ export function sqliteSchema(db: any): void {
     period TEXT,
     due_date TEXT,
     status TEXT NOT NULL DEFAULT 'pending',
+    payment_link TEXT,
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
   );
 

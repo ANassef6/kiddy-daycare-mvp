@@ -6,6 +6,7 @@ import { getChild,listChildBilling, isChildInScope, getInstitute } from "@/lib/s
 import { addChildBillingAction, updateBillingStatusAction } from "@/lib/actions";
 import { DEFAULT_CURRENCY, SUPPORTED_CURRENCIES, normalizeCurrency } from "@/lib/currency";
 import { i18nForAccount } from "@/lib/i18n-session";
+import { tr } from "@/lib/i18n";
 import Attribution from "@/components/Attribution";
 
 export const dynamic = "force-dynamic";
@@ -17,9 +18,17 @@ function money(cents: number, currency: string): string {
   return `${currency} ${v}`;
 }
 
-export default async function ChildBillingPage({ params }: { params: { id: string } }) {
+export default async function ChildBillingPage({
+  params,
+  searchParams,
+}: {
+  params: { id: string };
+  // KID-489 item 2 (KID-491): addChildBillingAction bounces an invalid
+  // payment link back here as ?error=paymentlink for the banner below.
+  searchParams?: { error?: string };
+}) {
   const session = requireSession();
-  const billingLocale = (await i18nForAccount(session.accountId)).locale;
+  const { dict, locale: billingLocale } = await i18nForAccount(session.accountId);
   const iid = await resolveTenantInstituteId();
   // KID-489 item 1 (KID-490): the center's default currency seeds the form's
   // currency select and the display fallbacks below.
@@ -44,6 +53,12 @@ export default async function ChildBillingPage({ params }: { params: { id: strin
       <p className="subtitle">
         Child-level billing for admins. Track fees per child and mark them paid.
       </p>
+
+      {searchParams?.error === "paymentlink" && (
+        <div role="alert" className="card mb-4" style={{ borderLeft: "4px solid #b91c1c" }}>
+          <p className="small" style={{ margin: 0 }}>{tr(dict, "profile.paymentLinkInvalid")}</p>
+        </div>
+      )}
 
       {bills.length > 0 && (
         <div className="card mb-4" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
@@ -90,6 +105,19 @@ export default async function ChildBillingPage({ params }: { params: { id: strin
                 {STATUSES.map((s) => <option key={s} value={s}>{capital(s)}</option>)}
               </select>
             </div>
+            {/* KID-489 item 2 (KID-491): per-invoice payment link, prefilled
+                from the center's Instapay URL so the daycare can override (or
+                clear) it for one invoice without touching center settings. */}
+            <div className="col field">
+              <label className="label">{tr(dict, "profile.paymentLink")}</label>
+              <input
+                className="input"
+                name="paymentLink"
+                type="url"
+                inputMode="url"
+                defaultValue={String(center?.instapay_url ?? "")}
+              />
+            </div>
             <div className="col field" style={{ display: "flex", alignItems: "flex-end" }}>
               <button className="btn btn-primary" type="submit">Add record</button>
             </div>
@@ -102,7 +130,7 @@ export default async function ChildBillingPage({ params }: { params: { id: strin
       ) : (
         <table className="data">
           <thead>
-            <tr><th>Description</th><th>Amount</th><th>Period</th><th>Due date</th><th>Status</th><th>Created</th><th>By</th></tr>
+            <tr><th>Description</th><th>Amount</th><th>Period</th><th>Due date</th><th>Status</th><th>Pay</th><th>Created</th><th>By</th></tr>
           </thead>
           <tbody>
             {bills.map((b: any) => (
@@ -120,6 +148,11 @@ export default async function ChildBillingPage({ params }: { params: { id: strin
                     </select>
                     <button className="btn btn-ghost" type="submit" style={{ fontSize: 12, padding: "4px 10px" }}>Update</button>
                   </form>
+                </td>
+                <td className="small">
+                  {b.payment_link ? (
+                    <a href={String(b.payment_link)} target="_blank" rel="noreferrer">{tr(dict, "child.payWithInstapay")}</a>
+                  ) : "—"}
                 </td>
                 <td className="small">{new Date(b.created_at).toLocaleDateString()}</td>
                 <td>

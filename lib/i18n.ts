@@ -215,6 +215,12 @@ export const en = {
     snack: "Snack",
     newsfeed: "Newsfeed",
     nothingPostedFor: "Nothing posted for {name} yet.",
+    // KID-489 item 2 (KID-491): the parent-facing invoices section on the
+    // child surface; an invoice with a stored payment link shows the button.
+    invoicesTitle: "Invoices",
+    payWithInstapay: "Pay with Instapay",
+    invoiceDue: "Due {date}",
+    noInvoices: "No invoices yet.",
     pickupContacts: "Pickup & contacts",
     noContacts: "No contacts added.",
     pickup: "Pickup",
@@ -520,6 +526,12 @@ export const en = {
     // KID-489 item 1 (KID-490): the center-level default currency, used for
     // new child invoices and finance display fallbacks.
     defaultCurrency: "Default currency",
+    // KID-489 item 2 (KID-491): the center's Instapay payment link — new
+    // child invoice forms prefill it; parents pay through the stored link.
+    instapayLink: "Instapay link (optional)",
+    instapayLinkPlaceholder: "https://…",
+    instapayLinkHint: "New invoice forms prefill this. Parents see it as the Pay with Instapay button on their invoices.",
+    instapayLinkInvalid: "The Instapay link must be a valid http or https URL. Nothing was saved.",
     saveCenterDetails: "Save center details",
     primary: "Primary {color}",
     accent: "Accent {color}",
@@ -688,6 +700,10 @@ export const en = {
     noInvoices: "No invoices yet.",
     invoice: "Invoice",
     overdue: "overdue",
+    // KID-489 item 2 (KID-491): the per-invoice payment link on the admin
+    // create form (prefilled from the center's Instapay link).
+    paymentLink: "Payment link (Instapay, optional)",
+    paymentLinkInvalid: "The payment link must be a valid http or https URL. The invoice was not created.",
     learningHistory: "Learning history",
     noObservationsYet: "No observations yet.",
     fullDevelopment: "Full development →",
@@ -1380,6 +1396,11 @@ export const ar = {
     snack: "سناك",
     newsfeed: "الأخبار",
     nothingPostedFor: "لا توجد منشورات لـ {name} بعد.",
+    // KID-489 item 2 (KID-491): فواتير الطفل في واجهة الوالدين (AR).
+    invoicesTitle: "الفواتير",
+    payWithInstapay: "الدفع عبر Instapay",
+    invoiceDue: "الاستحقاق {date}",
+    noInvoices: "لا توجد فواتير بعد.",
     pickupContacts: "الاستلام وجهات الاتصال",
     noContacts: "لا توجد جهات اتصال.",
     pickup: "استلام",
@@ -1660,6 +1681,11 @@ export const ar = {
     address: "العنوان",
     // KID-489 item 1 (KID-490): العملة الافتراضية للمركز.
     defaultCurrency: "العملة الافتراضية",
+    // KID-489 item 2 (KID-491): رابط الدفع عبر Instapay الافتراضي للمركز.
+    instapayLink: "رابط Instapay (اختياري)",
+    instapayLinkPlaceholder: "https://…",
+    instapayLinkHint: "تُملأ به نماذج الفواتير الجديدة. يراه الآباء كزر الدفع عبر Instapay على فواتيرهم.",
+    instapayLinkInvalid: "يجب أن يكون رابط Instapay عنوان http أو https صالحًا. لم يُحفظ أي تغيير.",
     saveCenterDetails: "حفظ بيانات المركز",
     primary: "الأساسي {color}",
     accent: "المميز {color}",
@@ -1822,6 +1848,9 @@ export const ar = {
     noInvoices: "لا توجد فواتير بعد.",
     invoice: "فاتورة",
     overdue: "متأخرة",
+    // KID-489 item 2 (KID-491): رابط الدفع الخاص بكل فاتورة (نموذج الإضافة).
+    paymentLink: "رابط الدفع (Instapay، اختياري)",
+    paymentLinkInvalid: "يجب أن يكون رابط الدفع عنوان http أو https صالحًا. لم تُنشأ الفاتورة.",
     learningHistory: "سجل التعلّم",
     noObservationsYet: "لا توجد ملاحظات بعد.",
     fullDevelopment: "التطوّر الكامل →",

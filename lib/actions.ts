@@ -17,6 +17,7 @@ import {
 } from "@/lib/auth";
 import { queryGet, queryRun, queryAll, ensureSchema, isForeignKeyViolation } from "@/lib/db";
 import { normalizeCurrency } from "@/lib/currency";
+import { parsePaymentLink } from "@/lib/instapay";
 import { configuredReportDate } from "@/lib/report-dates";
 import {
   isAccountAccessWithdrawn,
@@ -2050,6 +2051,14 @@ export async function saveCenterDetailsAction(formData: FormData) {
     if (formData.get("defaultCurrency") !== null) {
       patch.default_currency = normalizeCurrency(formData.get("defaultCurrency"));
     }
+    // KID-489 item 2 (KID-491): the center's Instapay payment link. An
+    // invalid value is rejected up front with a redirect back to a localized
+    // banner — nothing (including the invalid URL) is stored.
+    if (formData.get("instapayUrl") !== null) {
+      const link = parsePaymentLink(formData.get("instapayUrl"));
+      if (!link.ok) redirect("/portal/settings?error=instapay");
+      patch.instapay_url = link.value;
+    }
     await updateInstitute(String(instituteId), patch);
     // KID-477: center details changes are attributed.
     await recordAuditEvent({
@@ -2937,6 +2946,12 @@ export async function addChildBillingAction(formData: FormData) {
   // the center's default currency (seeded EGP), never the old hardcoded CAD.
   const center = instituteId ? await getInstitute(instituteId) : undefined;
   const centerCurrency = normalizeCurrency(center?.default_currency);
+  // KID-489 item 2 (KID-491): the payment link is stored PER invoice. A blank
+  // field means "no link" (so clearing the center default in the prefill keeps
+  // the invoice linkless); an invalid value rejects the whole create with a
+  // redirect back to the billing page's banner — no half-written invoice.
+  const link = parsePaymentLink(formData.get("paymentLink"));
+  if (!link.ok) redirect(`/portal/children/${childId}/billing?error=paymentlink`);
   const billing = await createChildBilling({
     childId,
     instituteId,
@@ -2946,6 +2961,7 @@ export async function addChildBillingAction(formData: FormData) {
     period: String(formData.get("period") ?? "") || undefined,
     dueDate: String(formData.get("dueDate") ?? "") || undefined,
     status: String(formData.get("status") ?? "pending"),
+    paymentLink: link.value,
   });
   // KID-477: billing line items are attributed (description + status only).
   if (billing) {
@@ -2956,7 +2972,11 @@ export async function addChildBillingAction(formData: FormData) {
       entityType: "child_billing",
       entityId: String(billing.id),
       summary: `Added a billing item (${String(formData.get("description") ?? "")})`,
-      metadata: { status: String(formData.get("status") ?? "pending"), childId },
+      metadata: {
+        status: String(formData.get("status") ?? "pending"),
+        childId,
+        ...(link.value ? { hasPaymentLink: true } : {}),
+      },
     });
   }
   redirect(`/portal/children/${childId}/billing`);
