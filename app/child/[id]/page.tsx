@@ -22,7 +22,7 @@ import { firstInstituteId, fmtDate } from "@/lib/helpers";
 import { DEFAULT_CURRENCY } from "@/lib/currency";
 import { configuredReportDate, todayIso } from "@/lib/report-dates";
 import { isPlatformOperatorRole } from "@/lib/platform";
-import { toggleLikeAction } from "@/lib/actions";
+import { toggleLikeAction, uploadPaymentProofAction } from "@/lib/actions";
 import { i18nForAccount } from "@/lib/i18n-session";
 import { tr } from "@/lib/i18n";
 import { recordToolUsage } from "@/lib/tool-usage";
@@ -35,7 +35,9 @@ export default async function ChildDetailPage({
 }: {
   params: { id: string };
   // KID-472 item 4: ?date= selects which past day's report the parent reads.
-  searchParams?: { date?: string };
+  // KID-489 item 3 (KID-492): ?error= surfaces the upload rejection reason,
+  // ?proof=uploaded surfaces the success state.
+  searchParams?: { date?: string; error?: string; proof?: string };
 }) {
   const session = requireSession();
   const { dict, locale } = await i18nForAccount(session.accountId);
@@ -185,6 +187,22 @@ export default async function ChildDetailPage({
       )}
 
       <h2 className="title mt-5">{t("child.invoicesTitle")}</h2>
+      {searchParams?.error?.startsWith("proof") && (
+        <div role="alert" className="card mb-2" style={{ borderLeft: "4px solid #b91c1c" }}>
+          <p className="small" style={{ margin: 0 }}>
+            {searchParams.error === "proofSize"
+              ? t("child.payProofErrorSize")
+              : searchParams.error === "proofUpload"
+                ? t("child.payProofErrorUpload")
+                : t("child.payProofErrorType")}
+          </p>
+        </div>
+      )}
+      {searchParams?.proof === "uploaded" && (
+        <div role="status" className="card mb-2" style={{ borderLeft: "4px solid #047857" }}>
+          <p className="small" style={{ margin: 0 }}>{t("child.payProofPendingReview")}</p>
+        </div>
+      )}
       {invoices.length === 0 ? (
         <p className="muted small">{t("child.noInvoices")}</p>
       ) : (
@@ -212,6 +230,44 @@ export default async function ChildDetailPage({
                   </a>
                 )}
               </div>
+              {b.status !== "paid" && (
+                <div className="mt-2" style={{ borderTop: "1px solid #e5e7eb", paddingTop: 8 }}>
+                  {b.payment_proof_url && (
+                    <div className="mb-2">
+                      <a className="small" href={String(b.payment_proof_url)} target="_blank" rel="noreferrer">
+                        {t("child.payProofView")}
+                      </a>
+                      {b.payment_reference ? (
+                        <span className="muted small"> · {String(b.payment_reference)}</span>
+                      ) : null}
+                    </div>
+                  )}
+                  <form action={uploadPaymentProofAction}>
+                    <input type="hidden" name="childId" value={String(child.id)} />
+                    <input type="hidden" name="billingId" value={String(b.id)} />
+                    <label className="label small">{t("child.payProofUpload")}</label>
+                    <div className="row" style={{ gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                      <input
+                        className="input"
+                        name="file"
+                        type="file"
+                        accept=".png,.jpg,.jpeg,.pdf,image/png,image/jpeg,application/pdf"
+                        required
+                        style={{ maxWidth: 260 }}
+                      />
+                      <input
+                        className="input"
+                        name="paymentReference"
+                        placeholder={t("child.payProofPlaceholder")}
+                        style={{ maxWidth: 200 }}
+                      />
+                      <button className="btn btn-ghost small" type="submit">
+                        {b.payment_proof_url ? t("child.payProofReplace") : t("child.payProofUpload")}
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              )}
             </div>
           ))}
         </div>

@@ -2839,6 +2839,27 @@ export async function updateChildBilling(billingId: string, patch: { status?: st
   }
 }
 
+// ---- KID-489 item 3 (KID-492): the parent's payment-proof upload ----
+// The caller (uploadPaymentProofAction) already validated the file and
+// uploaded it to Storage; this writer replaces whatever proof the invoice
+// carried before (two columns always move together — a "current proof" pair)
+// and optionally lands the parent's free-text payment reference. It never
+// touches the status column: the admin stays the only status writer.
+export async function setChildBillingPaymentProof(
+  billingId: string,
+  patch: { proofUrl: string; proofUploadedAt: string; reference: string | null }
+): Promise<void> {
+  await queryRun(
+    `UPDATE child_billing
+     SET payment_proof_url = ?, payment_proof_uploaded_at = ?, payment_reference = ?
+     WHERE id = ?`,
+    patch.proofUrl,
+    patch.proofUploadedAt,
+    patch.reference,
+    billingId
+  );
+}
+
 // ---- #5a/#7b photo_url update helpers ----
 export async function updateChildPhoto(childId: string, photoUrl: string | null): Promise<void> {
   await queryRun("UPDATE child SET photo_url = ? WHERE id = ?", photoUrl, childId);
@@ -3354,7 +3375,7 @@ export async function recentActivityFeed(
   since.setDate(since.getDate() - 7);
   const sinceIso = since.toISOString();
 
-  const [newsfeed, homework, supplies, billing, attendance, incidents, staffMessages, staffReports] = await Promise.all(
+  const [newsfeed, homework, supplies, billing, paymentProofs, attendance, incidents, staffMessages, staffReports] = await Promise.all(
     [
       listNewsfeed(instituteId, accountId),
       listHomework(instituteId, accountId),
@@ -3368,6 +3389,25 @@ export async function recentActivityFeed(
        ORDER BY cb.created_at DESC LIMIT ?`,
       instituteId,
       ...roomArgs,
+      limit
+    ),
+    // KID-489 item 3 (KID-492): invoices whose CURRENT proof was uploaded
+    // inside the feed's 7-day window and are still unpaid — the center admin
+    // must see "a proof arrived, needs a status update" until the invoice is
+    // settled (paid/cancelled). One row per invoice (at most one current
+    // proof), so a re-upload refreshes the same slice entry and repeated
+    // uploads never duplicate the item: one notification per invoice state,
+    // and never on page reads — only on the upload that wrote the columns.
+      queryAll(
+      `SELECT cb.id, cb.child_id, cb.description, cb.payment_reference, cb.payment_proof_uploaded_at,
+              c.first_name, c.last_name
+       FROM child_billing cb
+       JOIN child c ON c.id = cb.child_id
+       WHERE cb.institute_id = ? AND cb.payment_proof_uploaded_at >= ?
+         AND cb.status NOT IN ('paid','cancelled')
+       ORDER BY cb.payment_proof_uploaded_at DESC LIMIT ?`,
+      instituteId,
+      sinceIso,
       limit
     ),
     queryAll(
@@ -3478,6 +3518,21 @@ export async function recentActivityFeed(
       timestamp: String(b.created_at),
       link: "/portal/finance",
       meta: copy.billingMeta(amount.toFixed(2), String(b.currency ?? "CAD"), copy.billingStatusLabel(String(b.status ?? "pending"))),
+    });
+  }
+
+  // KID-489 item 3 (KID-492): the payment-proof activity item. The id is
+  // stable per invoice (`proof-<billingId>`), so a re-render or re-upload
+  // within the window yields ONE item — not one per page load.
+  for (const p of paymentProofs.slice(0, limit)) {
+    items.push({
+      id: `proof-${String(p.id)}`,
+      type: "billing",
+      title: copy.paymentProofTitle(`${p.first_name} ${p.last_name}`),
+      body: copy.paymentProofBody(String(p.description ?? "")),
+      timestamp: String(p.payment_proof_uploaded_at ?? ""),
+      link: `/portal/children/${String(p.child_id ?? "")}/billing`,
+      meta: String(p.payment_reference ?? "") ? copy.paymentProofMeta(String(p.payment_reference)) : undefined,
     });
   }
 
