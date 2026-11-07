@@ -8,6 +8,7 @@ import { LANG_COOKIE, dirFor } from "@/lib/i18n";
 import { effectiveLocale } from "@/lib/i18n-session";
 import type { Locale } from "@/lib/i18n";
 import ChatwootWidget from "@/components/ChatwootWidget";
+import BrandBanner from "@/components/BrandBanner";
 
 // KID-435: the title brand follows the same white-label rule as the install
 // meta (KID-256): on a daycare's own subdomain every document title names
@@ -72,11 +73,17 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   // KID-256: the meta/head branding is the HOST's brand — on
   // sunshine.<apex> the browser chrome, apple-touch icon, and manifest
   // link all name the daycare; apex/legacy hosts keep generic Kiddy. The
-  // defaults below are also the no-DB fallback.
-  let metaBrand = { name: "Kiddy", primaryColor: "#3B82F6", logoUrl: null as string | null };
+  // defaults below are also the no-DB fallback. KID-493: brandImageUrl rides
+  // the same resolution for the top banner.
+  let metaBrand = {
+    name: "Kiddy",
+    primaryColor: "#3B82F6",
+    logoUrl: null as string | null,
+    brandImageUrl: null as string | null,
+  };
   try {
     const b = await getBranding();
-    metaBrand = { name: b.name, primaryColor: b.primaryColor, logoUrl: b.logoUrl };
+    metaBrand = { name: b.name, primaryColor: b.primaryColor, logoUrl: b.logoUrl, brandImageUrl: b.brandImageUrl };
     theme = [
       `--brand-primary: ${b.primaryColor};`,
       `--brand-accent: ${b.accentColor};`,
@@ -103,6 +110,19 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <a className="skip-link" href="#main">
           {locale === "ar" ? "تخطَّ إلى المحتوى" : "Skip to content"}
         </a>
+        {/* KID-493: the tenant's brand image tops every page (portal, parent,
+            auth, marketing) — before {children}, after the skip link. Null →
+            the component renders nothing, so no empty gap and no shift on
+            tenants without an image. */}
+        <BrandBanner
+          src={metaBrand.brandImageUrl}
+          name={metaBrand.name}
+          alt={
+            locale === "ar"
+              ? `صورة العلامة التجارية لـ${metaBrand.name}`
+              : `${metaBrand.name} brand image`
+          }
+        />
         {/* #1: logo URL available as data attribute for client components */}
         <div data-brand={metaBrand.name} data-logo={metaBrand.logoUrl ?? ""} style={{ display: "none" }} />
         {children}

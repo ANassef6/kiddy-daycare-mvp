@@ -218,8 +218,10 @@ export default function PortalSidebar({
       <Link href="/portal/dashboard" className="site-brand" style={{ textDecoration: "none" }}>
         {logoUrl && (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={logoUrl} alt="" width={28} height={28} className="site-logo" />
+          <img src={logoUrl} alt="" width={40} height={40} className="site-logo" />
         )}
+        {/* KID-493: the full daycare name sits beneath the logo (stacked by
+            .site-brand); long names wrap instead of truncating. */}
         <span className="brand">{brandName}</span>
       </Link>
       {/* KID-199.1: sign-out lives only in the top-right account menu. */}

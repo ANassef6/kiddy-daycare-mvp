@@ -104,6 +104,8 @@ export default async function ParentLayout({ children }: { children: React.React
             // eslint-disable-next-line @next/next/no-img-element
             <img src={logoUrl} alt="" width={28} height={28} className="site-logo" />
           )}
+          {/* KID-493: the full daycare name sits beneath the logo (stacked by
+              .site-brand); mobile widths wrap instead of truncating. */}
           <span className="brand">{brandName}</span>
         </Link>
         {/* KID-255: below 720px the nav links collapse into a hamburger

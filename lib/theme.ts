@@ -150,6 +150,15 @@ export async function brandNameForTitle(): Promise<string> {
   return "Kiddy";
 }
 
+// KID-493: the branding upload / save actions purge this short-lived cache so
+// a new logo or brand-image banner shows on the very next navigation instead
+// of after the 30s TTL window (the banner renders in the root layout, which
+// also serves anonymous login pages fed by the cacheable path above).
+export function clearBrandingCache(): void {
+  _brandingCache = null;
+  _hostBrandingCache.clear();
+}
+
 // Builds the CSS custom-property theme block from branding so every surface
 // consumes tokens only — swapping daycare branding is config, not code.
 export function themeCss(b: Branding): string {

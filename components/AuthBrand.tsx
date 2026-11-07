@@ -30,10 +30,16 @@ export default function AuthBrand({ brandName }: { brandName: string }) {
   }, []);
 
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
+    // KID-493: the auth lockup stacks — logo above the full daycare name —
+    // with the same wrapping rule as the app surfaces so long white-label
+    // names stay readable on narrow phones.
+    <div
+      className="site-brand"
+      style={{ width: "100%", marginBottom: 16 }}
+    >
       {brand?.logoUrl && (
         // eslint-disable-next-line @next/next/no-img-element
-        <img src={brand.logoUrl} alt="" width={40} height={40} style={{ borderRadius: 10, objectFit: "cover" }} />
+        <img src={brand.logoUrl} alt="" width={40} height={40} className="site-logo" />
       )}
       <span className="brand">{brand?.name || brandName}</span>
     </div>
