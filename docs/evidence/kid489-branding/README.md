@@ -1,6 +1,19 @@
 # KID-493 — KID-489 items 3+4: stacked brand lockup + brand-image banner on all pages
 
-Branch: `kid489-branding` — PR to `master`.
+Branch: `kid489-branding` — **PR #34 merged into master (merge commit `cc1eb7f`, 2026-11-07 07:16:44Z)**.
+
+## Post-merge production smoke (master auto-deploys on Vercel)
+
+```
+2026-11-07 — https://kiddyapp.net/            → 200
+2026-11-07 — https://kiddyapp.net/login       → 200
+```
+
+Deployment evidence commit: see `docs/evidence/kid489-branding/README.md` on master
+(this file); PR checks: Vercel ✓ deployed (`893iYYFJMMcwzjWDApRk1VT4ea5j`), Vercel
+Preview Comments ✓, Supabase Preview "skipping" (the same pre-existing 0032-migration
+ledger collision prior merges KID-491/KID-492 already documented, not a gate).
+
 
 ## What changed
 
