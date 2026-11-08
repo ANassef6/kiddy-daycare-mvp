@@ -883,6 +883,28 @@ export const en = {
     billingCycleHint: "The signup month is free; billing starts the 1st of the next month.",
     billingSave: "Save billing settings",
     billingDefaultsHint: "Platform defaults (monthly / per child / free children / annual)",
+    // KID-745: the signed-contract card on the same gear-icon settings page.
+    // The draft section is the content task's output (read-only here); the
+    // signed-contract upload is PDF/PNG/JPG up to 10 MB, operator-only.
+    contractCardTitle: "Signed contract",
+    contractCardHint: "The contract this daycare signed. Contract files stay private to the platform.",
+    contractDraftLabel: "Draft",
+    contractDraftNone: "No draft has been generated yet.",
+    contractDraftGenerated: "Generated {date}",
+    contractDraftDownload: "Download draft",
+    contractTemplateVersion: "Template version: {version}",
+    contractSignedLabel: "Signed file",
+    contractSignedNone: "No signed contract uploaded yet.",
+    contractSignedUploaded: "Uploaded {date}",
+    contractSignedBy: "by {name}",
+    contractUploadLabel: "Upload the signed contract (PDF, PNG or JPG, up to 10 MB)",
+    contractReplaceLabel: "Replace the signed contract (PDF, PNG or JPG, up to 10 MB)",
+    contractUploadBtn: "Upload signed contract",
+    contractReplaceBtn: "Replace signed contract",
+    contractUploaded: "Signed contract uploaded.",
+    contractErrorType: "Rejected: the contract must be a PDF, PNG or JPG file, and it cannot be empty.",
+    contractErrorSize: "Rejected: the contract file is larger than 10 MB.",
+    contractErrorUpload: "Something went wrong storing the contract. Nothing was changed. Please try again.",
     // KID-481: the Billing | Insights tabbed page behind the gear icon. The
     // Billing tab is the unchanged KID-244 UI; the Insights tab is the
     // cross-tenant tool-usage view. Operator-only (never shown to daycares).
@@ -2197,6 +2219,28 @@ export const ar = {
     billingCycleHint: "شهر التسجيل مجاني؛ يبدأ الفاتورة في الأول من الشهر التالي.",
     billingSave: "حفظ إعدادات الفاتورة",
     billingDefaultsHint: "الإعدادات الافتراضية (شهري / لكل طفل / أطفال مشمولون / سنوي)",
+    // KID-745: بطاقة العقد الموقّع على نفس صفحة إعدادات الترس. قسم المسودة
+    // يأتي من مهمة المحتوى (عرض فقط هنا)؛ ورفع العقد الموقّع بصيغة PDF/PNG/JPG
+    // بحد 10 ميجابايت، ومتاح للأوبريتور فقط.
+    contractCardTitle: "العقد الموقّع",
+    contractCardHint: "العقد الذي وقّعه مركز الحضانة. ملفات العقود تبقى خاصة بالمنصة.",
+    contractDraftLabel: "المسودة",
+    contractDraftNone: "لم يتم توليد مسودة بعد.",
+    contractDraftGenerated: "تم توليدها {date}",
+    contractDraftDownload: "تنزيل المسودة",
+    contractTemplateVersion: "إصدار النموذج: {version}",
+    contractSignedLabel: "الملف الموقّع",
+    contractSignedNone: "لم يتم رفع عقد موقّع بعد.",
+    contractSignedUploaded: "تم الرفع {date}",
+    contractSignedBy: "بواسطة {name}",
+    contractUploadLabel: "ارفع العقد الموقّع (PDF أو PNG أو JPG، حتى 10 ميجابايت)",
+    contractReplaceLabel: "استبدل العقد الموقّع (PDF أو PNG أو JPG، حتى 10 ميجابايت)",
+    contractUploadBtn: "رفع العقد الموقّع",
+    contractReplaceBtn: "استبدال العقد الموقّع",
+    contractUploaded: "تم رفع العقد الموقّع.",
+    contractErrorType: "تم الرفض: يجب أن يكون العقد ملفًا بصيغة PDF أو PNG أو JPG، ولا يمكن أن يكون فارغًا.",
+    contractErrorSize: "تم الرفض: ملف العقد أكبر من 10 ميجابايت.",
+    contractErrorUpload: "حدث خطأ أثناء تخزين العقد. لم يتغير أي شيء. حاول مرة أخرى.",
     // KID-481: صفحة التبويبين (الفاتورة | الإحصاءات) خلف أيقونة الترس. تبويب
     // الفاتورة هو واجهة KID-244 دون تغيير؛ وتبويب الإحصاءات هو عرض استخدام
     // الأدوات على مستوى المنصة. للأوبريتور فقط (لا تراه مراكز الحضانة).

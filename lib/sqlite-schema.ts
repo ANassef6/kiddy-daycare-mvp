@@ -741,6 +741,25 @@ export function sqliteSchema(db: any): void {
     updated_by_account_id TEXT REFERENCES account(id) ON DELETE SET NULL,
     updated_at TEXT NOT NULL DEFAULT (datetime('now'))
   );
+
+  -- KID-745: mirror of supabase/migrations/0038_kid745_contract.sql — one
+  -- row per daycare holding its contract draft (content task) and the
+  -- CURRENT signed contract. The signed columns (url + file name + date +
+  -- uploader) always move together: an upload replaces the whole snapshot,
+  -- never a stale piece of it. uploaded_by_account_id is SET NULL so
+  -- deleting an account never breaks the contract row.
+  CREATE TABLE IF NOT EXISTS daycare_contract (
+    institute_id TEXT PRIMARY KEY REFERENCES institute(id) ON DELETE CASCADE,
+    template_version TEXT,
+    draft_url TEXT,
+    draft_generated_at TEXT,
+    signed_url TEXT,
+    signed_file_name TEXT,
+    signed_uploaded_at TEXT,
+    uploaded_by_account_id TEXT REFERENCES account(id) ON DELETE SET NULL,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
   `);
 
   // Idempotent column backfills for databases created before these columns

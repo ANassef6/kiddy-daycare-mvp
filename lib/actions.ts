@@ -23,6 +23,7 @@ import { queryGet, queryRun, queryAll, ensureSchema, isForeignKeyViolation } fro
 import { normalizeCurrency } from "@/lib/currency";
 import { parsePaymentLink } from "@/lib/instapay";
 import { validatePaymentProof, paymentProofFilename } from "@/lib/payment-proof";
+import { validateContract, contractStorageFilename } from "@/lib/contract";
 import { configuredReportDate, todayIso } from "@/lib/report-dates";
 import {
   isAccountAccessWithdrawn,
@@ -3589,6 +3590,79 @@ export async function uploadDaycareInvoiceProofAction(formData: FormData) {
     metadata: { statusBefore: status, hasPaymentProof: true },
   });
   redirect(`${back}?proof=uploaded`);
+}
+
+// ---- KID-745: the operator's signed daycare contract ----
+// The per-daycare settings page (the same gear-icon surface as
+// updateDaycareBillingAction) carries a signed-contract upload. Operator-only
+// (requirePlatformOperator — a non-operator POST is bounced to /login before
+// anything else), authorize -> validate -> upload -> write, the same chain as
+// the two proof uploads above. A replacement upload replaces the whole signed
+// snapshot (lib/contract.ts writer); every upload records exactly one audit
+// event carrying ids only — never the URL and never file content.
+export async function uploadDaycareContractAction(formData: FormData) {
+  const operator = requirePlatformOperator();
+  const instituteId = String(formData.get("instituteId") ?? "");
+  const file = formData.get("file") as File | null;
+  // The daycare must exist: the raw id alone is not a row, and the settings
+  // surface is reachable only through a known institute id.
+  const inst = instituteId
+    ? await queryGet("SELECT id FROM institute WHERE id = ?", instituteId)
+    : null;
+  if (!inst) redirect("/platform?error=missing-id");
+  const back = `/platform/daycares/${instituteId}/billing`;
+  // Boundary validation — before any storage or DB write. Wrong type,
+  // oversize and empty files are refused with a localized error code.
+  if (!file || file.size === 0) redirect(`${back}?error=contractType`);
+  const contract = validateContract(file);
+  if (!contract.ok) {
+    redirect(`${back}?error=contract${contract.code === "size" ? "Size" : "Type"}`);
+  }
+  // Storage upload into the per-daycare contracts folder (same kiddy-public
+  // pattern the app already uses; the long random suffix keeps the object
+  // unguessable — the confidentiality limitation is documented in
+  // lib/contract.ts).
+  const { supabaseConfigured, getSupabase } = await import("@/lib/supabase");
+  if (!supabaseConfigured()) {
+    console.error("KID-745 contract upload: no storage configured; nothing stored");
+    redirect(`${back}?error=contractUpload`);
+  }
+  const supabase = getSupabase();
+  const filename = contractStorageFilename(instituteId, contract.ext, crypto.randomUUID());
+  const { error } = await supabase.storage
+    .from("kiddy-public")
+    .upload(filename, file, { contentType: file.type, upsert: false });
+  if (error) {
+    console.error("KID-745 contract storage upload failed:", error.message);
+    redirect(`${back}?error=contractUpload`);
+  }
+  const { data: urlData } = supabase.storage.from("kiddy-public").getPublicUrl(filename);
+  if (!urlData?.publicUrl) {
+    console.error("KID-745 contract upload: storage returned no public URL; nothing stored");
+    redirect(`${back}?error=contractUpload`);
+  }
+  // Only now the row is touched — replace-or-create, the three signed
+  // columns + uploader move together, the draft columns stay untouched.
+  const { setDaycareContractSigned } = await import("@/lib/contract");
+  await setDaycareContractSigned(instituteId, {
+    signedUrl: urlData!.publicUrl!,
+    signedFileName: String(file.name ?? "").slice(0, 200),
+    signedUploadedAt: new Date().toISOString(),
+    uploadedByAccountId: operator.accountId,
+  });
+  // KID-477: every upload is an audit event — actor + daycare + flag only,
+  // never the URL, filename or file content.
+  await recordAuditEvent({
+    instituteId,
+    actorAccountId: operator.accountId,
+    action: "update",
+    entityType: "daycare_contract",
+    entityId: instituteId,
+    summary: "Signed daycare contract uploaded",
+    metadata: { contractUpload: true },
+  });
+  revalidatePath(back);
+  redirect(`${back}?contract=uploaded`);
 }
 
 // ---- #8 Newsfeed likes (client calls this) ----
