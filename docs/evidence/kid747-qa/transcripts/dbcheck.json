@@ -1,0 +1,99 @@
+{
+  "institute": {
+    "id": "mw7di7uu-rfny9k93",
+    "name": "QA KID747 Browser Center",
+    "subdomain": "qakid747browser",
+    "address": null,
+    "created_at": "2026-11-08 05:09:53"
+  },
+  "owner": {
+    "id": "68e2775f-cbe6-4546-8026-39eccc3a4e4e",
+    "email": "qa-kid747-browser@example.test",
+    "full_name": "QA KID747 Browser Owner",
+    "role": "owner"
+  },
+  "billing": {
+    "institute_id": "mw7di7uu-rfny9k93",
+    "plan": "demo",
+    "monthly_rate_egp": 500,
+    "per_child_rate_egp": 50,
+    "free_child_threshold": 10,
+    "annual_amount_egp": 24000,
+    "first_cycle_start": "2026-12-01",
+    "updated_at": "2026-11-08T05:09:53.195Z"
+  },
+  "contract": {
+    "institute_id": "mw7di7uu-rfny9k93",
+    "template_version": "1.0",
+    "draft_url": null,
+    "draft_url_ar": "http://172.21.0.3:54321/storage/v1/object/public/kiddy-public/contracts/mw7di7uu-rfny9k93/draft-ar-1794114593245-cdd298a5-a6a2-4e60-b946-fcd3c4955873.html",
+    "draft_url_en": "http://172.21.0.3:54321/storage/v1/object/public/kiddy-public/contracts/mw7di7uu-rfny9k93/draft-en-1794114593248-f0b58ce0-1731-4abd-a1b7-f9e9174167a5.html",
+    "draft_generated_at": "2026-11-08T05:09:53.223Z",
+    "signed_url": "http://172.21.0.3:54321/storage/v1/object/public/kiddy-public/contracts/mw7di7uu-rfny9k93/signed-1794116175007-b901a753-0460-4f69-ab1d-134b16185a55.pdf",
+    "signed_file_name": "signed-v2.pdf",
+    "signed_uploaded_at": "2026-11-08T05:36:15.014Z",
+    "uploaded_by_account_id": "fe73038b-4b02-408a-856e-58c41a3dcc97",
+    "created_at": "2026-11-08 05:09:53",
+    "updated_at": "2026-11-08 05:36:15"
+  },
+  "notifications": [
+    {
+      "id": "mw7esuhz-5v5sus34",
+      "institute_id": null,
+      "account_id": "fe73038b-4b02-408a-856e-58c41a3dcc97",
+      "activity": "billing",
+      "kind": "contract_draft",
+      "ref": "contract-draft-mw7esue0-1ge8mmpc",
+      "created_at": "2026-11-08T05:46:08.615Z",
+      "payload": "{\"daycareId\":\"mw7esue0-1ge8mmpc\",\"daycareName\":\"QA KID747 Push Center\",\"plan\":\"demo\",\"deepLink\":\"/platform/daycares/mw7esue0-1ge8mmpc/billing\"}"
+    },
+    {
+      "id": "mw7di7zt-7hwa5ety",
+      "institute_id": null,
+      "account_id": "fe73038b-4b02-408a-856e-58c41a3dcc97",
+      "activity": "billing",
+      "kind": "contract_draft",
+      "ref": "contract-draft-mw7di7uu-rfny9k93",
+      "created_at": "2026-11-08T05:09:53.273Z",
+      "payload": "{\"daycareId\":\"mw7di7uu-rfny9k93\",\"daycareName\":\"QA KID747 Browser Center\",\"plan\":\"demo\",\"deepLink\":\"/platform/daycares/mw7di7uu-rfny9k93/billing\"}"
+    }
+  ],
+  "audits": [
+    {
+      "action": "update",
+      "entity_type": "daycare_contract",
+      "entity_id": "mw7di7uu-rfny9k93",
+      "summary": "Signed daycare contract uploaded",
+      "metadata": "{\"contractUpload\":true}"
+    },
+    {
+      "action": "update",
+      "entity_type": "daycare_contract",
+      "entity_id": "mw7di7uu-rfny9k93",
+      "summary": "Signed daycare contract uploaded",
+      "metadata": "{\"contractUpload\":true}"
+    },
+    {
+      "action": "update",
+      "entity_type": "daycare_contract",
+      "entity_id": "mw7di7uu-rfny9k93",
+      "summary": "Signed daycare contract uploaded",
+      "metadata": "{\"contractUpload\":true}"
+    },
+    {
+      "action": "create",
+      "entity_type": "daycare_contract",
+      "entity_id": "mw7di7uu-rfny9k93",
+      "summary": "Contract drafts generated (Arabic + English)",
+      "metadata": "{\"contractDrafts\":true,\"templateVersion\":\"1.0\"}"
+    }
+  ],
+  "storedFiles": [
+    "draft-ar-1794114593245-cdd298a5-a6a2-4e60-b946-fcd3c4955873.html",
+    "draft-en-1794114593248-f0b58ce0-1731-4abd-a1b7-f9e9174167a5.html",
+    "signed-1794115195369-886b9714-be5b-46b3-962c-cffb75fc7f45.pdf",
+    "signed-1794115756280-31f0a2ab-e8d2-4705-8f90-5271c61a3896.pdf",
+    "signed-1794116175007-b901a753-0460-4f69-ab1d-134b16185a55.pdf"
+  ],
+  "storedFileCount": 5
+}

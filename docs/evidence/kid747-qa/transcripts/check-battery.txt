@@ -1,0 +1,8 @@
+battery.log:db exit=0
+battery.log:lint exit=0
+tests.log:TESTS EXIT=0
+build.log:BUILD EXIT=0
+build2.log:BUILD2 EXIT=0
+tsc.log:tsc exit=0
+ Test Files  91 passed (91)
+      Tests  1005 passed (1005)
