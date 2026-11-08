@@ -174,9 +174,14 @@ export async function pushSubscriptionsFor(accountId: string): Promise<Row[]> {
 }
 
 // The production sender; swapped via `sender` in sendPushToAccounts for tests.
+// KID-816: web-push v4 is pure ESM with NAMED exports only (no `default`), so
+// the old `(await import("web-push")).default` was `undefined` in the Next
+// server bundle and every send threw `TypeError: Cannot read properties of
+// undefined`. The namespace destructure works in both the server bundle
+// (native import of the ESM namespace) and tests (mocks expose the same shape).
 const defaultSender: PushSender = async ({ subscription, payload, config }) => {
-  const webpush = (await import("web-push")).default;
-  await webpush.sendNotification(
+  const { sendNotification } = await import("web-push");
+  await sendNotification(
     {
       endpoint: String(subscription.endpoint),
       keys: { p256dh: String(subscription.p256dh), auth: String(subscription.auth) },
