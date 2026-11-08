@@ -3511,6 +3511,16 @@ export function notificationViewCopy(
       body: dueDate ? copy.invoiceBody(amount, dueDate) : amount,
     };
   }
+  // KID-746: platform-operator draft-ready notifications. The payload stays
+  // locale-independent (daycare name + plan); the view copies per locale.
+  if (kind === "contract_draft") {
+    const daycareName = String(payload.daycareName ?? "");
+    const plan = String(payload.plan ?? "");
+    return {
+      title: copy.contractDraftReadyTitle(daycareName),
+      body: copy.contractDraftReadyBody(plan),
+    };
+  }
   return { title: String(payload.title ?? ""), body };
 }
 

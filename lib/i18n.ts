@@ -905,6 +905,18 @@ export const en = {
     contractErrorType: "Rejected: the contract must be a PDF, PNG or JPG file, and it cannot be empty.",
     contractErrorSize: "Rejected: the contract file is larger than 10 MB.",
     contractErrorUpload: "Something went wrong storing the contract. Nothing was changed. Please try again.",
+    // KID-746: the operator's contract queue on /platform plus the per-row
+    // contract status badge and the operator push-subscribe card.
+    contractQueueTitle: "Contracts awaiting review",
+    contractQueueHint: "Drafts auto-generated from the approved template when a daycare is created. Confirm the open points, then send to sign.",
+    contractQueueEmpty: "No contracts awaiting review.",
+    contractQueuePlan: "Plan: {plan}",
+    contractRowDraftBadge: "Contract: awaiting review",
+    contractRowSignedBadge: "Contract: signed",
+    contractDraftDownloadAr: "Arabic draft",
+    contractDraftDownloadEn: "English draft",
+    pushOperatorTitle: "Operator push notifications",
+    pushOperatorHint: "Get a push notification when a new daycare — and its contract drafts — are created.",
     // KID-481: the Billing | Insights tabbed page behind the gear icon. The
     // Billing tab is the unchanged KID-244 UI; the Insights tab is the
     // cross-tenant tool-usage view. Operator-only (never shown to daycares).
@@ -1319,6 +1331,11 @@ export const en = {
     // notification. The child rides {child}, the invoice name rides
     // {description}; the amount/total body reuses invoiceBody at view time.
     invoiceCreatedTitle: "New invoice for {child}: {description}",
+    // KID-746: platform-operator "contract drafts generated for a new
+    // daycare" — the operator queue, the in-app card, and the push copy all
+    // reuse this pair at view time (store.notificationViewCopy).
+    contractDraftReadyTitle: "Contract drafts ready: {name}",
+    contractDraftReadyBody: "New Arabic + English daycare contract drafts ({plan} plan) await your review.",
   },
   // KID-221: the staff newsfeed composer (Home group) — it had no localized
   // keys and spoke English inside the translated shell.
@@ -2241,6 +2258,18 @@ export const ar = {
     contractErrorType: "تم الرفض: يجب أن يكون العقد ملفًا بصيغة PDF أو PNG أو JPG، ولا يمكن أن يكون فارغًا.",
     contractErrorSize: "تم الرفض: ملف العقد أكبر من 10 ميجابايت.",
     contractErrorUpload: "حدث خطأ أثناء تخزين العقد. لم يتغير أي شيء. حاول مرة أخرى.",
+    // KID-746: قائمة عقد الأوبريتور على /platform مع شارة حالة العقد لكل صف
+    // وبطاقة الاشتراك في الإشعارات الفورية للأوبريتور.
+    contractQueueTitle: "العقود بانتظار المراجعة",
+    contractQueueHint: "مسودات مُولَّدة تلقائيًا من النموذج المعتمد عند إنشاء حضانة. أكّد النقاط المفتوحة ثم أرسلها للتوقيع.",
+    contractQueueEmpty: "لا توجد عقود بانتظار المراجعة.",
+    contractQueuePlan: "الخطة: {plan}",
+    contractRowDraftBadge: "العقد: بانتظار المراجعة",
+    contractRowSignedBadge: "العقد: مُوقَّع",
+    contractDraftDownloadAr: "المسودة العربية",
+    contractDraftDownloadEn: "المسودة الإنجليزية",
+    pushOperatorTitle: "الإشعارات الفورية للأوبريتور",
+    pushOperatorHint: "استلم إشعارًا فوريًا عند إنشاء حضانة جديدة — ومسودات عقد الحضانة.",
     // KID-481: صفحة التبويبين (الفاتورة | الإحصاءات) خلف أيقونة الترس. تبويب
     // الفاتورة هو واجهة KID-244 دون تغيير؛ وتبويب الإحصاءات هو عرض استخدام
     // الأدوات على مستوى المنصة. للأوبريتور فقط (لا تراه مراكز الحضانة).
@@ -2592,6 +2621,10 @@ export const ar = {
     invoicePendingMeta: "معلّقة",
     // KID-684: إشعار ولي الأمر عند إنشاء فاتورة جديدة (AR).
     invoiceCreatedTitle: "فاتورة جديدة لـ {child}: {description}",
+    // KID-746: إشعار الأوبريتور عند توليد مسودات عقد حضانة جديدة — تستخدمه
+    // قائمة المنصة والبطاقة داخل التطبيق والإشعار الفوري وقت العرض.
+    contractDraftReadyTitle: "مسودات العقد جاهزة: {name}",
+    contractDraftReadyBody: "مسودات عقد حضانة جديدة بالعربية والإنجليزية (خطة {plan}) بانتظار مراجعتك.",
   },
   // KID-221: محرّر الأخبار الخاص بالفريق (قائمة الرئيسية) — لم تكن له مفاتيح
   // مترجمة وكان يتحدث بالإنجليزية داخل الهيكل المترجم.
@@ -2914,6 +2947,9 @@ export type FeedCopy = {
   invoicePendingMeta: () => string;
   // KID-684: invoice-created parent notification title.
   invoiceCreatedTitle: (child: string, description: string) => string;
+  // KID-746: platform-operator drafts-ready notification copy.
+  contractDraftReadyTitle: (name: string) => string;
+  contractDraftReadyBody: (plan: string) => string;
   // status label resolvers for the raw DB enums that surface in the feed.
   supplyStatusLabel: (status: string) => string;
   billingStatusLabel: (status: string) => string;
@@ -2957,6 +2993,8 @@ export function feedCopyFor(locale: Locale): FeedCopy {
     invoiceOverdueMeta: () => t("feed.invoiceOverdueMeta"),
     invoicePendingMeta: () => t("feed.invoicePendingMeta"),
     invoiceCreatedTitle: (child, description) => t("feed.invoiceCreatedTitle", { child, description }),
+    contractDraftReadyTitle: (name) => t("feed.contractDraftReadyTitle", { name }),
+    contractDraftReadyBody: (plan) => t("feed.contractDraftReadyBody", { plan }),
     supplyStatusLabel: (status) =>
       status === "fulfilled"
         ? t("supplies.fulfilled")

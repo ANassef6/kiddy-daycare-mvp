@@ -752,6 +752,8 @@ export function sqliteSchema(db: any): void {
     institute_id TEXT PRIMARY KEY REFERENCES institute(id) ON DELETE CASCADE,
     template_version TEXT,
     draft_url TEXT,
+    draft_url_ar TEXT,
+    draft_url_en TEXT,
     draft_generated_at TEXT,
     signed_url TEXT,
     signed_file_name TEXT,
@@ -761,6 +763,16 @@ export function sqliteSchema(db: any): void {
     updated_at TEXT NOT NULL DEFAULT (datetime('now'))
   );
   `);
+
+  // KID-746: mirror of supabase/migrations/0039_kid746_contract_drafts.sql —
+  // one column per language for the auto-generated bilingual drafts.
+  const contractCols = db.prepare("PRAGMA table_info(daycare_contract)").all() as { name: string }[];
+  if (contractCols.length > 0 && !contractCols.some((c) => c.name === "draft_url_ar")) {
+    db.exec("ALTER TABLE daycare_contract ADD COLUMN draft_url_ar TEXT");
+  }
+  if (contractCols.length > 0 && !contractCols.some((c) => c.name === "draft_url_en")) {
+    db.exec("ALTER TABLE daycare_contract ADD COLUMN draft_url_en TEXT");
+  }
 
   // Idempotent column backfills for databases created before these columns
   // existed (CREATE TABLE IF NOT EXISTS does not alter existing tables).

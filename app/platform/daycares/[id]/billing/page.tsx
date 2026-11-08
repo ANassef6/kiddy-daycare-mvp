@@ -295,7 +295,23 @@ export default async function DaycareBillingPage({
                 })}
               </span>
             ) : null}
-            {contract?.draft_url ? (
+            {contract?.draft_url_ar && contract?.draft_url_en ? (
+              // KID-746: the auto-generated bilingual drafts — one link per
+              // language, generated together, template version stamped.
+              <>
+                <a className="small" href={String(contract.draft_url_ar)}>
+                  {tr(dict, "platform.contractDraftDownloadAr")}
+                </a>
+                <a className="small" href={String(contract.draft_url_en)}>
+                  {tr(dict, "platform.contractDraftDownloadEn")}
+                </a>
+                <span className="small muted">
+                  {tr(dict, "platform.contractDraftGenerated", {
+                    date: fmtDateTimeFor(locale, contract.draft_generated_at),
+                  })}
+                </span>
+              </>
+            ) : contract?.draft_url ? (
               <>
                 <a className="small" href={String(contract.draft_url)}>
                   {tr(dict, "platform.contractDraftDownload")}

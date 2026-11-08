@@ -12,6 +12,8 @@ import { requireSession } from "@/lib/require";
 import { isPlatformOperatorEmail, isPlatformOperatorRole, PLATFORM_THEME_KEYS } from "@/lib/platform";
 import { listInstitutesForPlatform } from "@/lib/store";
 import { BILLING_DEFAULTS } from "@/lib/billing";
+import { listContractDraftStatus } from "@/lib/contract";
+import PushNotificationsCard from "@/components/PushNotificationsCard";
 import {
   setDaycareActiveAction,
   createDaycareAction,
@@ -71,6 +73,20 @@ export default async function PlatformDaycaresPage({
   }
   const { dict, dir } = await i18nForAccount(session.accountId);
   const institutes = await listInstitutesForPlatform();
+  // KID-746: the contract status per daycare (draft awaiting review / signed)
+  // in ONE query — the queue card and the per-row badge read the same map.
+  const contractStatus = await listContractDraftStatus();
+  // The queue is the not-yet-signed part of the map, newest first.
+  const contractQueue = institutes
+    .filter((inst) => {
+      const status = contractStatus.get(String(inst.id));
+      return status?.hasDraft && !status.isSigned;
+    })
+    .sort((a, b) =>
+      String(contractStatus.get(String(b.id))?.generatedAt ?? "").localeCompare(
+        String(contractStatus.get(String(a.id))?.generatedAt ?? "")
+      )
+    );
   // KID-737: the platform-wide Instapay link card state (saved/invalid
   // banner) and the currently stored link.
   const instapay = searchParams.instapay === "saved" || searchParams.instapay === "invalid"
@@ -164,6 +180,67 @@ export default async function PlatformDaycaresPage({
             </button>
           ) : null}
         </form>
+      </div>
+
+      {/* KID-746: the Contracts awaiting review queue — every daycare whose
+          auto-generated bilingual drafts have not been signed yet (the CEO
+          sends the drafts and uploads the signed copy; the platform never
+          sends anything to the daycare owner). One card, newest first, each
+          entry linking into its contract card. */}
+      <div className="card mb-4">
+        <h3 className="subtitle">{tr(dict, "platform.contractQueueTitle")}</h3>
+        <p className="small muted">{tr(dict, "platform.contractQueueHint")}</p>
+        {contractQueue.length === 0 ? (
+          <p className="small muted">{tr(dict, "platform.contractQueueEmpty")}</p>
+        ) : (
+          <table style={{ width: "100%", borderCollapse: "collapse" }}>
+            <tbody>
+              {contractQueue.map((inst) => {
+                const status = contractStatus.get(String(inst.id));
+                return (
+                  <tr key={String(inst.id)} style={{ borderTop: "1px solid #e5e7eb" }}>
+                    <td style={{ padding: 8 }}>
+                      <a href={`/platform/daycares/${String(inst.id)}/billing`} style={{ fontWeight: 700 }}>
+                        {String(inst.name)}
+                      </a>
+                    </td>
+                    <td className="small" style={{ padding: 8 }}>
+                      {tr(dict, "platform.contractQueuePlan", { plan: String(status?.plan ?? "") })}
+                    </td>
+                    <td className="small muted" style={{ padding: 8 }}>
+                      {String(status?.generatedAt ?? "").slice(0, 10)}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        )}
+      </div>
+
+      {/* KID-746: the operator push-subscribe card — the deep link opens the
+          contract card of the daycare whose drafts were just generated. Same
+          degrading behavior as the parent card (unsupported browser, missing
+          VAPID keys → hints only). */}
+      <div className="card mb-4">
+        <h3 className="subtitle">{tr(dict, "platform.pushOperatorTitle")}</h3>
+        <p className="small muted">{tr(dict, "platform.pushOperatorHint")}</p>
+        <PushNotificationsCard
+          labels={{
+            title: tr(dict, "parent.pushTitle"),
+            hint: tr(dict, "parent.pushHint"),
+            enable: tr(dict, "parent.pushEnable"),
+            disable: tr(dict, "parent.pushDisable"),
+            enabled: tr(dict, "parent.pushEnabled"),
+            denied: tr(dict, "parent.pushDenied"),
+            unsupported: tr(dict, "parent.pushUnsupported"),
+            notConfigured: tr(dict, "parent.pushNotConfigured"),
+            testButton: tr(dict, "parent.pushTestButton"),
+            testSent: tr(dict, "parent.pushTestSent"),
+            soundLabel: tr(dict, "parent.soundLabel"),
+            soundHint: tr(dict, "parent.soundHint"),
+          }}
+        />
       </div>
 
       <div className="table-scroll">
@@ -331,6 +408,15 @@ export default async function PlatformDaycaresPage({
                     >
                       ⚙ {tr(dict, "platform.billingSettings")}
                     </a>
+                    {/* KID-746: the contract status badge — which daycares
+                        still owe a review, which already signed. */}
+                    {contractStatus.get(instId)?.hasDraft ? (
+                      <span className="small" style={{ display: "block", marginTop: 4 }}>
+                        {contractStatus.get(instId)?.isSigned
+                          ? tr(dict, "platform.contractRowSignedBadge")
+                          : tr(dict, "platform.contractRowDraftBadge")}
+                      </span>
+                    ) : null}
                   </td>
                 </tr>
               );

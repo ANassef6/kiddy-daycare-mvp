@@ -87,6 +87,12 @@ export function pushDeepUrl(kind: string, payload: Record<string, unknown>): str
     const childId = String(payload.childId ?? "");
     return childId ? `/child/${childId}#invoices` : "/child";
   }
+  // KID-746: new contract drafts open the platform operator's contract card
+  // for that daycare (the operator is the only push recipient of this kind).
+  if (kind === "contract_draft") {
+    const deepLink = String(payload.deepLink ?? "");
+    return deepLink || "/platform";
+  }
   if (kind === "test") return "/child/notifications";
   return "/child/newsfeed";
 }

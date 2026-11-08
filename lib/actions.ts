@@ -873,6 +873,22 @@ export async function createDaycareAction(formData: FormData) {
         });
       }
     }
+    // KID-746: auto-generate the AR + EN contract drafts on successful
+    // creation (from the approved template pack — never invented legal text),
+    // store them through the existing contracts/ storage path, and notify
+    // the platform operator(s) only. Idempotent and failure-contained inside
+    // generateDaycareContractDrafts: a generation failure is logged and never
+    // blocks the created daycare or its owner login. Nothing is ever sent to
+    // the daycare owner — the CEO sends the drafts and uploads the signed copy.
+    try {
+      const { generateDaycareContractDrafts } = await import("@/lib/contract");
+      await generateDaycareContractDrafts({
+        instituteId: res.instituteId,
+        ownerAccountId: res.ownerAccountId,
+      });
+    } catch (err) {
+      console.error("KID-746 contract draft generation failed:", err);
+    }
   } catch (err) {
     const reason = String((err as Error)?.message ?? "");
     if (reason === "owner-email-in-use") {
