@@ -25,6 +25,7 @@ import { getInstitute } from "@/lib/store";
 import { getDaycareBilling, listInvoices, type DaycareInvoice, type DaycareBilling } from "@/lib/billing";
 import { getPlatformInstapayUrl } from "@/lib/platform-settings";
 import { recordToolUsage } from "@/lib/tool-usage";
+import { signedUrlsForRefs } from "@/lib/storage";
 import { uploadDaycareInvoiceProofAction } from "@/lib/actions";
 
 export const dynamic = "force-dynamic";
@@ -75,6 +76,11 @@ export default async function PortalAccountBillingPage(
     getDaycareBilling(instituteId),
     listInvoices(instituteId),
   ]);
+  // KID-1177: proof links resolve to short-lived signed URLs here, in the
+  // owner-only surface; legacy public URLs pass through.
+  const proofHrefs = await signedUrlsForRefs(
+    invoices.map((inv) => String(inv.paymentProofUrl ?? ""))
+  );
   // KID-737: the platform-wide Instapay link — one setting for the whole
   // platform. When it is unset the Pay links hide and the owner gets the
   // "will appear here" hint instead of a dead link.
@@ -270,9 +276,9 @@ export default async function PortalAccountBillingPage(
                   <td style={{ padding: 8 }}>
                     {inv.status !== "paid" ? (
                       <div style={{ minWidth: 220 }}>
-                        {inv.paymentProofUrl && (
+                        {inv.paymentProofUrl && proofHrefs.get(String(inv.paymentProofUrl)) && (
                           <div className="small" style={{ marginBottom: 6 }}>
-                            <a href={inv.paymentProofUrl} target="_blank" rel="noreferrer">
+                            <a href={proofHrefs.get(String(inv.paymentProofUrl)) ?? undefined} target="_blank" rel="noreferrer">
                               {tr(dict, "accountBilling.proofView")}
                             </a>
                             {inv.paymentProofUploadedAt && (
@@ -316,7 +322,7 @@ export default async function PortalAccountBillingPage(
                     ) : (
                       <span className="small muted">
                         {inv.paymentProofUrl ? (
-                          <a href={inv.paymentProofUrl} target="_blank" rel="noreferrer">
+                          <a href={proofHrefs.get(String(inv.paymentProofUrl)) ?? undefined} target="_blank" rel="noreferrer">
                             {tr(dict, "accountBilling.proofView")}
                           </a>
                         ) : (

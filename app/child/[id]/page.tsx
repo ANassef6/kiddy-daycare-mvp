@@ -27,6 +27,7 @@ import { toggleLikeAction, uploadPaymentProofAction } from "@/lib/actions";
 import { i18nForAccount } from "@/lib/i18n-session";
 import { tr } from "@/lib/i18n";
 import { recordToolUsage } from "@/lib/tool-usage";
+import { signedUrlsForRefs, storageSrcFor } from "@/lib/storage";
 
 export const dynamic = "force-dynamic";
 
@@ -82,6 +83,11 @@ export default async function ChildDetailPage({
     // family's billing data — never another daycare family's.
     listChildBilling(child.id),
   ]);
+  // KID-1177: the proof links resolve to short-lived signed URLs here, in the
+  // authorized render context; legacy public URLs pass through unchanged.
+  const proofHrefs = await signedUrlsForRefs(
+    invoices.map((b) => String(b.payment_proof_url ?? ""))
+  );
 
   const meal = safeJson(report?.meal);
   const sleep = report?.sleep ? String(report.sleep) : "";
@@ -94,8 +100,9 @@ export default async function ChildDetailPage({
       <div className="card mt-3">
         <div className="status-card">
           <div className="row" style={{ alignItems: "center", gap: 12 }}>
-            {/* #5a child avatar placeholder (photo upload later) */}
-            <Avatar src={child.photo_url} name={`${child.first_name} ${child.last_name}`} size={56} color={branding.primaryColor} />
+            {/* #5a child avatar placeholder (photo upload later) — KID-1177:
+                the stored photo ref resolves to a signed URL before render. */}
+            <Avatar src={await storageSrcFor(child.photo_url)} name={`${child.first_name} ${child.last_name}`} size={56} color={branding.primaryColor} />
             <div>
               <div style={{ fontWeight: 800, fontSize: 22 }}>
                 {child.first_name} {child.last_name}
@@ -246,9 +253,9 @@ export default async function ChildDetailPage({
               </div>
               {b.status !== "paid" && (
                 <div className="mt-2" style={{ borderTop: "1px solid #e5e7eb", paddingTop: 8 }}>
-                  {b.payment_proof_url && (
+                  {b.payment_proof_url && proofHrefs.get(String(b.payment_proof_url)) && (
                     <div className="mb-2">
-                      <a className="small" href={String(b.payment_proof_url)} target="_blank" rel="noreferrer">
+                      <a className="small" href={proofHrefs.get(String(b.payment_proof_url))!} target="_blank" rel="noreferrer">
                         {t("child.payProofView")}
                       </a>
                       {b.payment_reference ? (

@@ -1,4 +1,5 @@
 import { requireSession } from "@/lib/require";
+import { storageSrcFor } from "@/lib/storage";
 import { accountProfile, getAccount, mustChangePasswordFor } from "@/lib/auth";
 import { i18nForAccount } from "@/lib/i18n-session";
 import { tr } from "@/lib/i18n";
@@ -47,7 +48,7 @@ export default async function PortalAccountPage({ searchParams }: { searchParams
 
       <div className="card mb-4">
         <div className="row" style={{ alignItems: "center", gap: 16 }}>
-          <Avatar src={profile.photoUrl} name={displayName} size={64} />
+          <Avatar src={await storageSrcFor(profile.photoUrl)} name={displayName} size={64} />
           <div style={{ flex: 1 }}>
             <h2 className="subtitle" style={{ margin: 0 }}>{displayName}</h2>
             <div className="small muted">{session.email}</div>

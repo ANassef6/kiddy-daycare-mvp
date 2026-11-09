@@ -64,14 +64,17 @@ vi.mock("next/cache", () => ({
 vi.mock("@/lib/supabase", () => ({
   supabaseConfigured: () => true,
   getSupabase: () => ({
-    storage: {
-      from: () => ({
-        upload: async () => ({ error: mockState.uploadError }),
-        getPublicUrl: (path: string) => ({ data: { publicUrl: `https://storage.test/kiddy-public/${path}` } }),
-      }),
+    auth: {
+      signInWithPassword: async () => ({ data: {}, error: null }),
+      getUser: async () => ({ data: {}, error: null }),
     },
   }),
 }));
+// KID-1177: contract uploads ride the service-key client into kiddy-private
+// and the row keeps the private REF; the rendering mints a signed URL
+// (stand-in: tests/helpers/kid1177-storage.ts).
+vi.mock("@/lib/storage", async () => (await import("../helpers/kid1177-storage")).kid1177StorageMock);
+import { storage1177 } from "../helpers/kid1177-storage";
 
 import { createSessionToken } from "@/lib/auth";
 import { MAX_CONTRACT_BYTES, validateContract, contractStorageFilename, getDaycareContract } from "@/lib/contract";
@@ -122,6 +125,7 @@ beforeEach(async () => {
   mockState.host = "";
   mockState.cookies = {};
   mockState.uploadError = null;
+  storage1177.uploadError = null;
   await seedFixture();
   sunshineIid = String((await queryGet("SELECT id FROM institute LIMIT 1"))!.id);
   const op = await queryGet("SELECT id FROM account WHERE email = 'superadmin@kiddy.test'");
@@ -227,8 +231,10 @@ describe("KID-745: uploadDaycareContractAction (operator-only)", () => {
     expect(target).toBe(`/platform/daycares/${sunshineIid}/billing?contract=uploaded`);
     const row = await contractRowFor(sunshineIid);
     expect(String(row.signed_url)).toMatch(
-      new RegExp(`^https://storage\\.test/kiddy-public/contracts/${sunshineIid}/signed-\\d+-[0-9a-f-]+\\.pdf$`)
+      new RegExp(`^kiddy-private:contracts/${sunshineIid}/signed-\\d+-[0-9a-f-]+\\.pdf$`)
     );
+    // KID-1177: the object went to the private bucket through the service key.
+    expect(storage1177.uploads.every((u) => u.bucket === "kiddy-private")).toBe(true);
     expect(String(row.signed_file_name)).toBe("contract-signed.pdf");
     expect(String(row.signed_uploaded_at ?? "")).not.toBe("");
     expect(String(row.uploaded_by_account_id)).toBe(superadminId);
@@ -275,6 +281,7 @@ describe("KID-745: uploadDaycareContractAction (operator-only)", () => {
   it("a storage failure writes nothing (?error=contractUpload)", async () => {
     sessionCookieFor(superadminId, "platform", "superadmin@kiddy.test");
     mockState.uploadError = { message: "boom" };
+    storage1177.uploadError = { message: "boom" };
     const target = await uploadContract(sunshineIid);
     expect(target).toBe(`/platform/daycares/${sunshineIid}/billing?error=contractUpload`);
     expect(await contractRowFor(sunshineIid)).toBeUndefined();
@@ -360,6 +367,8 @@ describe("KID-745: the contract card on the billing settings page", () => {
     );
     sessionCookieFor(superadminId, "platform", "superadmin@kiddy.test");
     const html = await renderBilling();
+    // KID-1177: legacy stored URLs pass through the resolution unchanged —
+    // the pre-migration draft still renders its stored public URL.
     expect(html).toContain("https://storage.test/kiddy-public/contracts/draft2.pdf");
     expect(html).toContain("Download draft");
     expect(html).toContain("Template version: v2-en / v2-ar");
@@ -375,6 +384,10 @@ describe("KID-745: the contract card on the billing settings page", () => {
     await redirectTargetFor(() => uploadDaycareContractAction(form));
     const html = await renderBilling();
     expect(html).toContain("final-signed.pdf");
+    // KID-1177: the signed upload renders through a short-lived signed URL,
+    // never the raw private ref.
+    expect(html).toMatch(/storage\.test\/storage\/v1\/object\/sign\/kiddy-private\/contracts\//);
+    expect(html).not.toContain("kiddy-private:");
     expect(html).toContain("Uploaded");
     expect(html).not.toContain("No signed contract uploaded yet.");
     expect(html).toContain("Replace the signed contract (PDF, PNG or JPG, up to 10 MB)");

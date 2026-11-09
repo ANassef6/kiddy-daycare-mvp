@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { storageSrcFor, signedUrlsForRefs } from "@/lib/storage";
 import { notFound } from "next/navigation";
 import { requireSession } from "@/lib/require";
 import {
@@ -156,7 +157,7 @@ export default async function PortalChildPage({
     {
       id: "media",
       label: t("profile.media", { count: media.length }),
-      node: mediaTab(media, dict),
+      node: await mediaTab(media, dict),
     },
     {
       id: "documents",
@@ -289,7 +290,7 @@ export default async function PortalChildPage({
       )}
       <Link className="small muted" href="/portal/children">← {t("profile.backToChildren")}</Link>
       <div className="row" style={{ alignItems: "center", gap: 14, marginTop: 8 }}>
-        <Avatar src={child.photo_url} name={`${child.first_name} ${child.last_name}`} size={56} color={branding.primaryColor} />
+        <Avatar src={await storageSrcFor(child.photo_url)} name={`${child.first_name} ${child.last_name}`} size={56} color={branding.primaryColor} />
         <div style={{ flex: 1 }}>
           <h1 className="title mt-1" style={{ marginBottom: 0 }}>{child.first_name} {child.last_name}</h1>
           <p className="subtitle" style={{ marginBottom: 0 }}>
@@ -604,19 +605,24 @@ function contactsTab(child: any, contacts: any[], dict: any, activation?: Map<st
   );
 }
 
-function mediaTab(media: any[], dict: any) {
+// KID-1177: media hrefs resolve to signed URLs for private refs; legacy
+// public/external/data URLs pass through. Async only because the signed-URL
+// mint is a server call.
+async function mediaTab(media: any[], dict: any) {
   const t = (key: string, vars?: Record<string, string | number>) => tr(dict, key, vars);
+  const srcs = await signedUrlsForRefs(media.map((m: any) => String(m.url)));
+  const srcFor = (m: any) => (srcs.get(String(m.url)) ?? String(m.url)) || "";
   return (
     <div className="card">
       <div className="row" style={{ justifyContent: "space-between", alignItems: "center" }}>
         <h3 className="subtitle">{t("profile.media", { count: media.length })}</h3>
-        <MediaDownloadAll files={(media as any[]).map((m: any) => ({ url: String(m.url), caption: String(m.caption ?? "") }))} />
+        <MediaDownloadAll files={(media as any[]).map((m: any) => ({ url: srcFor(m), caption: String(m.caption ?? "") }))} />
       </div>
       {media.length === 0 ? <p className="muted small">{t("profile.noMedia")}</p> : null}
       <div className="row" style={{ gap: 10, flexWrap: "wrap" }}>
         {media.map((m: any) => (
-          <a key={m.id} href={m.url} target="_blank" rel="noreferrer" style={{ display: "block", width: 120, height: 120, borderRadius: 10, overflow: "hidden", border: "1px solid var(--color-border)" }}>
-            <img src={m.url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+          <a key={m.id} href={srcFor(m)} target="_blank" rel="noreferrer" style={{ display: "block", width: 120, height: 120, borderRadius: 10, overflow: "hidden", border: "1px solid var(--color-border)" }}>
+            <img src={srcFor(m)} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
           </a>
         ))}
       </div>

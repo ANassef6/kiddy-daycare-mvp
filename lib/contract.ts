@@ -37,18 +37,15 @@ export function validateContract(file: { type?: unknown; size?: unknown }): Cont
   return { ok: true, ext };
 }
 
-/** Object path inside the kiddy-public bucket. CONFIDENTIALITY LIMITATION
- *  (documented for KID-745): the platform has no private bucket or
- *  service-key signed-URL flow — lib/supabase.ts holds only the public
- *  bucket this app already uses — so the object is placed under a
- *  per-daycare folder with a timestamp + long random UUID suffix. That keeps
- *  the URL unguessable to other tenants, but an unguessable-PUBLIC object is
- *  not the same as a private one: whoever obtains the exact URL can fetch
- *  the file. The URL is only ever written to daycare_contract (operator-only
- *  surface) and the audit trail deliberately carries none of it. A private
- *  bucket / signed-URL migration should replace this path once storage infra
- *  allows. */
-export function contractStorageFilename(instituteId: string, ext: string, randomSuffix: string): string {
+/** Object path inside the PUBLIC bucket — legacy note kept in one line: the
+ *  KID-745 shape was unguessable-public. KID-1177 moved this call site to the
+ *  private bucket (kiddy-private via lib/storage.ts) with the row keeping the
+ *  private REF; the path/filename pattern is unchanged. */
+export function contractStorageFilename(
+  instituteId: string,
+  ext: string,
+  randomSuffix: string
+): string {
   return `contracts/${instituteId}/signed-${Date.now()}-${randomSuffix}.${ext}`;
 }
 
@@ -153,9 +150,10 @@ export function fillContractTemplate(template: string, values: Record<string, st
   return out;
 }
 
-/** Object path inside the kiddy-public bucket: one file per language, per
- *  daycare folder, timestamp + random suffix (same unguessable-public shape
- *  and confidentiality limitation as the signed path above). */
+/** Object path inside the PRIVATE bucket (KID-1177): one file per language,
+ *  per daycare folder, timestamp + random suffix. Unchanged shape, but the
+ *  object is no longer publicly addressable — plane of control is the
+ *  signed-URL mint, not the unguessable name. */
 export function contractDraftStorageFilename(
   instituteId: string,
   locale: "ar" | "en",
@@ -439,21 +437,21 @@ export async function generateDaycareContractDrafts(input: {
         filename: contractDraftStorageFilename(input.instituteId, "en", crypto.randomUUID()),
       },
     ];
-    // Storage rides the same kiddy-public path as the signed contract. A
-    // fill/upload failure is contained BEFORE the row write: either both
-    // drafts are stored and one row appears, or nothing moves.
-    const { supabaseConfigured, getSupabase } = await import("@/lib/supabase");
-    if (!supabaseConfigured()) {
+    // Storage rides the private bucket (contracts are sensitive — the drafts
+    // carry the platform's own commercial terms). A fill/upload failure is
+    // contained BEFORE the row write: either both drafts are stored and one
+    // row appears, or nothing moves.
+    const { storageAdminConfigured, getStorageAdmin, PRIVATE_BUCKET, privateRef } = await import("@/lib/storage");
+    if (!storageAdminConfigured()) {
       console.error(
         `KID-746 contract drafts skipped (storage unconfigured): daycare=${input.instituteId}`
       );
       return { ok: false, reason: "storage-unconfigured" };
     }
-    const supabase = getSupabase();
     const urls: { ar?: string; en?: string } = {};
     for (const draft of drafts) {
-      const { error } = await supabase.storage
-        .from("kiddy-public")
+      const { error } = await getStorageAdmin()
+        .storage.from(PRIVATE_BUCKET)
         .upload(draft.filename, draft.text, { contentType: "text/html", upsert: false });
       if (error) {
         console.error(
@@ -463,12 +461,7 @@ export async function generateDaycareContractDrafts(input: {
         );
         return { ok: false, reason: "storage-error" };
       }
-      const { data: urlData } = supabase.storage.from("kiddy-public").getPublicUrl(draft.filename);
-      if (!urlData?.publicUrl) {
-        console.error(`KID-746 contract draft URL failed (${draft.locale}) daycare=${input.instituteId}`);
-        return { ok: false, reason: "storage-error" };
-      }
-      urls[draft.locale] = urlData.publicUrl;
+      urls[draft.locale] = privateRef(draft.filename);
     }
     await setDaycareContractDraft(input.instituteId, {
       templateVersion: data.templateVersion,

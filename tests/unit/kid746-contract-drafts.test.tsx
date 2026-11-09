@@ -63,18 +63,18 @@ vi.mock("next/cache", () => ({
 vi.mock("@/lib/supabase", () => ({
   supabaseConfigured: () => true,
   getSupabase: () => ({
-    storage: {
-      from: () => ({
-        upload: async (_path: string, body: unknown) => {
-          if (mockState.uploadError) return { error: mockState.uploadError };
-          mockState.uploads.push({ path: String(_path), body: String(body) });
-          return { error: null };
-        },
-        getPublicUrl: (path: string) => ({ data: { publicUrl: `https://storage.test/kiddy-public/${path}` } }),
-      }),
+    auth: {
+      signUp: async () => ({ data: {}, error: null }),
+      signInWithPassword: async () => ({ data: {}, error: null }),
+      getUser: async () => ({ data: {}, error: null }),
     },
   }),
 }));
+// KID-1177: contract drafts go to kiddy-private through the service-key
+// client; rows keep the private REF and the platform page renders signed
+// URLs (stand-in: tests/helpers/kid1177-storage.ts).
+vi.mock("@/lib/storage", async () => (await import("../helpers/kid1177-storage")).kid1177StorageMock);
+import { storage1177 } from "../helpers/kid1177-storage";
 
 import { createSessionToken } from "@/lib/auth";
 import {
@@ -130,8 +130,8 @@ beforeEach(async () => {
   mockState.cookie = "";
   mockState.host = "";
   mockState.cookies = {};
-  mockState.uploads = [];
-  mockState.uploadError = null;
+  storage1177.uploads = [];
+  storage1177.uploadError = null;
   await seedFixture();
   sunshineIid = String((await queryGet("SELECT id FROM institute LIMIT 1"))!.id);
   const op = await queryGet("SELECT id FROM account WHERE email = 'superadmin@kiddy.test'");
@@ -254,19 +254,22 @@ describe("KID-746: generateDaycareContractDrafts", () => {
   it("generates AR + EN drafts with the version stamped and notifies the operator only", async () => {
     const res = await generateDaycareContractDrafts({ instituteId: sunshineIid, ownerAccountId: ownerId });
     expect(res).toEqual({ ok: true });
-    // Exactly two files: one Arabic, one English, both .html drafts.
-    expect(mockState.uploads.length).toBe(2);
-    expect(mockState.uploads[0]!.path).toMatch(new RegExp(`^contracts/${sunshineIid}/draft-ar-\\d+-[0-9a-f-]+\\.html$`));
-    expect(mockState.uploads[1]!.path).toMatch(new RegExp(`^contracts/${sunshineIid}/draft-en-\\d+-[0-9a-f-]+\\.html$`));
+    // Exactly two files: one Arabic, one English, both .html drafts — KID-1177:
+    // into the PRIVATE bucket through the service-key client.
+    expect(storage1177.uploads.length).toBe(2);
+    expect(storage1177.uploads.every((u) => u.bucket === "kiddy-private")).toBe(true);
+    expect(storage1177.uploads[0]!.path).toMatch(new RegExp(`^contracts/${sunshineIid}/draft-ar-\\d+-[0-9a-f-]+\\.html$`));
+    expect(storage1177.uploads[1]!.path).toMatch(new RegExp(`^contracts/${sunshineIid}/draft-en-\\d+-[0-9a-f-]+\\.html$`));
     const row = await contractRowFor(sunshineIid);
     expect(String(row.template_version)).toBe(CONTRACT_TEMPLATE_VERSION);
-    expect(String(row.draft_url_ar)).toMatch(/draft-ar-[0-9a-f-]+\.html$/);
-    expect(String(row.draft_url_en)).toMatch(/draft-en-[0-9a-f-]+\.html$/);
+    // KID-1177: the row keeps the private REF, not a URL.
+    expect(String(row.draft_url_ar)).toMatch(/^kiddy-private:contracts\/.*draft-ar-[0-9a-f-]+\.html$/);
+    expect(String(row.draft_url_en)).toMatch(/^kiddy-private:contracts\/.*draft-en-[0-9a-f-]+\.html$/);
     expect(String(row.draft_generated_at ?? "")).not.toBe("");
     // The template content: filled, not invented — the daycare's data rides
     // in, placeholders do not survive, the RTL marker stays.
-    const ar = mockState.uploads[0]!.body;
-    const en = mockState.uploads[1]!.body;
+    const ar = String(storage1177.uploads[0]!.body);
+    const en = String(storage1177.uploads[1]!.body);
     expect(ar).toContain('dir="rtl"');
     expect(ar).toContain("Sunshine Daycare");
     expect(en).toContain("Sunshine Daycare");
@@ -305,16 +308,16 @@ describe("KID-746: generateDaycareContractDrafts", () => {
   it("a generate retry adds no files, no rows and no re-notification", async () => {
     await generateDaycareContractDrafts({ instituteId: sunshineIid, ownerAccountId: ownerId });
     const beforeRow = await contractRowFor(sunshineIid);
-    const beforeUploads = mockState.uploads.length;
+    const beforeUploads = storage1177.uploads.length;
     const res = await generateDaycareContractDrafts({ instituteId: sunshineIid, ownerAccountId: ownerId });
     expect(res.ok).toBe(false);
-    expect(mockState.uploads.length).toBe(beforeUploads);
+    expect(storage1177.uploads.length).toBe(beforeUploads);
     expect(await contractRowFor(sunshineIid)).toEqual(beforeRow);
     expect(await operatorNotificationCount()).toBe(1);
   });
 
   it("a storage failure writes nothing", async () => {
-    mockState.uploadError = { message: "boom" };
+    storage1177.uploadError = { message: "boom" };
     const res = await generateDaycareContractDrafts({ instituteId: sunshineIid, ownerAccountId: ownerId });
     expect(res).toEqual({ ok: false, reason: "storage-error" });
     expect(await contractRowFor(sunshineIid)).toBeUndefined();
@@ -396,10 +399,14 @@ describe("KID-746: the contract card draft links", () => {
     sessionCookieFor(superadminId, "platform", "superadmin@kiddy.test");
     const html = await renderBilling();
     const row = await contractRowFor(sunshineIid);
-    expect(html).toContain(String(row.draft_url_ar));
-    expect(html).toContain(String(row.draft_url_en));
+    // KID-1177: the private refs resolve to short-lived signed URLs in the
+    // operator-only surface — the raw REF never reaches the HTML.
     expect(html).toContain("Arabic draft");
     expect(html).toContain("English draft");
+    const draftUrlAr = String(row.draft_url_ar);
+    const draftPathAr = new RegExp(`href="[^"]*object/sign/kiddy-private/${draftUrlAr.replace("kiddy-private:", "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`).source;
+    expect(html).toMatch(new RegExp(draftPathAr));
+    expect(html).not.toContain("kiddy-private:");
     expect(html).toContain(`Template version: ${CONTRACT_TEMPLATE_VERSION}`);
   });
 

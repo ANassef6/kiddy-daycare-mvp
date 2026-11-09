@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { storageSrcFor } from "@/lib/storage";
 import { notFound } from "next/navigation";
 import { requireSession } from "@/lib/require";
 import { getChild, observationsForChild, isChildInScope } from "@/lib/store";
@@ -28,7 +29,7 @@ export default async function ChildDevelopmentPage({ params }: { params: { id: s
     <div>
       <Link className="small muted" href={`/portal/children/${child.id}`}>← {child.first_name} {child.last_name}</Link>
       <div className="row mt-2" style={{ alignItems: "center", gap: 12 }}>
-        <Avatar src={child.photo_url} name={`${child.first_name} ${child.last_name}`} size={52} />
+        <Avatar src={await storageSrcFor(child.photo_url)} name={`${child.first_name} ${child.last_name}`} size={52} />
         <div>
           <h1 className="title" style={{ margin: 0 }}>Development · {child.first_name} {child.last_name}</h1>
           <div className="subtitle">

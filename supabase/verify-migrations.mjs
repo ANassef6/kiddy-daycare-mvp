@@ -137,6 +137,38 @@ try {
     );
   }
 
+  // KID-1177: a third thing plain Postgres does not have — the Supabase
+  // storage schema. 0041's statements (bucket upserts, grants, policies on
+  // storage.objects) must run unmodified against something shaped like the
+  // real storage catalog, so the harness creates a minimal shim with the
+  // real column names 0041 touches and — critically — RLS ENABLED on
+  // storage.objects exactly as the production storage service leaves it.
+  // Without that, a grant-based check would be green while the policies were
+  // meaningless, and the point of 0041 is that the two work together.
+  await db.run("CREATE SCHEMA IF NOT EXISTS storage");
+  await db.run(
+    `CREATE TABLE IF NOT EXISTS storage.buckets (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      public BOOLEAN NOT NULL DEFAULT false,
+      file_size_limit BIGINT,
+      allowed_mime_types TEXT[],
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    )`
+  );
+  await db.run(
+    `CREATE TABLE IF NOT EXISTS storage.objects (
+      id TEXT PRIMARY KEY,
+      bucket_id TEXT NOT NULL,
+      name TEXT NOT NULL,
+      owner TEXT,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    )`
+  );
+  await db.run("ALTER TABLE storage.objects ENABLE ROW LEVEL SECURITY");
+
   console.log(`\n== engine: ${db.name} ==`);
   console.log(`\n== applying ${files.length} migrations in filename order ==`);
   for (const file of files) {
@@ -637,6 +669,201 @@ try {
     await db.run(`UPDATE institute SET subdomain = NULL`);
     const nullCount = Number((await db.all("SELECT COUNT(*) AS c FROM institute"))[0].c);
     check("NULL subdomains coexist (pre-backfill legacy rows)", nullCount, 2);
+
+    // ---------------------------------------------------------------------
+    // KID-1177 (F-02) — the RLS decision. Everything above ran as the owning
+    // connection, which is exactly how production reads and writes: the app's
+    // pg pool owns the tables and is exempt from RLS. The part that had NEVER
+    // been tested before 0040 is the other side of the door: what a
+    // non-owner role — the anon key on an exposed PostgREST, a future client
+    // path, anything — can touch. Deny-by-default means the answer is "the
+    // single intended lead-capture insert and nothing else", and that is only
+    // an assertion if it is exercised AS anon, not eyeballed as SQL.
+    console.log("\n== KID-1177 RLS hardening ==");
+
+    const appTables = [
+      "institute", "branch", "room", "account", "staff", "staff_room", "child",
+      "enrollment", "child_health", "contact", "family_member", "invite",
+      "check_in", "attendance_schedule", "daily_report", "newsfeed_post",
+      "newsfeed_tag", "newsfeed_like", "newsfeed_comment", "message", "media",
+      "consent_request", "incident_report", "contact_request", "child_billing",
+      "daycare_invoice", "push_subscription", "daycare_contract",
+      "platform_setting", "audit_event", "notification", "enhancement_request",
+      "tool_usage_event", "platform_access_log", "bus_event", "child_status",
+    ];
+    const rlsStates = async (names) =>
+      (
+        await db.all(
+          `SELECT c.relname AS name, c.relrowsecurity AS rls
+             FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+            WHERE c.relkind = 'r' AND n.nspname = $1`,
+          [SCHEMA]
+        )
+      ).filter((r) => names.includes(String(r.name)));
+    const protected_ = await rlsStates(appTables);
+    check("every app table in the verify list exists in the chain", protected_.length, appTables.length);
+    check("RLS is ENABLED on every app table", protected_.filter((r) => r.rls).length, protected_.length);
+
+    // The grants: exactly one intended path remains — anonymous INSERT on
+    // contact_request. Anything else granted to anon/authenticated is a
+    // regression of the revoke net.
+    const grants = (await db.all(
+      `SELECT table_name, privilege_type, grantee
+         FROM information_schema.role_table_grants
+        WHERE table_schema = $1
+          AND grantee IN ('anon', 'authenticated')
+        ORDER BY table_name, grantee, privilege_type`,
+      [SCHEMA]
+    )).map((r) => `${r.grantee}:${r.table_name}:${r.privilege_type}`);
+    check(
+      "anon/authenticated hold exactly the intended contact_request INSERT grants",
+      grants,
+      [
+        "anon:contact_request:INSERT",
+        "authenticated:contact_request:INSERT",
+      ]
+    );
+
+    // Exercised as anon. Within one transaction SET ROLE is a view switch,
+    // not a login — the assertions below are the ledger's proof, the same
+    // way the harness created the roles in the first place.
+    await db.run("SAVEPOINT kid1177_rls_check");
+    let anonDenied = false;
+    try {
+      await db.run("SET ROLE anon");
+      await db.all("SELECT id, email FROM account LIMIT 1");
+    } catch (err) {
+      anonDenied = true;
+    }
+    await db.run("ROLLBACK TO SAVEPOINT kid1177_rls_check");
+    await db.run("RESET ROLE");
+    check("a non-owner role cannot read app tables (denied, not empty)", anonDenied, true);
+
+    // The tenant-critical tables specifically, again through non-owner eyes —
+    // these are the tables a leaked anon/service client contract would have
+    // dumped wholesale.
+    for (const table of ["child", "daily_report", "message", "push_subscription"]) {
+      await db.run("SAVEPOINT kid1177_rls_probe");
+      let denied = false;
+      try {
+        await db.run("SET ROLE anon");
+        await db.all(`SELECT * FROM ${table} LIMIT 1`);
+      } catch {
+        denied = true;
+      }
+      await db.run("ROLLBACK TO SAVEPOINT kid1177_rls_probe");
+      await db.run("RESET ROLE");
+      check(`anon cannot read ${table}`, denied, true);
+    }
+
+    // The intended path stays open: one lead in, no way back out.
+    await db.run("SAVEPOINT kid1177_rls_contact");
+    let contactInsertOk = false;
+    try {
+      await db.run("SET ROLE anon");
+      await db.run(
+        `INSERT INTO contact_request (id, name, email) VALUES ('anon-lead-1', 'Parent Lead', 'lead@example.test')`
+      );
+      contactInsertOk = true;
+    } catch (err) {
+      console.log(`         (contact_request insert failed: ${err.message})`);
+    }
+    await db.run("ROLLBACK TO SAVEPOINT kid1177_rls_contact");
+    await db.run("RESET ROLE");
+    check("anon keeps the intended contact_request INSERT", contactInsertOk, true);
+
+    await db.run("SAVEPOINT kid1177_rls_read");
+    let contactReadDenied = false;
+    try {
+      await db.run("SET ROLE anon");
+      await db.all("SELECT * FROM contact_request LIMIT 1");
+    } catch {
+      contactReadDenied = true;
+    }
+    await db.run("ROLLBACK TO SAVEPOINT kid1177_rls_read");
+    await db.run("RESET ROLE");
+    check("anon cannot read back even the leads it may write", contactReadDenied, true);
+
+    // ---------------------------------------------------------------------
+    // 0041 — the storage decision. Same shape as the section above: the
+    // harness shim carries RLS already, so the checks run against grants +
+    // policies exactly as production enforces them.
+    console.log("\n== KID-1177 storage hardening ==");
+    const buckets = (await db.all(`SELECT id, public FROM storage.buckets ORDER BY id`)).map(
+      (r) => `${r.id}:${r.public}`
+    );
+    check("the public and private buckets exist with the right public flags", buckets, [
+      "kiddy-private:false",
+      "kiddy-public:true",
+    ]);
+
+    await ins("storage.objects", ["id", "bucket_id", "name"], [
+      "obj-public-1", "kiddy-public", "branding/inst-s/logo-1.png",
+    ]);
+    await ins("storage.objects", ["id", "bucket_id", "name"], [
+      "obj-private-1", "kiddy-private", "payments/inst-s/inv-1/proof-1.png",
+    ]);
+
+    // As anon, against RLS + the single read policy: the public bucket is
+    // listable/readable, the private bucket resolves to nothing, and there is
+    // no INSERT anywhere. Every probe is its own savepoint so the anon role
+    // switch can never leak into the next probe.
+    let anonPublicList;
+    await db.run("SAVEPOINT kid1177_store_read");
+    try {
+      await db.run("SET ROLE anon");
+      anonPublicList = (
+        await db.all(`SELECT name FROM storage.objects WHERE bucket_id = 'kiddy-public'`)
+      ).map((r) => String(r.name));
+    } catch {
+      anonPublicList = null;
+    }
+    await db.run("ROLLBACK TO SAVEPOINT kid1177_store_read");
+    await db.run("RESET ROLE");
+    check("anon sees the public bucket's objects only", anonPublicList, [
+      "branding/inst-s/logo-1.png",
+    ]);
+
+    const privateVisible = await db.all(
+      `SELECT name FROM storage.objects WHERE bucket_id = 'kiddy-private'`
+    );
+    check(
+      "the private bucket holds its object for the owner/service path",
+      privateVisible.map((r) => String(r.name)),
+      ["payments/inst-s/inv-1/proof-1.png"]
+    );
+
+    let privateAnonEmpty = false;
+    await db.run("SAVEPOINT kid1177_store_private");
+    try {
+      await db.run("SET ROLE anon");
+      privateAnonEmpty = (await db.all(`SELECT name FROM storage.objects WHERE bucket_id = 'kiddy-private'`)).length === 0;
+    } catch {
+      privateAnonEmpty = true;
+    }
+    await db.run("ROLLBACK TO SAVEPOINT kid1177_store_private");
+    await db.run("RESET ROLE");
+    check("anon resolves nothing in the private bucket", privateAnonEmpty, true);
+
+    let anonWriteDenied = false;
+    await db.run("SAVEPOINT kid1177_store_write");
+    try {
+      await db.run("SET ROLE anon");
+      await db.run(
+        `INSERT INTO storage.objects (id, bucket_id, name) VALUES ('obj-anon-write', 'kiddy-public', 'evil.png')`
+      );
+      anonWriteDenied = false;
+    } catch {
+      anonWriteDenied = true;
+    }
+    await db.run("ROLLBACK TO SAVEPOINT kid1177_store_write");
+    await db.run("RESET ROLE");
+    check("anon cannot write — not even into the public bucket", anonWriteDenied, true);
+    check(
+      "the probe never actually wrote the object",
+      Number((await db.all(`SELECT COUNT(*) AS c FROM storage.objects`))[0].c),
+      2
+    );
   }
 } catch (err) {
   failures.push(`setup: ${err.message}`);

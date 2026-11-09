@@ -8,6 +8,7 @@ import { DEFAULT_CURRENCY, SUPPORTED_CURRENCIES, normalizeCurrency } from "@/lib
 import { i18nForAccount } from "@/lib/i18n-session";
 import { tr } from "@/lib/i18n";
 import Attribution from "@/components/Attribution";
+import { signedUrlsForRefs } from "@/lib/storage";
 
 export const dynamic = "force-dynamic";
 
@@ -41,6 +42,11 @@ export default async function ChildBillingPage({
     notFound();
   }
   const bills = child ? await listChildBilling(child.id) : [];
+  // KID-1177: proof links resolve to short-lived signed URLs here; legacy
+  // public URLs pass through unchanged.
+  const proofHrefs = await signedUrlsForRefs(
+    bills.map((b) => String(b.payment_proof_url ?? ""))
+  );
 
   const totalPending = bills
     .filter((b) => b.status === "pending" || b.status === "overdue")
@@ -157,10 +163,11 @@ export default async function ChildBillingPage({
                 <td className="small">
                   {/* KID-489 item 3 (KID-492): the parent's uploaded proof,
                       visible to the center admin — open the file, then keep
-                      updating the invoice status through the control above. */}
-                  {b.payment_proof_url ? (
+                      updating the invoice status through the control above.
+                      KID-1177: the href resolves to a signed URL here. */}
+                  {b.payment_proof_url && proofHrefs.get(String(b.payment_proof_url)) ? (
                     <div>
-                      <a href={String(b.payment_proof_url)} target="_blank" rel="noreferrer">View proof</a>
+                      <a href={proofHrefs.get(String(b.payment_proof_url))!} target="_blank" rel="noreferrer">View proof</a>
                       {b.payment_proof_uploaded_at ? (
                         <div className="muted">{new Date(String(b.payment_proof_uploaded_at)).toLocaleDateString()}</div>
                       ) : null}

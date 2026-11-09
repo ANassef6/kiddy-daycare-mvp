@@ -11,6 +11,7 @@ import ResendActivationButton from "@/components/ResendActivationButton";
 import { getBranding } from "@/lib/theme";
 import AddStaffForm from "./AddStaffForm";
 import { recordToolUsage } from "@/lib/tool-usage";
+import { signedUrlsForRefs } from "@/lib/storage";
 
 export const dynamic = "force-dynamic";
 
@@ -70,6 +71,8 @@ export default async function PortalStaffPage({
   });
 
   const counts = Object.fromEntries(ROLES.map((r) => [r, staff.filter((s: any) => capital(s.role) === r).length]));
+  // KID-1177: photo refs resolve to signed URLs before the render loop.
+  const staffAvatarSrcs = await signedUrlsForRefs(rows.map((s: any) => String(s.photo_url ?? "")));
 
   return (
     <div>
@@ -134,7 +137,7 @@ export default async function PortalStaffPage({
             {rows.map((s: any) => (
               <tr key={s.id}>
                 <td className="row" style={{ alignItems: "center", gap: 10 }}>
-                  <Avatar src={s.photo_url} name={s.full_name} size={32} color={branding.primaryColor} />
+                  <Avatar src={staffAvatarSrcs.get(String(s.photo_url ?? "")) ?? s.photo_url} name={s.full_name} size={32} color={branding.primaryColor} />
                   <div>
                     <Link href={`/portal/staff/${s.id}`} style={{ fontWeight: 700, color: "inherit" }}>{s.full_name}</Link>
                     <div className="muted small">{s.email ? s.email : (emailByStaff[s.id] ?? "") || "No login yet"}</div>

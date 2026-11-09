@@ -67,13 +67,108 @@ vi.mock("next/link", () => ({
 vi.mock("@/lib/supabase", () => ({
   supabaseConfigured: () => true,
   getSupabase: () => ({
+    auth: {
+      signInWithPassword: async () => ({ data: {}, error: null }),
+      getUser: async () => ({ data: {}, error: null }),
+    },
+  }),
+}));
+
+// KID-1177: proofs no longer ride the anon-key client on kiddy-public — the
+// upload goes through the service-key client into kiddy-private and the row
+// keeps the "kiddy-private:<path>" REF. This mock stands in for that client:
+// uploads/removes are recorded, signed URLs are minted deterministically, and
+// the helpers (privateRef/isPrivateRef/storageSrcFor/…) keep their real
+// shape so the pages' resolution path is exercised exactly as production
+// runs it.
+const kid1177 = vi.hoisted(() => {
+  const PREFIX = "kiddy-private:";
+  const state = {
+    uploads: [] as Array<{ bucket: string; path: string; body: unknown }>,
+    removed: [] as Array<{ bucket: string; path: string }>,
+    count: 0,
+    downloadBodies: new Map<string, string>(),
+    uploadError: null as { message: string } | null,
+  };
+  const client = () => ({
     storage: {
-      from: () => ({
-        upload: async () => ({ error: mockState.uploadError }),
+      from: (bucket: string) => ({
+        upload: async (path: string, body: unknown) => {
+          if (state.uploadError) return { error: state.uploadError };
+          state.uploads.push({ bucket, path, body });
+          return { error: null };
+        },
+        remove: async (paths: string[]) => {
+          for (const path of paths) state.removed.push({ bucket, path });
+          return { error: null };
+        },
+        download: async (path: string) => ({
+          data: new Blob([state.downloadBodies.get(path) ?? "placeholder"], { type: "application/octet-stream" }),
+          error: null,
+        }),
+        createSignedUrl: async (path: string) => {
+          state.count += 1;
+          return {
+            data: { signedUrl: `https://storage.test/storage/v1/object/sign/kiddy-private/${path}?token=signed-${state.count}` },
+            error: null,
+          };
+        },
+        createSignedUrls: async (paths: string[]) => {
+          const data = paths.map((path) => {
+            state.count += 1;
+            return { signedUrl: `https://storage.test/storage/v1/object/sign/kiddy-private/${path}?token=signed-${state.count}` };
+          });
+          return { data, error: null };
+        },
         getPublicUrl: (path: string) => ({ data: { publicUrl: `https://storage.test/kiddy-public/${path}` } }),
       }),
     },
-  }),
+  });
+  const signedUrlForRef = async (ref: string, ttl = 3600): Promise<string | null> => {
+    void ttl;
+    if (typeof ref !== "string" || !ref.startsWith(PREFIX)) return null;
+    const got = await client().storage.from("kiddy-private").createSignedUrl(ref.slice(PREFIX.length));
+    return got.data?.signedUrl ?? null;
+  };
+  const storageSrcFor = async (stored: string | null | undefined, ttl = 3600): Promise<string | null> => {
+    const value = stored ? String(stored) : "";
+    if (!value) return null;
+    if (value.startsWith(PREFIX)) return signedUrlForRef(value, ttl);
+    return value;
+  };
+  const signedUrlsForRefs = async (refs: string[], ttl = 3600): Promise<Map<string, string | null>> => {
+    const out = new Map<string, string | null>();
+    for (const ref of refs) {
+      const value = typeof ref === "string" ? ref : "";
+      if (!value || !value.startsWith(PREFIX)) {
+        out.set(value, value || null);
+        continue;
+      }
+      out.set(value, await signedUrlForRef(value, ttl));
+    }
+    return out;
+  };
+  return { PREFIX, state, client, signedUrlForRef, storageSrcFor, signedUrlsForRefs };
+});
+vi.mock("@/lib/storage", () => ({
+  ...kid1177,
+  storageAdminConfigured: () => true,
+  getStorageAdmin: kid1177.client,
+  PRIVATE_BUCKET: "kiddy-private",
+  PUBLIC_BUCKET: "kiddy-public",
+  PRIVATE_REF_PREFIX: kid1177.PREFIX,
+  privateRef: (path: string) => `kiddy-private:${path}`,
+  publicUrl: async (path: string) => `https://storage.test/kiddy-public/${path}`,
+  uploadPrivateObject: async (path: string, body: unknown) => {
+    const { error } = await kid1177.client().storage.from("kiddy-private").upload(path, body);
+    return { error, path };
+  },
+  isPrivateRef: (value: unknown) => typeof value === "string" && value.startsWith(kid1177.PREFIX),
+  privateRefPath: (value: string) => value.slice(kid1177.PREFIX.length),
+  signedUrlForRef: kid1177.signedUrlForRef,
+  storageSrcFor: kid1177.storageSrcFor,
+  signedUrlsForRefs: kid1177.signedUrlsForRefs,
+  SIGNED_URL_TTL_SECONDS: 3600,
 }));
 
 import * as store from "@/lib/store";
@@ -150,6 +245,7 @@ beforeEach(async () => {
   mockState.host = "";
   mockState.cookies = {};
   mockState.uploadError = null;
+  kid1177.state.uploadError = null;
   await seedFixture();
   sunshineIid = String((await queryGet("SELECT id FROM institute LIMIT 1"))!.id);
   sunshineChildId = String((await queryGet("SELECT id FROM child LIMIT 1"))!.id);
@@ -204,8 +300,10 @@ describe("KID-492: the parent uploads a proof for their own family's invoice", (
       String(billing.id)
     )!;
     expect(String(row!.payment_proof_url)).toMatch(
-      new RegExp(`^https://storage\\.test/kiddy-public/payments/${sunshineIid}/${billing.id}/proof-\\d+-[0-9a-f-]+\\.png$`)
+      new RegExp(`^kiddy-private:payments/${sunshineIid}/${billing.id}/proof-\\d+-[0-9a-f-]+\\.png$`)
     );
+    // KID-1177: the object landed in the PRIVATE bucket, not kiddy-public.
+    expect(kid1177.state.uploads.every((u) => u.bucket === "kiddy-private")).toBe(true);
     expect(String(row!.payment_proof_uploaded_at ?? "")).not.toBe("");
     expect(String(row!.payment_reference)).toBe("TX-8891");
     expect(String(row!.status)).toBe("pending");
@@ -215,7 +313,9 @@ describe("KID-492: the parent uploads a proof for their own family's invoice", (
       String(billing.id)
     );
     expect(String(audit!.summary ?? "")).toContain("Payment proof");
-    expect(String(audit!.metadata ?? "")).not.toContain("storage.test");
+    expect(String(row!.metadata ?? "")).not.toContain("storage.test");
+    // The audit metadata never carries the private dump either.
+    expect(String(audit!.metadata ?? "")).not.toContain("kiddy-private");
   });
 
   it("a re-upload replaces the previous proof without duplicating the feed item", async () => {
@@ -270,6 +370,7 @@ describe("KID-492: rejections never create a partial record", () => {
     const billing = await createInvoice("Retry fees");
     sessionCookieFor(parentId, "parent", "parent@example.test");
     mockState.uploadError = { message: "boom" };
+    kid1177.state.uploadError = { message: "boom" };
     const target = await uploadProof(String(billing.id));
     expect(target).toBe(`/child/${sunshineChildId}?error=proofUpload`);
     const row = await proofRowFor(String(billing.id));
@@ -377,6 +478,10 @@ describe("KID-492: the admin sees the proof and the activity item", () => {
     const { default: AdminBillingPage } = await import("@/app/portal/children/[id]/billing/page");
     const html = renderToStaticMarkup(await AdminBillingPage({ params: { id: sunshineChildId } }) as never);
     expect(html).toContain(">View proof</a>");
+    // KID-1177: the rendered href is a short-lived SIGNED url into the
+    // private bucket — never the raw private ref, never a kiddy-public URL.
+    expect(html).toMatch(/storage\.test\/storage\/v1\/object\/sign\/kiddy-private\/payments\//);
+    expect(html).not.toContain("kiddy-public/payments/");
     expect(html).toContain("TX-9");
     expect(html).toContain("Ref: TX-9");
   });
@@ -415,6 +520,8 @@ describe("KID-492: the parent surface", () => {
     await uploadProof(String(billing.id));
     html = renderToStaticMarkup(await ParentPage({ params: { id: sunshineChildId }, searchParams: {} }) as never);
     expect(html).toContain(dictionaries.en.child.payProofView);
+    // KID-1177: the parent's own proof link is a signed private URL too.
+    expect(html).toMatch(/storage\.test\/storage\/v1\/object\/sign\/kiddy-private\/payments\//);
     expect(html).toContain(dictionaries.en.child.payProofReplace);
   });
 

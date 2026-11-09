@@ -21,25 +21,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { readFileSync } from "node:fs";
 
-const mockState = vi.hoisted(() => ({
-  uploads: [] as { path: string; body: string }[],
-  uploadError: null as { message: string } | null,
-}));
-vi.mock("@/lib/supabase", () => ({
-  supabaseConfigured: () => true,
-  getSupabase: () => ({
-    storage: {
-      from: () => ({
-        upload: async (_path: string, body: unknown) => {
-          if (mockState.uploadError) return { error: mockState.uploadError };
-          mockState.uploads.push({ path: String(_path), body: String(body) });
-          return { error: null };
-        },
-        getPublicUrl: (path: string) => ({ data: { publicUrl: `https://storage.test/kiddy-public/${path}` } }),
-      }),
-    },
-  }),
-}));
+// KID-1177: drafts upload through the service-key client into kiddy-private
+// (stand-in: tests/helpers/kid1177-storage.ts); the uploads list the test
+// asserts against is the same recorded state.
+vi.mock("@/lib/storage", async () => (await import("../helpers/kid1177-storage")).kid1177StorageMock);
+const { storage1177 } = await import("../helpers/kid1177-storage");
 
 import { fillContractTemplate, generateDaycareContractDrafts, type ContractDraftData } from "@/lib/contract";
 import {
@@ -85,8 +71,8 @@ let sunshineIid: string;
 let ownerId: string;
 
 beforeEach(async () => {
-  mockState.uploads = [];
-  mockState.uploadError = null;
+  storage1177.uploads = [];
+  storage1177.uploadError = null;
   await seedFixture();
   sunshineIid = String((await queryGet("SELECT id FROM institute LIMIT 1"))!.id);
   const owner = await queryGet("SELECT id FROM account WHERE role = 'owner'");
@@ -166,15 +152,15 @@ describe("KID-850: generateDaycareContractDrafts stores clean drafts", () => {
   it("the uploaded AR + EN draft files start with <!DOCTYPE html> and carry no wrapper", async () => {
     const res = await generateDaycareContractDrafts({ instituteId: sunshineIid, ownerAccountId: ownerId });
     expect(res).toEqual({ ok: true });
-    expect(mockState.uploads.length).toBe(2);
-    for (const upload of mockState.uploads) {
-      expect(upload.body.startsWith("<!DOCTYPE html>"), `${upload.path} must start with <!DOCTYPE html>`).toBe(
+    expect(storage1177.uploads.length).toBe(2);
+    for (const upload of storage1177.uploads) {
+      expect(String(upload.body).startsWith("<!DOCTYPE html>"), ` must start with <!DOCTYPE html>`).toBe(
         true
       );
       for (const pin of WRAPPER_PINS) {
-        expect(upload.body.includes(pin), `${upload.path} carries wrapper pin: ${pin}`).toBe(false);
+        expect(String(upload.body).includes(pin), ` carries wrapper pin: `).toBe(false);
       }
-      expect(upload.body).toContain("Sunshine Daycare");
+      expect(String(upload.body)).toContain("Sunshine Daycare");
     }
   });
 });

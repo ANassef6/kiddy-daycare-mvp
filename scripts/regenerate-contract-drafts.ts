@@ -14,21 +14,24 @@
 // Inputs (never hardcoded, never printed):
 //   KIDDY_DATABASE_URL      production Postgres URL, or a file: path (the
 //                           local SQLite mirror) for a local run
-//   NEXT_PUBLIC_SUPABASE_URL / NEXT_PUBLIC_SUPABASE_ANON_KEY
-//                           required when dirty drafts must be rewritten
-//                           (uploads ride the same kiddy-public bucket);
-//                           missing config aborts the rewrite per daycare
+//   NEXT_PUBLIC_SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY
+//                           required when dirty drafts must be rewritten and
+//                           verified. KID-1177 moved drafts to the private
+//                           bucket, whose objects are service-key material
+//                           only (the anon key can neither write nor read
+//                           them after migration 0041). Missing config
+//                           aborts the rewrite per daycare.
 //
 // SAFE to run repeatedly — the second pass is a no-op:
 //   1. List every daycare_contract row pointing at draft files.
-//   2. Download each draft and mark the daycare dirty only when the object
-//      is NOT a clean contract file (no <!DOCTYPE html>/<html at the top, or
-//      a ```html fence still inside). Clean drafts are never touched — no
-//      uploads, no new files, no re-notification.
-//   3. Dirty daycares: best-effort delete the wrapper objects, clear ONLY
-//      the draft columns (the signed snapshot never moves) frozen before the
-//      fix, and re-run the real generator. The operator notification ref
-//      stays deduped by (account_id, ref) — no replay re-notify.
+//   2. Download each draft (legacy kiddy-public URL or kiddy-private: ref)
+//      and mark the daycare dirty only when the object is NOT a clean
+//      contract file. Clean drafts are never touched.
+//   3. Dirty daycares: best-effort delete the old objects wherever they
+//      live, clear ONLY the draft columns (the signed snapshot never moves)
+//      frozen before the fix, and re-run the real generator. The operator
+//      notification ref stays deduped by (account_id, ref) — no replay
+//      re-notify. New drafts land in the private bucket (post-KID-1177).
 //   4. Verify: the new drafts download as clean HTML documents. Any failure
 //      exits non-zero and is safe to re-run.
 
@@ -36,6 +39,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { ensureSchema, queryAll, queryGet, queryRun } from "../lib/db";
 import { generateDaycareContractDrafts, type DaycareContractRow } from "../lib/contract";
+import { isPrivateRef, privateRefPath, storageAdminConfigured as storageConfigured, getStorageAdmin, PRIVATE_REF_PREFIX } from "../lib/storage";
 
 function loadDotEnv(): void {
   const file = path.join(process.cwd(), ".env.local");
@@ -50,7 +54,7 @@ function loadDotEnv(): void {
 
 function draftUrls(row: Record<string, unknown>): string[] {
   return [String(row.draft_url ?? ""), String(row.draft_url_ar ?? ""), String(row.draft_url_en ?? "")].filter(
-    (u) => u.startsWith("http")
+    (u) => u.startsWith("http") || u.startsWith(PRIVATE_REF_PREFIX)
   );
 }
 
@@ -63,9 +67,21 @@ function isCleanDraft(body: string): boolean {
   );
 }
 
-async function fetchDraft(url: string): Promise<{ ok: true; body: string } | { ok: false; note: string }> {
+/** Download a stored draft: legacy public URL via HTTP, private ref via the
+ *  service-key client (the only reader allowed at kiddy-private). */
+async function fetchDraft(ref: string): Promise<{ ok: true; body: string } | { ok: false; note: string }> {
   try {
-    const res = await fetch(url, { redirect: "follow" });
+    if (isPrivateRef(ref)) {
+      if (!process.env.SUPABASE_SERVICE_ROLE_KEY || !process.env.NEXT_PUBLIC_SUPABASE_URL) {
+        return { ok: false, note: "private ref but no service-key config" };
+      }
+      const blob = await (await import("../lib/storage")).getStorageAdmin()
+        .storage.from("kiddy-private")
+        .download(privateRefPath(ref));
+      if (blob.error) return { ok: false, note: `storage: ${blob.error.message}` };
+      return { ok: true, body: await (blob.data as Blob).text() };
+    }
+    const res = await fetch(ref, { redirect: "follow" });
     if (!res.ok) return { ok: false, note: `HTTP ${res.status}` };
     return { ok: true, body: await res.text() };
   } catch (err) {
@@ -157,14 +173,27 @@ async function main(): Promise<number> {
         failures += 1;
         continue;
       }
-      // Best-effort cleanup of the wrapper objects before the row moves on.
-      const oldPaths = draftUrls(stored).map(kiddyPublicObjectPath).filter((p): p is string => !!p);
-      if (oldPaths.length > 0 && process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
-        const { getSupabase } = await import("../lib/supabase");
-        const { error } = await getSupabase().storage.from("kiddy-public").remove(oldPaths);
-        if (error) console.log(`  old-object cleanup skipped: ${error.message}`);
+      // Best-effort cleanup of the old wrapper objects before the row moves
+      // on: kiddy-public wrappers via the service client AND — when the row
+      // pointed at private refs from a previous KID-1177 pass — the private
+      // copies they replaced. Service key only: the anon key can no longer
+      // delete from either bucket (migration 0041).
+      const storedRefs = draftUrls(stored);
+      if (storedRefs.length > 0 && storageConfigured()) {
+        const errors: string[] = [];
+        const publicPaths = storedRefs.map(kiddyPublicObjectPath).filter((p): p is string => !!p);
+        if (publicPaths.length > 0) {
+          const { error } = await getStorageAdmin().storage.from("kiddy-public").remove(publicPaths);
+          if (error) errors.push(`public: ${error.message}`);
+        }
+        const privatePaths = storedRefs.filter(isPrivateRef).map(privateRefPath);
+        if (privatePaths.length > 0) {
+          const { error } = await getStorageAdmin().storage.from("kiddy-private").remove(privatePaths);
+          if (error) errors.push(`private: ${error.message}`);
+        }
+        if (errors.length > 0) console.log(`  old-object cleanup skipped: ${errors.join("; ")}`);
       } else {
-        console.log("  old-object cleanup skipped: no storage config (orphan objects left; the row moves to the new files)");
+        console.log("  old-object cleanup skipped: no service-key storage config (orphan objects left; the row moves to the new files)");
       }
       // Clear ONLY the draft columns the generator owns — the signed
       // snapshot (signed_url/…, uploaded_by_account_id) never moves here.

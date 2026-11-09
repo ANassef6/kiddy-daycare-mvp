@@ -15,6 +15,7 @@ import { enrolledChildCount } from "@/lib/billing";
 import { BILLING_PLANS, BILLING_DEFAULTS, cycleAmountEgp, getDaycareBilling, type DaycareBilling } from "@/lib/billing";
 import { updateDaycareBillingAction, uploadDaycareContractAction } from "@/lib/actions";
 import { getDaycareContract, getDaycareContractUploaderName } from "@/lib/contract";
+import { storageSrcFor } from "@/lib/storage";
 import { fmtDateTimeFor, tr } from "@/lib/i18n";
 import { i18nForAccount } from "@/lib/i18n-session";
 import {
@@ -158,6 +159,19 @@ export default async function DaycareBillingPage({
   const uploaderName = contract?.uploaded_by_account_id
     ? await getDaycareContractUploaderName(contract.uploaded_by_account_id)
     : null;
+  // KID-1177: the contract is sensitive — its stored private ref resolves to
+  // a short-lived signed URL here, in the operator-only surface. Legacy
+  // public URLs (pre-migration rows) pass through.
+  const contractHref = contract?.signed_url
+    ? await storageSrcFor(contract.signed_url)
+    : null;
+  const [draftHrefAr, draftHrefEn, draftHrefLegacy] = contract
+    ? await Promise.all([
+        contract.draft_url_ar ? storageSrcFor(contract.draft_url_ar) : Promise.resolve(null),
+        contract.draft_url_en ? storageSrcFor(contract.draft_url_en) : Promise.resolve(null),
+        contract.draft_url ? storageSrcFor(contract.draft_url) : Promise.resolve(null),
+      ])
+    : [null, null, null];
 
   return (
     <div dir={dir}>
@@ -298,13 +312,19 @@ export default async function DaycareBillingPage({
             {contract?.draft_url_ar && contract?.draft_url_en ? (
               // KID-746: the auto-generated bilingual drafts — one link per
               // language, generated together, template version stamped.
+              // KID-1177: resolvable hrefs only (a private ref with an
+              // unreachable storage service renders no dead link).
               <>
-                <a className="small" href={String(contract.draft_url_ar)}>
-                  {tr(dict, "platform.contractDraftDownloadAr")}
-                </a>
-                <a className="small" href={String(contract.draft_url_en)}>
-                  {tr(dict, "platform.contractDraftDownloadEn")}
-                </a>
+                {draftHrefAr && (
+                  <a className="small" href={draftHrefAr}>
+                    {tr(dict, "platform.contractDraftDownloadAr")}
+                  </a>
+                )}
+                {draftHrefEn && (
+                  <a className="small" href={draftHrefEn}>
+                    {tr(dict, "platform.contractDraftDownloadEn")}
+                  </a>
+                )}
                 <span className="small muted">
                   {tr(dict, "platform.contractDraftGenerated", {
                     date: fmtDateTimeFor(locale, contract.draft_generated_at),
@@ -313,9 +333,11 @@ export default async function DaycareBillingPage({
               </>
             ) : contract?.draft_url ? (
               <>
-                <a className="small" href={String(contract.draft_url)}>
-                  {tr(dict, "platform.contractDraftDownload")}
-                </a>
+                {draftHrefLegacy && (
+                  <a className="small" href={draftHrefLegacy}>
+                    {tr(dict, "platform.contractDraftDownload")}
+                  </a>
+                )}
                 <span className="small muted">
                   {tr(dict, "platform.contractDraftGenerated", {
                     date: fmtDateTimeFor(locale, contract.draft_generated_at),
@@ -332,9 +354,11 @@ export default async function DaycareBillingPage({
             </span>
             {contract?.signed_url ? (
               <>
-                <a className="small" href={String(contract.signed_url)}>
-                  {String(contract.signed_file_name ?? "")}
-                </a>
+                {contractHref && (
+                  <a className="small" href={contractHref}>
+                    {String(contract.signed_file_name ?? "")}
+                  </a>
+                )}
                 <span className="small muted">
                   {tr(dict, "platform.contractSignedUploaded", {
                     date: fmtDateTimeFor(locale, contract.signed_uploaded_at),
