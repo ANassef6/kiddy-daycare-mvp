@@ -122,7 +122,7 @@ describe("KID-1175/F-07 confirmEmailAction requires GoTrue proof", () => {
   it("the whole unverified surface is uniform: mock down, misconfigured supabase included", async () => {
     await unconfirmedAccount(EMAIL);
     getUser.mockReturnValue(goTrueUserFor(EMAIL));
-    const { supabaseConfigured } = (await import("@/lib/supabase")) as {
+    const { supabaseConfigured } = (await import("@/lib/supabase")) as unknown as {
       supabaseConfigured: ReturnType<typeof vi.fn>;
     };
     supabaseConfigured.mockReturnValue(false);

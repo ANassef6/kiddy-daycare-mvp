@@ -26,11 +26,14 @@ const TOO_SHORT = "kid1175-short";
 const savedNodeEnv = process.env.NODE_ENV;
 const savedSecret = process.env.SESSION_SECRET;
 
+type MutableEnv = Record<string, string | undefined>;
+const env = process.env as MutableEnv;
+
 function setEnv(nodeEnv: string | null, secret: string | null): void {
-  if (nodeEnv === null) delete process.env.NODE_ENV;
-  else process.env.NODE_ENV = nodeEnv;
-  if (secret === null) delete process.env.SESSION_SECRET;
-  else process.env.SESSION_SECRET = secret;
+  if (nodeEnv === null) delete env.NODE_ENV;
+  else env.NODE_ENV = nodeEnv;
+  if (secret === null) delete env.SESSION_SECRET;
+  else env.SESSION_SECRET = secret;
 }
 
 afterEach(() => {
