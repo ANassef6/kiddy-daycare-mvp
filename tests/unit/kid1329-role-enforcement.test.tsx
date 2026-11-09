@@ -152,7 +152,7 @@ describe("KID-1329 defect 1 — /child/newsfeed for pickup is a real 404", () =>
     // Pre-fix the pickup denial rode a streaming redirect that surfaced as an
     // HTTP 200 page body; the fix responds with a real 404 (NEXT_HTTP_ERROR_FALLBACK).
     const outcome = await failureDigest(() =>
-      ParentNewsfeedPage({ searchParams: Promise.resolve({}) } as never).then(() => null)
+      (ParentNewsfeedPage as unknown as () => Promise<unknown>)().then(() => null)
     );
     expect(outcome.kind).toBe("http");
     expect(outcome.value).toContain("404");
