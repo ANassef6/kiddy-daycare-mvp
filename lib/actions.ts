@@ -567,8 +567,29 @@ export async function resendConfirmationAction() {
 
 // Called by /auth/confirm after Supabase verifies the email token. Marks the
 // local account mirror as confirmed so password sign-in and the UI banner agree.
-export async function confirmEmailAction(email: string) {
-  const account = await findAccountByEmail(email);
+//
+// KID-1175/F-07: the action used to take the email alone — any caller could
+// flip `email_confirmed` for any account by just naming its address. Now a
+// Supabase GoTrue access token that verifies NOW (auth.getUser) and belongs
+// to exactly the submitted email is required before any state change; the
+// /auth/confirm page supplies the token from the session its confirmation
+// link created. Unverified calls are uniform no-ops — the same `{ ok: true }`
+// for every bad shape, so the response never distinguishes accounts (no
+// enumeration) and never leaves the flag half-set. Same pattern as
+// syncAppPasswordAfterResetAction (KID-495).
+export async function confirmEmailAction(email: string, accessToken: string) {
+  const cleanEmail = String(email ?? "").trim().toLowerCase();
+  const token = String(accessToken ?? "").trim();
+  if (!cleanEmail || !token || !supabaseConfigured()) return { ok: true };
+  const { data, error } = await getSupabase().auth.getUser(token);
+  if (error || !data.user || String(data.user.email ?? "").toLowerCase() !== cleanEmail) {
+    console.error(
+      "KID-1175/F-07 confirm-email: confirmation token did not verify against GoTrue for the submitted email; " +
+      "the local email_confirmed flag was left unchanged."
+    );
+    return { ok: true };
+  }
+  const account = await findAccountByEmail(cleanEmail);
   if (account && !emailConfirmedFor(account)) {
     await setEmailConfirmed(account.id, true);
   }

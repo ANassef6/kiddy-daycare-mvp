@@ -27,7 +27,12 @@ export default defineConfig({
     include: ["tests/**/*.test.ts", "tests/**/*.test.tsx"],
     env: {
       KIDDY_DATABASE_URL: `file:${testDbPath}`,
-      SESSION_SECRET: "test-only-secret-for-qa",
+      // KID-1175/F-04: the suite must not depend on the invoking shell's
+      // NODE_ENV — tests are the test environment (the session-secret suite
+      // drives production-mode resolution itself), and the QA signing secret
+      // satisfies the same >=32-char strength bar production enforces.
+      NODE_ENV: "test",
+      SESSION_SECRET: "qa-suite-session-secret-0a1b2c3d4e5f60718293a4b5c6d7e8f9",
       NEXT_PUBLIC_SUPABASE_URL: "",
       NEXT_PUBLIC_SUPABASE_ANON_KEY: "",
       // Never let the best-effort contact sync reach a real Chatwoot in tests.

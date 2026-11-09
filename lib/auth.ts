@@ -6,22 +6,52 @@ import { PLATFORM_OPERATOR_ROLE } from "./platform";
 const COOKIE = "kiddy_sess";
 // KID-686: an env var can carry an EMPTY string. `??` does not fall back on ""
 // (only null/undefined), so a deployment whose SESSION_SECRET is set-but-empty
-// silently signed every session with the publicly-known empty-key HMAC. `||`
-// guarantees a non-empty signing key; production additionally gets one loud
-// startup warning (KID-686: the prod project has had an empty SESSION_SECRET
-// since Aug 2026, which also means rotating or first-setting the real secret
-// invalidates every existing cookie exactly once — users log in again, the
-// session then persists a full 30 days from that login).
-const TOKEN_SECRET = process.env.SESSION_SECRET || "dev-only-secret-change-me";
-let warnedSecret = false;
-if (TOKEN_SECRET === "dev-only-secret-change-me" && !warnedSecret && process.env.NODE_ENV === "production") {
-  warnedSecret = true;
-  console.error(
-    "KID-686: SESSION_SECRET is missing or empty in production — falling back to the public dev default. " +
-    "Sessions still last 30 days, but the token signature is forgeable by anyone with account data. " +
-    "Set a real SESSION_SECRET in the deploy env (a one-time global logout is expected on rotation)."
-  );
+// silently signed every session with the publicly-known empty-key HMAC.
+//
+// KID-1175/F-04: that warning-and-continue posture was not enough — a
+// production deploy without a real secret kept RUNNING, signing forgeable
+// HMAC-SHA256 session tokens (30-day expiry) with the public dev default.
+// Now resolution fails closed: in production the process refuses to boot
+// unless SESSION_SECRET is set to a strong random secret (>= 32 chars, never
+// the known dev constant). Dev/test keep the local fallback so plain-http
+// local development keeps working. Rotation is a one-time global logout:
+// every existing cookie stops verifying and users sign in again (see
+// docs/DEPLOY_SECRETS.md). The value is never logged — failure messages name
+// the problem, never the secret.
+const DEV_DEFAULT_SECRET = "dev-only-secret-change-me";
+const MIN_SESSION_SECRET_LENGTH = 32;
+
+function resolveSessionSecret(): string {
+  const raw = process.env.SESSION_SECRET;
+  if (process.env.NODE_ENV !== "production") {
+    return raw && raw.trim() !== "" ? raw : DEV_DEFAULT_SECRET;
+  }
+  if (raw === undefined || raw.trim() === "") {
+    throw new Error(
+      "KID-1175/F-04 fail-closed: SESSION_SECRET is missing or empty in production. The server refuses to run, " +
+      "because without it session cookies are signed with a publicly-known key and every 30-day session can be " +
+      "forged. Generate a strong random secret (e.g. `openssl rand -base64 48`) and set it in the deploy " +
+      "environment. See docs/DEPLOY_SECRETS.md."
+    );
+  }
+  if (raw === DEV_DEFAULT_SECRET) {
+    throw new Error(
+      "KID-1175/F-04 fail-closed: SESSION_SECRET in production is the publicly-known dev constant. Session " +
+      "cookies signed with it are forgeable, so the server refuses to run. Generate a strong random secret " +
+      "(e.g. `openssl rand -base64 48`) and set it in the deploy environment. See docs/DEPLOY_SECRETS.md."
+    );
+  }
+  if (raw.length < MIN_SESSION_SECRET_LENGTH) {
+    throw new Error(
+      `KID-1175/F-04 fail-closed: SESSION_SECRET in production is shorter than the required ${MIN_SESSION_SECRET_LENGTH} ` +
+      "characters. Brute-forcing a short HMAC key is cheap, so the server refuses to run. Generate a strong " +
+      "random secret (e.g. `openssl rand -base64 48`) instead. See docs/DEPLOY_SECRETS.md."
+    );
+  }
+  return raw;
 }
+
+const TOKEN_SECRET = resolveSessionSecret();
 
 type DbRow = Row & {
   id: string;

@@ -272,24 +272,33 @@ describe("KID-205 attendance sweep route", () => {
     // Jan 5 2026 is a Monday; 22:00 is past closing (18:00) + 3h grace — BUT
     // only for the daycares with Monday hours; the strays have no config and
     // contribute nothing, exactly as before.
+    //
+    // KID-1175/F-05: the route now requires the cron shared secret, and its
+    // response is minimal ({ ok: true }) — no institute IDs, no counts, no
+    // reasons. The sweep behavior itself is asserted against the database
+    // below (both kids auto-checked-out with the system actor), so the
+    // multi-institute coverage is unchanged.
     const now = new Date(2026, 0, 5, 22, 0, 0);
     vi.useFakeTimers().setSystemTime(now);
+    const prevCronSecret = process.env.CRON_SECRET;
+    process.env.CRON_SECRET = "kid205-cron-shared-secret";
     try {
-      const { GET } = await import("@/app/api/attendance/sweep/route");
-      const response = await GET();
-      const body = (await response.json()) as {
-        ok: boolean;
-        institutes: number;
-        children: number;
-        staff: number;
-        perInstitute: Array<{ instituteId: string; children: number }>;
-      };
-      expect(body.ok).toBe(true);
-      expect(body.institutes).toBe(Number((await mustGet("SELECT COUNT(*) c FROM institute"))!.c));
-      expect(body.children).toBe(2);
-      expect(body.staff).toBe(0);
-      expect(body.perInstitute.map((p) => p.instituteId)).toBeTruthy();
+      const { GET, POST } = await import("@/app/api/attendance/sweep/route");
+      const authorized = (method: string) =>
+        new Request("http://localhost/api/attendance/sweep", {
+          method,
+          headers: { authorization: `Bearer ${process.env.CRON_SECRET}` },
+        });
+      const response = await GET(authorized("GET"));
+      expect(response.status).toBe(200);
+      const body = (await response.json()) as Record<string, unknown>;
+      expect(body).toEqual({ ok: true }); // minimal: no ids/counts/reasons leak
+      // the cron-authorized POST runs the same sweep through the same handler
+      const postResponse = await POST(authorized("POST"));
+      expect(postResponse.status).toBe(200);
+      expect(await postResponse.json()).toEqual({ ok: true });
     } finally {
+      process.env.CRON_SECRET = prevCronSecret;
       vi.useRealTimers();
     }
 
