@@ -24,6 +24,15 @@ import { normalizeCurrency } from "@/lib/currency";
 import { parsePaymentLink } from "@/lib/instapay";
 import { validatePaymentProof, paymentProofFilename } from "@/lib/payment-proof";
 import { configuredReportDate, todayIso } from "@/lib/report-dates";
+// KID-1178/F-06: brute-force + abuse throttling (see lib/rate-limit.ts).
+import {
+  authAttemptGuard,
+  recordAuthFailure,
+  recordAuthSuccess,
+  throttle,
+  RATE_LIMIT_RULES,
+  clientIpFrom,
+} from "@/lib/rate-limit";
 import {
   isAccountAccessWithdrawn,
   runWithdrawalSweep,
@@ -188,6 +197,20 @@ async function gateMessage(key: string, accountLanguage: unknown): Promise<strin
   return tr(getDictionary(localeOf(lang) as Locale), key);
 }
 
+// KID-1178/F-06: one place renders the denied-by-throttle banner so every
+// action returns the same localized refusal (key: security.rateLimited).
+function throttledMessage(): Promise<string> {
+  return gateMessage("security.rateLimited", null);
+}
+
+// KID-1178/F-06: actions that own a redirect-only form contract on their pages
+// (messaging, uploads, invites, contact) cannot surface a returned error
+// banner, so their throttle refusal bounces to the localized /rate-limited
+// page. redirect() throws NEXT_REDIRECT, so the action's `void` type holds.
+function throttledRedirect(): void {
+  redirect("/rate-limited");
+}
+
 async function tenancyDisabledError(
   accountId: string,
   role: string,
@@ -217,6 +240,18 @@ export async function loginAction(formData: FormData) {
   const email = String(formData.get("email") ?? "").trim();
   const password = String(formData.get("password") ?? "");
 
+  // KID-1178/F-06: brute-force protection BEFORE any credential work — a
+  // per-IP attempt budget over every request, plus a per-account progressive
+  // lockout fed only by VERIFIED failures below. The refusal carries the
+  // rate-limit message for all auth surfaces (uniform: it never reveals
+  // whether the account exists). ip is read once; the GoTrue and app-side
+  // verify paths share it.
+  const clientIp = clientIpFrom(await headers());
+  const authGate = await authAttemptGuard("login", clientIp, email);
+  if (!authGate.ok) {
+    return { error: await gateMessage("security.rateLimited", null) };
+  }
+
   // Primary path: Supabase Auth (GoTrue) when the project is wired. An
   // unconfirmed email makes GoTrue reject the password (email_not_confirmed),
   // so we fall through to the app-side verify below — that keeps the session
@@ -235,6 +270,7 @@ export async function loginAction(formData: FormData) {
         if (data.user.email_confirmed_at && !emailConfirmedFor(account)) {
           await setEmailConfirmed(account.id, true);
         }
+        await recordAuthSuccess(email);
         await setSession(account.email);
         redirect(homeForRole(account.role));
       }
@@ -245,6 +281,8 @@ export async function loginAction(formData: FormData) {
   // password was stored locally too).
   const account = await findAccountByEmail(email);
   if (!account || !verifyPassword(password, account.password_hash)) {
+    // KID-1178/F-06: a verified failure feeds the progressive lockout.
+    await recordAuthFailure("login", clientIp, email);
     return { error: await gateMessage("auth.invalidEmailPassword", null) };
   }
   // KID-86 item 9: apply any reached last-dates before letting the session in.
@@ -271,6 +309,7 @@ export async function loginAction(formData: FormData) {
       return { error: await gateMessage("login.noAccess", account.language) };
     }
   }
+  await recordAuthSuccess(email);
   await setSession(account.email);
   redirect(emailConfirmedFor(account) ? homeForRole(account.role) : "/welcome");
 }
@@ -280,6 +319,14 @@ export async function registerAction(formData: FormData) {
   const password = String(formData.get("password") ?? "");
   const fullName = String(formData.get("fullName") ?? "").trim();
   const inviteCode = String(formData.get("inviteCode") ?? "").trim();
+
+  // KID-1178/F-06: registration (invite activation) mints sessions and asks
+  // GoTrue to send a confirmation mail, so the form gets a per-IP budget.
+  // Uniform refusal — never names whether the invite code was valid.
+  {
+    const guard = await throttle("register", RATE_LIMIT_RULES.registerIp, clientIpFrom(await headers()));
+    if (!guard.ok) return { error: await throttledMessage() };
+  }
 
   // Parents cannot create accounts on their own — the daycare invites them.
   // A valid, still-pending invite code is required to activate an account.
@@ -554,6 +601,10 @@ export async function resendConfirmationAction() {
   const session = cookie ? (verifyToken(decodeURIComponent(cookie)) as SessionCookie) : null;
   const email = session?.email ?? "";
   if (!email) return { error: "No signed-in account to confirm." };
+  // KID-1178/F-06: each resend is one more confirm mail through GoTrue.
+  if (!(await throttle("confirmResend", RATE_LIMIT_RULES.confirmResendAccount, email)).ok) {
+    return { error: await throttledMessage() };
+  }
   const { error } = await getSupabase().auth.resend({ type: "signup", email });
   if (error) {
     // KID-111: log resend failures instead of failing silently.
@@ -580,6 +631,17 @@ export async function confirmEmailAction(email: string) {
 export async function requestPasswordResetAction(formData: FormData) {
   const email = String(formData.get("email") ?? "").trim().toLowerCase();
   if (!email) return { error: "Enter your email address." };
+  // KID-1178/F-06: password reset triggers the recovery mail, so both the
+  // caller IP and the target address carry budgets. The refusal is the same
+  // rate-limit message for both scopes (never confirms an email exists).
+  {
+    const guard = await throttle("passwordReset", RATE_LIMIT_RULES.passwordResetIp, clientIpFrom(await headers()));
+    if (!guard.ok) return { error: await throttledMessage() };
+  }
+  {
+    const guard = await throttle("passwordResetEmail", RATE_LIMIT_RULES.passwordResetEmail, email);
+    if (!guard.ok) return { error: await throttledMessage() };
+  }
   if (!supabaseConfigured()) {
     return {
       error:
@@ -1923,6 +1985,11 @@ export async function createParentLoginAction(formData: FormData) {
   await ensureSchema();
   const me = await authAccount();
   const instituteId = await firstInstituteId();
+  // KID-1178/F-06: creating a parent login mails a temp password — admin
+  // budget shares the invite mail ceiling.
+  if (!(await throttle("invite", RATE_LIMIT_RULES.inviteAccount, me.accountId)).ok) {
+    throttledRedirect();
+  }
   // KID-733: a parent account can never exist without a child. The child is
   // now REQUIRED, scope-checked against the caller, and verified to live in
   // the request tenant BEFORE any account write — a missing, forged, or
@@ -2188,6 +2255,10 @@ export async function inviteParentAction(formData: FormData) {
   await ensureSchema();
   const me = await authAccount();
   const instituteId = await firstInstituteId();
+  // KID-1178/F-06: creating an invite sends an invite mail — admin budget.
+  if (!(await throttle("invite", RATE_LIMIT_RULES.inviteAccount, me.accountId)).ok) {
+    throttledRedirect();
+  }
   // KID-733: an invite that activates into an account must always carry a
   // valid child link — a childless invite can only ever produce an orphan
   // parent account. The child is REQUIRED, scope-checked and verified to live
@@ -2353,6 +2424,11 @@ export async function sendInviteForContactAction(formData: FormData) {
   await ensureSchema();
   const me = await authAccount();
   if (!isAdminRole(me.role)) return { error: "Only admins can send invites." };
+  // KID-1178/F-06: admin invite-mail budget (resendParentInviteAction's
+  // resends already ride the KID-111 decideRateLimit trail).
+  if (!(await throttle("invite", RATE_LIMIT_RULES.inviteAccount, me.accountId)).ok) {
+    throttledRedirect();
+  }
   const childId = String(formData.get("childId") ?? "").trim();
   if (!childId) return { error: "Missing child." };
   await assertChildInScope(childId, me);
@@ -2495,6 +2571,10 @@ export async function submitContactAction(formData: FormData) {
   const role = String(formData.get("role") ?? "parent");
   const interest = String(formData.get("interest") ?? "demo");
   const message = String(formData.get("message") ?? "").trim();
+  // KID-1178/F-06: the public contact form drives outbound mail — per-IP.
+  if (!(await throttle("contact", RATE_LIMIT_RULES.contactIp, clientIpFrom(await headers()))).ok) {
+    throttledRedirect();
+  }
 
   const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
   if (!name || name.length > 120) redirect("/contact?error=name");
@@ -2581,6 +2661,10 @@ export async function createEventAction(formData: FormData) {
 
 export async function addEventMediaAction(formData: FormData) {
   const me = await authAccount();
+  // KID-1178/F-06: activity media url uploads — per-account budget.
+  if (!(await throttle("upload", RATE_LIMIT_RULES.uploadAccount, me.accountId)).ok) {
+    throttledRedirect();
+  }
   const instituteId = await requireInstitute();
   const eventId = String(formData.get("eventId") ?? "");
   if (instituteId && eventId) {
@@ -2721,6 +2805,10 @@ export async function setChildTagsAction(formData: FormData) {
 export async function addDriveFileAction(formData: FormData) {
   const me = await authAccount();
   const instituteId = await requireInstitute();
+  // KID-1178/F-06: drive uploads — per-account budget.
+  if (!(await throttle("upload", RATE_LIMIT_RULES.uploadAccount, me.accountId)).ok) {
+    throttledRedirect();
+  }
   const childId = String(formData.get("childId") ?? "") || undefined;
   if (instituteId) {
     if (childId) await assertChildInScope(childId, me);
@@ -2892,6 +2980,10 @@ export async function setTicketStatusAction(formData: FormData) {
 
 export async function sendMessageAction(formData: FormData) {
   const me = await authAccount();
+  // KID-1178/F-06: per-account burst budget for message sends.
+  if (!(await throttle("messaging", RATE_LIMIT_RULES.messagingAccount, me.accountId)).ok) {
+    throttledRedirect();
+  }
   const recipient = String(formData.get("recipientId") ?? "");
   const body = String(formData.get("body") ?? "").trim();
   await ensureSchema();
@@ -2923,6 +3015,11 @@ const MAX_ATTACHMENT_BYTES = 1_500_000;
 
 export async function sendComposerAction(formData: FormData) {
   const me = await authAccount();
+  // KID-1178/F-06: per-account burst budget — the composer fans out to whole
+  // rooms, so this is the cheapest message-spam ceiling.
+  if (!(await throttle("messaging", RATE_LIMIT_RULES.messagingAccount, me.accountId)).ok) {
+    throttledRedirect();
+  }
   await ensureSchema();
   const instituteId = await firstInstituteId();
   const body = String(formData.get("body") ?? "").trim();
@@ -3066,6 +3163,10 @@ export async function sendComposerAction(formData: FormData) {
 // group reply stays in the same shared thread for all to see.
 export async function replyThreadAction(formData: FormData) {
   const me = await authAccount();
+  // KID-1178/F-06: per-account burst budget for thread replies.
+  if (!(await throttle("messaging", RATE_LIMIT_RULES.messagingAccount, me.accountId)).ok) {
+    throttledRedirect();
+  }
   await ensureSchema();
   const instituteId = await firstInstituteId();
   const threadId = String(formData.get("threadId") ?? "");
@@ -3097,6 +3198,10 @@ export async function replyThreadAction(formData: FormData) {
 
 export async function sendParentMessageAction(formData: FormData) {
   const me = await authAccount();
+  // KID-1178/F-06: per-account burst budget for parent portal messages.
+  if (!(await throttle("messaging", RATE_LIMIT_RULES.messagingAccount, me.accountId)).ok) {
+    throttledRedirect();
+  }
   // KID-112: pickup accounts may only register pickup time — no messaging.
   await assertFamilyAction(me, "sendMessage");
   const recipient = String(formData.get("recipientId") ?? "");
@@ -3166,9 +3271,13 @@ export async function sendParentMessageAction(formData: FormData) {
 
 // ---- #1 Logo / branding image upload ----
 export async function uploadBrandingImageAction(formData: FormData) {
-  await requireAdmin();
   await ensureSchema();
   const instituteId = await firstInstituteId();
+  const me = await requireAdmin();
+  // KID-1178/F-06: branding asset uploads — per-account budget.
+  if (!(await throttle("upload", RATE_LIMIT_RULES.uploadAccount, me.accountId)).ok) {
+    throttledRedirect();
+  }
   if (!instituteId) redirect("/portal/settings");
   const file = formData.get("file") as File | null;
   const kind = String(formData.get("kind") ?? "logo"); // "logo" | "brandImage"
@@ -3198,6 +3307,10 @@ export async function uploadBrandingImageAction(formData: FormData) {
 export async function uploadPhotoAction(formData: FormData) {
   await ensureSchema();
   const me = await authAccount();
+  // KID-1178/F-06: photo uploads — per-account budget.
+  if (!(await throttle("upload", RATE_LIMIT_RULES.uploadAccount, me.accountId)).ok) {
+    throttledRedirect();
+  }
   const entityType = String(formData.get("entityType") ?? ""); // "child" | "staff"
   const entityId = String(formData.get("entityId") ?? "");
   const file = formData.get("file") as File | null;
@@ -3258,6 +3371,10 @@ export async function uploadPhotoAction(formData: FormData) {
 export async function uploadAccountPhotoAction(formData: FormData) {
   await ensureSchema();
   const me = await authAccount();
+  // KID-1178/F-06: account photo uploads — per-account budget.
+  if (!(await throttle("upload", RATE_LIMIT_RULES.uploadAccount, me.accountId)).ok) {
+    throttledRedirect();
+  }
   const staffId = String(formData.get("staffId") ?? "");
   const file = formData.get("file") as File | null;
   if (!file || file.size === 0 || !staffId) {
@@ -3418,6 +3535,10 @@ export async function updateBillingStatusAction(formData: FormData) {
 // load.
 export async function uploadPaymentProofAction(formData: FormData) {
   const me = await requireAuthSession();
+  // KID-1178/F-06: payment proof uploads — per-account budget.
+  if (!(await throttle("upload", RATE_LIMIT_RULES.uploadAccount, me.accountId)).ok) {
+    throttledRedirect();
+  }
   const billingId = String(formData.get("billingId") ?? "");
   const file = formData.get("file") as File | null;
   // The invoice row is the authority for tenancy AND the family check below;
@@ -3510,6 +3631,10 @@ export async function uploadPaymentProofAction(formData: FormData) {
 // proof snapshot (three columns move together — lib/billing.ts writer).
 export async function uploadDaycareInvoiceProofAction(formData: FormData) {
   const me = await requireAuthSession();
+  // KID-1178/F-06: invoice proof uploads — per-account budget.
+  if (!(await throttle("upload", RATE_LIMIT_RULES.uploadAccount, me.accountId)).ok) {
+    throttledRedirect();
+  }
   const invoiceId = String(formData.get("invoiceId") ?? "");
   const file = formData.get("file") as File | null;
   const back = "/portal/account-billing";
@@ -3619,6 +3744,10 @@ export async function toggleLikeAction(formData: FormData) {
 // ---- #3 Newsfeed post with local-drive attachment (no URL field) ----
 export async function createNewsfeedWithAttachmentAction(formData: FormData) {
   const me = await authAccount();
+  // KID-1178/F-06: newsfeed attachment uploads — per-account budget.
+  if (!(await throttle("upload", RATE_LIMIT_RULES.uploadAccount, me.accountId)).ok) {
+    throttledRedirect();
+  }
   await ensureSchema();
   const instituteId = await firstInstituteId();
   const body = String(formData.get("body") ?? "");

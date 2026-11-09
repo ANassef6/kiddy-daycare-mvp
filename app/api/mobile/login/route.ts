@@ -1,6 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { findAccountByEmail, verifyPassword, createSessionToken, emailConfirmedFor } from "@/lib/auth";
 import { supabaseConfigured, getSupabase } from "@/lib/supabase";
+import {
+  authAttemptGuard,
+  recordAuthFailure,
+  recordAuthSuccess,
+  clientIpFrom,
+} from "@/lib/rate-limit";
 
 export const dynamic = "force-dynamic";
 
@@ -20,6 +26,19 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Email and password are required." }, { status: 400 });
   }
 
+  // KID-1178/F-06: the same brute-force gates as the web login — per-IP
+  // attempt budget plus a per-account progressive lockout fed by verified
+  // failures. The response mirrors the web's uniform rate-limit refusal
+  // (json body + Retry-After; no account-existence hints).
+  const ip = clientIpFrom(req.headers);
+  const authGate = await authAttemptGuard("mobile-login", ip, email);
+  if (!authGate.ok) {
+    return NextResponse.json(
+      { error: "Too many attempts. Try again later.", code: "rate_limited" },
+      { status: 429, headers: { "Retry-After": String(authGate.retryAfterSec) } }
+    );
+  }
+
   // Primary path: Supabase GoTrue (reuses the web's own client).
   if (supabaseConfigured()) {
     const { data, error } = await getSupabase().auth.signInWithPassword({ email, password });
@@ -32,6 +51,7 @@ export async function POST(req: NextRequest) {
           email: account.email,
           emailConfirmed: emailConfirmedFor(account),
         });
+        await recordAuthSuccess(email);
         return NextResponse.json({
           account: {
             id: account.id,
@@ -49,8 +69,11 @@ export async function POST(req: NextRequest) {
   // password was stored locally too). This is what loginAction relies on.
   const account = await findAccountByEmail(email);
   if (!account || !verifyPassword(password, account.password_hash)) {
+    // KID-1178/F-06: a verified failure feeds the progressive lockout.
+    await recordAuthFailure("mobile-login", ip, email);
     return NextResponse.json({ error: "Invalid email or password." }, { status: 401 });
   }
+  await recordAuthSuccess(email);
   const token = createSessionToken({
     accountId: account.id,
     role: account.role,
