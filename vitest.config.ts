@@ -21,7 +21,11 @@ export default defineConfig({
   // affordance) to assert what an admin actually sees, so `.tsx` is included and
   // JSX is compiled here rather than preserved for Next. `tsconfig.json` keeps
   // `jsx: preserve` for the app build; only the test transform needs this.
+  // KID-1272: vitest 5 runs Vite 8's oxc transform, which takes precedence
+  // over the legacy esbuild block above — the automatic JSX runtime must be
+  // declared on oxc or tsconfig's `jsx: preserve` wins and parsing fails.
   esbuild: { jsx: "automatic" },
+  oxc: { jsx: { runtime: "automatic" } },
   test: {
     environment: "node",
     include: ["tests/**/*.test.ts", "tests/**/*.test.tsx"],

@@ -146,7 +146,7 @@ async function storeLink(): Promise<void> {
 
 async function renderOwnerBilling(): Promise<string> {
   const { default: Page } = await import("@/app/portal/account-billing/page");
-  return renderToStaticMarkup(await Page({ searchParams: {} }));
+  return renderToStaticMarkup(await Page({ searchParams: Promise.resolve({}) }));
 }
 
 beforeEach(async () => {
@@ -189,7 +189,7 @@ describe("KID-1204: the Clear link button clears (KID-738 D1)", () => {
     await storeLink();
     sessionCookieFor(superadminId, "platform", "superadmin@kiddy.test");
     const { default: Page } = await import("@/app/platform/page");
-    const html = await renderToStaticMarkup(await Page({ searchParams: {} }));
+    const html = await renderToStaticMarkup(await Page({ searchParams: Promise.resolve({}) }));
     // The clear button signals through its own name/value…
     expect(html).toContain('name="instapayIntent"');
     expect(html).toContain('value="clear"');

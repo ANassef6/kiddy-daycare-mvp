@@ -346,7 +346,7 @@ describe("KID-745: uploadDaycareContractAction (operator-only)", () => {
 describe("KID-745: the contract card on the billing settings page", () => {
   async function renderBilling(searchParams: Record<string, string> = {}): Promise<string> {
     const { default: Page } = await import("@/app/platform/daycares/[id]/billing/page");
-    return renderToStaticMarkup(await Page({ params: { id: sunshineIid }, searchParams }));
+    return renderToStaticMarkup(await Page({ params: Promise.resolve({ id: sunshineIid }), searchParams: Promise.resolve(searchParams) }));
   }
 
   it("an operator with no contract row sees both empty states and the upload form", async () => {

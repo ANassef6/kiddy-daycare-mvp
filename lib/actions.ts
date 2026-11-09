@@ -3771,7 +3771,7 @@ export async function uploadDaycareInvoiceProofAction(formData: FormData) {
 // snapshot (lib/contract.ts writer); every upload records exactly one audit
 // event carrying ids only — never the URL and never file content.
 export async function uploadDaycareContractAction(formData: FormData) {
-  const operator = requirePlatformOperator();
+  const operator = await requirePlatformOperator();
   const instituteId = String(formData.get("instituteId") ?? "");
   const file = formData.get("file") as File | null;
   // The daycare must exist: the raw id alone is not a row, and the settings

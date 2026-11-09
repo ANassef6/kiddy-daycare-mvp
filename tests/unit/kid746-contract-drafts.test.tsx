@@ -391,7 +391,7 @@ describe("KID-746: the /platform queue, badge and push card", () => {
 describe("KID-746: the contract card draft links", () => {
   async function renderBilling(): Promise<string> {
     const { default: Page } = await import("@/app/platform/daycares/[id]/billing/page");
-    return renderToStaticMarkup(await Page({ params: { id: sunshineIid }, searchParams: {} }));
+    return renderToStaticMarkup(await Page({ params: Promise.resolve({ id: sunshineIid }), searchParams: Promise.resolve({}) }));
   }
 
   it("the generated drafts render as an Arabic + English link pair with the version stamp", async () => {
