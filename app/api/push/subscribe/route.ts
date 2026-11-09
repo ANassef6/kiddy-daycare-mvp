@@ -4,6 +4,7 @@ import { readSessionFromCookieValue } from "@/lib/auth";
 import { ensureSchema } from "@/lib/db";
 import { isPushSubscriptionInput, removePushSubscription, savePushSubscription } from "@/lib/push";
 import { ensureDefaultPushPrefs } from "@/lib/store";
+import { throttle, RATE_LIMIT_RULES } from "@/lib/rate-limit";
 
 // KID-480: store (or drop) the calling browser's web push subscription for
 // the signed-in account. The endpoint is UNIQUE (migration 0032): re-pointing
@@ -24,6 +25,15 @@ export async function POST(request: Request) {
     return NextResponse.json(
       { error: { code: "unauthorized", message: "Sign in to save a push subscription." } },
       { status: 401, headers: noStore }
+    );
+  }
+  // KID-1178/F-06: per-account budget for subscription writes (the unpersist
+  // churn is bounded server-side; a looping client must not hammer the row).
+  const limit = await throttle("pushSubscribe", RATE_LIMIT_RULES.pushSubscribeAccount, String(s.accountId));
+  if (!limit.ok) {
+    return NextResponse.json(
+      { error: { code: "rate_limited", message: "Too many subscription updates. Try again later." } },
+      { status: 429, headers: { ...noStore, "Retry-After": String(limit.retryAfterSec) } }
     );
   }
   let body: unknown;

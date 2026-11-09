@@ -150,6 +150,9 @@ export const en = {
     inviteUsed: "That invite code has already been used. Ask your daycare for a new one.",
     emailExists: "An account with that email already exists.",
   },
+  security: {
+    rateLimited: "Too many attempts. Please wait a little and try again.",
+  },
   dashboard: {
     title: "Dashboard",
     noInstitute: "No institute configured. Run {cmd} to seed.",
@@ -1509,6 +1512,9 @@ export const ar = {
     inviteNotFound: "رمز الدعوة غير موجود. تحقق من الرمز الذي أرسله إليك المركز.",
     inviteUsed: "تم استخدام رمز الدعوة بالفعل. اطلب من المركز رمزًا جديدًا.",
     emailExists: "يوجد حساب مسجّل بهذا البريد الإلكتروني بالفعل.",
+  },
+  security: {
+    rateLimited: "محاولات كثيرة جدًا. من فضلك انتظر قليلًا ثم حاول مرة أخرى.",
   },
   dashboard: {
     title: "لوحة التحكم",
