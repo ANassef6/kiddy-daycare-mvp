@@ -46,12 +46,13 @@ function addChildLoginErrorMessage(error: string | undefined, dict: Dict): strin
   }
 }
 
-export default async function PortalChildrenPage({
-  searchParams,
-}: {
-  searchParams: { error?: string; status?: string; invite?: string; email?: string; code?: string; activationUrl?: string; inviteDetail?: string; prefillEmail?: string; parent?: string };
-}) {
-  const session = requireSession();
+export default async function PortalChildrenPage(
+  props: {
+    searchParams: Promise<{ error?: string; status?: string; invite?: string; email?: string; code?: string; activationUrl?: string; inviteDetail?: string; prefillEmail?: string; parent?: string }>;
+  }
+) {
+  const searchParams = await props.searchParams;
+  const session = await requireSession();
   const instituteId = await resolveTenantInstituteId();
   const { dict } = await i18nForAccount(session.accountId);
   await recordToolUsage({ instituteId: String(instituteId ?? "") || null, accountId: session.accountId, toolKey: "children", source: "portal", metadata: null });

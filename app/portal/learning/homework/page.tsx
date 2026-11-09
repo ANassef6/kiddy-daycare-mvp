@@ -12,7 +12,7 @@ export const dynamic = "force-dynamic";
 // translated shell — heading, assign form, placeholders and the per-item
 // "for {child} · due {date}" lines. Localized with localized dates.
 export default async function PortalHomeworkPage() {
-  const session = requireSession();
+  const session = await requireSession();
   const { locale, dict } = await i18nForAccount(session.accountId);
   const t = (key: string, vars?: Record<string, string | number>) => tr(dict, key, vars);
   const instituteId = await firstInstituteId();

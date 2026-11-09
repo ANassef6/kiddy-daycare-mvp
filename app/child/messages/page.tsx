@@ -70,11 +70,12 @@ async function softWrite(label: string, write: () => Promise<unknown>): Promise<
 
 const FALLBACK_I18N: { locale: Locale; dict: Dict } = { locale: "en", dict: getDictionary("en") };
 
-export default async function ParentMessagesPage({
-  searchParams,
-}: {
-  searchParams: { thread?: string; to?: string; error?: string };
-}) {
+export default async function ParentMessagesPage(
+  props: {
+    searchParams: Promise<{ thread?: string; to?: string; error?: string }>;
+  }
+) {
+  const searchParams = await props.searchParams;
   const session = await requireFamilyPage("/child/messages");
 
   const failed = new Set<string>();

@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import Link from "next/link";
 import { resolveTenantInstituteId } from "@/lib/tenant";
 import { requireSession } from "@/lib/require";
 import { isAdminRole } from "@/lib/role";
@@ -14,14 +15,15 @@ import { WorkingHoursEditor } from "@/components/WorkingHoursEditor";
 
 export const dynamic = "force-dynamic";
 
-export default async function PortalSettingsPage({
-  searchParams,
-}: {
-  // KID-489 item 2 (KID-491): save actions bounce back with ?error=… so the
-  // rejection reason can render as a localized banner above the form.
-  searchParams?: { error?: string };
-}) {
-  const session = requireSession();
+export default async function PortalSettingsPage(
+  props: {
+    // KID-489 item 2 (KID-491): save actions bounce back with ?error=… so the
+    // rejection reason can render as a localized banner above the form.
+    searchParams?: Promise<{ error?: string }>;
+  }
+) {
+  const searchParams = await props.searchParams;
+  const session = await requireSession();
   // KID-105 #15: Center details (and the rest of center configuration) is
   // admin-only. Staff landing here are sent back to the dashboard.
   if (!isAdminRole(session.role)) {
@@ -53,9 +55,9 @@ export default async function PortalSettingsPage({
       )}
       <p className="subtitle">
         {tr(dict, "settings.subtitle")}{" "}
-        <a href="/portal/rooms" className="small" style={{ fontWeight: 600, marginLeft: 4 }}>
+        <Link href="/portal/rooms" className="small" style={{ fontWeight: 600, marginLeft: 4 }}>
           {tr(dict, "settings.roomsPage")}
-        </a>
+        </Link>
         {tr(dict, "settings.subtitleTail")}
       </p>
 

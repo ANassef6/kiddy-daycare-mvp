@@ -430,7 +430,7 @@ describe("KID-737: uploadDaycareInvoiceProofAction (owner-only)", () => {
 describe("KID-737: the surfaces", () => {
   async function renderOwnerBilling(): Promise<string> {
     const { default: Page } = await import("@/app/portal/account-billing/page");
-    return renderToStaticMarkup(await Page({ searchParams: {} }));
+    return renderToStaticMarkup(await Page({ searchParams: Promise.resolve({}) }));
   }
 
   it("the owner sees no pay link and a form per unpaid invoice while the platform link is unset", async () => {
@@ -485,7 +485,7 @@ describe("KID-737: the surfaces", () => {
     );
     sessionCookieFor(superadminId, "platform", "superadmin@kiddy.test");
     const { default: Page } = await import("@/app/platform/daycares/[id]/invoices/page");
-    const html = await renderToStaticMarkup(await Page({ params: { id: sunshineIid }, searchParams: {} }));
+    const html = await renderToStaticMarkup(await Page({ params: Promise.resolve({ id: sunshineIid }), searchParams: Promise.resolve({}) }));
     expect(html).toContain("View proof");
     expect(html).toContain("TX-9999");
   });
@@ -499,7 +499,7 @@ describe("KID-737: the surfaces", () => {
     );
     sessionCookieFor(superadminId, "platform", "superadmin@kiddy.test");
     const { default: Page } = await import("@/app/platform/page");
-    const html = await renderToStaticMarkup(await Page({ searchParams: {} }));
+    const html = await renderToStaticMarkup(await Page({ searchParams: Promise.resolve({}) }));
     expect(html).toContain("Subscription payment link (Instapay)");
     expect(html).toContain("https://instapay.eg/pay/kiddyapp");
   });

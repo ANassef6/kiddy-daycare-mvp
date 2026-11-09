@@ -30,17 +30,18 @@ import { recordToolUsage } from "@/lib/tool-usage";
 
 export const dynamic = "force-dynamic";
 
-export default async function ChildDetailPage({
-  params,
-  searchParams,
-}: {
-  params: { id: string };
-  // KID-472 item 4: ?date= selects which past day's report the parent reads.
-  // KID-489 item 3 (KID-492): ?error= surfaces the upload rejection reason,
-  // ?proof=uploaded surfaces the success state.
-  searchParams?: { date?: string; error?: string; proof?: string };
-}) {
-  const session = requireSession();
+export default async function ChildDetailPage(
+  props: {
+    params: Promise<{ id: string }>;
+    // KID-472 item 4: ?date= selects which past day's report the parent reads.
+    // KID-489 item 3 (KID-492): ?error= surfaces the upload rejection reason,
+    // ?proof=uploaded surfaces the success state.
+    searchParams?: Promise<{ date?: string; error?: string; proof?: string }>;
+  }
+) {
+  const searchParams = await props.searchParams;
+  const params = await props.params;
+  const session = await requireSession();
   const { dict, locale } = await i18nForAccount(session.accountId);
   const t = (key: string, vars?: Record<string, string | number>) => tr(dict, key, vars);
   const child = await getChild(params.id);

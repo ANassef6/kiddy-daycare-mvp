@@ -210,7 +210,7 @@ export async function sendParentInviteEmail(
 ): Promise<InviteDeliveryResult> {
   const email = String(invite.email ?? "").trim().toLowerCase();
   const code = String(invite.code ?? "").trim();
-  const publicBase = publicOrigin(opts.origin);
+  const publicBase = await publicOrigin(opts.origin);
   const activationUrl = publicBase
     ? activationUrlForCode(publicBase, code, opts.prefill ?? { email })
     : undefined;
@@ -233,7 +233,7 @@ export async function sendParentInviteEmail(
         auth: { persistSession: false, autoRefreshToken: false },
       });
       const { error } = await admin.auth.admin.inviteUserByEmail(email, {
-        redirectTo: `${publicOrigin(opts.origin)}/auth/confirm`,
+        redirectTo: `${await publicOrigin(opts.origin)}/auth/confirm`,
       });
       if (error) throw error;
       console.log(`KID-111 invite ${String(invite.id)}: admin invite email sent to ${email}`);

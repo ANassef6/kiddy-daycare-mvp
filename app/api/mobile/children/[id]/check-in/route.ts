@@ -6,14 +6,15 @@ export const dynamic = "force-dynamic";
 
 // Parent-driven check-in / check-out for the daily loop. Mirrors the web
 // CheckInButton (app/child/[id]/page.tsx) through the same store function.
-export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await requireMobileSession(req);
   if (session instanceof NextResponse) return session;
 
-  const child = await getChild(params.id);
+  const childId = (await params).id;
+  const child = await getChild(childId);
   if (!child) return errorPayload("child not found", 404);
 
-  const inFamily = await isChildInFamily(session.accountId, params.id);
+  const inFamily = await isChildInFamily(session.accountId, childId);
   if (!inFamily) return errorPayload("forbidden", 403);
 
   let body: { type?: string } = {};
@@ -26,7 +27,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   if (!type) return errorPayload('type must be "in" or "out"');
 
   await checkChildInOut({
-    childId: params.id,
+    childId: childId,
     accountId: session.accountId,
     type,
   });

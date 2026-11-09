@@ -4,7 +4,7 @@ import { curriculumTree, ensureCurriculumSeeded } from "@/lib/curriculum";
 export const dynamic = "force-dynamic";
 
 export default async function PortalCurriculumPage() {
-  requireSession();
+  await requireSession();
   // KID-47 fix: seeding must never 500 the page on the live DB.
   try {
     await ensureCurriculumSeeded();

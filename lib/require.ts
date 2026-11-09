@@ -5,8 +5,10 @@ import { isAccountAccessWithdrawn, runWithdrawalSweep } from "@/lib/store";
 import { isPlatformOperatorRole } from "@/lib/platform";
 import { isPathAllowedForPickup } from "@/lib/contact-relationship";
 
-export function requireSession() {
-  const h = headers();
+// Next 15: headers() is async, so the session guard is async too — every
+// caller awaits it.
+export async function requireSession() {
+  const h = await headers();
   const session = sessionFromHeaders(h);
   if (!session) redirect("/login");
   return session;
@@ -31,7 +33,7 @@ export async function requireFamilyPage(pathname: string) {
 // access has been withdrawn. Called from the authenticated layout(s) so every
 // protected page is guarded without making individual pages async.
 export async function requireSessionWithWithdrawalCheck() {
-  const session = requireSession();
+  const session = await requireSession();
   // Sweep first so any newly-reached last_date is applied before the check.
   try {
     await runWithdrawalSweep();

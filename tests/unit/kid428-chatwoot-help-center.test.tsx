@@ -280,7 +280,7 @@ async function renderChildSupport(searchParams: Query = {}): Promise<string> {
     cookie: sessionCookie(parentAccountId, "parent", "parent@example.test"),
   };
   const page = await import("@/app/child/support/page");
-  return renderToStaticMarkup(await page.default({ searchParams }));
+  return renderToStaticMarkup(await page.default({ searchParams: Promise.resolve(searchParams) }));
 }
 
 async function renderChildSupportArticle(id: string, searchParams: Query = {}): Promise<string> {
@@ -289,7 +289,7 @@ async function renderChildSupportArticle(id: string, searchParams: Query = {}): 
     cookie: sessionCookie(parentAccountId, "parent", "parent@example.test"),
   };
   const page = await import("@/app/child/support/[id]/page");
-  return renderToStaticMarkup(await page.default({ params: { id }, searchParams }));
+  return renderToStaticMarkup(await page.default({ params: Promise.resolve({ id }), searchParams: Promise.resolve(searchParams) }));
 }
 
 async function renderPortalSupport(searchParams: Query = {}): Promise<string> {
@@ -298,7 +298,7 @@ async function renderPortalSupport(searchParams: Query = {}): Promise<string> {
     cookie: sessionCookie(staffAccountId, "owner", "trois4ever+admin@gmail.com"),
   };
   const page = await import("@/app/portal/support/page");
-  return renderToStaticMarkup(await page.default({ searchParams }));
+  return renderToStaticMarkup(await page.default({ searchParams: Promise.resolve(searchParams) }));
 }
 
 async function renderPortalSupportArticle(id: string, searchParams: Query = {}): Promise<string> {
@@ -307,7 +307,7 @@ async function renderPortalSupportArticle(id: string, searchParams: Query = {}):
     cookie: sessionCookie(staffAccountId, "owner", "trois4ever+admin@gmail.com"),
   };
   const page = await import("@/app/portal/support/[id]/page");
-  return renderToStaticMarkup(await page.default({ params: { id }, searchParams }));
+  return renderToStaticMarkup(await page.default({ params: Promise.resolve({ id }), searchParams: Promise.resolve(searchParams) }));
 }
 
 async function assertNotFound(promise: Promise<string>): Promise<void> {

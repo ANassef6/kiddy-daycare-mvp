@@ -22,16 +22,17 @@ const NOTIFICATION_LABELS: Record<string, string> = {
   events: "Events",
 };
 
-export default async function PortalAccountPage({ searchParams }: { searchParams: { saved?: string; pw?: string } }) {
-  const session = requireSession();
+export default async function PortalAccountPage({ searchParams }: { searchParams: Promise<{ saved?: string; pw?: string }> }) {
+  const session = await requireSession();
   const { locale, dict } = await i18nForAccount(session.accountId);
   const profile = await accountProfile(session.accountId);
   const prefs = await getNotificationPrefs(session.accountId);
+  const search = await searchParams;
   // KID-495: temp-password accounts get a prominent (non-blocking) hint above
   // the card, and the card itself rides the pw= feedback from the action.
   const [tempPasswordFlagged, pwStatus] = await Promise.all([
     getAccount(session.accountId).then((row) => row && mustChangePasswordFor(row)),
-    Promise.resolve(searchParams.pw),
+    Promise.resolve(search.pw),
   ]);
   const displayName = profile.fullName || session.email;
 
@@ -81,7 +82,7 @@ export default async function PortalAccountPage({ searchParams }: { searchParams
       <div className="card mb-4">
         <h3 className="subtitle">{tr(dict, "account.notificationPrefs")}</h3>
         <p className="small muted">{tr(dict, "account.notificationPrefsHint")}</p>
-        {searchParams.saved && <div className="card mb-3" role="status"><strong>{tr(dict, "account.prefsSaved")}</strong></div>}
+        {search.saved && <div className="card mb-3" role="status"><strong>{tr(dict, "account.prefsSaved")}</strong></div>}
         <form action={saveNotificationPrefsAction}>
           <table className="data">
             <thead><tr><th>{tr(dict, "account.activity")}</th><th>{tr(dict, "account.email")}</th><th>{tr(dict, "account.inApp")}</th></tr></thead>

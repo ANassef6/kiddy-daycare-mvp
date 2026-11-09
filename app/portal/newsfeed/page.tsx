@@ -15,7 +15,7 @@ export const dynamic = "force-dynamic";
 // inside the translated shell (heading, composer labels, like/comment rows,
 // timestamps). Localized like the rest of the Home group.
 export default async function PortalNewsfeedPage() {
-  const session = requireSession();
+  const session = await requireSession();
   const { locale, dict } = await i18nForAccount(session.accountId);
   const t = (key: string, vars?: Record<string, string | number>) => tr(dict, key, vars);
   const iid = await resolveTenantInstituteId();

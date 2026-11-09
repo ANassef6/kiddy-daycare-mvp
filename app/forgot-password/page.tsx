@@ -16,7 +16,7 @@ export const dynamic = "force-dynamic";
 // cookie (KID-368). The copy now resolves from the forgot section (same
 // precedence as /login) and the page pre-signin-shows the same EN/AR toggle.
 export default async function ForgotPasswordPage() {
-  const cookieStore = cookies();
+  const cookieStore = await cookies();
   const locale: Locale = localeOf(cookieStore.get(LANG_COOKIE)?.value);
   const dict = getDictionary(locale);
   const brandName = (await brandNameForTitle()) || dict.app.name;

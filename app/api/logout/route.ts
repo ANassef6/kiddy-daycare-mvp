@@ -12,8 +12,8 @@ export const dynamic = "force-dynamic";
 // NextResponse.redirect only accepts absolute URLs, so the fallback branch
 // constructs one on a throwaway base and rewrites the Location header down
 // to the bare path.
-function logoutResponse(): NextResponse {
-  const origin = requestOrigin();
+async function logoutResponse(): Promise<NextResponse> {
+  const origin = await requestOrigin();
   const res = NextResponse.redirect(origin ? origin : "http://localhost", { status: 302 });
   res.headers.set("location", origin ? `${origin}/login` : "/login");
   // KID-686: attributes shared with loginAction/logoutAction via the pinned
@@ -22,10 +22,10 @@ function logoutResponse(): NextResponse {
   return res;
 }
 
-export function GET() {
+export async function GET() {
   return logoutResponse();
 }
 
-export function POST() {
+export async function POST() {
   return GET();
 }

@@ -156,7 +156,7 @@ describe("/portal/account-billing access", () => {
     const { default: Page } = await import("@/app/portal/account-billing/page");
     // KID-737 added a route searchParams prop (?proof=uploaded / ?proofError=…)
     // — pass the no-param shape explicitly here.
-    return renderToStaticMarkup(await Page({ searchParams: {} }));
+    return renderToStaticMarkup(await Page({ searchParams: Promise.resolve({}) }));
   }
 
   it("an owner session renders the plan card, rates and the invoice ledger", async () => {

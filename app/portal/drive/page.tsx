@@ -7,7 +7,7 @@ import { recordToolUsage } from "@/lib/tool-usage";
 export const dynamic = "force-dynamic";
 
 export default async function PortalDrivePage() {
-  const session = requireSession();
+  const session = await requireSession();
   const instituteId = await firstInstituteId();
   if (!instituteId) return <p className="muted">No institute configured.</p>;
   await recordToolUsage({ instituteId: String(instituteId ?? "") || null, accountId: session.accountId, toolKey: "drive", source: "portal", metadata: null });

@@ -51,16 +51,17 @@ const DIAPERS = ["wet", "soiled", "dry"] as const;
 const SLEEP_VALUES = ["fellAsleep", "wokeUp"] as const;
 const SICK_VALUES = ["yes", "no"] as const;
 
-export default async function PortalChildPage({
-  params,
-  searchParams,
-}: {
-  params: { id: string };
-  // KID-180: the Add-contact action lands back here with the family tab +
-  // the invite outcome, so the view the staff was working in survives submit.
-  searchParams: { tab?: string; date?: string; error?: string; invite?: string; email?: string; activationUrl?: string; inviteDetail?: string; parent?: string };
-}) {
-  const session = requireSession();
+export default async function PortalChildPage(
+  props: {
+    params: Promise<{ id: string }>;
+    // KID-180: the Add-contact action lands back here with the family tab +
+    // the invite outcome, so the view the staff was working in survives submit.
+    searchParams: Promise<{ tab?: string; date?: string; error?: string; invite?: string; email?: string; activationUrl?: string; inviteDetail?: string; parent?: string }>;
+  }
+) {
+  const searchParams = await props.searchParams;
+  const params = await props.params;
+  const session = await requireSession();
   const { locale, dict } = await i18nForAccount(session.accountId);
   const t = (key: string, vars?: Record<string, string | number>) => tr(dict, key, vars);
   const child = await getChild(params.id);

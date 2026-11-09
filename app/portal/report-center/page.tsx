@@ -12,12 +12,13 @@ export const dynamic = "force-dynamic";
 // raw English role enum), all filter labels, export buttons, statuses and
 // the always-English toDateString report dates. Localized end-to-end; report
 // mood and status values go through their dictionaries too.
-export default async function PortalReportCenterPage({
-  searchParams,
-}: {
-  searchParams: { child?: string; from?: string; to?: string; status?: string };
-}) {
-  const session = requireSession();
+export default async function PortalReportCenterPage(
+  props: {
+    searchParams: Promise<{ child?: string; from?: string; to?: string; status?: string }>;
+  }
+) {
+  const searchParams = await props.searchParams;
+  const session = await requireSession();
   const { locale, dict } = await i18nForAccount(session.accountId);
   const t = (key: string, vars?: Record<string, string | number>) => tr(dict, key, vars);
   const roleLabel = (role: string) => {

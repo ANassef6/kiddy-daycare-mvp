@@ -18,16 +18,17 @@ function money(cents: number, currency: string): string {
   return `${currency} ${v}`;
 }
 
-export default async function ChildBillingPage({
-  params,
-  searchParams,
-}: {
-  params: { id: string };
-  // KID-489 item 2 (KID-491): addChildBillingAction bounces an invalid
-  // payment link back here as ?error=paymentlink for the banner below.
-  searchParams?: { error?: string };
-}) {
-  const session = requireSession();
+export default async function ChildBillingPage(
+  props: {
+    params: Promise<{ id: string }>;
+    // KID-489 item 2 (KID-491): addChildBillingAction bounces an invalid
+    // payment link back here as ?error=paymentlink for the banner below.
+    searchParams?: Promise<{ error?: string }>;
+  }
+) {
+  const searchParams = await props.searchParams;
+  const params = await props.params;
+  const session = await requireSession();
   const { dict, locale: billingLocale } = await i18nForAccount(session.accountId);
   const iid = await resolveTenantInstituteId();
   // KID-489 item 1 (KID-490): the center's default currency seeds the form's

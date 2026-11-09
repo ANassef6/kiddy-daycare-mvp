@@ -17,9 +17,8 @@ const nextConfig = {
       },
     ];
   },
-  experimental: {
-    serverComponentsExternalPackages: ["better-sqlite3", "pg", "@supabase/supabase-js"],
-  },
+  // Next 15: promoted from experimental.serverComponentsExternalPackages.
+  serverExternalPackages: ["better-sqlite3", "pg", "@supabase/supabase-js"],
   webpack: (config) => {
     // Ensure the `@/` alias resolves in every compilation context (server + client).
     config.resolve.alias = {

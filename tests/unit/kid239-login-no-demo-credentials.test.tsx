@@ -37,7 +37,7 @@ const FORBIDDEN = [
 describe("KID-239: login page contains no demo credentials", () => {
   it("renders no credential material on the login page", async () => {
     mockCookieValue = null;
-    const html = renderToStaticMarkup(await LoginPage({ searchParams: {} }));
+    const html = renderToStaticMarkup(await LoginPage({ searchParams: Promise.resolve({}) }));
     for (const s of FORBIDDEN) expect(html).not.toContain(s);
     // The register path stays intact
     expect(html).toContain("/register");

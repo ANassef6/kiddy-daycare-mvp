@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+
 // KID-534 (KID-482 D-2): anything under /child/messages that still throws
 // during render (session/tenant gate reads happen before the page's own
 // guarded reads) must land on this segment-level boundary — a recoverable
@@ -23,7 +25,7 @@ export default function ParentMessagesError({
           Try again
         </button>
         <p className="small mt-3">
-          <a href="/child">Back to your children</a>
+          <Link href="/child">Back to your children</Link>
         </p>
       </div>
     </div>

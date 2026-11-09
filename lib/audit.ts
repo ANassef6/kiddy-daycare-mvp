@@ -37,7 +37,7 @@ export type AuditInput = {
 async function requestMeta(): Promise<string | null> {
   try {
     const { headers } = await import("next/headers");
-    const referer = headers().get("referer");
+    const referer = (await headers()).get("referer");
     if (!referer) return null;
     return new URL(referer).pathname || null;
   } catch {

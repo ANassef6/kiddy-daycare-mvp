@@ -6,7 +6,7 @@ import { recordToolUsage } from "@/lib/tool-usage";
 export const dynamic = "force-dynamic";
 
 export default async function PortalIncidentsPage() {
-  const session = requireSession();
+  const session = await requireSession();
   const iid = await resolveTenantInstituteId();
   await recordToolUsage({ instituteId: String(iid ?? "") || null, accountId: session.accountId, toolKey: "incidents", source: "portal", metadata: null });
   const incidents = iid ? await listIncidents(iid) : [];

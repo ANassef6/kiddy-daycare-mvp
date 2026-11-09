@@ -23,12 +23,13 @@ const STATUS_KIND_LABEL: Record<string, string> = {
   child_sick: "Child sick",
 };
 
-export default async function PortalStaffPage({
-  searchParams,
-}: {
-  searchParams?: { added?: string; email?: string; q?: string; role?: string };
-}) {
-  const session = requireSession();
+export default async function PortalStaffPage(
+  props: {
+    searchParams?: Promise<{ added?: string; email?: string; q?: string; role?: string }>;
+  }
+) {
+  const searchParams = await props.searchParams;
+  const session = await requireSession();
   const iid = await resolveTenantInstituteId();
   await recordToolUsage({ instituteId: String(iid ?? "") || null, accountId: session.accountId, toolKey: "staff", source: "portal", metadata: null });
   const [staff, rooms] = await Promise.all([

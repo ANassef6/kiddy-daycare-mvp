@@ -13,7 +13,7 @@ function csv(rows: Record<string, unknown>[]): string {
 }
 
 export async function GET(req: Request) {
-  const session = requireSession();
+  const session = await requireSession();
   const url = new URL(req.url);
   const type = url.searchParams.get("type") ?? "billing";
   const child = (url.searchParams.get("child") ?? "").toLowerCase();

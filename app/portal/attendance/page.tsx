@@ -8,12 +8,13 @@ import { recordToolUsage } from "@/lib/tool-usage";
 
 export const dynamic = "force-dynamic";
 
-export default async function PortalAttendancePage({
-  searchParams,
-}: {
-  searchParams: { day?: string; sweep?: string; q?: string; room?: string };
-}) {
-  const session = requireSession();
+export default async function PortalAttendancePage(
+  props: {
+    searchParams: Promise<{ day?: string; sweep?: string; q?: string; room?: string }>;
+  }
+) {
+  const searchParams = await props.searchParams;
+  const session = await requireSession();
   const iid = await resolveTenantInstituteId();
   await recordToolUsage({ instituteId: String(iid ?? "") || null, accountId: session.accountId, toolKey: "attendance", source: "portal", metadata: null });
   const day = searchParams.day ?? new Date().toISOString().slice(0, 10);

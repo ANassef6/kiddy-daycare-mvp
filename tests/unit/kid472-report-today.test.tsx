@@ -112,14 +112,14 @@ async function seedBoundaryReports(): Promise<void> {
 async function renderStaff(date?: string): Promise<string> {
   mockState.cookie = sessionCookieFor(ownerId, "owner", "trois4ever+admin@gmail.com");
   return renderToStaticMarkup(
-    await StaffChildPage({ params: { id: ella }, searchParams: date ? { date } : {} })
+    await StaffChildPage({ params: Promise.resolve({ id: ella }), searchParams: Promise.resolve(date ? { date } : {}) })
   );
 }
 
 async function renderParent(date?: string): Promise<string> {
   mockState.cookie = sessionCookieFor(parentAccountId, "parent", "parent@example.test");
   return renderToStaticMarkup(
-    await ParentChildPage({ params: { id: ella }, searchParams: date ? { date } : {} })
+    await ParentChildPage({ params: Promise.resolve({ id: ella }), searchParams: Promise.resolve(date ? { date } : {}) })
   );
 }
 

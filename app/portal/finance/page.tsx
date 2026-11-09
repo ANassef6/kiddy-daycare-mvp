@@ -26,12 +26,13 @@ function amountValue(b: any): number {
 // the commercial funnel's status cards. Tabs other than Invoices/Reports are
 // visible (per design) but show a friendly pending-state panel since the billing
 // data model doesn't cover payouts/deposits/schedules yet.
-export default async function PortalFinancePage({
-  searchParams,
-}: {
-  searchParams?: { tab?: string; q?: string; status?: string; to?: string; from?: string };
-}) {
-  const session = requireSession();
+export default async function PortalFinancePage(
+  props: {
+    searchParams?: Promise<{ tab?: string; q?: string; status?: string; to?: string; from?: string }>;
+  }
+) {
+  const searchParams = await props.searchParams;
+  const session = await requireSession();
   const instituteId = await firstInstituteId();
   if (!instituteId) return <p className="muted">No institute configured.</p>;
   await recordToolUsage({ instituteId: String(instituteId ?? "") || null, accountId: session.accountId, toolKey: "finance", source: "portal", metadata: null });

@@ -143,7 +143,7 @@ async function setSession(email: string) {
   // KID-686: the attributes (httpOnly / Secure on HTTPS / SameSite=Lax /
   // 30-day max-age) come from the shared helper in lib/auth so the test
   // suite pins the browser-visible cookie surface exactly once.
-  cookies().set(SESSION_COOKIE, token, sessionCookieOptions(30 * 24 * 3600));
+  (await cookies()).set(SESSION_COOKIE, token, sessionCookieOptions(30 * 24 * 3600));
   return account;
 }
 
@@ -172,7 +172,7 @@ function homeForRole(role: string): string {
  *  preference, then English. */
 async function gateLocale(accountLanguage: unknown): Promise<string> {
   try {
-    const cookie = cookies().get(LANG_COOKIE)?.value;
+    const cookie = (await cookies()).get(LANG_COOKIE)?.value;
     if (cookie === "en" || cookie === "ar") return cookie;
   } catch {
     // no request scope (tests) — fall through to the account preference
@@ -230,7 +230,7 @@ export async function loginAction(formData: FormData) {
         if (disabledGate) return disabledGate;
         // KID-199.3r: a daycare account is only valid on its own subdomain —
         // a Sunshine login on the Maple host is refused, never signed in.
-        const hostGate = await loginHostGate(String(account.id), String(account.role), headers().get("host"));
+        const hostGate = await loginHostGate(String(account.id), String(account.role), (await headers()).get("host"));
         if (hostGate) return hostGate;
         if (data.user.email_confirmed_at && !emailConfirmedFor(account)) {
           await setEmailConfirmed(account.id, true);
@@ -260,7 +260,7 @@ export async function loginAction(formData: FormData) {
   const disabledGate = await tenancyDisabledError(String(account.id), String(account.role), account.language);
   if (disabledGate) return disabledGate;
   // KID-199.3r: wrong-subdomain login gate — same refusal as the Supabase path.
-  const hostGate = await loginHostGate(String(account.id), String(account.role), headers().get("host"));
+  const hostGate = await loginHostGate(String(account.id), String(account.role), (await headers()).get("host"));
   if (hostGate) return hostGate;
   // KID-112: contacts with relationship "No access" cannot log in
   // (e.g. unpaid fees). The admin re-enables them by changing the role.
@@ -356,7 +356,7 @@ export async function registerAction(formData: FormData) {
       const { data, error } = await getSupabase().auth.signUp({
         email,
         password,
-        options: { emailRedirectTo: `${publicOrigin(requestOrigin())}/auth/confirm` },
+        options: { emailRedirectTo: `${await publicOrigin(await requestOrigin())}/auth/confirm` },
       });
       const isRateLimited = !!(
         error &&
@@ -550,7 +550,7 @@ export async function registerAction(formData: FormData) {
 
 export async function resendConfirmationAction() {
   if (!supabaseConfigured()) return { error: "Email confirmation is not enabled in this environment." };
-  const cookie = cookies().get(SESSION_COOKIE)?.value;
+  const cookie = (await cookies()).get(SESSION_COOKIE)?.value;
   const session = cookie ? (verifyToken(decodeURIComponent(cookie)) as SessionCookie) : null;
   const email = session?.email ?? "";
   if (!email) return { error: "No signed-in account to confirm." };
@@ -587,7 +587,7 @@ export async function requestPasswordResetAction(formData: FormData) {
     };
   }
   const { error } = await getSupabase().auth.resetPasswordForEmail(email, {
-    redirectTo: `${publicOrigin(requestOrigin())}/reset-password`,
+    redirectTo: `${await publicOrigin(await requestOrigin())}/reset-password`,
   });
   if (error) {
     // KID-111: log reset-mail failures (e.g. non-routable demo addresses).
@@ -607,7 +607,7 @@ export async function logoutAction() {
   // KID-686: logout invalidates the browser copy (Max-Age=0). The token is
   // stateless (signed, self-expiring), so there is no server-side table to
   // purge; the client-side clear mirrors the /api/logout route.
-  cookies().set(SESSION_COOKIE, "", sessionCookieOptions(0));
+  (await cookies()).set(SESSION_COOKIE, "", sessionCookieOptions(0));
   redirect("/");
 }
 
@@ -633,8 +633,8 @@ export async function linkInviteAction(formData: FormData) {
 
 // ---- Daily-loop actions (check-in/out, reports, newsfeed, messaging, consents, incidents) ----
 
-function authAccount(): SessionCookie {
-  const cookie = cookies().get(SESSION_COOKIE)?.value;
+async function authAccount(): Promise<SessionCookie> {
+  const cookie = (await cookies()).get(SESSION_COOKIE)?.value;
   if (!cookie) throw new Error("not signed in");
   const session = verifyToken(decodeURIComponent(cookie)) as SessionCookie | null;
   if (!session?.accountId) throw new Error("not signed in");
@@ -642,7 +642,7 @@ function authAccount(): SessionCookie {
 }
 
 async function requireAdmin(): Promise<SessionCookie> {
-  const me = authAccount();
+  const me = await authAccount();
   if (!isAdminRole(me.role)) {
     // KID-236: an operator-view session (signed role stays the platform
     // sentinel) administers ONLY its bound institute, and only while the
@@ -670,10 +670,10 @@ async function requireAdmin(): Promise<SessionCookie> {
 // from PLATFORM_ADMIN_EMAIL cuts access even for an existing session). A
 // non-operator POST gets the same treatment an anonymous one would: back to
 // /login. A wrong-tenancy POST never happens: the operator resolves no tenant.
-function requirePlatformOperator(): SessionCookie {
+async function requirePlatformOperator(): Promise<SessionCookie> {
   let me: SessionCookie;
   try {
-    me = authAccount();
+    me = await authAccount();
   } catch (err) {
     // KID-236: an anonymous POST gets the same treatment as a non-operator —
     // back to /login, which is what this guard's own comment always promised.
@@ -724,7 +724,7 @@ async function uploadBrandingFile(
 // login and entry (KID-199.3); this only flips it and refreshes the page so the
 // toggle reflects the stored state.
 export async function setDaycareActiveAction(formData: FormData) {
-  const operator = requirePlatformOperator();
+  const operator = await requirePlatformOperator();
   const instituteId = String(formData.get("instituteId") ?? "");
   if (!instituteId) redirect("/platform?error=missing-id");
   const active = String(formData.get("active") ?? "") === "1";
@@ -753,7 +753,7 @@ export async function setDaycareActiveAction(formData: FormData) {
 // can reach this code — a staff/parent/guest POST is redirected to /login
 // before any grant exists.
 export async function enterDaycareAsAdminAction(formData: FormData) {
-  const me = requirePlatformOperator();
+  const me = await requirePlatformOperator();
   const instituteId = String(formData.get("instituteId") ?? "");
   if (!instituteId) redirect("/platform?error=missing-id");
   const inst = await queryGet("SELECT id, active, subdomain FROM institute WHERE id = ?", instituteId);
@@ -765,7 +765,7 @@ export async function enterDaycareAsAdminAction(formData: FormData) {
   );
   // Production serves https (Vercel sets x-forwarded-proto); local http dev
   // follows its own scheme so the entry hop does not dead-end on TLS.
-  const proto = (headers().get("x-forwarded-proto") ?? "https").split(",")[0]!.trim() || "https";
+  const proto = ((await headers()).get("x-forwarded-proto") ?? "https").split(",")[0]!.trim() || "https";
   const target = operatorEntryUrl(String(inst.subdomain ?? ""), grant, proto);
   if (!target) redirect("/platform?error=enter-no-address");
   redirect(target);
@@ -779,7 +779,7 @@ export async function enterDaycareAsAdminAction(formData: FormData) {
 // value in the input — the operator no longer has to retype or hunt for what
 // went wrong.
 export async function updateDaycareSubdomainAction(formData: FormData) {
-  requirePlatformOperator();
+  await requirePlatformOperator();
   const instituteId = String(formData.get("instituteId") ?? "");
   if (!instituteId) redirect("/platform?error=missing-id");
   const typed = String(formData.get("subdomain") ?? "");
@@ -807,7 +807,7 @@ export async function updateDaycareSubdomainAction(formData: FormData) {
 // institute.logo_url), and a theme preset mapped onto the existing branding
 // tokens. Custom-color fields still win when the theme is "custom".
 export async function createDaycareAction(formData: FormData) {
-  requirePlatformOperator();
+  await requirePlatformOperator();
   const name = String(formData.get("name") ?? "").trim();
   const ownerEmail = String(formData.get("ownerEmail") ?? "").trim();
   const ownerPassword = String(formData.get("ownerPassword") ?? "");
@@ -925,7 +925,7 @@ function billingFormNumbers(formData: FormData): {
 // every platform action; every failure lands back on the billing form with a
 // friendly message, a success back with ?saved=1.
 export async function updateDaycareBillingAction(formData: FormData) {
-  const operator = requirePlatformOperator();
+  const operator = await requirePlatformOperator();
   const instituteId = String(formData.get("instituteId") ?? "");
   if (!instituteId) redirect("/platform?error=missing-id");
   const inst = await queryGet("SELECT id FROM institute WHERE id = ?", instituteId);
@@ -987,7 +987,7 @@ const KNOWN_INVOICE_ERRORS = new Set(["invoice-not-found", "invoice-paid-locked"
  *  with an explanatory note (manual_adjustment). Only before payment — a paid
  *  invoice is locked. Redirects back to this daycare's invoice list. */
 export async function updateInvoiceAmountAction(formData: FormData) {
-  const operator = requirePlatformOperator();
+  const operator = await requirePlatformOperator();
   const invoiceId = String(formData.get("invoiceId") ?? "");
   const { getInvoice } = await import("@/lib/billing");
   const invoice = invoiceId ? await getInvoice(invoiceId) : undefined;
@@ -1035,7 +1035,7 @@ export async function updateInvoiceAmountAction(formData: FormData) {
  *  is refused — a broken link can never be stored, so the owner side can
  *  always safely open it in a new tab. Every save is attributed per operator. */
 export async function setPlatformInstapayAction(formData: FormData) {
-  const operator = requirePlatformOperator();
+  const operator = await requirePlatformOperator();
   const link = parsePaymentLink(formData.get("instapayUrl"));
   if (!link.ok) {
     // Fail the save, never store a broken link; the page renders the same
@@ -1065,7 +1065,7 @@ export async function setPlatformInstapayAction(formData: FormData) {
  *  stamps paid_at and re-activates the daycare as soon as no other unpaid
  *  overdue invoice remains — the billing block lifts. */
 export async function markInvoicePaidAction(formData: FormData) {
-  const operator = requirePlatformOperator();
+  const operator = await requirePlatformOperator();
   const invoiceId = String(formData.get("invoiceId") ?? "");
   const { getInvoice, markInvoicePaid } = await import("@/lib/billing");
   const invoice = invoiceId ? await getInvoice(invoiceId) : undefined;
@@ -1139,9 +1139,9 @@ const KID372_TENANT_REFUSAL = "/login?error=wrong-tenant";
 // Anonymous is not a guard: a POST with no session is bounced to /login
 // (same treatment requirePlatformOperator gives non-operators) instead of
 // surfacing as a thrown "not signed in" digest.
-function requireAuthSession(): SessionCookie {
+async function requireAuthSession(): Promise<SessionCookie> {
   try {
-    return authAccount();
+    return await authAccount();
   } catch (err) {
     if (err instanceof Error && err.message === "not signed in") redirect("/login");
     throw err;
@@ -1248,13 +1248,13 @@ async function resolveNewsfeedRecipients(
 export async function saveLanguageAction(formData: FormData) {
   const locale = String(formData.get("locale") ?? "");
   if (locale !== "en" && locale !== "ar") redirect("/");
-  const me = authAccount();
+  const me = await authAccount();
   const { setAccountLanguage } = await import("@/lib/auth");
   const account = await (await import("@/lib/auth")).getAccount(me.accountId);
   if (account) {
     await setAccountLanguage(me.accountId, locale);
   }
-  cookies().set(LANG_COOKIE, locale, {
+  (await cookies()).set(LANG_COOKIE, locale, {
     httpOnly: false,
     sameSite: "lax",
     path: "/",
@@ -1267,7 +1267,7 @@ export async function saveLanguageAction(formData: FormData) {
 export async function checkInOutAction(formData: FormData) {
   const childId = String(formData.get("childId") ?? "");
   const type = String(formData.get("type") ?? "") as "in" | "out";
-  const me = authAccount();
+  const me = await authAccount();
   // KID-112: pickup role exists only to register pickup time; no_access is
   // blocked at login (defensive deny here too).
   await assertFamilyAction(me, "checkInOut");
@@ -1296,7 +1296,7 @@ export async function checkInOutAction(formData: FormData) {
     });
   }
   // #7: stay in portal when invoked from portal pages instead of forcing /child/…
-  const referer = headers().get("referer") ?? "";
+  const referer = (await headers()).get("referer") ?? "";
   if (referer.includes("/portal/")) {
     redirect(referer.split("?")[0] + "?checked=1");
   }
@@ -1310,7 +1310,7 @@ export async function checkInOutAction(formData: FormData) {
 export async function busStatusAction(formData: FormData) {
   const childId = String(formData.get("childId") ?? "");
   const type = String(formData.get("type") ?? "") as "on" | "off";
-  const me = requireAuthSession();
+  const me = await requireAuthSession();
   if (childId && (type === "on" || type === "off")) {
     // Bus transitions are staff-controlled: parents set none.
     if (me.role === "parent") {
@@ -1343,7 +1343,7 @@ export async function saveDailyReportAction(formData: FormData) {
   // the fallback comes from todayIso() so this copy of the rule cannot drift
   // from the staff/parent page defaults.
   const reportDate = configuredReportDate(formData.get("reportDate"), todayIso());
-  const me = authAccount();
+  const me = await authAccount();
   if (childId) await assertChildInScope(childId, me);
   // KID-477: the audit row must distinguish a NEW report from an EDIT —
   // check presence before the upsert overwrites the row.
@@ -1389,7 +1389,7 @@ export async function saveDailyReportAction(formData: FormData) {
 }
 
 export async function createNewsfeedAction(formData: FormData) {
-  const me = authAccount();
+  const me = await authAccount();
   await ensureSchema();
   const instituteId = await firstInstituteId();
   const post = await createNewsfeedPost({
@@ -1414,7 +1414,7 @@ export async function createNewsfeedAction(formData: FormData) {
 }
 
 export async function commentAction(formData: FormData) {
-  const me = authAccount();
+  const me = await authAccount();
   // KID-112: pickup accounts may only register pickup time — no commenting.
   await assertFamilyAction(me, "comment");
   const comment = await addComment(String(formData.get("postId") ?? ""), me.accountId, String(formData.get("body") ?? ""));
@@ -1438,7 +1438,7 @@ export async function commentAction(formData: FormData) {
 
 export async function createConsentAction(formData: FormData) {
   await ensureSchema();
-  const me = authAccount();
+  const me = await authAccount();
   const instituteId = await firstInstituteId();
   const childId = String(formData.get("childId") ?? "") || undefined;
   if (childId) await assertChildInScope(childId, me);
@@ -1465,7 +1465,7 @@ export async function createConsentAction(formData: FormData) {
 }
 
 export async function respondConsentAction(formData: FormData) {
-  const me = authAccount();
+  const me = await authAccount();
   // KID-112: consent responses are parent-only (family/pickup denied).
   await assertFamilyAction(me, "respondConsent");
   const consentId = String(formData.get("id") ?? "");
@@ -1487,7 +1487,7 @@ export async function respondConsentAction(formData: FormData) {
 }
 
 export async function createIncidentAction(formData: FormData) {
-  const me = authAccount();
+  const me = await authAccount();
   await ensureSchema();
   const instituteId = await firstInstituteId();
   const childId = String(formData.get("childId") ?? "");
@@ -1515,7 +1515,7 @@ export async function createIncidentAction(formData: FormData) {
 }
 
 export async function acknowledgeIncidentAction(formData: FormData) {
-  const me = authAccount();
+  const me = await authAccount();
   // KID-112: incident acknowledgement is parent-only (family/pickup denied).
   await assertFamilyAction(me, "acknowledgeIncident");
   const incidentId = String(formData.get("id") ?? "");
@@ -1538,7 +1538,7 @@ export async function acknowledgeIncidentAction(formData: FormData) {
 
 export async function addChildAction(formData: FormData) {
   await ensureSchema();
-  const me = authAccount();
+  const me = await authAccount();
   const instituteId = await firstInstituteId();
 
   // #4a: a child cannot exist without at least one parent/guardian who will
@@ -1690,7 +1690,7 @@ export async function addStaffAction(formData: FormData) {
   await requireAdmin();
   await ensureSchema();
   const instituteId = await firstInstituteId();
-  const me = authAccount();
+  const me = await authAccount();
   const fullName = String(formData.get("fullName") ?? "").trim();
   const role = String(formData.get("role") ?? "carer");
   const email = String(formData.get("email") ?? "").trim().toLowerCase();
@@ -1732,7 +1732,7 @@ export async function addStaffAction(formData: FormData) {
         await getSupabase().auth.signUp({
           email,
           password,
-          options: { emailRedirectTo: `${publicOrigin(requestOrigin())}/auth/confirm` },
+          options: { emailRedirectTo: `${await publicOrigin(await requestOrigin())}/auth/confirm` },
         });
         console.log(`KID-111 staffInvite: GoTrue identity created for staff ${email}`);
       } catch (err) {
@@ -1816,7 +1816,7 @@ export async function linkStaffLoginAction(formData: FormData) {
       await getSupabase().auth.signUp({
         email,
         password,
-        options: { emailRedirectTo: `${publicOrigin(requestOrigin())}/auth/confirm` },
+        options: { emailRedirectTo: `${await publicOrigin(await requestOrigin())}/auth/confirm` },
       });
     } catch (err) {
       console.error(
@@ -1846,7 +1846,7 @@ async function bestEffortParentGoTrueSignUp(email: string, password: string): Pr
     await getSupabase().auth.signUp({
       email,
       password,
-      options: { emailRedirectTo: `${publicOrigin(requestOrigin())}/auth/confirm` },
+      options: { emailRedirectTo: `${await publicOrigin(await requestOrigin())}/auth/confirm` },
     });
   } catch (err) {
     console.error(
@@ -1864,7 +1864,7 @@ async function bestEffortParentGoTrueSignUp(email: string, password: string): Pr
 // clears must_change_password so the temp-password banner disappears.
 export async function changePasswordAction(formData: FormData) {
   await ensureSchema();
-  const me = authAccount();
+  const me = await authAccount();
   const account = await getAccount(me.accountId);
   if (!account) redirect("/login");
 
@@ -1921,7 +1921,7 @@ export async function changePasswordAction(formData: FormData) {
 // child-scope assert. Never puts the credential in a redirect URL.
 export async function createParentLoginAction(formData: FormData) {
   await ensureSchema();
-  const me = authAccount();
+  const me = await authAccount();
   const instituteId = await firstInstituteId();
   // KID-733: a parent account can never exist without a child. The child is
   // now REQUIRED, scope-checked against the caller, and verified to live in
@@ -2019,7 +2019,7 @@ export async function addRoomAction(formData: FormData) {
   await requireAdmin();
   await ensureSchema();
   const instituteId = await firstInstituteId();
-  const me = authAccount();
+  const me = await authAccount();
   const room = await createRoom(
     String(instituteId),
     String(formData.get("name") ?? ""),
@@ -2071,7 +2071,7 @@ export async function updateRoomAction(formData: FormData) {
 
 // #5b child status log: one timestamped entry per interaction, multiple per day.
 export async function saveChildStatusAction(formData: FormData) {
-  const me = authAccount();
+  const me = await authAccount();
   await ensureSchema();
   const childId = String(formData.get("childId") ?? "");
   if (childId) await assertChildInScope(childId, me);
@@ -2099,7 +2099,7 @@ export async function saveChildStatusAction(formData: FormData) {
 }
 
 export async function addContactAction(formData: FormData) {
-  const me = authAccount();
+  const me = await authAccount();
   const childId = String(formData.get("childId") ?? "");
   if (childId) await assertChildInScope(childId, me);
   // KID-112: relationship is a required 4-option enum — reject free text.
@@ -2153,7 +2153,7 @@ export async function addContactAction(formData: FormData) {
  */
 export async function updateContactAction(formData: FormData) {
   await requireAdmin();
-  const me = authAccount();
+  const me = await authAccount();
   const contactId = String(formData.get("contactId") ?? "").trim();
   if (!contactId) redirect("/portal/children?error=contact");
 
@@ -2186,7 +2186,7 @@ export async function updateContactAction(formData: FormData) {
 
 export async function inviteParentAction(formData: FormData) {
   await ensureSchema();
-  const me = authAccount();
+  const me = await authAccount();
   const instituteId = await firstInstituteId();
   // KID-733: an invite that activates into an account must always carry a
   // valid child link — a childless invite can only ever produce an orphan
@@ -2231,7 +2231,7 @@ export async function inviteParentAction(formData: FormData) {
     relationship
   );
   // KID-119: parent devices fetch this link, so use the public host.
-  const origin = publicOrigin(requestOrigin());
+  const origin = await publicOrigin(await requestOrigin());
   // Log the canonical activation message so the invite is verifiable in logs
   // even when no mail provider is wired.
   let childName: string | undefined;
@@ -2261,7 +2261,7 @@ export async function inviteParentAction(formData: FormData) {
 // (no redirect) so both form and client-component callers can render feedback.
 export async function resendParentInviteAction(formData: FormData) {
   await ensureSchema();
-  const me = authAccount();
+  const me = await authAccount();
   if (!isAdminRole(me.role)) return { error: "Only admins can resend invites." };
   const inviteId = String(formData.get("inviteId") ?? "").trim();
   const invite = inviteId ? await getInviteById(inviteId) : undefined;
@@ -2319,7 +2319,7 @@ export async function resendParentInviteAction(formData: FormData) {
   }
 
   // KID-119: parent devices fetch this link, so use the public host.
-  const origin = publicOrigin(requestOrigin());
+  const origin = await publicOrigin(await requestOrigin());
   const parentName = await contactNameForInvite(
     invite.child_id ? String(invite.child_id) : null,
     email
@@ -2351,7 +2351,7 @@ export async function resendParentInviteAction(formData: FormData) {
 // buttons. Logs every attempt on the invite row + activation_resend_log.
 export async function sendInviteForContactAction(formData: FormData) {
   await ensureSchema();
-  const me = authAccount();
+  const me = await authAccount();
   if (!isAdminRole(me.role)) return { error: "Only admins can send invites." };
   const childId = String(formData.get("childId") ?? "").trim();
   if (!childId) return { error: "Missing child." };
@@ -2539,7 +2539,7 @@ function requireInstitute(): Promise<string> {
 }
 
 export async function createEventAction(formData: FormData) {
-  const me = authAccount();
+  const me = await authAccount();
   const instituteId = await requireInstitute();
   if (instituteId) {
     const event = await createEvent({
@@ -2580,7 +2580,7 @@ export async function createEventAction(formData: FormData) {
 }
 
 export async function addEventMediaAction(formData: FormData) {
-  const me = authAccount();
+  const me = await authAccount();
   const instituteId = await requireInstitute();
   const eventId = String(formData.get("eventId") ?? "");
   if (instituteId && eventId) {
@@ -2607,7 +2607,7 @@ export async function addEventMediaAction(formData: FormData) {
 }
 
 export async function createFormAction(formData: FormData) {
-  const me = authAccount();
+  const me = await authAccount();
   const instituteId = await requireInstitute();
   const title = String(formData.get("title") ?? "");
   const kind = String(formData.get("kind") ?? "form");
@@ -2653,7 +2653,7 @@ export async function createFormAction(formData: FormData) {
 }
 
 export async function submitFormAction(formData: FormData) {
-  const me = authAccount();
+  const me = await authAccount();
   // KID-112: form submissions are parent-only (family/pickup denied).
   await assertFamilyAction(me, "submitForm");
   const formId = String(formData.get("formId") ?? "");
@@ -2693,7 +2693,7 @@ export async function createTagAction(formData: FormData) {
   // KID-372: this action had no session guard and requireInstitute() fell
   // back to the first-created institute — an unauthenticated POST wrote a tag
   // into that daycare. Tags belong to the signed-in session's request tenant.
-  const me = requireAuthSession();
+  const me = await requireAuthSession();
   const instituteId = await requireInstitute();
   if (instituteId) {
     await createTag(
@@ -2709,7 +2709,7 @@ export async function createTagAction(formData: FormData) {
 }
 
 export async function setChildTagsAction(formData: FormData) {
-  const me = authAccount();
+  const me = await authAccount();
   const childId = String(formData.get("childId") ?? "");
   if (childId) {
     await assertChildInScope(childId, me);
@@ -2719,7 +2719,7 @@ export async function setChildTagsAction(formData: FormData) {
 }
 
 export async function addDriveFileAction(formData: FormData) {
-  const me = authAccount();
+  const me = await authAccount();
   const instituteId = await requireInstitute();
   const childId = String(formData.get("childId") ?? "") || undefined;
   if (instituteId) {
@@ -2763,7 +2763,7 @@ export async function addDriveFileAction(formData: FormData) {
 }
 
 export async function createObservationAction(formData: FormData) {
-  const me = authAccount();
+  const me = await authAccount();
   const instituteId = await requireInstitute();
   const childId = String(formData.get("childId") ?? "");
   const body = String(formData.get("body") ?? "").trim();
@@ -2835,7 +2835,7 @@ export async function accountName(accountId: string): Promise<string> {
 }
 
 export async function createSupportTicketAction(formData: FormData) {
-  const me = authAccount();
+  const me = await authAccount();
   // KID-112: support tickets are parent-only (family/pickup denied).
   await assertFamilyAction(me, "createSupportTicket");
   const instituteId = await requireInstitute();
@@ -2865,7 +2865,7 @@ export async function setTicketStatusAction(formData: FormData) {
   // KID-372: this action had no session guard at all and updated ANY support
   // ticket by raw id (a cross-center write an anonymous POST could reach).
   // The ticket must belong to the signed-in session's request tenant.
-  const me = requireAuthSession();
+  const me = await requireAuthSession();
   await ensureSchema();
   const ticketId = String(formData.get("ticketId") ?? "");
   const status = String(formData.get("status") ?? "open");
@@ -2891,7 +2891,7 @@ export async function setTicketStatusAction(formData: FormData) {
 }
 
 export async function sendMessageAction(formData: FormData) {
-  const me = authAccount();
+  const me = await authAccount();
   const recipient = String(formData.get("recipientId") ?? "");
   const body = String(formData.get("body") ?? "").trim();
   await ensureSchema();
@@ -2922,7 +2922,7 @@ export async function sendMessageAction(formData: FormData) {
 const MAX_ATTACHMENT_BYTES = 1_500_000;
 
 export async function sendComposerAction(formData: FormData) {
-  const me = authAccount();
+  const me = await authAccount();
   await ensureSchema();
   const instituteId = await firstInstituteId();
   const body = String(formData.get("body") ?? "").trim();
@@ -3065,7 +3065,7 @@ export async function sendComposerAction(formData: FormData) {
 // KID-56: reply inside a thread — fans out to every other participant so a
 // group reply stays in the same shared thread for all to see.
 export async function replyThreadAction(formData: FormData) {
-  const me = authAccount();
+  const me = await authAccount();
   await ensureSchema();
   const instituteId = await firstInstituteId();
   const threadId = String(formData.get("threadId") ?? "");
@@ -3096,7 +3096,7 @@ export async function replyThreadAction(formData: FormData) {
 }
 
 export async function sendParentMessageAction(formData: FormData) {
-  const me = authAccount();
+  const me = await authAccount();
   // KID-112: pickup accounts may only register pickup time — no messaging.
   await assertFamilyAction(me, "sendMessage");
   const recipient = String(formData.get("recipientId") ?? "");
@@ -3197,7 +3197,7 @@ export async function uploadBrandingImageAction(formData: FormData) {
 // ---- #5a / #7b Photo upload ----
 export async function uploadPhotoAction(formData: FormData) {
   await ensureSchema();
-  const me = authAccount();
+  const me = await authAccount();
   const entityType = String(formData.get("entityType") ?? ""); // "child" | "staff"
   const entityId = String(formData.get("entityId") ?? "");
   const file = formData.get("file") as File | null;
@@ -3257,7 +3257,7 @@ export async function uploadPhotoAction(formData: FormData) {
 // KID-107: staff upload their own photo from Account Settings.
 export async function uploadAccountPhotoAction(formData: FormData) {
   await ensureSchema();
-  const me = authAccount();
+  const me = await authAccount();
   const staffId = String(formData.get("staffId") ?? "");
   const file = formData.get("file") as File | null;
   if (!file || file.size === 0 || !staffId) {
@@ -3289,7 +3289,7 @@ export async function uploadAccountPhotoAction(formData: FormData) {
 // KID-55 #5: edit child's details from the About tab.
 export async function updateChildDetailsAction(formData: FormData) {
   await ensureSchema();
-  const me = authAccount();
+  const me = await authAccount();
   const childId = String(formData.get("childId") ?? "");
   if (!childId) redirect("/portal/children");
   await assertChildInScope(childId, me);
@@ -3335,7 +3335,7 @@ export async function updateChildDetailsAction(formData: FormData) {
 // ---- #4b Admin child billing ----
 export async function addChildBillingAction(formData: FormData) {
   await ensureSchema();
-  const me = authAccount();
+  const me = await authAccount();
   const instituteId = await firstInstituteId();
   const childId = String(formData.get("childId") ?? "");
   if (!instituteId || !childId) redirect("/portal/children");
@@ -3381,7 +3381,7 @@ export async function addChildBillingAction(formData: FormData) {
 }
 
 export async function updateBillingStatusAction(formData: FormData) {
-  const me = authAccount();
+  const me = await authAccount();
   const billingId = String(formData.get("billingId") ?? "");
   const status = String(formData.get("status") ?? "pending");
   const childId = String(formData.get("childId") ?? "");
@@ -3417,7 +3417,7 @@ export async function updateBillingStatusAction(formData: FormData) {
 // payment_proof_uploaded_at) appears once per invoice state, never per page
 // load.
 export async function uploadPaymentProofAction(formData: FormData) {
-  const me = requireAuthSession();
+  const me = await requireAuthSession();
   const billingId = String(formData.get("billingId") ?? "");
   const file = formData.get("file") as File | null;
   // The invoice row is the authority for tenancy AND the family check below;
@@ -3509,7 +3509,7 @@ export async function uploadPaymentProofAction(formData: FormData) {
 // history afterwards. A replacement upload before payment replaces the whole
 // proof snapshot (three columns move together — lib/billing.ts writer).
 export async function uploadDaycareInvoiceProofAction(formData: FormData) {
-  const me = requireAuthSession();
+  const me = await requireAuthSession();
   const invoiceId = String(formData.get("invoiceId") ?? "");
   const file = formData.get("file") as File | null;
   const back = "/portal/account-billing";
@@ -3593,7 +3593,7 @@ export async function uploadDaycareInvoiceProofAction(formData: FormData) {
 
 // ---- #8 Newsfeed likes (client calls this) ----
 export async function toggleLikeAction(formData: FormData) {
-  const me = authAccount();
+  const me = await authAccount();
   // KID-112: pickup accounts may only register pickup time — no likes.
   await assertFamilyAction(me, "toggleLike");
   const postId = String(formData.get("postId") ?? "");
@@ -3612,13 +3612,13 @@ export async function toggleLikeAction(formData: FormData) {
       });
     }
   }
-  const referer = headers().get("referer") || "/portal/newsfeed";
+  const referer = (await headers()).get("referer") || "/portal/newsfeed";
   redirect(referer);
 }
 
 // ---- #3 Newsfeed post with local-drive attachment (no URL field) ----
 export async function createNewsfeedWithAttachmentAction(formData: FormData) {
-  const me = authAccount();
+  const me = await authAccount();
   await ensureSchema();
   const instituteId = await firstInstituteId();
   const body = String(formData.get("body") ?? "");
@@ -3653,7 +3653,7 @@ export async function createNewsfeedWithAttachmentAction(formData: FormData) {
 
 // ---- KID-47 Round 6: homework assign (#8) ----
 export async function assignHomeworkAction(formData: FormData) {
-  const me = authAccount();
+  const me = await authAccount();
   await ensureSchema();
   const { createHomework, createNewsfeedPost, listChildren } = await import("@/lib/store");
   const instituteId = await requireInstitute();
@@ -3698,7 +3698,7 @@ export async function assignHomeworkAction(formData: FormData) {
 
 // ---- KID-47 Round 6: supplies (#9) ----
 export async function createSupplyAction(formData: FormData) {
-  const me = authAccount();
+  const me = await authAccount();
   await ensureSchema();
   const { createSupply, createNewsfeedPost, listChildren } = await import("@/lib/store");
   const instituteId = await requireInstitute();
@@ -3746,7 +3746,7 @@ export async function createSupplyAction(formData: FormData) {
 }
 
 export async function updateSupplyStatusAction(formData: FormData) {
-  const me = authAccount();
+  const me = await authAccount();
   await ensureSchema();
   const { updateSupplyStatus, createNewsfeedPost, listChildren } = await import("@/lib/store");
   const { queryGet } = await import("@/lib/db");
@@ -3794,7 +3794,7 @@ export async function updateSupplyStatusAction(formData: FormData) {
 
 // ---- KID-47 Round 6: staff schedules (#13) ----
 export async function createStaffScheduleAction(formData: FormData) {
-  const me = authAccount();
+  const me = await authAccount();
   await ensureSchema();
   const { createStaffSchedule } = await import("@/lib/store");
   let staffId = String(formData.get("staffId") ?? "");
@@ -3816,7 +3816,7 @@ export async function createStaffScheduleAction(formData: FormData) {
 }
 
 export async function deleteStaffScheduleAction(formData: FormData) {
-  const me = authAccount();
+  const me = await authAccount();
   const { deleteStaffSchedule } = await import("@/lib/store");
   const id = String(formData.get("id") ?? "");
   // KID-105 #13: non-admins can only delete their own shifts.
@@ -3831,7 +3831,7 @@ export async function deleteStaffScheduleAction(formData: FormData) {
 
 // ---- KID-47 Round 6 / KID-107: notification prefs live on Account Settings ----
 export async function saveNotificationPrefsAction(formData: FormData) {
-  const me = authAccount();
+  const me = await authAccount();
   await ensureSchema();
   const { setNotificationPref, NOTIFICATION_ACTIVITIES } = await import("@/lib/store");
   for (const activity of NOTIFICATION_ACTIVITIES as readonly string[]) {
@@ -3845,7 +3845,7 @@ export async function saveNotificationPrefsAction(formData: FormData) {
 
 // ---- KID-474: parent notification center + preferences ----
 export async function markNotificationReadAction(formData: FormData) {
-  const me = authAccount();
+  const me = await authAccount();
   await ensureSchema();
   const { markAllNotificationsRead, markNotificationRead } = await import("@/lib/store");
   const id = String(formData.get("id") ?? "");
@@ -3862,7 +3862,7 @@ export async function markNotificationReadAction(formData: FormData) {
 }
 
 export async function saveParentNotificationPrefsAction(formData: FormData) {
-  const me = authAccount();
+  const me = await authAccount();
   await ensureSchema();
   const { setNotificationPref, PARENT_NOTIFICATION_ACTIVITIES } = await import("@/lib/store");
   for (const activity of PARENT_NOTIFICATION_ACTIVITIES as readonly string[]) {
@@ -3882,7 +3882,7 @@ export async function generateFormShareLinkAction(formData: FormData) {
   // KID-372: authed was the only gate — formId came in raw and minted a
   // public share token for ANOTHER center's form. The form must belong to
   // the request tenant before a token is minted for it.
-  const me = requireAuthSession();
+  const me = await requireAuthSession();
   const { ensureFormShareToken } = await import("@/lib/store");
   const formId = String(formData.get("formId") ?? "");
   if (formId) {
@@ -3911,7 +3911,7 @@ export async function submitPublicFormAction(formData: FormData) {
 
 // Staff presence / availability status (staff profile card).
 export async function logStaffStatusAction(formData: FormData) {
-  const me = authAccount();
+  const me = await authAccount();
   await ensureSchema();
   const { logStaffStatus } = await import("@/lib/store");
   const staffId = String(formData.get("staffId") ?? "");
@@ -3978,7 +3978,7 @@ export async function setFormResponseStatusAction(formData: FormData) {
   // KID-372: authed but responseId was never verified against the session's
   // institute — a cross-center status flip on any raw id. form_response has
   // no institute column; tenancy comes from the response's own form.
-  const me = requireAuthSession();
+  const me = await requireAuthSession();
   await ensureSchema();
   const { setFormResponseStatus } = await import("@/lib/store");
   const responseId = String(formData.get("responseId") ?? "");
@@ -4002,7 +4002,7 @@ export async function setFormResponseStatusAction(formData: FormData) {
 export async function createSmartListAction(formData: FormData) {
   // KID-372: same anonymous first-institute write path as createTagAction —
   // hold a session, write into the request tenant only (fail closed).
-  const me = requireAuthSession();
+  const me = await requireAuthSession();
   const instituteId = await requireInstitute();
   const name = String(formData.get("name") ?? "").trim();
   const { createTag } = await import("@/lib/store");
@@ -4021,7 +4021,7 @@ export async function createSmartListAction(formData: FormData) {
 // checks so a forged post cannot spam confirmed users. Rate-limited per
 // target address and per admin, with every attempt audit-logged.
 export async function resendActivationAction(formData: FormData) {
-  const me = authAccount();
+  const me = await authAccount();
   if (!isAdminRole(me.role)) {
     return { error: "Only admins can resend activation emails." };
   }
@@ -4104,7 +4104,7 @@ export async function resendActivationAction(formData: FormData) {
     // Fallback: a recovery email also reaches the GoTrue identity when the
     // signup-resend path rejects (e.g. user already exists server-side).
     const recovery = await getSupabase().auth.resetPasswordForEmail(email, {
-      redirectTo: `${publicOrigin(requestOrigin())}/reset-password`,
+      redirectTo: `${await publicOrigin(await requestOrigin())}/reset-password`,
     });
     if (!recovery.error) {
       await logResendAttempt({
@@ -4125,7 +4125,7 @@ export async function resendActivationAction(formData: FormData) {
       const pending = await getPendingInvitesByEmail(email);
       if (pending.length > 0) {
         const inviteResult = await sendParentInviteEmail(pending[0], {
-          origin: publicOrigin(requestOrigin()),
+          origin: await publicOrigin(await requestOrigin()),
           isResend: true,
         });
         await logResendAttempt({
@@ -4169,7 +4169,7 @@ export async function resendActivationAction(formData: FormData) {
 // the same daycare is refused with a friendly message — no client-visible
 // stack, no silent swallow (the unexpected path rethrows).
 export async function createEnhancementRequestAction(formData: FormData) {
-  const session = requireSession();
+  const session = await requireSession();
   // Owner-only in the ACTION too, not only the page: a forged form post from
   // a non-owner session must not mint rows. Same test as the tab/page
   // (components/PortalSidebar.tsx, isOwnerRole) — the exact owner role, not

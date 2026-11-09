@@ -110,7 +110,7 @@ async function seedPastReport(daysAgo = 3): Promise<string> {
 async function renderStaff(date?: string): Promise<string> {
   mockState.cookie = sessionCookieFor(ownerId, "owner", "trois4ever+admin@gmail.com");
   const html = renderToStaticMarkup(
-    await StaffChildPage({ params: { id: ella }, searchParams: date ? { date } : {} })
+    await StaffChildPage({ params: Promise.resolve({ id: ella }), searchParams: Promise.resolve(date ? { date } : {}) })
   );
   return html;
 }
@@ -118,7 +118,7 @@ async function renderStaff(date?: string): Promise<string> {
 async function renderParent(date?: string): Promise<string> {
   mockState.cookie = sessionCookieFor(parentAccountId, "parent", "parent@example.test");
   return renderToStaticMarkup(
-    await ParentChildPage({ params: { id: ella }, searchParams: date ? { date } : {} })
+    await ParentChildPage({ params: Promise.resolve({ id: ella }), searchParams: Promise.resolve(date ? { date } : {}) })
   );
 }
 
@@ -197,8 +197,8 @@ describe("KID-472 item 4: permissions are date-independent", () => {
     mockState.cookie = sessionCookieFor(parentAccountId, "parent", "parent@example.test");
     await expect(
       ParentChildPage({
-        params: { id: String(mapleChild.id) },
-        searchParams: { date: shiftIsoDate(todayIso(), -2) },
+        params: Promise.resolve({ id: String(mapleChild.id) }),
+        searchParams: Promise.resolve({ date: shiftIsoDate(todayIso(), -2) }),
       })
     ).rejects.toThrow("NEXT_NOT_FOUND");
   });

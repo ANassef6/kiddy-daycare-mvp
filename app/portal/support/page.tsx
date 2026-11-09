@@ -12,12 +12,13 @@ export const dynamic = "force-dynamic";
 // ticket inbox keeps its own route (/portal/support-inbox); this page no
 // longer advertises it (KID-428 acceptance: no "open the support inbox"
 // button). The page chrome speaks the help language (KID-403).
-export default async function PortalSupportPage({
-  searchParams,
-}: {
-  searchParams: { [key: string]: string | string[] | undefined };
-}) {
-  const session = requireSession();
+export default async function PortalSupportPage(
+  props: {
+    searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
+  }
+) {
+  const searchParams = await props.searchParams;
+  const session = await requireSession();
   const { locale } = await i18nForAccount(session.accountId);
   const language = await helpLanguageForRequest(searchParams.lang, locale);
   const dict = getDictionary(language);

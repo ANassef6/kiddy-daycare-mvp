@@ -22,12 +22,13 @@ const DEVELOPMENT: MetricDef[] = [
 
 // KID-221: staff performance was fully English (title, filter form, metric
 // labels, deep dives, and the English "Last updated" timestamp). Localized.
-export default async function PortalPerformancePage({
-  searchParams,
-}: {
-  searchParams?: { staffId?: string; from?: string; to?: string };
-}) {
-  const session = requireSession();
+export default async function PortalPerformancePage(
+  props: {
+    searchParams?: Promise<{ staffId?: string; from?: string; to?: string }>;
+  }
+) {
+  const searchParams = await props.searchParams;
+  const session = await requireSession();
   const { locale, dict } = await i18nForAccount(session.accountId);
   const t = (key: string, vars?: Record<string, string | number>) => tr(dict, key, vars);
   const instituteId = await firstInstituteId();

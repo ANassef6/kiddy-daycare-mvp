@@ -99,7 +99,7 @@ async function renderModelPages(): Promise<Record<string, string>> {
     newsfeed: renderToStaticMarkup(await newsfeed.default()),
     events: renderToStaticMarkup(await events.default()),
     drive: renderToStaticMarkup(await drive.default()),
-    forms: renderToStaticMarkup(await forms.default({ searchParams: {} })),
+    forms: renderToStaticMarkup(await forms.default({ searchParams: Promise.resolve({}) })),
     consents: renderToStaticMarkup(await consents.default()),
   };
 }
@@ -171,7 +171,7 @@ describe("KID-368 (DEF-004): the i18n dictionary carries both locales", () => {
 describe("KID-368 (DEF-004): the login page renders both languages", () => {
   it("EN rendering is unchanged (default, no lang cookie)", async () => {
     const { default: LoginPage } = await import("@/app/login/page");
-    const html = renderToStaticMarkup(await LoginPage({ searchParams: {} }));
+    const html = renderToStaticMarkup(await LoginPage({ searchParams: Promise.resolve({}) }));
     expect(html).toContain("Sign in");
     expect(html).toContain("Email");
     expect(html).toContain("Password");
@@ -183,7 +183,7 @@ describe("KID-368 (DEF-004): the login page renders both languages", () => {
   it("with kiddy_lang=ar every user-facing string renders in Arabic", async () => {
     const { default: LoginPage } = await import("@/app/login/page");
     mockCookies = { kiddy_lang: "ar" };
-    const html = renderToStaticMarkup(await LoginPage({ searchParams: {} }));
+    const html = renderToStaticMarkup(await LoginPage({ searchParams: Promise.resolve({}) }));
     // No English literals from the audit
     for (const e of ["Sign in", "Welcome back", ">Email<", ">Password<", "Forgot your password?", "Activate your account"]) {
       expect(html).not.toContain(e);
@@ -198,7 +198,7 @@ describe("KID-368 (DEF-004): the login page renders both languages", () => {
     const { default: LoginPage } = await import("@/app/login/page");
     mockCookies = { kiddy_lang: "ar" };
     const html = renderToStaticMarkup(
-      await LoginPage({ searchParams: { error: "wrong-tenant", tenant: "Sunshine Daycare" } })
+      await LoginPage({ searchParams: Promise.resolve({ error: "wrong-tenant", tenant: "Sunshine Daycare" }) })
     );
     expect(html).toContain("dir=\"auto\"");
     expect(html).toContain("<bdi>");

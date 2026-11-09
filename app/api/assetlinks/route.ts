@@ -11,7 +11,7 @@ export const dynamic = "force-dynamic";
 // packages (see lib/twa.ts).
 export async function GET() {
   try {
-    const host = (await import("next/headers")).headers().get("host");
+    const host = (await (await import("next/headers")).headers()).get("host");
     const statements = assetLinksForHost(host);
     if (!statements) {
       // Fail closed like the tenant surfaces: a host without a registered TWA

@@ -13,7 +13,7 @@ const DAYS = [
 ];
 
 export default async function PortalStaffSchedulePage() {
-  const session = requireSession();
+  const session = await requireSession();
   const instituteId = await firstInstituteId();
   if (!instituteId) return <p className="muted">No institute configured.</p>;
 

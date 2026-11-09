@@ -41,7 +41,7 @@ export const dynamic = "force-dynamic";
 // choice. Deriving both from the same value also keeps dir/lang in lockstep
 // with every page's `i18nForAccount` dictionary.
 async function resolveLocale(): Promise<Locale> {
-  const cookieStore = cookies();
+  const cookieStore = await cookies();
   const langCookie = cookieStore.get(LANG_COOKIE)?.value;
   let accountLanguage: string | null | undefined = null;
   try {

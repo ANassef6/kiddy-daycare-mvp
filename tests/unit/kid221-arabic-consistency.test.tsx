@@ -117,7 +117,14 @@ function isWordy(token: string): boolean {
 
 function visibleText(html: string): string[] {
   // Drop comments + tags wholesale; what remains is only text content.
+  // KID-1176: also drop <script> elements — React 19's SSR injects a
+  // machine-facing submit shim (<script>addEventListener("submit",…)</script>)
+  // next to every form it renders (and renders unresolved server actions as a
+  // `javascript:throw` action attribute in the bare-renderToStaticMarkup
+  // harness). Script payloads are browser machinery, never visible UI text,
+  // so they never belonged in the English-leak scan.
   return html
+    .replace(/<script[\s\S]*?<\/script>/gi, " ")
     .replace(/<!--[\s\S]*?-->/g, " ")
     .replace(/<[^>]*>/g, " ")
     .split(/\s+/);
@@ -243,7 +250,7 @@ describe("KID-221: Arabic staff/admin pages render without English UI strings", 
       name: "/portal/events",
       render: async () => {
         const { default: Page } = await import("@/app/portal/events/page");
-        return renderToStaticMarkup((await Page({ searchParams: {} })) as never);
+        return renderToStaticMarkup((await Page({ searchParams: Promise.resolve({}) })) as never);
       },
     },
     {
@@ -313,7 +320,7 @@ describe("KID-221: Arabic staff/admin pages render without English UI strings", 
       name: "/portal/report-center",
       render: async () => {
         const { default: Page } = await import("@/app/portal/report-center/page");
-        return renderToStaticMarkup((await Page({ searchParams: {} })) as never);
+        return renderToStaticMarkup((await Page({ searchParams: Promise.resolve({}) })) as never);
       },
     },
     {
@@ -322,7 +329,7 @@ describe("KID-221: Arabic staff/admin pages render without English UI strings", 
         // KID-491: the settings surface accepts ?error=… bounces; plain render
         // passes an empty searchParams like the other parameterized pages.
         const { default: Page } = await import("@/app/portal/settings/page");
-        return renderToStaticMarkup((await Page({ searchParams: {} })) as never);
+        return renderToStaticMarkup((await Page({ searchParams: Promise.resolve({}) })) as never);
       },
     },
   ];

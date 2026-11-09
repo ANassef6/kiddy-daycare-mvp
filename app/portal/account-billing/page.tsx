@@ -47,12 +47,9 @@ const STATUS_TONE: Record<DaycareInvoice["status"], string> = {
   overdue: "badge-red",
 };
 
-export default async function PortalAccountBillingPage(
-  // KID-737: uploadDaycareInvoiceProofAction bounces back here with
-  // ?proof=uploaded (success) and ?proofError=* (the friendly banners below).
-  { searchParams }: { searchParams?: { proof?: string; proofError?: string } }
-) {
-  const session = requireSession();
+export default async function PortalAccountBillingPage(props: { searchParams?: Promise<{ proof?: string; proofError?: string }> }) {
+  const searchParams = await props.searchParams;
+  const session = await requireSession();
   if (!isOwnerRole(session.role)) {
     // Admins, staff and carers render the portal; parents have their own
     // shell. Nothing here is theirs to see — a redirect is a quiet refusal.

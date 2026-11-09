@@ -108,7 +108,7 @@ afterEach(() => {
 });
 
 async function renderMessagesPage(searchParams: { thread?: string; to?: string; error?: string } = {}) {
-  return renderToStaticMarkup(await ParentMessagesPage({ searchParams }));
+  return renderToStaticMarkup(await ParentMessagesPage({ searchParams: Promise.resolve(searchParams) }));
 }
 
 /** A thread the seeded parent can open: owner Nassef is classroom staff for the parent's children. */

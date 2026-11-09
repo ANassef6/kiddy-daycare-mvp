@@ -19,7 +19,7 @@ import { recordToolUsage } from "@/lib/tool-usage";
 export const dynamic = "force-dynamic";
 
 export default async function PortalDashboard() {
-  const session = requireSession();
+  const session = await requireSession();
   const { locale, dict } = await i18nForAccount(session.accountId);
   const instituteId = await resolveTenantInstituteId();
   if (!instituteId) {

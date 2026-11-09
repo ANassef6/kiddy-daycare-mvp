@@ -25,14 +25,16 @@ const STATUS_KIND_LABEL: Record<string, string> = {
   child_sick: "Child sick",
 };
 
-export default async function StaffProfilePage({ params, searchParams }: { params: { id: string }; searchParams?: { edit?: string; linked?: string; existing?: string; error?: string } }) {
-  const session = requireSession();
+export default async function StaffProfilePage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams?: Promise<{ edit?: string; linked?: string; existing?: string; error?: string }> }) {
+  const { id: staffIdParam } = await params;
+  const search = (await searchParams) ?? {};
+  const session = await requireSession();
   const iid = await resolveTenantInstituteId();
 
   // KID-105 #13: staff can only view their own profile.
   if (!isAdminRole(session.role)) {
     const myStaffId = await staffIdForAccount(session.accountId);
-    if (myStaffId && myStaffId !== params.id) {
+    if (myStaffId && myStaffId !== staffIdParam) {
       redirect(`/portal/staff/${myStaffId}`);
     }
     if (!myStaffId) {
@@ -40,7 +42,7 @@ export default async function StaffProfilePage({ params, searchParams }: { param
     }
   }
 
-  const staff = iid ? (await listStaff(iid)).find((s: any) => String(s.id) === params.id) : undefined;
+  const staff = iid ? (await listStaff(iid)).find((s: any) => String(s.id) === staffIdParam) : undefined;
   if (!staff) notFound();
   const [rooms, schedules, logins, statusLog, activity] = await Promise.all([
     staffRooms(staff.id),
@@ -62,10 +64,10 @@ export default async function StaffProfilePage({ params, searchParams }: { param
     {
       id: "profile",
       label: "Profile",
-      node: profileTab(staff, rooms, email, statusLog, activity, searchParams?.edit, hasLogin, {
-        linked: searchParams?.linked,
-        existing: searchParams?.existing,
-        error: searchParams?.error,
+      node: profileTab(staff, rooms, email, statusLog, activity, search.edit, hasLogin, {
+        linked: search.linked,
+        existing: search.existing,
+        error: search.error,
       }),
     },
     { id: "calendar", label: "Calendar", node: calendarTab(schedules) },
