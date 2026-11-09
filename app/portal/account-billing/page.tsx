@@ -8,6 +8,13 @@
 // owner role (components/PortalSidebar.tsx), and this page re-checks the
 // session so a direct URL visit by any other role is rejected — the tab and
 // the route can never drift apart (lib/role.ts isOwnerRole).
+//
+// KID-737: on this page every unpaid invoice (pending or overdue) also gets
+// the platform-wide "Pay with Instapay" link (the operator sets it on
+// /platform — one link for the whole platform, never a per-daycare one) and
+// a payment-proof upload with an optional payment reference. The upload
+// never changes the invoice status: the platform operator reviews the proof
+// and keeps marking the invoice paid through the existing control.
 import { redirect } from "next/navigation";
 import { requireSession } from "@/lib/require";
 import { isOwnerRole } from "@/lib/role";
@@ -16,7 +23,9 @@ import { i18nForAccount } from "@/lib/i18n-session";
 import { tr } from "@/lib/i18n";
 import { getInstitute } from "@/lib/store";
 import { getDaycareBilling, listInvoices, type DaycareInvoice, type DaycareBilling } from "@/lib/billing";
+import { getPlatformInstapayUrl } from "@/lib/platform-settings";
 import { recordToolUsage } from "@/lib/tool-usage";
+import { uploadDaycareInvoiceProofAction } from "@/lib/actions";
 
 export const dynamic = "force-dynamic";
 
@@ -38,7 +47,11 @@ const STATUS_TONE: Record<DaycareInvoice["status"], string> = {
   overdue: "badge-red",
 };
 
-export default async function PortalAccountBillingPage() {
+export default async function PortalAccountBillingPage(
+  // KID-737: uploadDaycareInvoiceProofAction bounces back here with
+  // ?proof=uploaded (success) and ?proofError=* (the friendly banners below).
+  { searchParams }: { searchParams?: { proof?: string; proofError?: string } }
+) {
   const session = requireSession();
   if (!isOwnerRole(session.role)) {
     // Admins, staff and carers render the portal; parents have their own
@@ -62,6 +75,18 @@ export default async function PortalAccountBillingPage() {
     getDaycareBilling(instituteId),
     listInvoices(instituteId),
   ]);
+  // KID-737: the platform-wide Instapay link — one setting for the whole
+  // platform. When it is unset the Pay links hide and the owner gets the
+  // "will appear here" hint instead of a dead link.
+  const platformInstapay = await getPlatformInstapayUrl();
+  const proofSaved = searchParams?.proof === "uploaded";
+  const PROOF_ERRORS: Record<string, string> = {
+    paid: "proofErrorPaid",
+    proofType: "proofErrorType",
+    proofSize: "proofErrorSize",
+    proofUpload: "proofErrorUpload",
+  };
+  const proofErrorKey = searchParams?.proofError ? (PROOF_ERRORS[searchParams.proofError] ?? "") : "";
 
   // Upcoming/overdue state: an unpaid invoice due within 3 days is the
   // pre-disable warning window, and an overdue invoice means the enforcement
@@ -151,6 +176,18 @@ export default async function PortalAccountBillingPage() {
       </div>
 
       <h2 className="h3 mb-2">{tr(dict, "accountBilling.invoicesCard")}</h2>
+      {/* KID-737: the upload outcome says exactly what happened and what
+          comes next — the platform reviews the proof, the status is theirs. */}
+      {proofSaved && (
+        <div className="card mb-4 banner-success">
+          {tr(dict, "accountBilling.proofSaved")}
+        </div>
+      )}
+      {proofErrorKey && (
+        <div className="card mb-4 banner-error">
+          {tr(dict, `accountBilling.${proofErrorKey}`)}
+        </div>
+      )}
       {invoices.length === 0 ? (
         <div className="card">
           {billing.plan === "demo"
@@ -169,6 +206,9 @@ export default async function PortalAccountBillingPage() {
                 <th className="label" style={{ padding: 8 }}>{tr(dict, "accountBilling.colDue")}</th>
                 <th className="label" style={{ padding: 8 }}>{tr(dict, "accountBilling.colStatus")}</th>
                 <th className="label" style={{ padding: 8 }}>{tr(dict, "accountBilling.colPaid")}</th>
+                {/* KID-737: the pay link + proof upload live at the row. */}
+                <th className="label" style={{ padding: 8 }}>{tr(dict, "accountBilling.colPay")}</th>
+                <th className="label" style={{ padding: 8 }}>{tr(dict, "accountBilling.colProof")}</th>
               </tr>
             </thead>
             <tbody>
@@ -201,6 +241,89 @@ export default async function PortalAccountBillingPage() {
                   </td>
                   <td className="small" style={{ padding: 8 }}>
                     {inv.status === "paid" ? inv.paidAt.slice(0, 10) : "—"}
+                  </td>
+                  {/* KID-737: "Pay with Instapay" — the platform-wide link,
+                      only for an unpaid cycle, opened in a new tab. Nothing
+                      renders when the operator has not set a link yet —
+                      never a dead link. */}
+                  <td style={{ padding: 8 }}>
+                    {inv.status !== "paid" && platformInstapay ? (
+                      <a
+                        className="btn btn-accent"
+                        href={platformInstapay}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        {tr(dict, "accountBilling.payWithInstapay")}
+                      </a>
+                    ) : inv.status !== "paid" ? (
+                      <span className="small muted">{tr(dict, "accountBilling.payNoLink")}</span>
+                    ) : (
+                      "—"
+                    )}
+                  </td>
+                  {/* KID-737: the proof upload per unpaid invoice — PNG/JPG/
+                      PDF up to 5 MB plus an optional reference. Re-uploading
+                      before payment replaces the current proof; the status
+                      column never moves from an upload. The current proof
+                      (and the operator's review outcome) stays visible. */}
+                  <td style={{ padding: 8 }}>
+                    {inv.status !== "paid" ? (
+                      <div style={{ minWidth: 220 }}>
+                        {inv.paymentProofUrl && (
+                          <div className="small" style={{ marginBottom: 6 }}>
+                            <a href={inv.paymentProofUrl} target="_blank" rel="noreferrer">
+                              {tr(dict, "accountBilling.proofView")}
+                            </a>
+                            {inv.paymentProofUploadedAt && (
+                              <div className="small muted">
+                                {tr(dict, "accountBilling.proofUploadedOn", {
+                                  date: inv.paymentProofUploadedAt.slice(0, 10),
+                                })}
+                              </div>
+                            )}
+                            {inv.paymentReference && (
+                              <div className="small muted">{inv.paymentReference}</div>
+                            )}
+                          </div>
+                        )}
+                        <form action={uploadDaycareInvoiceProofAction}>
+                          <input type="hidden" name="invoiceId" value={inv.id} />
+                          <div className="label small">{tr(dict, "accountBilling.proofUploadLabel")}</div>
+                          <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center", marginTop: 4 }}>
+                            <input
+                              className="input"
+                              name="file"
+                              type="file"
+                              accept=".png,.jpg,.jpeg,.pdf,image/png,image/jpeg,application/pdf"
+                              required
+                              style={{ maxWidth: 200 }}
+                            />
+                            <input
+                              className="input"
+                              name="paymentReference"
+                              placeholder={tr(dict, "accountBilling.proofReferencePlaceholder")}
+                              style={{ maxWidth: 180 }}
+                            />
+                            <button className="btn btn-ghost" type="submit">
+                              {inv.paymentProofUrl
+                                ? tr(dict, "accountBilling.proofReplaceBtn")
+                                : tr(dict, "accountBilling.proofUploadBtn")}
+                            </button>
+                          </div>
+                        </form>
+                      </div>
+                    ) : (
+                      <span className="small muted">
+                        {inv.paymentProofUrl ? (
+                          <a href={inv.paymentProofUrl} target="_blank" rel="noreferrer">
+                            {tr(dict, "accountBilling.proofView")}
+                          </a>
+                        ) : (
+                          "—"
+                        )}
+                      </span>
+                    )}
                   </td>
                 </tr>
               ))}

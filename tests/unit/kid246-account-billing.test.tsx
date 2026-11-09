@@ -154,7 +154,9 @@ describe("/portal/account-billing access", () => {
 
   async function renderPage(): Promise<string> {
     const { default: Page } = await import("@/app/portal/account-billing/page");
-    return renderToStaticMarkup(await Page());
+    // KID-737 added a route searchParams prop (?proof=uploaded / ?proofError=…)
+    // — pass the no-param shape explicitly here.
+    return renderToStaticMarkup(await Page({ searchParams: {} }));
   }
 
   it("an owner session renders the plan card, rates and the invoice ledger", async () => {

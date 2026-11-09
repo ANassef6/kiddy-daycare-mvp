@@ -58,7 +58,7 @@ export default async function PortalChildPage({
   params: { id: string };
   // KID-180: the Add-contact action lands back here with the family tab +
   // the invite outcome, so the view the staff was working in survives submit.
-  searchParams: { tab?: string; date?: string; error?: string; invite?: string; email?: string; activationUrl?: string; inviteDetail?: string };
+  searchParams: { tab?: string; date?: string; error?: string; invite?: string; email?: string; activationUrl?: string; inviteDetail?: string; parent?: string };
 }) {
   const session = requireSession();
   const { locale, dict } = await i18nForAccount(session.accountId);
@@ -195,9 +195,37 @@ export default async function PortalChildPage({
   const inviteActivationUrl = String(searchParams.activationUrl ?? "").trim();
   const inviteDetail = String(searchParams.inviteDetail ?? "").trim();
   const relationshipError = searchParams.error === "relationship";
+  // KID-733: the Add-a-child flow reports its parent-login outcome here
+  // (created = fresh login, linked = the guardian email already had a parent
+  // account and it was connected to this child) — the same banner the children
+  // list shows, so the message follows the enrollment back to its child.
+  const loginOutcome = String(searchParams.parent ?? "").trim();
+  const loginOutcomeEmail = String(searchParams.email ?? "").trim();
 
   return (
     <div>
+      {loginOutcome && (
+        <div
+          role="status"
+          className="card mt-3"
+          style={{ borderLeft: `4px solid ${loginOutcome === "created" || loginOutcome === "linked" ? "#047857" : "#b91c1c"}` }}
+        >
+          <div className="small">
+            <p style={{ margin: "0 0 4px" }}>
+              <strong>{t("children.parentLoginCreated")}</strong>
+            </p>
+            {loginOutcome === "linked" && (
+              <p style={{ margin: "0 0 4px" }} className="muted">
+                {t("children.parentLoginLinked")}
+              </p>
+            )}
+            <p style={{ margin: 0 }} className="muted">
+              {t("children.parentLoginCreatedHint")}
+              {loginOutcomeEmail ? <> — <strong>{loginOutcomeEmail}</strong></> : null}
+            </p>
+          </div>
+        </div>
+      )}
       {relationshipError && (
         <div
           role="alert"

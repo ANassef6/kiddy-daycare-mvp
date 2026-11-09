@@ -324,6 +324,22 @@ export async function registerAction(formData: FormData) {
   let needsConfirmResend = false;
   let step = "findAccount";
   try {
+    // KID-733: an invite that activates into an account must always carry a
+    // valid child link in the invite's own center. Legacy childless invites
+    // (the "— any —" era) are refused activation — activating one would mint
+    // exactly the orphan parent account this issue removes. The daycare sends
+    // a fresh, child-attached invite instead.
+    const inviteChildId = String((invite as { child_id?: string }).child_id ?? "").trim();
+    if (inviteChildId) {
+      const linkedChild = await queryGet("SELECT institute_id FROM child WHERE id = ?", inviteChildId);
+      if (!linkedChild || String(linkedChild.institute_id ?? "") !== String(invite.institute_id ?? "")) {
+        console.warn(`KID-733 register: invite ${inviteCode} points at a child outside its center (or a deleted child); activation refused.`);
+        return { error: "This invite is not attached to a valid child. Ask your daycare to send a new invite." };
+      }
+    } else {
+      console.warn(`KID-733 register: legacy invite ${inviteCode} has no child link; activation refused.`);
+      return { error: "This invite is not attached to a child. Ask your daycare to send a new invite." };
+    }
     if (await findAccountByEmail(email)) {
       return { error: "An account with that email already exists." };
     }
@@ -1004,6 +1020,47 @@ export async function updateInvoiceAmountAction(formData: FormData) {
   redirect(`${back}?saved=1`);
 }
 
+// ---------------------------------------------------------------------------
+// KID-737: the platform-wide Instapay payment link. The operator's only
+// writer — the link the daycare owner's Account billing page opens for every
+// unpaid subscription invoice (the parent invoices keep their own per-invoice
+// links). The link is one PLATFORM setting (not per daycare), stored in
+// platform_setting under key 'instapay_url' (lib/platform-settings.ts).
+// ---------------------------------------------------------------------------
+
+/** KID-737: the operator sets or clears the platform Instapay link.
+ *  Validation shares lib/instapay.parsePaymentLink with the parent-invoice
+ *  link boundaries: blank clears the setting, an absolute http/https URL is
+ *  stored as given, anything else (relative paths, javascript:, ftp:, garbage)
+ *  is refused — a broken link can never be stored, so the owner side can
+ *  always safely open it in a new tab. Every save is attributed per operator. */
+export async function setPlatformInstapayAction(formData: FormData) {
+  const operator = requirePlatformOperator();
+  const link = parsePaymentLink(formData.get("instapayUrl"));
+  if (!link.ok) {
+    // Fail the save, never store a broken link; the page renders the same
+    // wording for every invalid shape (the parser returns one error code).
+    redirect("/platform?instapay=invalid");
+  }
+  const { setPlatformSetting, PLATFORM_INSTAPAY_KEY } = await import("@/lib/platform-settings");
+  await setPlatformSetting(PLATFORM_INSTAPAY_KEY, link.value, operator.accountId);
+  // KID-477: saved/cleared are both attributed, with NO URL value in the audit
+  // payload (the link is not a secret, but the trail stays value-free).
+  await recordAuditEvent({
+    instituteId: null,
+    actorAccountId: operator.accountId,
+    action: "update",
+    entityType: "platform_setting",
+    entityId: PLATFORM_INSTAPAY_KEY,
+    summary: link.value
+      ? "Set the platform Instapay payment link"
+      : "Cleared the platform Instapay payment link",
+    metadata: { key: PLATFORM_INSTAPAY_KEY, cleared: !link.value },
+  });
+  revalidatePath("/platform");
+  redirect("/platform?instapay=saved");
+}
+
 /** KID-245: the operator marks an invoice paid. The engine (lib/billing.ts)
  *  stamps paid_at and re-activates the daycare as soon as no other unpaid
  *  overdue invoice remains — the billing block lifts. */
@@ -1500,6 +1557,30 @@ export async function addChildAction(formData: FormData) {
     redirect("/portal/children?error=relationship");
   }
 
+  // KID-733: "Add a child" can create (or link) the parent login in the same
+  // flow through the optional temporary-password field. Every validation below
+  // runs BEFORE the child is created, so a rejected form writes nothing.
+  const parentLoginPassword = String(formData.get("parentLoginPassword") ?? "").trim();
+  let existingLogin: Awaited<ReturnType<typeof findAccountByEmail>> = undefined;
+  if (parentLoginPassword) {
+    // A password without a guardian email has no address to sign in with —
+    // refuse the whole flow instead of creating a login-less child.
+    if (!guardianEmail) redirect("/portal/children?error=addChildLoginNoEmail");
+    const loginEmail = guardianEmail.toLowerCase();
+    if (!isValidInviteEmail(loginEmail)) redirect("/portal/children?error=addChildLoginEmail");
+    // KID-495 parity: the 8-character minimum on every created password.
+    if (parentLoginPassword.length < 8) redirect("/portal/children?error=addChildLoginPassword");
+    existingLogin = await findAccountByEmail(loginEmail);
+    if (existingLogin) {
+      // Parent accounts are linked to the new child when they exist; any other
+      // role (staff/admin/system) must never be turned into a family account,
+      // and the child is not created for a refused enrollment.
+      if (String((existingLogin as { role?: string }).role ?? "") !== "parent") {
+        redirect("/portal/children?error=addChildLoginRole");
+      }
+    }
+  }
+
   // KID-103: staff can only add children to their assigned classrooms.
   const roomId = String(formData.get("roomId") ?? "") || undefined;
   if (instituteId && roomId) {
@@ -1528,6 +1609,63 @@ export async function addChildAction(formData: FormData) {
     isPickup: formData.get("guardianIsPickup") === "on",
     isEmergency: formData.get("guardianIsEmergency") === "on",
   });
+
+  // KID-733: the child is in; now the parent login. An existing parent account
+  // is reused and linked (no duplicate account); a fresh account is born
+  // parent-role, confirmed (the admin IS the authorization) and flagged for a
+  // password change on first sign-in. The password itself never leaves this
+  // flow — no logs, no URLs, no audit metadata.
+  let loginOutcome = "" as "" | "created" | "linked";
+  if (parentLoginPassword && existingLogin) {
+    loginOutcome = "linked";
+  } else if (parentLoginPassword && guardianEmail) {
+    const account = await createAccount({
+      email: guardianEmail.toLowerCase(),
+      password: parentLoginPassword,
+      fullName: guardianName,
+      role: "parent",
+      emailConfirmed: true,
+      mustChangePassword: true,
+    });
+    await bestEffortParentGoTrueSignUp(guardianEmail.toLowerCase(), parentLoginPassword);
+    if (instituteId) {
+      await recordAuditEvent({
+        instituteId,
+        actorAccountId: me.accountId,
+        action: "create",
+        entityType: "account",
+        entityId: String(account.id),
+        summary: `Created a parent login for ${guardianName} (${guardianEmail.toLowerCase()})`,
+        metadata: { from: "add-child", childId: String(child.id), relationship: guardianRelationship },
+      });
+    }
+    loginOutcome = "created";
+  }
+  // The link itself is shared by both outcomes: an existing parent account is
+  // attached to the new child exactly like a freshly minted one.
+  if (loginOutcome && guardianEmail) {
+    const loginEmail = guardianEmail.toLowerCase();
+    const loginAccount =
+      existingLogin ?? (await findAccountByEmail(loginEmail));
+    if (loginAccount) {
+      await linkFamily(String(loginAccount.id), String(child.id), guardianRelationship);
+    }
+    if (instituteId) {
+      // KID-142-style sibling auto-link: a parent carrying this email on other
+      // children in the same center also gains access to the new child.
+      try {
+        const { linkSiblingsByParentEmail } = await import("@/lib/store");
+        if (loginAccount) {
+          await linkSiblingsByParentEmail(String(loginAccount.id), loginEmail, String(instituteId), String(child.id));
+        }
+      } catch (err) {
+        console.error(
+          `KID-733 addChild: sibling auto-link failed for ${loginEmail}:`,
+          err instanceof Error ? err.message : err
+        );
+      }
+    }
+  }
   // KID-477: child enrollment (the create + guardian contact) is one audit
   // row — the child's own name, never the guardian's contact details.
   if (instituteId) {
@@ -1541,7 +1679,11 @@ export async function addChildAction(formData: FormData) {
       metadata: { room: roomId ?? null },
     });
   }
-  redirect(`/portal/children/${child.id}`);
+  redirect(
+    loginOutcome
+      ? `/portal/children/${child.id}?parent=${loginOutcome}&email=${encodeURIComponent(guardianEmail.toLowerCase())}`
+      : `/portal/children/${child.id}`
+  );
 }
 
 export async function addStaffAction(formData: FormData) {
@@ -1694,6 +1836,26 @@ function genTempPassword(): string {
   return out;
 }
 
+// KID-733: shared GoTrue signUp tail of every temp-password parent creation
+// (createParentLoginAction and the Add-a-child login flow). A failure must
+// never roll back the app-side account (logged, not silent) — the app-side
+// hash already signs the parent in.
+async function bestEffortParentGoTrueSignUp(email: string, password: string): Promise<void> {
+  if (!supabaseConfigured()) return;
+  try {
+    await getSupabase().auth.signUp({
+      email,
+      password,
+      options: { emailRedirectTo: `${publicOrigin(requestOrigin())}/auth/confirm` },
+    });
+  } catch (err) {
+    console.error(
+      `KID-733 parent temp login: GoTrue signUp failed for ${email}:`,
+      err instanceof Error ? err.message : err
+    );
+  }
+}
+
 // KID-495: change-password for every signed-in surface (staff/admin and
 // parent). Verifies the CURRENT password against the app hash, enforces a
 // minimum of 8 characters, updates the Supabase GoTrue password when the
@@ -1761,8 +1923,19 @@ export async function createParentLoginAction(formData: FormData) {
   await ensureSchema();
   const me = authAccount();
   const instituteId = await firstInstituteId();
-  const childId = String(formData.get("childId") ?? "") || null;
-  if (childId) await assertChildInScope(childId, me);
+  // KID-733: a parent account can never exist without a child. The child is
+  // now REQUIRED, scope-checked against the caller, and verified to live in
+  // the request tenant BEFORE any account write — a missing, forged, or
+  // out-of-center child id refuses the whole action.
+  const childId = String(formData.get("childId") ?? "").trim();
+  if (!childId) redirect("/portal/children?parent=child-required");
+  await assertChildInScope(childId, me);
+  const childRow = instituteId
+    ? await queryGet("SELECT institute_id FROM child WHERE id = ?", childId)
+    : undefined;
+  if (!childRow || String(childRow.institute_id ?? "") !== String(instituteId)) {
+    redirect("/portal/children?parent=child-required");
+  }
   const relationship = String(formData.get("relationship") ?? "parent").trim() || "parent";
   const { isContactRelationship } = await import("@/lib/contact-relationship");
   if (!isContactRelationship(relationship)) {
@@ -1787,7 +1960,7 @@ export async function createParentLoginAction(formData: FormData) {
     mustChangePassword: true,
   });
 
-  if (childId) await linkFamily(account.id, childId, relationship);
+  await linkFamily(account.id, childId, relationship);
   if (instituteId) {
     try {
       await linkSiblingsByParentEmail(account.id, email, String(instituteId), childId);
@@ -1806,28 +1979,13 @@ export async function createParentLoginAction(formData: FormData) {
       entityType: "account",
       entityId: String(account.id),
       summary: `Created a parent login for ${fullName} (${email})`,
-      metadata: { childId: childId ?? null, relationship },
+      metadata: { childId, relationship },
     });
   }
   await syncChatwootContactForAccount(String(account.id));
 
-  // Best-effort GoTrue identity so forgot-password/reset works later. A
-  // failure must not roll back the app-side account (logged, not silent) —
-  // the app-side hash already signs the parent in.
-  if (supabaseConfigured()) {
-    try {
-      await getSupabase().auth.signUp({
-        email,
-        password: passwordInput,
-        options: { emailRedirectTo: `${publicOrigin(requestOrigin())}/auth/confirm` },
-      });
-    } catch (err) {
-      console.error(
-        `KID-495 createParentLogin: GoTrue signUp failed for ${email}:`,
-        err instanceof Error ? err.message : err
-      );
-    }
-  }
+  // Best-effort GoTrue identity so forgot-password/reset works later.
+  await bestEffortParentGoTrueSignUp(email, passwordInput);
 
   redirect(`/portal/children?parent=created&email=${encodeURIComponent(email)}`);
 }
@@ -2030,8 +2188,19 @@ export async function inviteParentAction(formData: FormData) {
   await ensureSchema();
   const me = authAccount();
   const instituteId = await firstInstituteId();
-  const childId = String(formData.get("childId") ?? "") || null;
-  if (childId) await assertChildInScope(childId, me);
+  // KID-733: an invite that activates into an account must always carry a
+  // valid child link — a childless invite can only ever produce an orphan
+  // parent account. The child is REQUIRED, scope-checked and verified to live
+  // in the request tenant BEFORE any invite row is created.
+  const childId = String(formData.get("childId") ?? "").trim();
+  if (!childId) redirect("/portal/children?invite=child-required");
+  await assertChildInScope(childId, me);
+  const childRow = instituteId
+    ? await queryGet("SELECT institute_id FROM child WHERE id = ?", childId)
+    : undefined;
+  if (!childRow || String(childRow.institute_id ?? "") !== String(instituteId)) {
+    redirect("/portal/children?invite=child-required");
+  }
   // KID-112: the invite carries the contact relationship so the new
   // account's family link gets the right access role on registration.
   const relationship = String(formData.get("relationship") ?? "parent").trim() || "parent";
@@ -2066,7 +2235,7 @@ export async function inviteParentAction(formData: FormData) {
   // Log the canonical activation message so the invite is verifiable in logs
   // even when no mail provider is wired.
   let childName: string | undefined;
-  if (childId) {
+  {
     const child = await queryGet("SELECT first_name, last_name FROM child WHERE id = ?", childId);
     if (child) childName = `${String(child.first_name ?? "")} ${String(child.last_name ?? "")}`.trim() || undefined;
   }
@@ -3324,6 +3493,100 @@ export async function uploadPaymentProofAction(formData: FormData) {
     entityId: billingId,
     summary: "Payment proof uploaded for an invoice",
     metadata: { childId: billingChildId, hasPaymentProof: true },
+  });
+  redirect(`${back}?proof=uploaded`);
+}
+
+// ---- KID-737: the daycare owner's subscription-payment proof ----
+// The same authorize -> validate -> upload -> write chain as the parent proof
+// above, but for the DAYCARE'S OWN subscription invoices (daycare_invoice):
+// an owner attaches a payment screenshot/PDF to one of their daycare's unpaid
+// invoices before paying via the platform Instapay link. Role, tenancy and
+// invoice-status checks run BEFORE any storage or database write, so a wrong
+// caller never leaves a partial record. The upload never writes the status
+// column: the platform operator reviews the proof and keeps marking the
+// invoice paid through the existing control, and the proof stays visible for
+// history afterwards. A replacement upload before payment replaces the whole
+// proof snapshot (three columns move together — lib/billing.ts writer).
+export async function uploadDaycareInvoiceProofAction(formData: FormData) {
+  const me = requireAuthSession();
+  const invoiceId = String(formData.get("invoiceId") ?? "");
+  const file = formData.get("file") as File | null;
+  const back = "/portal/account-billing";
+  // Owner-only: admins and staff do not pay the daycare's subscription; the
+  // page tabs agree (exact-owner gate), a forged POST must not drift.
+  if (!isOwnerRole(me.role)) {
+    console.error("KID-737 refused a subscription payment-proof upload by a non-owner role:", me.email);
+    redirect(KID372_TENANT_REFUSAL);
+  }
+  // KID-372: the raw invoice id alone is not authorization — the row's
+  // institute must match the REQUEST tenant (a foreign id is a refusal with
+  // no leak, never a first-institute fallback).
+  const requestIid = await firstInstituteId();
+  const invoice = invoiceId
+    ? await queryGet("SELECT id, institute_id, status FROM daycare_invoice WHERE id = ?", invoiceId)
+    : null;
+  if (!invoice || !requestIid || String(invoice.institute_id ?? "") !== requestIid) {
+    console.error("KID-737 refused a subscription payment-proof upload by raw id:", me.email);
+    redirect(KID372_TENANT_REFUSAL);
+  }
+  // A proof rides an UNPAID invoice only: a paid invoice no longer accepts
+  // one (fail closed BEFORE validation/storage), and only pending/overdue
+  // rows exist on this surface — anything else is refused at the boundary.
+  const status = String(invoice!.status ?? "");
+  if (status !== "pending" && status !== "overdue") {
+    console.error("KID-737 refused a payment-proof upload for invoice status:", status);
+    redirect(`${back}?proofError=paid`);
+  }
+  // Boundary validation — before any storage or DB write.
+  if (!file || file.size === 0) redirect(`${back}?proofError=proofType`);
+  const proof = validatePaymentProof(file);
+  if (!proof.ok) redirect(`${back}?proofError=proof${proof.code === "size" ? "Size" : "Type"}`);
+  // Storage upload into the per-invoice folder under the same payments/
+  // root the parent proofs use; the random suffix keeps the object
+  // unguessable to another daycare.
+  const { supabaseConfigured, getSupabase } = await import("@/lib/supabase");
+  if (!supabaseConfigured()) {
+    console.error("KID-737 payment proof upload: no storage configured; nothing stored");
+    redirect(`${back}?proofError=proofUpload`);
+  }
+  const supabase = getSupabase();
+  const filename = paymentProofFilename(
+    String(invoice!.institute_id),
+    invoiceId,
+    proof.ext,
+    crypto.randomUUID()
+  );
+  const { error } = await supabase.storage
+    .from("kiddy-public")
+    .upload(filename, file, { contentType: file.type, upsert: false });
+  if (error) {
+    console.error("KID-737 payment proof storage upload failed:", error.message);
+    redirect(`${back}?proofError=proofUpload`);
+  }
+  const { data: urlData } = supabase.storage.from("kiddy-public").getPublicUrl(filename);
+  if (!urlData?.publicUrl) {
+    console.error("KID-737 payment proof upload: storage returned no public URL; nothing stored");
+    redirect(`${back}?proofError=proofUpload`);
+  }
+  const reference = String(formData.get("paymentReference") ?? "").trim().slice(0, 200) || null;
+  // Only now the row is touched — the three proof columns move together,
+  // the status column is untouched.
+  const { setDaycareInvoicePaymentProof } = await import("@/lib/billing");
+  await setDaycareInvoicePaymentProof(invoiceId, {
+    proofUrl: urlData.publicUrl,
+    proofUploadedAt: new Date().toISOString(),
+    reference,
+  });
+  // KID-477: attribution without URL data on the trail.
+  await recordAuditEvent({
+    instituteId: String(invoice!.institute_id),
+    actorAccountId: me.accountId,
+    action: "update",
+    entityType: "daycare_invoice",
+    entityId: invoiceId,
+    summary: "Payment proof uploaded for a subscription invoice",
+    metadata: { statusBefore: status, hasPaymentProof: true },
   });
   redirect(`${back}?proof=uploaded`);
 }

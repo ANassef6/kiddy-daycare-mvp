@@ -6,9 +6,11 @@ import { addChildAction, inviteParentAction } from "@/lib/actions";
 import Avatar from "@/components/Avatar";
 import RelationshipSelect from "@/components/RelationshipSelect";
 import CreateParentLoginForm from "@/components/CreateParentLoginForm";
+import AddChildParentLoginFields from "@/components/AddChildParentLoginFields";
 import { recordToolUsage } from "@/lib/tool-usage";
 import { i18nForAccount } from "@/lib/i18n-session";
 import { tr } from "@/lib/i18n";
+import type { Dict } from "@/lib/i18n";
 
 export const dynamic = "force-dynamic";
 
@@ -25,6 +27,23 @@ function statusTone(status?: string | null): "green" | "gray" | "red" | undefine
   if (status === "active") return "green";
   if (status === "withdrawn") return "red";
   return undefined;
+}
+
+// KID-733: Add-a-child parent-login rejections map to their own message so the
+// staff member immediately knows what failed and that nothing was created.
+function addChildLoginErrorMessage(error: string | undefined, dict: Dict): string {
+  switch (error) {
+    case "addChildLoginNoEmail":
+      return tr(dict, "children.addChildLoginEmailRequired");
+    case "addChildLoginEmail":
+      return tr(dict, "children.addChildLoginErrorEmail");
+    case "addChildLoginPassword":
+      return tr(dict, "children.addChildLoginErrorPassword");
+    case "addChildLoginRole":
+      return tr(dict, "children.addChildLoginErrorRole");
+    default:
+      return "";
+  }
 }
 
 export default async function PortalChildrenPage({
@@ -44,6 +63,9 @@ export default async function PortalChildrenPage({
   ]);
   const guardianError = searchParams.error === "guardian";
   const relationshipError = searchParams.error === "relationship";
+  // KID-733: the Add-a-child parent-login rejections each name what went wrong
+  // and that nothing was created (no child, no contact, no account).
+  const addChildLoginError = addChildLoginErrorMessage(searchParams.error, dict);
   // KID-111: invite-delivery outcome from inviteParentAction/resendParentInviteAction.
   const inviteStatus = searchParams.invite;
   const inviteEmail = searchParams.email;
@@ -57,8 +79,11 @@ export default async function PortalChildrenPage({
   // KID-495: outcome of createParentLoginAction (created | exists | invalid-email
   // | relationship | short-password | missing-name). The password never rides
   // the URL — the admin sees it in the form they typed it into.
+  // KID-733: parentLoginOutcome adds linked ( guardianship already had an
+  // account ) and child-required ( the childless creation refusal ).
   const parentLoginStatus = searchParams.parent;
   const parentLoginCreated = parentLoginStatus === "created";
+  const parentLoginLinked = parentLoginStatus === "linked";
   const parentLoginEmail = searchParams.email;
 
   return (
@@ -67,18 +92,27 @@ export default async function PortalChildrenPage({
         <div
           role="status"
           className="card mt-3"
-          style={{ borderLeft: `4px solid ${parentLoginCreated ? "#047857" : "#b91c1c"}` }}
+          style={{ borderLeft: `4px solid ${parentLoginCreated || parentLoginLinked ? "#047857" : "#b91c1c"}` }}
         >
-          {parentLoginCreated ? (
+          {parentLoginCreated || parentLoginLinked ? (
             <div className="small">
               <p style={{ margin: "0 0 4px" }}>
                 <strong>{tr(dict, "children.parentLoginCreated")}</strong>
               </p>
+              {parentLoginLinked && (
+                <p style={{ margin: "0 0 4px" }} className="muted">
+                  {tr(dict, "children.parentLoginLinked")}
+                </p>
+              )}
               <p style={{ margin: 0 }} className="muted">
                 {tr(dict, "children.parentLoginCreatedHint")}
                 {parentLoginEmail ? <> — <strong>{parentLoginEmail}</strong></> : null}
               </p>
             </div>
+          ) : parentLoginStatus === "child-required" ? (
+            <p className="small" style={{ margin: 0 }}>
+              {tr(dict, "children.parentLoginChildRequired")}
+            </p>
           ) : (
             <p className="small" style={{ margin: 0 }}>
               {tr(dict, "children.parentLoginError")}
@@ -87,7 +121,14 @@ export default async function PortalChildrenPage({
           )}
         </div>
       )}
-      {inviteStatus && (
+      {inviteStatus === "child-required" && (
+        <div role="alert" className="card mt-3" style={{ borderLeft: "4px solid #b91c1c" }}>
+          <p className="small" style={{ margin: 0 }}>
+            {tr(dict, "children.addChildLoginChildRequiredInvite")}
+          </p>
+        </div>
+      )}
+      {inviteStatus && inviteStatus !== "child-required" && (
         <div
           role="status"
           className="card mt-3"
@@ -202,8 +243,22 @@ export default async function PortalChildrenPage({
           </div>
           <div className="row">
             <div className="col field"><label className="label">Phone</label><input className="input" name="guardianPhone" /></div>
-            <div className="col field"><label className="label">Email</label><input className="input" name="guardianEmail" type="email" /></div>
           </div>
+          <AddChildParentLoginFields
+            labels={{
+              emailLabel: "Email",
+              passwordLabel: tr(dict, "children.createParentLoginPassword"),
+              passwordPlaceholder: tr(dict, "children.changePasswordMinLengthHint"),
+              generateBtn: tr(dict, "children.createParentLoginGenerate"),
+              emailRequiredHint: tr(dict, "children.addChildLoginEmailRequired"),
+            }}
+          />
+          <details className="mt-2">
+            <summary className="small muted" style={{ cursor: "pointer" }}>
+              {tr(dict, "children.addChildLoginSection")}
+            </summary>
+            <p className="small muted mt-2">{tr(dict, "children.addChildLoginHint")}</p>
+          </details>
           <label className="row small" style={{ alignItems: "center", gap: 8 }}>
             <input type="checkbox" name="guardianIsPickup" defaultChecked /> Authorized pickup
           </label>
@@ -220,6 +275,11 @@ export default async function PortalChildrenPage({
               Relationship must be one of: Parent, Family, Pickup, No access.
             </p>
           )}
+          {addChildLoginError && (
+            <p className="small" style={{ color: "#b91c1c", marginTop: 8 }}>
+              {addChildLoginError}
+            </p>
+          )}
           <button className="btn btn-primary" type="submit">Add child</button>
         </form>
       </details>
@@ -228,9 +288,9 @@ export default async function PortalChildrenPage({
       <form className="card" action={inviteParentAction}>
         <div className="row">
           <div className="col field">
-            <label className="label">Child (optional)</label>
-            <select className="select" name="childId">
-              <option value="">— any —</option>
+            <label className="label">Child</label>
+            <select className="select" name="childId" required defaultValue="">
+              <option value="" disabled>— select a child —</option>
               {children.map((c: any) => <option key={c.id} value={String(c.id)}>{c.first_name} {c.last_name}</option>)}
             </select>
           </div>
@@ -248,7 +308,7 @@ export default async function PortalChildrenPage({
         labels={{
           hint: tr(dict, "children.createParentLoginHint"),
           childLabel: tr(dict, "children.createParentLoginChild"),
-          childAny: tr(dict, "children.createParentLoginChildAny"),
+          childPlaceholder: tr(dict, "children.createParentLoginChildPlaceholder"),
           nameLabel: tr(dict, "children.createParentLoginName"),
           emailLabel: tr(dict, "children.createParentLoginEmail"),
           relationshipLabel: tr(dict, "children.createParentLoginRelationship"),

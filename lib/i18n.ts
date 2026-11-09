@@ -640,8 +640,8 @@ export const en = {
     // password shared in person instead of an activation email.
     createParentLoginTitle: "Create a parent login",
     createParentLoginHint: "Create the login with a temporary password and share the email + password in person. The parent is asked to change it after the first sign-in.",
-    createParentLoginChild: "Child (optional)",
-    createParentLoginChildAny: "— any —",
+    createParentLoginChild: "Child",
+    createParentLoginChildPlaceholder: "— select a child —",
     createParentLoginName: "Parent full name",
     createParentLoginEmail: "Parent email",
     createParentLoginRelationship: "Relationship",
@@ -651,7 +651,18 @@ export const en = {
     createParentLoginSubmit: "Create parent login",
     parentLoginCreated: "Parent login created.",
     parentLoginCreatedHint: "Share the email and temporary password in person; the parent changes it after signing in.",
+    parentLoginLinked: "An account with this email already existed — it was linked to the new child; no duplicate account was created.",
+    parentLoginChildRequired: "Every parent login must be attached to a child. Select the child, then try again.",
     parentLoginError: "Parent login not created. Check the email, the relationship, and that the password is at least 8 characters, then try again.",
+    // KID-733: the Add a child form can create (or link) the parent login in
+    // the same flow, using the guardian email.
+    addChildLoginSection: "Create a parent login (optional)",
+    addChildLoginHint: "Set a temporary password so the guardian can sign in right away. The login uses the guardian email above; the parent changes the password after the first sign-in.",
+    addChildLoginEmailRequired: "Enter the guardian email above before setting a temporary password — nothing was created.",
+    addChildLoginChildRequiredInvite: "Every invite must be attached to a child. Select the child, then try again.",
+    addChildLoginErrorEmail: "The guardian email is not a valid address, so no parent login was created. Nothing was saved — fix the email and try again.",
+    addChildLoginErrorPassword: "The temporary password is too short (at least 8 characters). Nothing was saved — try again.",
+    addChildLoginErrorRole: "An account with this email already exists with a staff or admin role. Parent logins must be parent accounts — remove the password or use a different email. Nothing was saved.",
   },
   notifications: {
     title: "Notifications",
@@ -961,6 +972,24 @@ export const en = {
     invoiceBackToBilling: "Billing settings",
     invoiceDaycareBlocked:
       "This daycare is currently disabled because of an overdue invoice. Mark the invoice paid to restore its users' access.",
+    // KID-737: the operator's card for the platform Instapay link on
+    // /platform, and the Proof column on the per-daycare invoice list.
+    instapayCardTitle: "Subscription payment link (Instapay)",
+    instapayCardHint:
+      "Every daycare owner sees this link next to an unpaid subscription invoice, pays it, and uploads a proof of payment for you to review.",
+    instapayLabel: "Instapay link",
+    instapayNotSet: "Not set yet — owners cannot see a payment link until you save one.",
+    instapayUpdatedAt: "Updated {date}",
+    instapaySave: "Save link",
+    instapayClear: "Clear link",
+    instapayInvalid:
+      "That payment link is not a valid address. Use an https:// or http:// link, or clear the field to remove the link.",
+    instapaySaved: "Payment link saved. Owners now see it on unpaid subscription invoices.",
+    invoiceProof: "Proof",
+    invoiceProofView: "View proof",
+    invoiceProofNone: "No proof",
+    invoiceProofUploaded: "Uploaded",
+    invoiceProofRef: "Ref",
   },
   // KID-246: the owner's own "Account billing" page under Tools — plan and
   // rates are read-only here (the platform team manages them); the invoice
@@ -1000,6 +1029,24 @@ export const en = {
     overdueWarning:
       "Invoice {cycle} is overdue ({amount} EGP). Pay it now — the daycare is disabled while an invoice stays unpaid.",
     autoDisableHint: "The platform disables the daycare from the due date onward until the invoice is paid.",
+    // KID-737: the platform Instapay link and the owner's payment-proof
+    // upload on the subscription invoice table.
+    colPay: "Pay",
+    colProof: "Proof",
+    payWithInstapay: "Pay with Instapay",
+    payNoLink:
+      "The platform has not set a payment link yet — pay by the usual channel and the link appears here once it is configured.",
+    proofView: "View proof",
+    proofUploadedOn: "Uploaded {date}",
+    proofUploadLabel: "Share a proof of payment (PNG, JPG or PDF, up to 5 MB)",
+    proofUploadBtn: "Share proof of payment",
+    proofReplaceBtn: "Replace proof",
+    proofReferencePlaceholder: "Payment reference (optional)",
+    proofSaved: "Payment proof received. The platform team will review it — the invoice stays in your list until it is marked paid.",
+    proofErrorType: "Attach a PNG, JPG or PDF file (5 MB at most).",
+    proofErrorSize: "The file is too large — the maximum is 5 MB.",
+    proofErrorUpload: "The upload failed. Please try again.",
+    proofErrorPaid: "This invoice is already paid, so it no longer accepts a proof upload.",
   },
   // KID-258 A1 (KID-264): the owner-only "Enhancements requests" page under
   // Tools. Submit carries title + description ONLY — the Kiddy team sets
@@ -1922,8 +1969,8 @@ export const ar = {
     // password shared in person instead of an activation email. (AR twin.)
     createParentLoginTitle: "إنشاء حساب لولي أمر",
     createParentLoginHint: "أنشئ الحساب بكلمة مرور مؤقتة وسلّم البريد وكلمة المرور مباشرةً. على الوالد تغيير كلمة المرور بعد أول تسجيل دخول.",
-    createParentLoginChild: "الطفل (اختياري)",
-    createParentLoginChildAny: "— أي طفل —",
+    createParentLoginChild: "الطفل",
+    createParentLoginChildPlaceholder: "— اختر طفلًا —",
     createParentLoginName: "اسم الوالد الكامل",
     createParentLoginEmail: "بريد الوالد الإلكتروني",
     createParentLoginRelationship: "صلة القرابة",
@@ -1933,7 +1980,18 @@ export const ar = {
     createParentLoginSubmit: "إنشاء حساب الوالد",
     parentLoginCreated: "تم إنشاء حساب الوالد.",
     parentLoginCreatedHint: "سلّم البريد وكلمة المرور المؤقتة مباشرةً؛ يغيّرها الوالد بعد تسجيل الدخول.",
+    parentLoginLinked: "يوجد بالفعل حساب بهذا البريد — تم ربطه بالطفل الجديد ولم يُنشأ حساب مكرّر.",
+    parentLoginChildRequired: "يجب ربط كل حساب لولي أمر بطفل. اختر الطفل ثم أعد المحاولة.",
     parentLoginError: "لم يتم إنشاء الحساب. تحقق من البريد وصلة القرابة ومن أن كلمة المرور 8 أحرف على الأقل، ثم أعد المحاولة.",
+    // KID-733: the Add a child form can create (or link) the parent login in
+    // the same flow, using the guardian email. (AR twin.)
+    addChildLoginSection: "إنشاء حساب لولي الأمر (اختياري)",
+    addChildLoginHint: "عيّن كلمة مرور مؤقتة ليتمكن ولي الأمر من تسجيل الدخول فورًا. يستخدم الحساب بريد ولي الأمر أعلاه؛ يغيّر الوالد كلمة المرور بعد أول تسجيل دخول.",
+    addChildLoginEmailRequired: "أدخل بريد ولي الأمر أعلاه قبل تعيين كلمة مرور مؤقتة — لم يتم إنشاء أي شيء.",
+    addChildLoginChildRequiredInvite: "يجب ربط كل دعوة بطفل. اختر الطفل ثم أعد المحاولة.",
+    addChildLoginErrorEmail: "بريد ولي الأمر غير صالح، لذلك لم يُنشأ حساب لولي الأمر. لم يُحفظ أي شيء — صحّح البريد وأعد المحاولة.",
+    addChildLoginErrorPassword: "كلمة المرور المؤقتة قصيرة جدًا (8 أحرف على الأقل). لم يُحفظ أي شيء — أعد المحاولة.",
+    addChildLoginErrorRole: "يوجد حساب بهذا البريد بدور موظف أو مدير. حسابات أولياء الأمور يجب أن تكون بأدوار أولياء أمور — أزل كلمة المرور أو استخدم بريدًا آخر. لم يُحفظ أي شيء.",
   },
   notifications: {
     title: "الإشعارات",
@@ -2225,6 +2283,24 @@ export const ar = {
     invoiceBackToBilling: "إعدادات الفاتورة",
     invoiceDaycareBlocked:
       "هذه الروضة موقوفة حاليًا بسبب فاتورة متأخرة. سجّل الفاتورة كمدفوعة لإعادة تفعيل حسابات مستخدميها.",
+    // KID-737: بطاقة المشغّل لرابط إنستا باي على /platform، وعمود إثبات
+    // الدفع في قائمة فواتير كل روضة. (التوأم العربي.)
+    instapayCardTitle: "رابط الدفع بالاشتراك (إنستا باي)",
+    instapayCardHint:
+      "يرى كل مالك روضة هذا الرابط بجوار الفاتورة غير المسددة، ويدفع بها، ثم يرفع إثبات الدفع لتقوم بمراجعته.",
+    instapayLabel: "رابط إنستا باي",
+    instapayNotSet: "لم يُضبَط بعد — لن يرى المالكون رابط دفع حتى تحفظ واحدًا.",
+    instapayUpdatedAt: "آخر تحديث {date}",
+    instapaySave: "حفظ الرابط",
+    instapayClear: "محو الرابط",
+    instapayInvalid:
+      "رابط الدفع ليس عنوانًا صالحًا. استخدم رابط https:// أو http://، أو امحُ الحقل لإزالة الرابط.",
+    instapaySaved: "حُفظ رابط الدفع. يراه المالكون الآن على فواتير الاشتراك غير المسددة.",
+    invoiceProof: "الإثبات",
+    invoiceProofView: "عرض الإثبات",
+    invoiceProofNone: "لا إثبات",
+    invoiceProofUploaded: "مرفوع",
+    invoiceProofRef: "مرجع",
   },
   // KID-258 A1 (KID-264): صفحة "طلبات التحسينات" الخاصة بالمالك فقط تحت
   // الأدوات. الإرسال يتبع العنوان والوصف فقط — الأولوية/التقدير/التواريخ
@@ -2581,6 +2657,24 @@ export const ar = {
     overdueWarning:
       "فاتورة الدورة {cycle} متأخرة ({amount} جنيه). سدّدها الآن — الروضة موقوفة طالما الفاتورة غير مسددة.",
     autoDisableHint: "تُوقف المنصّة الروضة من تاريخ الاستحقاق حتى تسديد الفاتورة.",
+    // KID-737: رابط إنستا باي من المنصّة ورفع إثبات الدفع على جدول فواتير
+    // الاشتراك. (التوأم العربي.)
+    colPay: "الدفع",
+    colProof: "الإثبات",
+    payWithInstapay: "الدفع عبر إنستا باي",
+    payNoLink:
+      "لم تضبط المنصّة رابط دفع بعد — ادفع عبر القائمة المعتادة وسيظهر الرابط هنا بمجرد حفظه.",
+    proofView: "عرض الإثبات",
+    proofUploadedOn: "مرفوع في {date}",
+    proofUploadLabel: "شارك إثبات دفع (PNG أو JPG أو PDF، حتى 5 ميجابايت)",
+    proofUploadBtn: "مشاركة إثبات الدفع",
+    proofReplaceBtn: "استبدال الإثبات",
+    proofReferencePlaceholder: "مرجع الدفع (اختياري)",
+    proofSaved: "استلمنا إثبات الدفع. سيراجعه فريق المنصّة — تبقى الفاتورة في قائمتك إلى أن تُسجَّل مدفوعة.",
+    proofErrorType: "أرفق ملف PNG أو JPG أو PDF (5 ميجابايت على الأكثر).",
+    proofErrorSize: "الملف أكبر من الحد المسموح — الحد الأقصى 5 ميجابايت.",
+    proofErrorUpload: "فشل الرفع. برجاء المحاولة مرة أخرى.",
+    proofErrorPaid: "هذه الفاتورة مدفوعة بالفعل، لذا لم تقبل رفع إثبات.",
   },
   help: {
     title: "مركز المساعدة",

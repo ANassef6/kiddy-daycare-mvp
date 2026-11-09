@@ -635,6 +635,13 @@ export function sqliteSchema(db: any): void {
     status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'paid', 'overdue')),
     paid_at TEXT,
     manual_adjustment TEXT,
+    -- KID-737: the daycare owner's subscription-payment proof (mirror of
+    -- supabase/migrations/0037_kid737_platform_payment.sql). Nullable —
+    -- invoices without a proof keep their pre-KID-737 shape. An upload never
+    -- writes the status; the operator stays the only status writer.
+    payment_proof_url TEXT,
+    payment_proof_uploaded_at TEXT,
+    payment_reference TEXT,
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
   );
   CREATE UNIQUE INDEX IF NOT EXISTS uq_daycare_invoice_cycle
@@ -722,6 +729,18 @@ export function sqliteSchema(db: any): void {
   CREATE INDEX IF NOT EXISTS idx_tool_usage_institute_when ON tool_usage_event (institute_id, occurred_at DESC);
   CREATE INDEX IF NOT EXISTS idx_tool_usage_tool_when ON tool_usage_event (tool_key, occurred_at DESC);
   CREATE INDEX IF NOT EXISTS idx_tool_usage_account_when ON tool_usage_event (account_id, occurred_at DESC);
+
+  -- KID-737: mirror of supabase/migrations/0037_kid737_platform_payment.sql
+  -- part 1 — the platform-wide operator settings (tenant-less: it lives
+  -- outside any institute). KID-737 writes exactly one row, key
+  -- 'instapay_url' (lib/platform-settings.ts); deleting the row is how a
+  -- cleared link is represented.
+  CREATE TABLE IF NOT EXISTS platform_setting (
+    key TEXT PRIMARY KEY,
+    value TEXT NOT NULL DEFAULT '',
+    updated_by_account_id TEXT REFERENCES account(id) ON DELETE SET NULL,
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
   `);
 
   // Idempotent column backfills for databases created before these columns
@@ -797,6 +816,19 @@ export function sqliteSchema(db: any): void {
   const accountCols = db.prepare("PRAGMA table_info(account)").all() as { name: string }[];
   if (!accountCols.some((c) => c.name === "must_change_password")) {
     db.exec("ALTER TABLE account ADD COLUMN must_change_password INTEGER NOT NULL DEFAULT 0");
+  }
+  // KID-737: mirror of supabase/migrations/0037_kid737_platform_payment.sql
+  // part 2 — the daycare_invoice proof columns for databases created before
+  // they existed (the CREATE above only helps fresh databases).
+  const invoiceCols = db.prepare("PRAGMA table_info(daycare_invoice)").all() as { name: string }[];
+  if (!invoiceCols.some((c) => c.name === "payment_proof_url")) {
+    db.exec("ALTER TABLE daycare_invoice ADD COLUMN payment_proof_url TEXT");
+  }
+  if (!invoiceCols.some((c) => c.name === "payment_proof_uploaded_at")) {
+    db.exec("ALTER TABLE daycare_invoice ADD COLUMN payment_proof_uploaded_at TEXT");
+  }
+  if (!invoiceCols.some((c) => c.name === "payment_reference")) {
+    db.exec("ALTER TABLE daycare_invoice ADD COLUMN payment_reference TEXT");
   }
   const obsCols = db.prepare("PRAGMA table_info(learning_observation)").all() as { name: string }[];
   if (!obsCols.some((c) => c.name === "age_group")) {

@@ -229,6 +229,12 @@ export type DaycareInvoice = {
   status: InvoiceStatus;
   paidAt: string;
   manualAdjustment: string;
+  /** KID-737: the owner's subscription-payment proof (see 0037). Nullable
+   *  columns — invoices without a proof predate the upload flow. An upload
+   *  never changes the status; the operator still marks the invoice paid. */
+  paymentProofUrl: string;
+  paymentProofUploadedAt: string;
+  paymentReference: string;
   createdAt: string;
 };
 
@@ -451,6 +457,11 @@ export function invoiceRowTo(row: Row): DaycareInvoice {
     status: ((INVOICE_STATUSES as readonly string[]).includes(status) ? status : "pending") as InvoiceStatus,
     paidAt: row.paid_at instanceof Date ? row.paid_at.toISOString() : String(row.paid_at ?? ""),
     manualAdjustment: String(row.manual_adjustment ?? ""),
+    paymentProofUrl: String(row.payment_proof_url ?? ""),
+    paymentProofUploadedAt: row.payment_proof_uploaded_at instanceof Date
+      ? row.payment_proof_uploaded_at.toISOString()
+      : String(row.payment_proof_uploaded_at ?? ""),
+    paymentReference: String(row.payment_reference ?? ""),
     createdAt: row.created_at instanceof Date ? row.created_at.toISOString() : String(row.created_at ?? ""),
   };
 }
@@ -692,6 +703,29 @@ export async function updateInvoiceAmount(
       invoiceId
     );
   }
+}
+
+// ---- KID-737: the daycare owner's subscription-payment proof ----
+// The caller (uploadDaycareInvoiceProofAction, lib/actions.ts) already
+// authorized the owner and uploaded the file to Storage; this writer replaces
+// whatever proof the invoice carried before (the three columns always move
+// together — one "current proof" snapshot per row, so a re-upload can never
+// leave a stale URL/date/reference triple behind). It NEVER touches the
+// status column: the operator stays the only status writer, and the proof
+// stays visible after the invoice is paid for history.
+export async function setDaycareInvoicePaymentProof(
+  invoiceId: string,
+  patch: { proofUrl: string; proofUploadedAt: string; reference: string | null }
+): Promise<void> {
+  await queryRun(
+    `UPDATE daycare_invoice
+     SET payment_proof_url = ?, payment_proof_uploaded_at = ?, payment_reference = ?
+     WHERE id = ?`,
+    patch.proofUrl,
+    patch.proofUploadedAt,
+    patch.reference,
+    invoiceId
+  );
 }
 
 /** The one entry point the bootstrap pass calls (lib/bootstrap.ts): generate
