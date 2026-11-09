@@ -4,11 +4,14 @@
 //
 // Access model (enforced server-side in lib/actions.ts + lib/require.ts):
 // - parent:    full access to every /child page and write action.
-// - family:    limited access — full read plus pickup loop and messaging,
-//              but no consent responses, form submissions, incident
+// - family:    view-only — full read plus the pickup loop, but no messaging
+//              (KID-1329: the spec hides messages from family accounts
+//              entirely — no page, no send, no notifications), and no
+//              consent responses, form submissions, incident
 //              acknowledgements, or support tickets.
 // - pickup:    login only to register pickup time — may view the children
-//              list + child detail and call checkInOutAction. Nothing else.
+//              list + child detail (name/photo + today's pickup time only)
+//              and call checkInOutAction. Nothing else.
 // - no_access: login blocked (e.g. unpaid fees). Admin use.
 
 export const CONTACT_RELATIONSHIPS = ["parent", "family", "pickup", "no_access"] as const;
@@ -89,15 +92,22 @@ export function isPathAllowedForPickup(pathname: string): boolean {
   return PICKUP_ALLOWED_PATHS.some((p) => pathname === p || pathname.startsWith(p + "/"));
 }
 
-/** Family limited access: full read + daily pickup loop + messaging, but no
- *  consent responses, form submissions, incident acknowledgements, or
- *  support tickets. Those stay parent-only. */
+/** Family limited access: full read + daily pickup loop, but no messaging
+ *  (KID-1329: family is view-only and messages are hidden — the spec denies
+ *  the page, the send action and the message notifications) and no consent
+ *  responses, form submissions, incident acknowledgements, or support
+ *  tickets. Those stay parent-only. */
 const FAMILY_DENIED_ACTIONS = new Set([
+  "sendMessage",
   "respondConsent",
   "submitForm",
   "acknowledgeIncident",
   "createSupportTicket",
 ]);
+
+/** KID-1329: client paths a family link must never open (server-enforced in
+ *  requireFamilyPage — hiding the nav alone is cosmetic). */
+export const FAMILY_DENIED_PATHS = new Set(["/child/messages"]);
 
 export function isActionAllowed(access: FamilyAccessKind, action: string): boolean {
   if (access === "parent") return true;

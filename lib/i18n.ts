@@ -552,6 +552,10 @@ export const en = {
     // KID-489 item 1 (KID-490): the center-level default currency, used for
     // new child invoices and finance display fallbacks.
     defaultCurrency: "Default currency",
+    // KID-1329: one center toggle for the parent check-in/out surface.
+    allowParentCheckInOut: "Allow parents to check in/out",
+    allowParentCheckInOutHint:
+      "When off, parents cannot check their children in or out and the button disappears. Their attendance status stays visible. Pickup contacts can still register a pickup time.",
     // KID-489 item 2 (KID-491): the center's Instapay payment link — new
     // child invoice forms prefill it; parents pay through the stored link.
     instapayLink: "Instapay link (optional)",
@@ -1925,6 +1929,10 @@ export const ar = {
     address: "العنوان",
     // KID-489 item 1 (KID-490): العملة الافتراضية للمركز.
     defaultCurrency: "العملة الافتراضية",
+    // KID-1329: مفتاح واحد على مستوى المركز لتسجيل دخول وخروج الأهالي.
+    allowParentCheckInOut: "السماح للأهالي بتسجيل الدخول/الخروج",
+    allowParentCheckInOutHint:
+      "عند الإيقاف لا يستطيع الأهالي تسجيل دخول أو خروج أطفالهم ويختفي الزر، مع بقاء حالة الحضور ظاهرة. ويظل المُقلد (من يستلم الطفل) قادرًا على تسجيل وقت الاستلام.",
     // KID-489 item 2 (KID-491): رابط الدفع عبر Instapay الافتراضي للمركز.
     instapayLink: "رابط Instapay (اختياري)",
     instapayLinkPlaceholder: "https://…",

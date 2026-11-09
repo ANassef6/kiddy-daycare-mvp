@@ -84,6 +84,7 @@ import {
   toggleLike,
   saveWorkingHours,
   checkInAllowed,
+  parentCheckInOutAllowed,
   createDaycare,
   setInstituteActive,
   getInstitute,
@@ -1389,6 +1390,19 @@ export async function checkInOutAction(formData: FormData) {
   if (childId && (type === "in" || type === "out")) {
     await assertChildInScope(childId, me);
     const instituteId = await firstInstituteId();
+    // KID-1329: the center controls the parent check-in/out surface with one
+    // toggle (default on). When it is off, every parent-role account (plus a
+    // family access, which shares the parent app) is rejected with a clear
+    // error; the pickup role keeps its dedicated pickup-time registration and
+    // staff keep their attendance controls untouched.
+    if (instituteId && me.role === "parent") {
+      const { familyAccessForAccount } = await import("@/lib/store");
+      const access = (await familyAccessForAccount(me.accountId)) ?? "parent";
+      if (access !== "pickup" && !(await parentCheckInOutAllowed(String(instituteId)))) {
+        console.error(`KID-1329 refused parent check-in/out: the center has the toggle off`, me.email);
+        return { error: "The daycare has turned off parent check-in/out. Please contact the center staff." };
+      }
+    }
     // KID-58: no one can check in before the center opens.
     if (type === "in") {
       if (instituteId) {
@@ -2566,6 +2580,12 @@ export async function saveCenterDetailsAction(formData: FormData) {
     // default) so the stored column always holds a supported code.
     if (formData.get("defaultCurrency") !== null) {
       patch.default_currency = normalizeCurrency(formData.get("defaultCurrency"));
+    }
+    // KID-1329: the center-level "Allow parents to check in/out" toggle. The
+    // form always posts the field (hidden 0 + checkbox 1), so a save without
+    // the checkbox is an explicit OFF, never a silent keep-as-was.
+    if (formData.get("allowParentCheckInout") !== null) {
+      patch.allow_parent_check_inout = formData.getAll("allowParentCheckInout").includes("1") ? 1 : 0;
     }
     // KID-489 item 2 (KID-491): the center's Instapay payment link. An
     // invalid value is rejected up front with a redirect back to a localized

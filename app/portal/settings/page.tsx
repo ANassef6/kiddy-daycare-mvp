@@ -102,6 +102,26 @@ export default async function PortalSettingsPage(
             </select>
           </div>
         </div>
+        {/* KID-1329: one center-level toggle for the parent check-in/out
+            surface. Default ON; when OFF the parent app hides its control and
+            the server action (web + mobile) rejects it, while attendance
+            status stays visible. Hidden "0" + checkbox "1" makes a save
+            without a check an explicit OFF. */}
+        <div className="field">
+          <label className="label" htmlFor="allowParentCheckInout">{tr(dict, "settings.allowParentCheckInOut")}</label>
+          <input type="hidden" name="allowParentCheckInout" value="0" />
+          <div className="row" style={{ alignItems: "center", gap: 10 }}>
+            <input
+              id="allowParentCheckInout"
+              name="allowParentCheckInout"
+              type="checkbox"
+              value="1"
+              style={{ width: 20, height: 20, flex: "none", accentColor: b.primaryColor }}
+              defaultChecked={institute?.allow_parent_check_inout === undefined || Number(institute?.allow_parent_check_inout) !== 0}
+            />
+            <span className="small muted">{tr(dict, "settings.allowParentCheckInOutHint")}</span>
+          </div>
+        </div>
         <div className="field"><label className="label">{tr(dict, "settings.address")}</label><input className="input" name="address" defaultValue={String(institute?.address ?? "")} placeholder={tr(dict, "settings.addressPlaceholder")} /></div>
         {/* KID-489 item 2 (KID-491): the center's Instapay payment link — the
             default every new child invoice form prefills. http/https URLs

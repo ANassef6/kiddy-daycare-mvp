@@ -12,6 +12,8 @@ import {
   statusesForChild,
   listChildBilling,
   latestBusEvent,
+  familyAccessForAccount,
+  parentCheckInOutAllowed,
 } from "@/lib/store";
 import { CheckInButton } from "@/components/CheckInButton";
 import Avatar from "@/components/Avatar";
@@ -61,6 +63,68 @@ export default async function ChildDetailPage(
     : false;
   if (!visible && !(isPlatformOperatorRole(session.role) && requestIid)) notFound();
   await recordToolUsage({ instituteId: String(child.institute_id ?? "") || null, accountId: session.accountId, toolKey: "children", source: "child", metadata: null });
+
+  // KID-112: the family link decides what a parent-role account may read here.
+  // KID-1329: pickup links render a dedicated minimal branch — the spec allows
+  // them the child name/photo and today's pickup time control ONLY; reports,
+  // invoices, newsfeed, contacts, statuses, incidents and the parent
+  // check-in/out surface stay hidden. Non-parent sessions (staff) keep the
+  // full parent-style read.
+  const access = session.role === "parent"
+    ? (await familyAccessForAccount(session.accountId)) ?? "parent"
+    : "parent";
+
+  if (access === "pickup") {
+    const status = await todayStatus(child.id);
+    const checkedIn = !!status.checkedIn && !status.checkedOut;
+    const branding = await getBranding();
+    return (
+      <div>
+        <Link className="small muted" href="/child">← {t("child.backToChildren")}</Link>
+
+        <div className="card mt-3">
+          <div className="status-card">
+            <div className="row" style={{ alignItems: "center", gap: 12 }}>
+              <Avatar src={await storageSrcFor(child.photo_url)} name={`${child.first_name} ${child.last_name}`} size={56} color={branding.primaryColor} />
+              <div>
+                <div style={{ fontWeight: 800, fontSize: 22 }}>
+                  {child.first_name} {child.last_name}
+                </div>
+              </div>
+            </div>
+            {checkedIn ? (
+              <span className="badge badge-green">{t("attendees.checkedIn")}</span>
+            ) : (
+              <span className="badge">{t("attendees.notCheckedInYet")}</span>
+            )}
+          </div>
+
+          {/* Today's pickup time: set / update / cancel runs through the same
+              check-in/out control the pickup loop uses. */}
+          <div className="mt-4">
+            <CheckInButton childId={child.id as string} checkedIn={checkedIn} dict={dict} />
+          </div>
+
+          {status.lastEvent && (
+            <p className="muted small mt-2">
+              {status.checkedIn && t("attendees.checkedInAt", { time: time(status.checkedIn.recorded_at) })}
+              {status.checkedIn && status.checkedOut && " · "}
+              {status.checkedOut && t("attendees.checkedOutAt", { time: time(status.checkedOut.recorded_at) })}
+            </p>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // KID-1329: the center may turn parent check-in/out OFF. The server action
+  // then rejects the write; here the parent-facing control disappears while
+  // the attendance status stays visible. Staff sessions are unaffected.
+  let parentCheckInOpen = true;
+  if (session.role === "parent" && requestIid) {
+    parentCheckInOpen = await parentCheckInOutAllowed(String(requestIid));
+  }
+  const canCheckInOut = session.role !== "parent" || parentCheckInOpen;
 
   // KID-472 item 4: today stays the default; a `?date=` value the parent
   // navigates to is read-only for that day (validated server-side first).
@@ -126,9 +190,14 @@ export default async function ChildDetailPage(
           )}
         </div>
 
-        <div className="mt-4">
-          <CheckInButton childId={child.id as string} checkedIn={checkedIn} dict={dict} />
-        </div>
+        {/* KID-1329: the parent check-in/out control follows the center's
+            "Allow parents to check in/out" toggle; the attendance status above
+            stays visible either way. */}
+        {canCheckInOut && (
+          <div className="mt-4">
+            <CheckInButton childId={child.id as string} checkedIn={checkedIn} dict={dict} />
+          </div>
+        )}
 
         {status.lastEvent && (
           <p className="muted small mt-2">

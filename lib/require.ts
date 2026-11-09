@@ -1,9 +1,12 @@
 import { sessionFromHeaders } from "@/lib/auth";
 import { headers } from "next/headers";
-import { redirect } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { isAccountAccessWithdrawn, runWithdrawalSweep } from "@/lib/store";
 import { isPlatformOperatorRole } from "@/lib/platform";
-import { isPathAllowedForPickup } from "@/lib/contact-relationship";
+import {
+  FAMILY_DENIED_PATHS,
+  isPathAllowedForPickup,
+} from "@/lib/contact-relationship";
 
 // Next 15: headers() is async, so the session guard is async too — every
 // caller awaits it.
@@ -17,15 +20,22 @@ export async function requireSession() {
 // KID-112: call at the top of every /child page with its own pathname.
 // - no_access family links (or a withdrawn account) can never view parent pages.
 // - pickup links may only see the children list, child detail (pickup
-//   registration), and account settings. Everything else redirects to /child.
-// - parent/family links pass through (write actions enforce the rest).
+//   registration), and account settings. Everything else responds with a
+//   real 404 (KID-1329: a late redirect can stream as HTTP 200 once the
+//   loading shell has flushed, so denied slugs use next/navigation's
+//   notFound() — an actual 404 status — instead).
+// - parent links pass through. KID-1329: family links pass too, except the
+//   messages page, which the spec hides from family accounts entirely
+//   (server deny — the nav removal alone is cosmetic).
+// - write actions enforce the rest.
 export async function requireFamilyPage(pathname: string) {
   const session = await requireSessionWithWithdrawalCheck();
   if (session.role !== "parent") return session;
   const { familyAccessForAccount } = await import("@/lib/store");
   const access = (await familyAccessForAccount(session.accountId)) ?? "parent";
   if (access === "no_access") redirect("/login?error=disabled");
-  if (access === "pickup" && !isPathAllowedForPickup(pathname)) redirect("/child");
+  if (access === "pickup" && !isPathAllowedForPickup(pathname)) notFound();
+  if (access === "family" && FAMILY_DENIED_PATHS.has(pathname)) redirect("/child");
   return session;
 }
 

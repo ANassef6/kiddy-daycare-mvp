@@ -1179,6 +1179,19 @@ export async function checkInAllowed(
   return checkInOpen(week, now);
 }
 
+// KID-1329: the center's "Allow parents to check in/out" toggle
+// (institute.allow_parent_check_inout, defaulted ON by the 0042 migration).
+// Anything but an explicit 0 counts as allowed, so rows that predate the
+// column (and a missing parseable value) keep the historical open behavior.
+export async function parentCheckInOutAllowed(instituteId: string): Promise<boolean> {
+  if (!instituteId) return true;
+  const inst = await getInstitute(instituteId);
+  const raw = inst?.allow_parent_check_inout;
+  if (raw === undefined || raw === null || raw === "") return true;
+  const n = Number(raw);
+  return Number.isFinite(n) ? n !== 0 : true;
+}
+
 // The "system" actor for unattended mutations (auto check-outs). A hidden
 // account so every check_in/staff_status row keeps a real actor reference.
 // Always verified against the DB (no module cache) so rows stay valid even if
@@ -1871,20 +1884,35 @@ export async function sendMessage(data: {
   // KID-474: the durable in-app notification rides the same write — the
   // recipient (any role) gets a row for their unread badge and center, and
   // message rows never duplicate thanks to the stable per-message ref.
+  // KID-1329: a family or pickup link can never view messages, so its
+  // notification paths must stay dark too — the emission is skipped for
+  // parent-role recipients whose most-permissive family link is not "parent".
+  // Staff recipients are unaffected (an account role is not a family link).
   try {
-    const sender = await queryGet("SELECT full_name FROM account WHERE id = ?", data.senderAccountId);
-    await emitNotifications({
-      instituteId: data.instituteId,
-      accountIds: [data.recipientAccountId],
-      activity: "messages",
-      kind: "message",
-      payload: {
-        senderName: String(sender?.full_name ?? ""),
-        body: String(data.body).slice(0, 280),
-        threadId: data.threadId ?? null,
-      },
-      ref: `msg-${id}`,
-    });
+    const recipient = await queryGet("SELECT role FROM account WHERE id = ?", data.recipientAccountId);
+    let suppress = false;
+    if (String(recipient?.role ?? "") === "parent") {
+      // Same-module helper (also consumed by the actions gate).
+      const access = (await familyAccessForAccount(data.recipientAccountId)) ?? "parent";
+      // family/pickup links both have views of messages that fail closed, so
+      // neither gets a messages notification row.
+      suppress = access === "family" || access === "pickup";
+    }
+    if (!suppress) {
+      const sender = await queryGet("SELECT full_name FROM account WHERE id = ?", data.senderAccountId);
+      await emitNotifications({
+        instituteId: data.instituteId,
+        accountIds: [data.recipientAccountId],
+        activity: "messages",
+        kind: "message",
+        payload: {
+          senderName: String(sender?.full_name ?? ""),
+          body: String(data.body).slice(0, 280),
+          threadId: data.threadId ?? null,
+        },
+        ref: `msg-${id}`,
+      });
+    }
   } catch (err) {
     console.error(`KID-474 message notification emission failed (message=${id}):`, err);
   }

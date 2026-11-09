@@ -54,13 +54,13 @@ describe("access ladder", () => {
     }
   });
 
-  it("family is limited: no consents/forms/incidents/support, but loop + messaging work", () => {
+  it("family is limited: no consents/forms/incidents/support and KID-1329 hides messaging", () => {
     expect(isActionAllowed("family", "respondConsent")).toBe(false);
     expect(isActionAllowed("family", "submitForm")).toBe(false);
     expect(isActionAllowed("family", "acknowledgeIncident")).toBe(false);
     expect(isActionAllowed("family", "createSupportTicket")).toBe(false);
+    expect(isActionAllowed("family", "sendMessage")).toBe(false);
     expect(isActionAllowed("family", "checkInOut")).toBe(true);
-    expect(isActionAllowed("family", "sendMessage")).toBe(true);
     expect(isActionAllowed("family", "comment")).toBe(true);
   });
 

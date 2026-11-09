@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { resolveTenantInstituteId } from "@/lib/tenant";
 import { requireSession } from "@/lib/require";
-import {attendanceOn, runAutoCheckoutSweep, scopedRoomIds, listRooms, busStatusByChild } from "@/lib/store";
+import {attendanceOn, runAutoCheckoutSweep, scopedRoomIds, listRooms, busStatusByChild, parentCheckInOutAllowed } from "@/lib/store";
 import { AttendanceCheckIn } from "@/components/AttendanceCheckIn";
 import { BusStatusButtons } from "@/components/BusStatusButtons";
 import { recordToolUsage } from "@/lib/tool-usage";
@@ -48,6 +48,10 @@ export default async function PortalAttendancePage(
 
   // KID-494: the current bus status per child, served in one indexed query.
   const busByChild = iid ? await busStatusByChild(iid, day) : {};
+
+  // KID-1329: the center's parent check-in/out toggle hides the
+  // per-row parent self-service control here too (staff keep theirs).
+  const showParentAction = session.role !== "parent" || !iid || (await parentCheckInOutAllowed(String(iid)));
 
   return (
     <div>
@@ -135,7 +139,7 @@ export default async function PortalAttendancePage(
                 <td className="small">{time(r.checked_out_at)}</td>
                 <td>
                   <div className="row" style={{ gap: 8 }}>
-                    <AttendanceCheckIn childId={r.id as string} lastEvent={r.last_event} />
+                    {showParentAction && <AttendanceCheckIn childId={r.id as string} lastEvent={r.last_event} />}
                     <BusStatusButtons childId={r.id as string} busEvent={bus ? { type: String(bus.type), auto: Number(bus.auto) === 1 } : undefined} />
                   </div>
                 </td>

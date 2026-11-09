@@ -19,6 +19,9 @@ export function sqliteSchema(db: any): void {
     address TEXT,
     active INTEGER NOT NULL DEFAULT 1,
     subdomain TEXT,
+    -- KID-1329: mirror of supabase/migrations/0042 — the center-level
+    -- "Allow parents to check in/out" toggle. 0 = off, anything else = on.
+    allow_parent_check_inout INTEGER NOT NULL DEFAULT 1,
     default_currency TEXT NOT NULL DEFAULT 'EGP',
     instapay_url TEXT,
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
@@ -796,6 +799,11 @@ export function sqliteSchema(db: any): void {
   // whose names normalize to the same slug never collide mid-backfill.
   if (!instCols.some((c) => c.name === "subdomain")) {
     db.exec("ALTER TABLE institute ADD COLUMN subdomain TEXT");
+  }
+  // KID-1329: mirror of supabase/migrations/0042_kid1329_parent_checkin_toggle.sql
+  // for databases created before the toggle existed.
+  if (!instCols.some((c) => c.name === "allow_parent_check_inout")) {
+    db.exec("ALTER TABLE institute ADD COLUMN allow_parent_check_inout INTEGER NOT NULL DEFAULT 1");
   }
   try {
     const pending = db

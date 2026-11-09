@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireMobileSession, errorPayload, childSummary, serializeReport, isChildInFamily } from "@/lib/mobile-api";
-import { getChild, listContacts, newsfeedForChild, incidentsForChild } from "@/lib/store";
+import { getChild, listContacts, newsfeedForChild, incidentsForChild, familyAccessForAccount } from "@/lib/store";
 import { queryGet } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
@@ -19,6 +19,24 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
 
   const inFamily = await isChildInFamily(session.accountId, childId);
   if (!inFamily) return errorPayload("forbidden", 403);
+
+  // KID-1329: a pickup link may see the child identity (name/photo shape the
+  // app renders) and today's pickup time — everything else on this endpoint
+  // (date-picked daily report, contacts, newsfeed, incidents) stays hidden,
+  // mirroring the web child-detail branch. Still a real 200 for the app's
+  // day view, but payload-degraded.
+  if (session.role === "parent") {
+    const access = (await familyAccessForAccount(session.accountId)) ?? "parent";
+    if (access === "pickup") {
+      const summary = await childSummary(child);
+      return NextResponse.json({
+        // childSummary embeds todayReport — dropped for pickup, along with
+        // every section below (contacts/newsfeed/incidents are never fetched).
+        child: summary.child,
+        status: summary.status,
+      });
+    }
+  }
 
   const roomRow = child.room_id
     ? await queryGet("SELECT name AS room_name FROM room WHERE id = ?", child.room_id)
