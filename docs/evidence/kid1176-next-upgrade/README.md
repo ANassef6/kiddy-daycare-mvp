@@ -84,12 +84,35 @@ that everything is in a top notch."), 2026-11-09.
   Server actions catch their own errors and log server-side only (46
   `console.error` sites in lib/actions.ts; responses carry localized
   messages/digests, never stacks).
-- **React 19 SSR note (not a regression):** forms in client components whose
-  `action` is an inline closure render with React 19's no-JS fallback
-  `action="javascript:throw …"` — identical UX to the Next 14 build (React 18
-  canary rendered the attribute empty; the no-JS path never worked there
-  either). The with-JS path (the only one users have) is hydrated and posts
-  the server action; confirmed end-to-end on the Vercel preview below.
+## Vercel preview smoke (branch deployment)
+
+- Branch push → Vercel Preview deployment `dpl_JCzw` (READY,
+  `kiddy-7moh11bhv-kiddy2.vercel.app`, ref kid1176-next-upgrade = the PR head
+  commit).
+- Through the project's automation bypass (created for the smoke, revoked
+  right after): `/login` → 200 with the login form; `/.well-known/assetlinks.json`
+  → the rewrite serves the route's designed fail-closed `no_twa_app` JSON for
+  the unregistered preview host (per-host tenancy rule intact); a
+  `/_next/static/**.map` probe → 404 (no source maps on the preview either).
+- **Real-browser login proof (Playwright-equivalent browser driven through
+  Skyvern against the local production build of the same commit, and an
+  HTTP-logging proxy capturing the wire):** filling superadmin@kiddy.test /
+  the demo password and clicking **Sign in** produces
+  `POST /login` with header `Next-Action: 40b96496…` (the loginAction server
+  reference) followed immediately by the browser loading
+  `/_next/static/chunks/app/platform/page-…js` — the operator dashboard. The
+  React 19 client-action mechanism (inline client closure → server action →
+  RSC navigation) works end-to-end on 15.5.29; all other forms share this
+  mechanism.
+- First preview attempt note (honesty): a browser run against the PROTECTED
+  preview through the query-param bypass could not complete login — the
+  server-action fetch does not carry the bypass credentials, so Vercel
+  Authentication 302s it. That is a protection-bypass artifact, not an app
+  defect: the identical flow against the same build without deployment
+  protection succeeds (proof above). CI audit gate:
+  run 42635555423 (`dependency-audit`) → success in 53s —
+  `audit-gate self-test: PASS` and `audit-gate: PASS — no unresolved
+  critical/high dependency vulnerabilities.`
 
 ## Rollback
 
