@@ -1,0 +1,402 @@
+
+> kiddy-web@0.1.0 test
+> vitest run
+
+[33mThe CJS build of Vite's Node API is deprecated. See https://vite.dev/guide/troubleshooting.html#vite-cjs-node-api-deprecated for more details.[39m
+
+ RUN  v2.1.9 /tmp/kid738-qa/wt
+
+stdout | tests/unit/parent-account-enhancements.test.ts > KID-142 sibling auto-link by parent email > links every child whose contact shares the parent's email
+Seeded platform operator account: superadmin@kiddy.test
+
+stdout | tests/unit/parent-account-enhancements.test.ts > KID-142 sibling auto-link by parent email > links every child whose contact shares the parent's email
+Seeded demo daycare: mw956p5q-bmli7ld4
+
+stdout | tests/unit/parent-account-enhancements.test.ts > KID-142 sibling auto-link by parent email > ignores contacts that belong to other institutes
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw956tcr-6jja1xp6
+
+stdout | tests/unit/parent-account-enhancements.test.ts > KID-142 sibling auto-link by parent email > auto-links a parent account when a second child's contact is created
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw956xta-xs0bbg3m
+
+stdout | tests/unit/parent-account-enhancements.test.ts > KID-142 sibling auto-link by parent email > keeps a pre-existing same-email sibling visible to the parent
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw9572ln-oipt0daj
+
+stdout | tests/unit/parent-account-enhancements.test.ts > KID-142 sibling auto-link by parent email > matches the parent email case-insensitively and ignores surrounding whitespace
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw9576v2-k0xf8z4m
+
+stdout | tests/unit/parent-account-enhancements.test.ts > KID-142 sibling auto-link by parent email > re-links when an existing contact's email is edited to a parent address
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw957b8i-5q9r0w62
+
+stdout | tests/unit/parent-account-enhancements.test.ts > KID-142 sibling auto-link by parent email > never gives a staff account family access as a side effect
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw957fsp-2mu9o8h3
+
+stdout | tests/unit/parent-account-enhancements.test.ts > KID-142 sibling auto-link by parent email > keeps exactly one family link per account/child pair when re-run
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw957k4x-zzyc40pr
+
+stdout | tests/unit/parent-account-enhancements.test.ts > KID-142 sibling auto-link by parent email > does not create a second parent account for the same email
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw957obn-gf4yv5mj
+
+stderr | tests/unit/parent-account-enhancements.test.ts > KID-142 sibling auto-link by parent email > does not create a second parent account for the same email
+KID-152 linkSiblingsByParentEmail: account 006b4db2-b6b8-4cd2-be07-f2f2b029ccb7 has no association with institute mw957obn-gf4yv5mj — sibling auto-link refused
+
+stdout | tests/unit/parent-account-enhancements.test.ts > KID-142 sibling auto-link by parent email > refuses a same-email contact at a centre the account is not on file at
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw957sk9-b3qosv0g
+
+stderr | tests/unit/parent-account-enhancements.test.ts > KID-142 sibling auto-link by parent email > refuses a same-email contact at a centre the account is not on file at
+KID-152 linkSiblingsByParentEmail: account 5f2b989f-d375-41bd-a2d0-dc373b3c9546 has no association with institute mw957upg-8r6n8n98 — sibling auto-link refused
+
+stdout | tests/unit/parent-account-enhancements.test.ts > KID-142 sibling auto-link by parent email > links at every centre the account is on file at, and only those
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw957xa7-1o5zuu05
+
+stderr | tests/unit/parent-account-enhancements.test.ts > KID-142 sibling auto-link by parent email > links at every centre the account is on file at, and only those
+KID-152 linkSiblingsByParentEmail: account 62c85fe4-d40b-4309-b5b4-66fae1452356 has no association with institute mw957zfr-3p6u2rki — sibling auto-link refused
+
+stdout | tests/unit/parent-account-enhancements.test.ts > KID-142 sibling auto-link by parent email > gives an account with no tenancy evidence no links, and starts linking once the daycare puts it on file
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw95825k-vsqzewgd
+
+stderr | tests/unit/parent-account-enhancements.test.ts > KID-142 sibling auto-link by parent email > gives an account with no tenancy evidence no links, and starts linking once the daycare puts it on file
+KID-152 linkSiblingsByParentEmail: account edc64774-32eb-4ba7-b1c1-10c19dd07dcc has no association with institute mw95825k-vsqzewgd — sibling auto-link refused
+
+stdout | tests/unit/parent-account-enhancements.test.ts > KID-142 sibling auto-link by parent email > linkFamily is idempotent for a repeated account/child pair
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw9586xk-df358yd8
+
+stdout | tests/unit/parent-account-enhancements.test.ts > KID-142 sibling auto-link by parent email > updates the stored role in place when a link is re-applied with a stricter role
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw958bu5-atwdnsyw
+
+stdout | tests/unit/parent-account-enhancements.test.ts > KID-143 same-email contact backfill > copies missing full name and phone from an existing same-email contact
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw958gr5-rx69yqc1
+
+stdout | tests/unit/parent-account-enhancements.test.ts > KID-143 same-email contact backfill > keeps explicitly provided values over backfilled ones
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw958lid-zuop465b
+
+stdout | tests/unit/parent-account-enhancements.test.ts > KID-143 same-email contact backfill > falls back to the existing account name when no contact exists yet
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw958ptz-c0pa9ryb
+
+stderr | tests/unit/parent-account-enhancements.test.ts > KID-143 same-email contact backfill > falls back to the existing account name when no contact exists yet
+KID-152 linkSiblingsByParentEmail: account 5fc2697f-b6f6-4697-833d-41c24bc8a479 has no association with institute mw958ptz-c0pa9ryb — sibling auto-link refused
+
+stdout | tests/unit/parent-account-enhancements.test.ts > KID-143 same-email contact backfill > copies from the earliest same-email contact, not the newest
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw958usm-cga0ko1p
+
+stdout | tests/unit/parent-account-enhancements.test.ts > KID-143 same-email contact backfill > matches the same address case-insensitively and ignores surrounding whitespace
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw95904q-cw06hary
+
+stdout | tests/unit/parent-account-enhancements.test.ts > KID-143 same-email contact backfill > leaves the existing same-email contact untouched
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw9595d4-q453l2nm
+
+stdout | tests/unit/parent-account-enhancements.test.ts > KID-143 same-email contact backfill > does not copy per-child flags or invent a profile for an unknown address
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw959acd-o2r4gqr0
+
+stdout | tests/unit/parent-account-enhancements.test.ts > KID-143 same-email contact backfill > on edit, fills blanks from the same-email profile but never from itself
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw959f9k-gzir422q
+
+stdout | tests/unit/parent-account-enhancements.test.ts > KID-143 same-email contact backfill > reports which fields it filled and which source it used
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw959kdr-1wwr74cg
+
+stdout | tests/unit/parent-account-enhancements.test.ts > KID-144 classroom staff messaging > returns only staff assigned to the parent's children's rooms
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw959pbv-qn4cot8p
+
+stdout | tests/unit/parent-account-enhancements.test.ts > KID-144 classroom staff messaging > includes staff assigned to any room when the parent has children in multiple rooms
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw959uqs-k1jhke4u
+
+stdout | tests/unit/parent-account-enhancements.test.ts > KID-144 classroom staff messaging > threadsForAccountScoped hides threads with non-classroom participants
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw95a03v-vblfxymx
+
+ ✓ tests/unit/parent-account-enhancements.test.ts (26 tests) 159683ms
+   ✓ KID-142 sibling auto-link by parent email > links every child whose contact shares the parent's email 4635ms
+   ✓ KID-142 sibling auto-link by parent email > ignores contacts that belong to other institutes 5631ms
+   ✓ KID-142 sibling auto-link by parent email > auto-links a parent account when a second child's contact is created 5830ms
+   ✓ KID-142 sibling auto-link by parent email > keeps a pre-existing same-email sibling visible to the parent 5834ms
+   ✓ KID-142 sibling auto-link by parent email > matches the parent email case-insensitively and ignores surrounding whitespace 5874ms
+   ✓ KID-142 sibling auto-link by parent email > re-links when an existing contact's email is edited to a parent address 5426ms
+   ✓ KID-142 sibling auto-link by parent email > never gives a staff account family access as a side effect 5991ms
+   ✓ KID-142 sibling auto-link by parent email > keeps exactly one family link per account/child pair when re-run 5486ms
+   ✓ KID-142 sibling auto-link by parent email > does not create a second parent account for the same email 5527ms
+   ✓ KID-142 sibling auto-link by parent email > refuses a same-email contact at a centre the account is not on file at 5592ms
+   ✓ KID-142 sibling auto-link by parent email > links at every centre the account is on file at, and only those 6542ms
+   ✓ KID-142 sibling auto-link by parent email > gives an account with no tenancy evidence no links, and starts linking once the daycare puts it on file 5961ms
+   ✓ KID-142 sibling auto-link by parent email > linkFamily is idempotent for a repeated account/child pair 6570ms
+   ✓ KID-142 sibling auto-link by parent email > updates the stored role in place when a link is re-applied with a stricter role 5928ms
+   ✓ KID-143 same-email contact backfill > copies missing full name and phone from an existing same-email contact 6545ms
+   ✓ KID-143 same-email contact backfill > keeps explicitly provided values over backfilled ones 5627ms
+   ✓ KID-143 same-email contact backfill > falls back to the existing account name when no contact exists yet 6312ms
+   ✓ KID-143 same-email contact backfill > copies from the earliest same-email contact, not the newest 6758ms
+   ✓ KID-143 same-email contact backfill > matches the same address case-insensitively and ignores surrounding whitespace 6582ms
+   ✓ KID-143 same-email contact backfill > leaves the existing same-email contact untouched 6770ms
+   ✓ KID-143 same-email contact backfill > does not copy per-child flags or invent a profile for an unknown address 6217ms
+   ✓ KID-143 same-email contact backfill > on edit, fills blanks from the same-email profile but never from itself 6622ms
+   ✓ KID-143 same-email contact backfill > reports which fields it filled and which source it used 6407ms
+   ✓ KID-144 classroom staff messaging > returns only staff assigned to the parent's children's rooms 7072ms
+   ✓ KID-144 classroom staff messaging > includes staff assigned to any room when the parent has children in multiple rooms 6978ms
+   ✓ KID-144 classroom staff messaging > threadsForAccountScoped hides threads with non-classroom participants 6956ms
+stdout | tests/unit/sibling-family-link-backfill.test.ts > KID-146 backfill of pre-existing same-email sibling links > links children whose contact predates the auto-link so the parent sees them
+Seeded platform operator account: superadmin@kiddy.test
+
+stdout | tests/unit/sibling-family-link-backfill.test.ts > KID-146 backfill of pre-existing same-email sibling links > links children whose contact predates the auto-link so the parent sees them
+Seeded demo daycare: mw95a60c-yy3re0ua
+
+stdout | tests/unit/sibling-family-link-backfill.test.ts > KID-146 backfill of pre-existing same-email sibling links > is re-runnable and never creates a duplicate row
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw95ab18-sd9l69y7
+
+stdout | tests/unit/sibling-family-link-backfill.test.ts > KID-146 backfill of pre-existing same-email sibling links > uses the contact relationship as the link role
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw95ag5j-dbpl7fcf
+
+stdout | tests/unit/sibling-family-link-backfill.test.ts > KID-146 backfill of pre-existing same-email sibling links > matches the address case-insensitively and ignores surrounding whitespace
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw95akxv-fgvgtyif
+
+stdout | tests/unit/sibling-family-link-backfill.test.ts > KID-146 backfill of pre-existing same-email sibling links > never grants a non-parent account family access
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw95apma-3uvz708s
+
+stdout | tests/unit/sibling-family-link-backfill.test.ts > KID-146 backfill of pre-existing same-email sibling links > ignores contacts with no address and addresses nobody owns
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw95auvs-ha2vbf8p
+
+stdout | tests/unit/sibling-family-link-backfill.test.ts > KID-146 backfill of pre-existing same-email sibling links > does not let a contact at one centre link a child that has no contact of its own
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw95b078-mfn1xwi6
+
+stdout | tests/unit/sibling-family-link-backfill.test.ts > KID-146 backfill of pre-existing same-email sibling links > never links a same-email child at an institute the account is not on file at
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw95b5w2-u3iyu6nc
+
+stdout | tests/unit/sibling-family-link-backfill.test.ts > KID-146 backfill of pre-existing same-email sibling links > links at every institute the account is on file at, and only those
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw95bau4-l7tadvev
+
+stdout | tests/unit/sibling-family-link-backfill.test.ts > KID-146 backfill of pre-existing same-email sibling links > derives the institute from an existing family link when there is no invite
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw95bg0v-8137ori3
+
+stdout | tests/unit/sibling-family-link-backfill.test.ts > KID-146 backfill of pre-existing same-email sibling links > creates nothing for an account with neither an invite nor a link
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw95bl40-l3yuybiu
+
+stdout | tests/unit/sibling-family-link-backfill.test.ts > KID-146 backfill of pre-existing same-email sibling links > leaves an existing family link's role untouched
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw95bppf-jn9eevpo
+
+stdout | tests/unit/sibling-family-link-backfill.test.ts > KID-146 backfill of pre-existing same-email sibling links > keeps one row and takes the most permissive role when contacts disagree
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw95buvy-1l8jny38
+
+stdout | tests/unit/sibling-family-link-backfill.test.ts > KID-146 backfill of pre-existing same-email sibling links > falls back to the parent role for a relationship outside the enum
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw95bzwo-p8op2ugb
+
+stdout | tests/unit/sibling-family-link-backfill.test.ts > KID-146 backfill of pre-existing same-email sibling links > links a withdrawn child without making it visible, and restores it on reactivation
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw95c4xg-zzi1f14y
+
+stdout | tests/unit/sibling-family-link-backfill.test.ts > KID-146 backfill of pre-existing same-email sibling links > stays consistent when the KID-142 contact path also runs
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw95c9ye-o0hlsukr
+
+stdout | tests/unit/sibling-family-link-backfill.test.ts > KID-149 repair of the unscoped 0018 on an already-applied database > removes the cross-institute grant and keeps the in-institute link, row for row
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw95cf0o-0cj4555k
+
+stdout | tests/unit/sibling-family-link-backfill.test.ts > KID-149 repair of the unscoped 0018 on an already-applied database > never touches a link the application made, even one that looks the same
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw95ckjt-g6k40pza
+
+stdout | tests/unit/sibling-family-link-backfill.test.ts > KID-149 repair of the unscoped 0018 on an already-applied database > does not let two bad rows at one centre justify each other
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw95cpqg-az7wpzro
+
+stdout | tests/unit/sibling-family-link-backfill.test.ts > KID-149 repair of the unscoped 0018 on an already-applied database > keeps a parent who is on file at both centres linked at both
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw95cumk-pb6b3c5b
+
+stdout | tests/unit/sibling-family-link-backfill.test.ts > KID-149 repair of the unscoped 0018 on an already-applied database > leaves a contact with no address alone
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw95d01o-gxrvve48
+
+stdout | tests/unit/sibling-family-link-backfill.test.ts > KID-149 repair of the unscoped 0018 on an already-applied database > is idempotent: running the repair twice changes nothing
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw95d4tm-pnbr3vcj
+
+ ✓ tests/unit/sibling-family-link-backfill.test.ts (22 tests) 144572ms
+   ✓ KID-146 backfill of pre-existing same-email sibling links > links children whose contact predates the auto-link so the parent sees them 6281ms
+   ✓ KID-146 backfill of pre-existing same-email sibling links > is re-runnable and never creates a duplicate row 6742ms
+   ✓ KID-146 backfill of pre-existing same-email sibling links > uses the contact relationship as the link role 6299ms
+   ✓ KID-146 backfill of pre-existing same-email sibling links > matches the address case-insensitively and ignores surrounding whitespace 6075ms
+   ✓ KID-146 backfill of pre-existing same-email sibling links > never grants a non-parent account family access 6591ms
+   ✓ KID-146 backfill of pre-existing same-email sibling links > ignores contacts with no address and addresses nobody owns 6785ms
+   ✓ KID-146 backfill of pre-existing same-email sibling links > does not let a contact at one centre link a child that has no contact of its own 7260ms
+   ✓ KID-146 backfill of pre-existing same-email sibling links > never links a same-email child at an institute the account is not on file at 7006ms
+   ✓ KID-146 backfill of pre-existing same-email sibling links > links at every institute the account is on file at, and only those 6147ms
+   ✓ KID-146 backfill of pre-existing same-email sibling links > derives the institute from an existing family link when there is no invite 6791ms
+   ✓ KID-146 backfill of pre-existing same-email sibling links > creates nothing for an account with neither an invite nor a link 6495ms
+   ✓ KID-146 backfill of pre-existing same-email sibling links > leaves an existing family link's role untouched 6245ms
+   ✓ KID-146 backfill of pre-existing same-email sibling links > keeps one row and takes the most permissive role when contacts disagree 6316ms
+   ✓ KID-146 backfill of pre-existing same-email sibling links > falls back to the parent role for a relationship outside the enum 6689ms
+   ✓ KID-146 backfill of pre-existing same-email sibling links > links a withdrawn child without making it visible, and restores it on reactivation 6405ms
+   ✓ KID-146 backfill of pre-existing same-email sibling links > stays consistent when the KID-142 contact path also runs 6789ms
+   ✓ KID-149 repair of the unscoped 0018 on an already-applied database > removes the cross-institute grant and keeps the in-institute link, row for row 6789ms
+   ✓ KID-149 repair of the unscoped 0018 on an already-applied database > never touches a link the application made, even one that looks the same 6809ms
+   ✓ KID-149 repair of the unscoped 0018 on an already-applied database > does not let two bad rows at one centre justify each other 6594ms
+   ✓ KID-149 repair of the unscoped 0018 on an already-applied database > keeps a parent who is on file at both centres linked at both 6723ms
+   ✓ KID-149 repair of the unscoped 0018 on an already-applied database > leaves a contact with no address alone 6712ms
+   ✓ KID-149 repair of the unscoped 0018 on an already-applied database > is idempotent: running the repair twice changes nothing 6023ms
+stdout | tests/unit/kid737-platform-payment.test.tsx > KID-737: schema (Postgres migration mirrored in SQLite) > the migration adds the platform_setting table and the three proof columns idempotently
+Seeded platform operator account: superadmin@kiddy.test
+
+stdout | tests/unit/kid737-platform-payment.test.tsx > KID-737: schema (Postgres migration mirrored in SQLite) > the migration adds the platform_setting table and the three proof columns idempotently
+Seeded demo daycare: mw95dacr-pqnkwjim
+
+stdout | tests/unit/kid737-platform-payment.test.tsx > KID-737: schema (Postgres migration mirrored in SQLite) > the SQLite mirror carries the columns; a fresh invoice reads all NULL
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw95de7i-b5oy9isw
+
+stdout | tests/unit/kid737-platform-payment.test.tsx > KID-737: the platform link boundary (parsePaymentLink) > stores only absolute http/https links
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw95di8i-p3tsu997
+
+stdout | tests/unit/kid737-platform-payment.test.tsx > KID-737: the platform link boundary (parsePaymentLink) > a blank value clears the setting
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw95dmet-rlocbsi9
+
+stdout | tests/unit/kid737-platform-payment.test.tsx > KID-737: the platform link boundary (parsePaymentLink) > anything else is refused before it can ever be stored
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw95dqb1-u8gxydj9
+
+stdout | tests/unit/kid737-platform-payment.test.tsx > KID-737: setPlatformInstapayAction (operator-only) > saves an https link, beats it into the audit trail with the operator attached
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw95duot-kqd0hw0z
+
+stdout | tests/unit/kid737-platform-payment.test.tsx > KID-737: setPlatformInstapayAction (operator-only) > a broken link is refused with a localized banner and nothing is stored
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw95dzoe-siwznrk2
+
+stdout | tests/unit/kid737-platform-payment.test.tsx > KID-737: setPlatformInstapayAction (operator-only) > blank clears the stored link (row deleted) and records the clear
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw95e3v8-tmhnx5gg
+
+stdout | tests/unit/kid737-platform-payment.test.tsx > KID-737: setPlatformInstapayAction (operator-only) > a non-operator POST is bounced to /login and stores nothing
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw95e8bb-0tdojb0l
+
+stdout | tests/unit/kid737-platform-payment.test.tsx > KID-737: setPlatformInstapayAction (operator-only) > an anonymous POST lands on /login too
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw95ecn3-gmeotnx1
+
+stdout | tests/unit/kid737-platform-payment.test.tsx > KID-737: uploadDaycareInvoiceProofAction (owner-only) > stores the proof for the daycare's own pending invoice — status untouched
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw95ezmw-gqbqa93k
+
+stdout | tests/unit/kid737-platform-payment.test.tsx > KID-737: uploadDaycareInvoiceProofAction (owner-only) > an overdue invoice accepts a proof too
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw95f7fy-64r59mdn
+
+stdout | tests/unit/kid737-platform-payment.test.tsx > KID-737: uploadDaycareInvoiceProofAction (owner-only) > a replacement upload replaces the whole snapshot before payment
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw95fbls-gh2m36zu
+
+stdout | tests/unit/kid737-platform-payment.test.tsx > KID-737: uploadDaycareInvoiceProofAction (owner-only) > a paid invoice refuses an upload, fail-closed before any write
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw95fg2b-xxc0kste
+
+stderr | tests/unit/kid737-platform-payment.test.tsx > KID-737: uploadDaycareInvoiceProofAction (owner-only) > a paid invoice refuses an upload, fail-closed before any write
+KID-737 refused a payment-proof upload for invoice status: paid
+
+stdout | tests/unit/kid737-platform-payment.test.tsx > KID-737: uploadDaycareInvoiceProofAction (owner-only) > a non-owner role (staff) is refused with no leak and no write
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw95fkjx-92o218nb
+
+stderr | tests/unit/kid737-platform-payment.test.tsx > KID-737: uploadDaycareInvoiceProofAction (owner-only) > a non-owner role (staff) is refused with no leak and no write
+KID-737 refused a subscription payment-proof upload by a non-owner role: kid737-staff@example.test
+
+stdout | tests/unit/kid737-platform-payment.test.tsx > KID-737: uploadDaycareInvoiceProofAction (owner-only) > another daycare's invoice id is refused for a real owner session
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw95fp47-hv80jgaa
+
+stderr | tests/unit/kid737-platform-payment.test.tsx > KID-737: uploadDaycareInvoiceProofAction (owner-only) > another daycare's invoice id is refused for a real owner session
+KID-737 refused a subscription payment-proof upload by raw id: trois4ever+admin@gmail.com
+
+stdout | tests/unit/kid737-platform-payment.test.tsx > KID-737: uploadDaycareInvoiceProofAction (owner-only) > oversize, wrong-type and storage failures write nothing
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw95ftk9-68mirxke
+
+stderr | tests/unit/kid737-platform-payment.test.tsx > KID-737: uploadDaycareInvoiceProofAction (owner-only) > oversize, wrong-type and storage failures write nothing
+KID-737 payment proof storage upload failed: boom
+
+stdout | tests/unit/kid737-platform-payment.test.tsx > KID-737: the surfaces > the owner sees no pay link and a form per unpaid invoice while the platform link is unset
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw95fxxp-9t2bi4cn
+
+stdout | tests/unit/kid737-platform-payment.test.tsx > KID-737: the surfaces > with the link set the unpaid row shows Pay with Instapay; the paid row shows neither pay link nor form
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw95g2yw-hiwu1bjp
+
+stdout | tests/unit/kid737-platform-payment.test.tsx > KID-737: the surfaces > the uploaded proof renders as a view link with the recorded reference
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw95g7du-b21jr707
+
+stdout | tests/unit/kid737-platform-payment.test.tsx > KID-737: the surfaces > the platform invoice list shows the proof link, upload date and reference for paid rows too
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw95gbo4-xtqpfstb
+
+stdout | tests/unit/kid737-platform-payment.test.tsx > KID-737: the surfaces > the /platform operator page renders the Instapay card with the stored value
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw95gg65-6428w9hn
+
+stdout | tests/unit/kid737-platform-payment.test.tsx > KID-737: EN + AR parity > every new key ships in both dictionaries
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw95gko2-7n4b6ksa
+
+ ✓ tests/unit/kid737-platform-payment.test.tsx (23 tests) 158758ms
+   ✓ KID-737: schema (Postgres migration mirrored in SQLite) > the migration adds the platform_setting table and the three proof columns idempotently 5594ms
+   ✓ KID-737: schema (Postgres migration mirrored in SQLite) > the SQLite mirror carries the columns; a fresh invoice reads all NULL 4972ms
+   ✓ KID-737: the platform link boundary (parsePaymentLink) > stores only absolute http/https links 5477ms
+   ✓ KID-737: the platform link boundary (parsePaymentLink) > a blank value clears the setting 4867ms
+   ✓ KID-737: the platform link boundary (parsePaymentLink) > anything else is refused before it can ever be stored 5702ms
+   ✓ KID-737: setPlatformInstapayAction (operator-only) > saves an https link, beats it into the audit trail with the operator attached 6004ms
+   ✓ KID-737: setPlatformInstapayAction (operator-only) > a broken link is refused with a localized banner and nothing is stored 5735ms
+   ✓ KID-737: setPlatformInstapayAction (operator-only) > blank clears the stored link (row deleted) and records the clear 5743ms
+   ✓ KID-737: setPlatformInstapayAction (operator-only) > a non-operator POST is bounced to /login and stores nothing 5295ms
+   ✓ KID-737: setPlatformInstapayAction (operator-only) > an anonymous POST lands on /login too 5867ms
+   ✓ KID-737: uploadDaycareInvoiceProofAction (owner-only) > stores the proof for the daycare's own pending invoice — status untouched 34194ms
+   ✓ KID-737: uploadDaycareInvoiceProofAction (owner-only) > an overdue invoice accepts a proof too 5790ms
+   ✓ KID-737: uploadDaycareInvoiceProofAction (owner-only) > a replacement upload replaces the whole snapshot before payment 5327ms
+   ✓ KID-737: uploadDaycareInvoiceProofAction (owner-only) > a paid invoice refuses an upload, fail-closed before any write 5942ms
+   ✓ KID-737: uploadDaycareInvoiceProofAction (owner-only) > a non-owner role (staff) is refused with no leak and no write 5910ms
+   ✓ KID-737: uploadDaycareInvoiceProofAction (owner-only) > another daycare's invoice id is refused for a real owner session 5648ms
+   ✓ KID-737: uploadDaycareInvoiceProofAction (owner-only) > oversize, wrong-type and storage failures write nothing 5744ms
+   ✓ KID-737: the surfaces > the owner sees no pay link and a form per unpaid invoice while the platform link is unset 6517ms
+   ✓ KID-737: the surfaces > with the link set the unpaid row shows Pay with Instapay; the paid row shows neither pay link nor form 5954ms
+   ✓ KID-737: the surfaces > the uploaded proof renders as a view link with the recorded reference 5426ms
+   ✓ KID-737: the surfaces > the platform invoice list shows the proof link, upload date and reference for paid rows too 5903ms
+   ✓ KID-737: the surfaces > the /platform operator page renders the Instapay card with the stored value 5855ms
+   ✓ KID-737: EN + AR parity > every new key ships in both dictionaries 5281ms
+stdout | tests/unit/kid245-invoices.test.ts > pure date/cycle helpers > the due date is the 5th of the month after the cycle ends
+Seeded platform operator account: superadmin@kiddy.test
+

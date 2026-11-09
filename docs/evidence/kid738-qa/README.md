@@ -24,7 +24,25 @@ public and non-owner legs ran live on `https://kiddy-one.vercel.app`.
 | Non-owner roles cannot upload | **PASS** | Parent session → 303 `?error=wrong-tenant`; anonymous → 303 `/login`; live production: staff fixture and parent fixture both bounced off `/portal/account-billing` to `/portal/dashboard`, no billing content (`prod-02`, `prod-03`); page-level gate also verified live for anonymous (`prod-01`) and `/platform` (`prod-04`) |
 | Oversize and wrong-type refused, no partial record | **PASS** | `.txt` → `?proofError=proofType` banner, stored proof untouched, **0** new objects (`12`); 5 MB + 1 B PNG → `?proofError=proofSize`, same result (`13`); storage object count after all refusals still equals the number of successful uploads (3: PNG, PDF, JPG — `transcripts/storage-objects.txt`) |
 | Audit trail | **PASS** | Exactly one audit per successful proof upload (`statusBefore`, ids only), one per link save/clear, one per mark-paid; **no audit row for any refused attempt** (`transcripts/audit-proof-trail.json`) |
-| Gates | **PASS** | `tsc --noEmit` exit 0; `next lint` exit 0 (pre-existing `no-img-element` warnings only); `next build` green; `db:verify-migrations` all passed; full `npm test` — see `transcripts/gate-tests.txt` |
+| Gates | **PASS** (full battery not completed — see below) | `tsc --noEmit` exit 0; `next lint` exit 0 (pre-existing `no-img-element` warnings only); `next build` green; `db:verify-migrations` all passed; focused battery at the deployed commit — **7 files / 140 tests, 0 failures** (`transcripts/gate-tests-focused.txt`), including the full KID-737 suite |
+
+## Gates
+
+`tsc --noEmit` exit 0, `next lint` exit 0 (pre-existing warnings only),
+`next build` green, `db:verify-migrations` all passed, and a focused battery
+at the deployed commit — `kid737-platform-payment`,
+`kid489-payment-proof`, `kid489-instapay-payment-link`, `kid244/245/246`,
+`kid372` — **7 files / 140 tests, 0 failures**
+(`transcripts/gate-tests-focused.txt`). The full 89-file battery was started
+twice and stopped: this host is running two other runs' vitest batteries
+concurrently (measured ≈150 s per file, ≈5 h projected). Files completed
+green before stopping (0 failures): `kid737-platform-payment` (23),
+`parent-account-enhancements` (26), `sibling-family-link-backfill` (22) —
+raw outputs in `transcripts/gate-tests.txt` and
+`transcripts/gate-tests-full.txt`. KID-737's own full battery at this fix
+commit: 90 files / 988 tests — 975 pass, remaining failures pre-existing
+(`activityTitle` KID-733 keys, one flaky kid216 timeout that passes on
+rerun).
 
 ## Defects
 

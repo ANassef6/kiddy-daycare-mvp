@@ -1,0 +1,268 @@
+[33mThe CJS build of Vite's Node API is deprecated. See https://vite.dev/guide/troubleshooting.html#vite-cjs-node-api-deprecated for more details.[39m
+
+ RUN  v2.1.9 /tmp/kid738-qa/wt
+
+stdout | tests/unit/parent-account-enhancements.test.ts > KID-142 sibling auto-link by parent email > links every child whose contact shares the parent's email
+Seeded platform operator account: superadmin@kiddy.test
+
+stdout | tests/unit/parent-account-enhancements.test.ts > KID-142 sibling auto-link by parent email > links every child whose contact shares the parent's email
+Seeded demo daycare: mw96qonb-12zhnds3
+
+stdout | tests/unit/parent-account-enhancements.test.ts > KID-142 sibling auto-link by parent email > ignores contacts that belong to other institutes
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw96qt6d-2mcxlwbq
+
+stdout | tests/unit/parent-account-enhancements.test.ts > KID-142 sibling auto-link by parent email > auto-links a parent account when a second child's contact is created
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw96qxu7-buhu74zn
+
+stdout | tests/unit/parent-account-enhancements.test.ts > KID-142 sibling auto-link by parent email > keeps a pre-existing same-email sibling visible to the parent
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw96r28o-oiouitkh
+
+stdout | tests/unit/parent-account-enhancements.test.ts > KID-142 sibling auto-link by parent email > matches the parent email case-insensitively and ignores surrounding whitespace
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw96r6ra-nxlxl9tq
+
+stdout | tests/unit/parent-account-enhancements.test.ts > KID-142 sibling auto-link by parent email > re-links when an existing contact's email is edited to a parent address
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw96rb5o-o6o1gx1r
+
+stdout | tests/unit/parent-account-enhancements.test.ts > KID-142 sibling auto-link by parent email > never gives a staff account family access as a side effect
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw96rfm5-swde76yf
+
+stdout | tests/unit/parent-account-enhancements.test.ts > KID-142 sibling auto-link by parent email > keeps exactly one family link per account/child pair when re-run
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw96rjts-i9s0nj9q
+
+stdout | tests/unit/parent-account-enhancements.test.ts > KID-142 sibling auto-link by parent email > does not create a second parent account for the same email
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw96ro6o-6czhmzhu
+
+stderr | tests/unit/parent-account-enhancements.test.ts > KID-142 sibling auto-link by parent email > does not create a second parent account for the same email
+KID-152 linkSiblingsByParentEmail: account 5e6a2a6f-c216-4016-9ea3-af25985b695e has no association with institute mw96ro6o-6czhmzhu — sibling auto-link refused
+
+stdout | tests/unit/parent-account-enhancements.test.ts > KID-142 sibling auto-link by parent email > refuses a same-email contact at a centre the account is not on file at
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw96rsjj-d022cyhz
+
+stderr | tests/unit/parent-account-enhancements.test.ts > KID-142 sibling auto-link by parent email > refuses a same-email contact at a centre the account is not on file at
+KID-152 linkSiblingsByParentEmail: account 06ab2283-72d2-4419-903b-54ec49c258e3 has no association with institute mw96run0-ird3yid6 — sibling auto-link refused
+
+stdout | tests/unit/parent-account-enhancements.test.ts > KID-142 sibling auto-link by parent email > links at every centre the account is on file at, and only those
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw96rwvm-csnnhmhk
+
+stderr | tests/unit/parent-account-enhancements.test.ts > KID-142 sibling auto-link by parent email > links at every centre the account is on file at, and only those
+KID-152 linkSiblingsByParentEmail: account d362438e-1647-4512-8129-993065758850 has no association with institute mw96rywr-ddisd0t1 — sibling auto-link refused
+
+stdout | tests/unit/parent-account-enhancements.test.ts > KID-142 sibling auto-link by parent email > gives an account with no tenancy evidence no links, and starts linking once the daycare puts it on file
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw96s1in-1y5dtlx7
+
+stderr | tests/unit/parent-account-enhancements.test.ts > KID-142 sibling auto-link by parent email > gives an account with no tenancy evidence no links, and starts linking once the daycare puts it on file
+KID-152 linkSiblingsByParentEmail: account abdee22c-6a24-4f5c-a070-b55381c0185a has no association with institute mw96s1in-1y5dtlx7 — sibling auto-link refused
+
+stdout | tests/unit/parent-account-enhancements.test.ts > KID-142 sibling auto-link by parent email > linkFamily is idempotent for a repeated account/child pair
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw96s5o8-zr0r9kzf
+
+stdout | tests/unit/parent-account-enhancements.test.ts > KID-142 sibling auto-link by parent email > updates the stored role in place when a link is re-applied with a stricter role
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw96sa55-eho3x5kw
+
+stdout | tests/unit/parent-account-enhancements.test.ts > KID-143 same-email contact backfill > copies missing full name and phone from an existing same-email contact
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw96sebm-may3fnqx
+
+stdout | tests/unit/parent-account-enhancements.test.ts > KID-143 same-email contact backfill > keeps explicitly provided values over backfilled ones
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw96siih-wt6pairq
+
+stdout | tests/unit/parent-account-enhancements.test.ts > KID-143 same-email contact backfill > falls back to the existing account name when no contact exists yet
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw96smsm-wjcz5urv
+
+stderr | tests/unit/parent-account-enhancements.test.ts > KID-143 same-email contact backfill > falls back to the existing account name when no contact exists yet
+KID-152 linkSiblingsByParentEmail: account 11c29ff4-3853-4b2c-809d-ff044e821be5 has no association with institute mw96smsm-wjcz5urv — sibling auto-link refused
+
+stdout | tests/unit/parent-account-enhancements.test.ts > KID-143 same-email contact backfill > copies from the earliest same-email contact, not the newest
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw96srs2-ugey9bm6
+
+stdout | tests/unit/parent-account-enhancements.test.ts > KID-143 same-email contact backfill > matches the same address case-insensitively and ignores surrounding whitespace
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw96sw33-2avindas
+
+stdout | tests/unit/parent-account-enhancements.test.ts > KID-143 same-email contact backfill > leaves the existing same-email contact untouched
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw96t06w-vyib1pui
+
+stdout | tests/unit/parent-account-enhancements.test.ts > KID-143 same-email contact backfill > does not copy per-child flags or invent a profile for an unknown address
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw96t4fm-4g9omuno
+
+stdout | tests/unit/parent-account-enhancements.test.ts > KID-143 same-email contact backfill > on edit, fills blanks from the same-email profile but never from itself
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw96t8ty-yjjgfvls
+
+stdout | tests/unit/parent-account-enhancements.test.ts > KID-143 same-email contact backfill > reports which fields it filled and which source it used
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw96td4l-7lupntsv
+
+stdout | tests/unit/parent-account-enhancements.test.ts > KID-144 classroom staff messaging > returns only staff assigned to the parent's children's rooms
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw96th8e-oh38o58y
+
+stdout | tests/unit/parent-account-enhancements.test.ts > KID-144 classroom staff messaging > includes staff assigned to any room when the parent has children in multiple rooms
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw96tlxu-mnn8iuhz
+
+stdout | tests/unit/parent-account-enhancements.test.ts > KID-144 classroom staff messaging > threadsForAccountScoped hides threads with non-classroom participants
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw96tqdc-iwgdfz0h
+
+ ✓ tests/unit/parent-account-enhancements.test.ts (26 tests) 147552ms
+   ✓ KID-142 sibling auto-link by parent email > links every child whose contact shares the parent's email 5287ms
+   ✓ KID-142 sibling auto-link by parent email > ignores contacts that belong to other institutes 5863ms
+   ✓ KID-142 sibling auto-link by parent email > auto-links a parent account when a second child's contact is created 5988ms
+   ✓ KID-142 sibling auto-link by parent email > keeps a pre-existing same-email sibling visible to the parent 5671ms
+   ✓ KID-142 sibling auto-link by parent email > matches the parent email case-insensitively and ignores surrounding whitespace 5710ms
+   ✓ KID-142 sibling auto-link by parent email > re-links when an existing contact's email is edited to a parent address 5687ms
+   ✓ KID-142 sibling auto-link by parent email > never gives a staff account family access as a side effect 5611ms
+   ✓ KID-142 sibling auto-link by parent email > keeps exactly one family link per account/child pair when re-run 5701ms
+   ✓ KID-142 sibling auto-link by parent email > does not create a second parent account for the same email 5595ms
+   ✓ KID-142 sibling auto-link by parent email > refuses a same-email contact at a centre the account is not on file at 5772ms
+   ✓ KID-142 sibling auto-link by parent email > links at every centre the account is on file at, and only those 5581ms
+   ✓ KID-142 sibling auto-link by parent email > gives an account with no tenancy evidence no links, and starts linking once the daycare puts it on file 5752ms
+   ✓ KID-142 sibling auto-link by parent email > linkFamily is idempotent for a repeated account/child pair 5601ms
+   ✓ KID-142 sibling auto-link by parent email > updates the stored role in place when a link is re-applied with a stricter role 5563ms
+   ✓ KID-143 same-email contact backfill > copies missing full name and phone from an existing same-email contact 5546ms
+   ✓ KID-143 same-email contact backfill > keeps explicitly provided values over backfilled ones 5470ms
+   ✓ KID-143 same-email contact backfill > falls back to the existing account name when no contact exists yet 6244ms
+   ✓ KID-143 same-email contact backfill > copies from the earliest same-email contact, not the newest 5726ms
+   ✓ KID-143 same-email contact backfill > matches the same address case-insensitively and ignores surrounding whitespace 5352ms
+   ✓ KID-143 same-email contact backfill > leaves the existing same-email contact untouched 5565ms
+   ✓ KID-143 same-email contact backfill > does not copy per-child flags or invent a profile for an unknown address 5541ms
+   ✓ KID-143 same-email contact backfill > on edit, fills blanks from the same-email profile but never from itself 5514ms
+   ✓ KID-143 same-email contact backfill > reports which fields it filled and which source it used 5496ms
+   ✓ KID-144 classroom staff messaging > returns only staff assigned to the parent's children's rooms 5983ms
+   ✓ KID-144 classroom staff messaging > includes staff assigned to any room when the parent has children in multiple rooms 5926ms
+   ✓ KID-144 classroom staff messaging > threadsForAccountScoped hides threads with non-classroom participants 5803ms
+stdout | tests/unit/sibling-family-link-backfill.test.ts > KID-146 backfill of pre-existing same-email sibling links > links children whose contact predates the auto-link so the parent sees them
+Seeded platform operator account: superadmin@kiddy.test
+
+stdout | tests/unit/sibling-family-link-backfill.test.ts > KID-146 backfill of pre-existing same-email sibling links > links children whose contact predates the auto-link so the parent sees them
+Seeded demo daycare: mw96tvcv-ij3hlktz
+
+stdout | tests/unit/sibling-family-link-backfill.test.ts > KID-146 backfill of pre-existing same-email sibling links > is re-runnable and never creates a duplicate row
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw96tzpv-kwok5r0g
+
+stdout | tests/unit/sibling-family-link-backfill.test.ts > KID-146 backfill of pre-existing same-email sibling links > uses the contact relationship as the link role
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw96u40y-zruue7zc
+
+stdout | tests/unit/sibling-family-link-backfill.test.ts > KID-146 backfill of pre-existing same-email sibling links > matches the address case-insensitively and ignores surrounding whitespace
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw96u8el-pk4cktdd
+
+stdout | tests/unit/sibling-family-link-backfill.test.ts > KID-146 backfill of pre-existing same-email sibling links > never grants a non-parent account family access
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw96ucyr-j3kxfvhm
+
+stdout | tests/unit/sibling-family-link-backfill.test.ts > KID-146 backfill of pre-existing same-email sibling links > ignores contacts with no address and addresses nobody owns
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw96uh4b-kthhlibl
+
+stdout | tests/unit/sibling-family-link-backfill.test.ts > KID-146 backfill of pre-existing same-email sibling links > does not let a contact at one centre link a child that has no contact of its own
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw96ulh1-zl5wxi55
+
+stdout | tests/unit/sibling-family-link-backfill.test.ts > KID-146 backfill of pre-existing same-email sibling links > never links a same-email child at an institute the account is not on file at
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw96upqt-ntu8z2fq
+
+stdout | tests/unit/sibling-family-link-backfill.test.ts > KID-146 backfill of pre-existing same-email sibling links > links at every institute the account is on file at, and only those
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw96uu3b-puqhlo9r
+
+stdout | tests/unit/sibling-family-link-backfill.test.ts > KID-146 backfill of pre-existing same-email sibling links > derives the institute from an existing family link when there is no invite
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw96uysn-hfdygou0
+
+stdout | tests/unit/sibling-family-link-backfill.test.ts > KID-146 backfill of pre-existing same-email sibling links > creates nothing for an account with neither an invite nor a link
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw96v32n-u8ebzzs4
+
+stdout | tests/unit/sibling-family-link-backfill.test.ts > KID-146 backfill of pre-existing same-email sibling links > leaves an existing family link's role untouched
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw96v78j-33jdv4f1
+
+stdout | tests/unit/sibling-family-link-backfill.test.ts > KID-146 backfill of pre-existing same-email sibling links > keeps one row and takes the most permissive role when contacts disagree
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw96vbj2-yvegx7hu
+
+stdout | tests/unit/sibling-family-link-backfill.test.ts > KID-146 backfill of pre-existing same-email sibling links > falls back to the parent role for a relationship outside the enum
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw96vfmx-w1rxr242
+
+stdout | tests/unit/sibling-family-link-backfill.test.ts > KID-146 backfill of pre-existing same-email sibling links > links a withdrawn child without making it visible, and restores it on reactivation
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw96vjy5-1qjt9xo0
+
+stdout | tests/unit/sibling-family-link-backfill.test.ts > KID-146 backfill of pre-existing same-email sibling links > stays consistent when the KID-142 contact path also runs
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw96voi2-67vdkw3o
+
+stdout | tests/unit/sibling-family-link-backfill.test.ts > KID-149 repair of the unscoped 0018 on an already-applied database > removes the cross-institute grant and keeps the in-institute link, row for row
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw96vss9-ctl77vp1
+
+stdout | tests/unit/sibling-family-link-backfill.test.ts > KID-149 repair of the unscoped 0018 on an already-applied database > never touches a link the application made, even one that looks the same
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw96vxc4-vg837lbr
+
+stdout | tests/unit/sibling-family-link-backfill.test.ts > KID-149 repair of the unscoped 0018 on an already-applied database > does not let two bad rows at one centre justify each other
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw96w1jv-hq9evv8g
+
+stdout | tests/unit/sibling-family-link-backfill.test.ts > KID-149 repair of the unscoped 0018 on an already-applied database > keeps a parent who is on file at both centres linked at both
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw96w64p-akvkozf4
+
+stdout | tests/unit/sibling-family-link-backfill.test.ts > KID-149 repair of the unscoped 0018 on an already-applied database > leaves a contact with no address alone
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw96wafn-l1q8yolx
+
+stdout | tests/unit/sibling-family-link-backfill.test.ts > KID-149 repair of the unscoped 0018 on an already-applied database > is idempotent: running the repair twice changes nothing
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw96wezl-7a9dcp6e
+
+ ✓ tests/unit/sibling-family-link-backfill.test.ts (22 tests) 124334ms
+   ✓ KID-146 backfill of pre-existing same-email sibling links > links children whose contact predates the auto-link so the parent sees them 5818ms
+   ✓ KID-146 backfill of pre-existing same-email sibling links > is re-runnable and never creates a duplicate row 5349ms
+   ✓ KID-146 backfill of pre-existing same-email sibling links > uses the contact relationship as the link role 5528ms
+   ✓ KID-146 backfill of pre-existing same-email sibling links > matches the address case-insensitively and ignores surrounding whitespace 5897ms
+   ✓ KID-146 backfill of pre-existing same-email sibling links > never grants a non-parent account family access 5644ms
+   ✓ KID-146 backfill of pre-existing same-email sibling links > ignores contacts with no address and addresses nobody owns 5782ms
+   ✓ KID-146 backfill of pre-existing same-email sibling links > does not let a contact at one centre link a child that has no contact of its own 5330ms
+   ✓ KID-146 backfill of pre-existing same-email sibling links > never links a same-email child at an institute the account is not on file at 5588ms
+   ✓ KID-146 backfill of pre-existing same-email sibling links > links at every institute the account is on file at, and only those 5935ms
+   ✓ KID-146 backfill of pre-existing same-email sibling links > derives the institute from an existing family link when there is no invite 5728ms
+   ✓ KID-146 backfill of pre-existing same-email sibling links > creates nothing for an account with neither an invite nor a link 5603ms
+   ✓ KID-146 backfill of pre-existing same-email sibling links > leaves an existing family link's role untouched 5472ms
+   ✓ KID-146 backfill of pre-existing same-email sibling links > keeps one row and takes the most permissive role when contacts disagree 5429ms
+   ✓ KID-146 backfill of pre-existing same-email sibling links > falls back to the parent role for a relationship outside the enum 5401ms
+   ✓ KID-146 backfill of pre-existing same-email sibling links > links a withdrawn child without making it visible, and restores it on reactivation 5720ms
+   ✓ KID-146 backfill of pre-existing same-email sibling links > stays consistent when the KID-142 contact path also runs 5932ms
+   ✓ KID-149 repair of the unscoped 0018 on an already-applied database > removes the cross-institute grant and keeps the in-institute link, row for row 5579ms
+   ✓ KID-149 repair of the unscoped 0018 on an already-applied database > never touches a link the application made, even one that looks the same 5683ms
+   ✓ KID-149 repair of the unscoped 0018 on an already-applied database > does not let two bad rows at one centre justify each other 5696ms
+   ✓ KID-149 repair of the unscoped 0018 on an already-applied database > keeps a parent who is on file at both centres linked at both 5767ms
+   ✓ KID-149 repair of the unscoped 0018 on an already-applied database > leaves a contact with no address alone 5747ms
+   ✓ KID-149 repair of the unscoped 0018 on an already-applied database > is idempotent: running the repair twice changes nothing 5705ms
+stdout | tests/unit/kid737-platform-payment.test.tsx > KID-737: schema (Postgres migration mirrored in SQLite) > the migration adds the platform_setting table and the three proof columns idempotently
+Seeded platform operator account: superadmin@kiddy.test
+
