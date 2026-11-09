@@ -1,0 +1,31 @@
+{
+  "inputName": "instapayUrl",
+  "inputValue": "https://instapay.example.com/kid738-qa",
+  "clearBtnName": "instapayUrl",
+  "clearBtnValue": "",
+  "formDataWithSubmitter": [
+    [
+      "$ACTION_ID_a7d7e79ce9cfaac2910962e425db7deb78d6ee5b",
+      ""
+    ],
+    [
+      "instapayUrl",
+      "https://instapay.example.com/kid738-qa"
+    ],
+    [
+      "instapayUrl",
+      ""
+    ]
+  ],
+  "formDataWithoutSubmitter": [
+    [
+      "$ACTION_ID_a7d7e79ce9cfaac2910962e425db7deb78d6ee5b",
+      ""
+    ],
+    [
+      "instapayUrl",
+      "https://instapay.example.com/kid738-qa"
+    ]
+  ],
+  "firstValueWithSubmitter": "https://instapay.example.com/kid738-qa"
+}

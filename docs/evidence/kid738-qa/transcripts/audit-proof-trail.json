@@ -1,0 +1,58 @@
+[
+  {
+    "action": "update",
+    "entity_type": "platform_setting",
+    "entity_id": "instapay_url",
+    "summary": "Set the platform Instapay payment link",
+    "metadata": "{\"key\":\"instapay_url\",\"cleared\":false}",
+    "created_at": "2026-11-09 10:08:46"
+  },
+  {
+    "action": "update",
+    "entity_type": "daycare_invoice",
+    "entity_id": "mw93qbqz-dlc1h5uc",
+    "summary": "Payment proof uploaded for a subscription invoice",
+    "metadata": "{\"statusBefore\":\"pending\",\"hasPaymentProof\":true}",
+    "created_at": "2026-11-09 10:14:28"
+  },
+  {
+    "action": "update",
+    "entity_type": "daycare_invoice",
+    "entity_id": "mw93qbqz-dlc1h5uc",
+    "summary": "Payment proof uploaded for a subscription invoice",
+    "metadata": "{\"statusBefore\":\"pending\",\"hasPaymentProof\":true}",
+    "created_at": "2026-11-09 10:14:31"
+  },
+  {
+    "action": "update",
+    "entity_type": "platform_setting",
+    "entity_id": "instapay_url",
+    "summary": "Set the platform Instapay payment link",
+    "metadata": "{\"key\":\"instapay_url\",\"cleared\":false}",
+    "created_at": "2026-11-09 10:15:27"
+  },
+  {
+    "action": "update",
+    "entity_type": "platform_setting",
+    "entity_id": "instapay_url",
+    "summary": "Set the platform Instapay payment link",
+    "metadata": "{\"key\":\"instapay_url\",\"cleared\":false}",
+    "created_at": "2026-11-09 10:18:16"
+  },
+  {
+    "action": "update",
+    "entity_type": "platform_setting",
+    "entity_id": "instapay_url",
+    "summary": "Cleared the platform Instapay payment link",
+    "metadata": "{\"key\":\"instapay_url\",\"cleared\":true}",
+    "created_at": "2026-11-09 10:18:17"
+  },
+  {
+    "action": "update",
+    "entity_type": "platform_setting",
+    "entity_id": "instapay_url",
+    "summary": "Set the platform Instapay payment link",
+    "metadata": "{\"key\":\"instapay_url\",\"cleared\":false}",
+    "created_at": "2026-11-09 10:18:20"
+  }
+]

@@ -1,0 +1,18 @@
+D1 — /platform 'Clear link' button re-saves the link instead of clearing it
+
+Reproduce: sign in as the platform operator on /platform with a link saved;
+click the 'Clear link' button next to the field.
+Expected: platform_setting row for instapay_url deleted; owner Pay button hides.
+Actual: redirect to ?instapay=saved, audit 'Set the platform Instapay payment link'
+with cleared:false, row unchanged — the <input name=instapayUrl> (value=the
+stored URL) precedes the <button name=instapayUrl value=""> in the form, so
+FormData.get('instapayUrl') returns the input's value.
+Location: app/platform/page.tsx:159-182 (clear button inside the same form as
+the pre-filled input). Fix: give the input a different name, or clear the input
+before submit, or handle the submitter explicitly in the action.
+Observed value: [
+  {
+    "value": "https://instapay.example.com/kid738-qa"
+  }
+]
+Screenshot: screenshots/16a-platform-clear-button-noop.png

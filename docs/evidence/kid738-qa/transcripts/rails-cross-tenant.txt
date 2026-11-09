@@ -1,0 +1,12 @@
+owner A → daycare B invoice (cross-tenant)
+  invoice=mw94g5wy-2q8o7ge1 -> 303 /login?error=wrong-tenant
+owner B → Sunshine invoice (cross-tenant, reverse)
+  invoice=mw93qbqz-dlc1h5uc -> 303 /login?error=wrong-tenant
+parent (non-owner) → daycare B invoice
+  invoice=mw94g5wy-2q8o7ge1 -> 303 /login?error=wrong-tenant
+anonymous → daycare B invoice
+  invoice=mw94g5wy-2q8o7ge1 -> 303 /login
+owner A → own overdue invoice, wrong type (positive control)
+  invoice=qa738overdue-0001 -> 303 /portal/account-billing?proofError=proofType
+owner B → own invoice, wrong type (positive control)
+  invoice=mw94g5wy-2q8o7ge1 -> 303 /portal/account-billing?proofError=proofType

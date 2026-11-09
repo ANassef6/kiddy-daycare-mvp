@@ -1,0 +1,120 @@
+
+> kiddy-web@0.1.0 db:verify-migrations
+> node supabase/verify-migrations.mjs
+
+
+== engine: postgres (paperclip-db:5432) ==
+
+== applying 42 migrations in filename order ==
+  applied 0001_init.sql
+  applied 0002_email_confirmed.sql
+  applied 0003_contact_request.sql
+  applied 0004_t5.sql
+  applied 0006_round3_hardening.sql
+  applied 0007_round4.sql
+  applied 0008_curriculum.sql
+  applied 0009_center_details.sql
+  applied 0010_round6.sql
+  applied 0011_kid53.sql
+  applied 0012_kid55_messaging.sql
+  applied 0013_kid86_lastdate.sql
+  applied 0014_parent_invite_email.sql
+  applied 0015_activation_resend_log.sql
+  applied 0016_contact_relationship_roles.sql
+  applied 0017_family_member_unique.sql
+  applied 0018_sibling_family_link_backfill.sql
+  applied 0019_institute_scope_repair.sql
+  applied 0020_staff_login_link.sql
+  applied 0021_message_thread_attachment.sql
+  applied 0022_institute_active.sql
+  applied 0023_platform_operator_role.sql
+  applied 0024_institute_subdomain.sql
+  applied 0025_contact_request_mail.sql
+  applied 0026_platform_access_log.sql
+  applied 0027_daycare_billing.sql
+  applied 0028_daycare_invoice.sql
+  applied 0029_enhancement_request.sql
+  applied 0030_audit_event.sql
+  applied 0031_parent_notifications.sql
+  applied 0032_center_default_currency.sql
+  applied 0032_push_subscriptions.sql
+  applied 0033_instapay_payment_link.sql
+  applied 0033_tool_usage_event.sql
+  applied 0034_kid489_payment_proof.sql
+  applied 0035_kid494_bus_status.sql
+  applied 0036_kid495_temp_password.sql
+  applied 0037_kid737_platform_payment.sql
+  applied 0038_kid745_contract.sql
+  applied 0039_kid746_contract_drafts.sql
+  applied 0040_kid1177_rls_hardening.sql
+  applied 0041_kid1177_storage_hardening.sql
+
+== KID-149/152 tenant isolation ==
+  ok   the invited centre's siblings are linked
+  ok   nothing leaks into the centre that only shares the address
+  ok   a staff account gains no family access
+  ok   re-running the backfill twice changes nothing
+  ok   a parent invited by two centres is linked at both
+  ok   a missing 0017 index raises the named guard error
+
+== 0019 repair of a database the unscoped 0018 already touched ==
+  ok   the leak is present before the repair
+  ok   the cross-tenant grant the unscoped 0018 wrote is removed
+  ok   the sibling the unscoped 0018 correctly wrote is left in place
+  ok   a link the application made by hand is never deleted
+  ok   re-running the repair changes nothing
+  ok   the repair preserves the role of a row it keeps
+
+== 0020 account -> staff link ==
+  ok   no login exists before the repair
+  ok   the parent has no recipient before the repair
+  --   0020 rows changed on the seeded shape: 4
+  ok   the seeded owner login is joined to its staff record
+  ok   an account is never joined to a same-name staff record at another centre
+  ok   an evidenced account takes the staff record at its own centre
+  ok   an evidenced non-owner login is joined at its own centre
+  ok   an evidenced account at the other centre is joined there
+  ok   a parent account is never given a staff record
+  ok   a parent is not joined even when it is the only name match
+  ok   an already-linked account is never re-pointed
+  ok   a staff record that already has a login is never taken
+  ok   an already-linked account keeps its own link
+  ok   an ambiguous name across centres joins nothing
+  ok   two accounts naming one free staff record join neither
+  ok   an unattributed non-owner login is not joined
+  ok   a blank-named login is not matched to a blank-named staff record
+  ok   a free staff record nobody was matched to is left free
+  ok   re-running the join changes 0 rows
+  ok   re-running leaves the seeded owner's link alone
+  ok   the existing staff login is untouched
+  ok   the existing staff login keeps its classroom
+  ok   no classroom assignment changed
+  ok   the parent now sees the centre owner as a recipient
+
+== 0024 institute subdomain ==
+  ok   both daycares keep their own subdomain
+  ok   two daycares cannot claim one subdomain
+  ok   NULL subdomains coexist (pre-backfill legacy rows)
+
+== KID-1177 RLS hardening ==
+  ok   every app table in the verify list exists in the chain
+  ok   RLS is ENABLED on every app table
+  ok   anon/authenticated hold exactly the intended contact_request INSERT grants
+  ok   a non-owner role cannot read app tables (denied, not empty)
+  ok   anon cannot read child
+  ok   anon cannot read daily_report
+  ok   anon cannot read message
+  ok   anon cannot read push_subscription
+  ok   anon keeps the intended contact_request INSERT
+  ok   anon cannot read back even the leads it may write
+
+== KID-1177 storage hardening ==
+  ok   the public and private buckets exist with the right public flags
+  ok   anon sees the public bucket's objects only
+  ok   the private bucket holds its object for the owner/service path
+  ok   anon resolves nothing in the private bucket
+  ok   anon cannot write — not even into the public bucket
+  ok   the probe never actually wrote the object
+
+All migration checks passed.
+migrations exit=0

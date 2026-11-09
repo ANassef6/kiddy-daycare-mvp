@@ -1,0 +1,16 @@
+[
+  {
+    "id": "qa738overdue-0001",
+    "cycle_month": "2026-09",
+    "status": "overdue",
+    "due_date": "2026-10-05",
+    "total_amount": 1000
+  },
+  {
+    "id": "mw93qbqz-dlc1h5uc",
+    "cycle_month": "2026-10",
+    "status": "pending",
+    "due_date": "2026-11-05",
+    "total_amount": 500
+  }
+]

@@ -1,0 +1,191 @@
+{
+  "platform_setting": [
+    {
+      "key": "instapay_url",
+      "value": "https://instapay.example.com/kid738-qa",
+      "updated_at": "2026-11-09 10:18:20"
+    }
+  ],
+  "institutes": [
+    {
+      "id": "mw92wji6-edle8kvr",
+      "name": "Sunshine Daycare",
+      "subdomain": "sunshine-daycare",
+      "active": 1
+    },
+    {
+      "id": "mw94g4ew-h5g0bahg",
+      "name": "QA Cross738",
+      "subdomain": "qa-cross738",
+      "active": 1
+    }
+  ],
+  "invoices": [
+    {
+      "id": "qa738overdue-0001",
+      "institute_id": "mw92wji6-edle8kvr",
+      "cycle_month": "2026-09",
+      "plan": "monthly",
+      "due_date": "2026-10-05",
+      "status": "overdue",
+      "paid_at": null,
+      "total_amount": 1000,
+      "payment_proof_url": null,
+      "payment_proof_uploaded_at": null,
+      "payment_reference": null
+    },
+    {
+      "id": "mw93qbqz-dlc1h5uc",
+      "institute_id": "mw92wji6-edle8kvr",
+      "cycle_month": "2026-10",
+      "plan": "monthly",
+      "due_date": "2026-11-05",
+      "status": "paid",
+      "paid_at": "2026-11-09T10:29:27.198Z",
+      "total_amount": 500,
+      "payment_proof_url": "http://127.0.0.1:54321/storage/v1/object/public/kiddy-public/payments/mw92wji6-edle8kvr/mw93qbqz-dlc1h5uc/proof-1794219271736-a78fdda3-9fdb-4feb-9c62-56ca2fb03def.pdf",
+      "payment_proof_uploaded_at": "2026-11-09T10:14:31.742Z",
+      "payment_reference": "QA-KID738-REF2"
+    },
+    {
+      "id": "mw94g5wy-2q8o7ge1",
+      "institute_id": "mw94g4ew-h5g0bahg",
+      "cycle_month": "2026-10",
+      "plan": "monthly",
+      "due_date": "2026-11-05",
+      "status": "pending",
+      "paid_at": null,
+      "total_amount": 500,
+      "payment_proof_url": null,
+      "payment_proof_uploaded_at": null,
+      "payment_reference": null
+    }
+  ],
+  "billing": [
+    {
+      "institute_id": "mw92wji6-edle8kvr",
+      "plan": "monthly",
+      "first_cycle_start": "2026-10-01"
+    },
+    {
+      "institute_id": "mw94g4ew-h5g0bahg",
+      "plan": "monthly",
+      "first_cycle_start": "2026-10-01"
+    }
+  ],
+  "owners": [
+    {
+      "id": "54fb3806-35c0-46a3-809e-8799a947e027",
+      "email": "trois4ever+admin@gmail.com",
+      "role": "owner"
+    },
+    {
+      "id": "d29ef65f-77d1-4429-a600-db8c53a8781f",
+      "email": "parent@example.test",
+      "role": "parent"
+    },
+    {
+      "id": "6063a487-ae2e-4535-97d0-1efb2eb8a1d7",
+      "email": "qa.kid738.ownerb@example.test",
+      "role": "owner"
+    }
+  ],
+  "audits": [
+    {
+      "action": "update",
+      "entity_type": "billing_settings",
+      "entity_id": "mw94g4ew-h5g0bahg",
+      "summary": "Updated billing settings (monthly)",
+      "metadata": "{\"plan\":\"monthly\"}",
+      "created_at": "2026-11-09 10:31:52"
+    },
+    {
+      "action": "update",
+      "entity_type": "invoice",
+      "entity_id": "mw93qbqz-dlc1h5uc",
+      "summary": "Marked an invoice paid",
+      "metadata": "{\"cycleMonth\":\"2026-10\"}",
+      "created_at": "2026-11-09 10:29:27"
+    },
+    {
+      "action": "update",
+      "entity_type": "invoice",
+      "entity_id": "mw93qbqz-dlc1h5uc",
+      "summary": "Marked an invoice paid",
+      "metadata": "{\"cycleMonth\":\"2026-10\"}",
+      "created_at": "2026-11-09 10:28:13"
+    },
+    {
+      "action": "update",
+      "entity_type": "invoice",
+      "entity_id": "mw93qbqz-dlc1h5uc",
+      "summary": "Marked an invoice paid",
+      "metadata": "{\"cycleMonth\":\"2026-10\"}",
+      "created_at": "2026-11-09 10:24:16"
+    },
+    {
+      "action": "update",
+      "entity_type": "platform_setting",
+      "entity_id": "instapay_url",
+      "summary": "Set the platform Instapay payment link",
+      "metadata": "{\"key\":\"instapay_url\",\"cleared\":false}",
+      "created_at": "2026-11-09 10:18:20"
+    },
+    {
+      "action": "update",
+      "entity_type": "platform_setting",
+      "entity_id": "instapay_url",
+      "summary": "Cleared the platform Instapay payment link",
+      "metadata": "{\"key\":\"instapay_url\",\"cleared\":true}",
+      "created_at": "2026-11-09 10:18:17"
+    },
+    {
+      "action": "update",
+      "entity_type": "platform_setting",
+      "entity_id": "instapay_url",
+      "summary": "Set the platform Instapay payment link",
+      "metadata": "{\"key\":\"instapay_url\",\"cleared\":false}",
+      "created_at": "2026-11-09 10:18:16"
+    },
+    {
+      "action": "update",
+      "entity_type": "platform_setting",
+      "entity_id": "instapay_url",
+      "summary": "Set the platform Instapay payment link",
+      "metadata": "{\"key\":\"instapay_url\",\"cleared\":false}",
+      "created_at": "2026-11-09 10:15:27"
+    },
+    {
+      "action": "update",
+      "entity_type": "daycare_invoice",
+      "entity_id": "mw93qbqz-dlc1h5uc",
+      "summary": "Payment proof uploaded for a subscription invoice",
+      "metadata": "{\"statusBefore\":\"pending\",\"hasPaymentProof\":true}",
+      "created_at": "2026-11-09 10:14:31"
+    },
+    {
+      "action": "update",
+      "entity_type": "daycare_invoice",
+      "entity_id": "mw93qbqz-dlc1h5uc",
+      "summary": "Payment proof uploaded for a subscription invoice",
+      "metadata": "{\"statusBefore\":\"pending\",\"hasPaymentProof\":true}",
+      "created_at": "2026-11-09 10:14:28"
+    },
+    {
+      "action": "update",
+      "entity_type": "billing_settings",
+      "entity_id": "mw92wji6-edle8kvr",
+      "summary": "Updated billing settings (monthly)",
+      "metadata": "{\"plan\":\"monthly\"}",
+      "created_at": "2026-11-09 10:11:46"
+    },
+    {
+      "action": "update",
+      "entity_type": "billing_settings",
+      "entity_id": "mw92wji6-edle8kvr",
+      "summary": "Updated billing settings (monthly)",
+      "metadata": "{\"plan\":\"monthly\"}",
+      "created_at": "2026-11-09 10:10:27"
+    }
+  ]
+}

@@ -1,0 +1,20 @@
+# Production deployment evidence (KID-738)
+
+## origin/master HEAD
+405ba6e Merge pull request #54 from ANassef6/kid733-parent-child-link
+730d3af KID-733: a parent account must require and attach a child — Add a child gains an optional inline parent-login (temp password + Generate, guarded by the guardian email, created/linked in the same flow with every validation BEFORE the child write), createParentLoginAction and inviteParentAction now refuse a missing/forged/out-of-center child server-side before any account or invite write, registration refuses activating legacy childless invites, the Create a parent login / Invite a parent forms drop the '— any —' child option for a required select, all new fields and errors carry EN + AR labels, and scripts/audit-orphan-parents.ts is a read-only orphan-parent audit (local dev SQLite: 3 parent accounts, 0 orphans); tests/unit/kid733-parent-child-link.test.ts pins 14 assertions incl. rejection-writes-nothing (nothing-ridden shared-tree: kid685's notifications i18n copy rode the i18n.ts hunk, same precedent as KID-500/KID-686)
+a65062b KID-737: account billing gets the platform Instapay link and the owner's payment proof — platform_setting (migration 0037, key instapay_url, blank clears / broken links refused, operator-only save with audit) drives a "/platform" operator card, /portal/account-billing gains Pay-with-Instapay (opens the platform link, hidden while unset) + per-unpaid-invoice proof upload (PNG/JPG/PDF, 5 MB, optional reference, replace-before-payment) with the status column never moved by an upload, daycare_invoice carries the same three proof columns child_billing got in 0034, the platform invoice list gains a Proof column (view link + upload date + reference, stays visible after payment), tests pin 23 behaviors (link boundary, operator-only save/clear/refusals, owner-only uploads incl. cross-tenant/paid/oversize/type/storage refusals fail-closed with no partial record, replacement, mark-paid clears nothing, EN/AR parity)
+
+## a65062b ancestry
+a65062b IS ancestor of 405ba6e (production deploy commit)
+
+## GitHub status for 405ba6e
+Vercel | success | Deployment has completed | https://vercel.com/kiddy2/kiddy/CZZVpGHww6tes7Zw4iiu8vWRuhLa | updated 2026-11-09T09:18:25Z
+
+## deployments
+405ba6e Production 2026-11-09T09:18:25Z
+4212daf Preview 2026-11-08T07:51:37Z
+92d8f4c Preview 2026-11-08T06:05:14Z
+ac9616e Preview 2026-11-08T05:37:53Z
+3065643 Preview 2026-11-08T03:26:18Z
+730d3af Preview 2026-11-07T23:35:24Z

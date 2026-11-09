@@ -1,0 +1,172 @@
+[s1] PASS: operator lands on /platform (got http://127.0.0.1:3210/platform)
+[s1] PASS: Instapay operator card renders
+[s1] PASS: card shows the not-set hint before any link exists
+[s1] PASS: instapay form exposes a server-action id (a7d7e79c…)
+[s1] PASS: javascript: link refused with the invalid-link banner
+[s1] PASS: javascript: link stored nothing (platform_setting empty)
+[s1] PASS: relative path blocked by the form rail (msg: Please enter a URL.…)
+[s1] server-rail relative POST -> 303 /platform?instapay=invalid
+[s1] PASS: server rail refuses a relative path (303 → ?instapay=invalid)
+[s1] PASS: server-rail refusal stored nothing
+[s1] server-rail javascript POST -> 303 /platform?instapay=invalid
+[s1] PASS: server rail refuses javascript:
+[s1] PASS: valid link saved with success banner
+[s1] PASS: card shows the updated date after save
+[s1] PASS: DB stores exactly the valid URL (https://instapay.example.com/kid738-qa)
+[s1] PASS: audit records the save with no URL value in metadata
+[s1] s1 complete
+[s2] PASS: Sunshine institute found (mw92wji6-edle8kvr)
+[s2] PASS: billing settings saved (monthly, first cycle 2026-10-01)
+[s2] PASS: Sunshine institute found (mw92wji6-edle8kvr)
+[s2] PASS: billing settings saved (monthly, first cycle 2026-10-01)
+[s2] billing sweep: {"now":"2026-11-02T00:00:00.000Z","generated":1,"disabled":0}
+[s2] PASS: engine generated 1 invoice(s)
+[s2] PASS: sweep disabled nothing (due date still ahead of the controlled now)
+[s2] invoices: [{"id":"qa738overdue-0001","cycle_month":"2026-09","status":"overdue","due_date":"2026-10-05","total_amount":1000},{"id":"mw93qbqz-dlc1h5uc","cycle_month":"2026-10","status":"pending","due_date":"2026-11-05","total_amount":500}]
+[s2] PASS: two unpaid invoices exist for Sunshine (pending + overdue)
+[s2] PASS: pending invoice for 2026-10
+[s2] PASS: overdue fixture for 2026-09
+[s2] PASS: no invoice has a proof yet
+[s2] s2 complete
+[s3] PASS: pending mw93qbqz-dlc1h5uc and overdue qa738overdue-0001 fixtures present
+[s3] PASS: owner lands in the portal (http://127.0.0.1:3210/portal/dashboard)
+[s3] PASS: both unpaid rows show Pay with Instapay (got 2)
+[s3] PASS: every Pay link opens the stored URL in a new tab ({"href":"https://instapay.example.com/kid738-qa","target":"_blank","rel":"noreferrer"})
+[s3] PASS: upload form renders for unpaid invoice 2026-10
+[s3] PASS: upload form renders for unpaid invoice 2026-09
+[s3] PASS: owner page exposes the upload server-action id (99cd2b98…)
+[s3] FAIL: Pay link popup URL is the stored link (chrome-error://chromewebdata/)
+[s3] PASS: pending mw93qbqz-dlc1h5uc and overdue qa738overdue-0001 fixtures present
+[s3] PASS: owner lands in the portal (http://127.0.0.1:3210/portal/dashboard)
+[s3] PASS: both unpaid rows show Pay with Instapay (got 2)
+[s3] PASS: every Pay link opens the stored URL in a new tab ({"href":"https://instapay.example.com/kid738-qa","target":"_blank","rel":"noreferrer"})
+[s3] PASS: upload form renders for unpaid invoice 2026-10
+[s3] PASS: upload form renders for unpaid invoice 2026-09
+[s3] PASS: owner page exposes the upload server-action id (99cd2b98…)
+[s3] PASS: Pay link popup URL is the stored link (https://instapay.example.com/kid738-qa)
+[s3] PASS: upload success banner shown
+[s3] PASS: invoice status stayed pending after the upload
+[s3] PASS: proof URL stored (http://127.0.0.1:54321/storage/v1/object/public/kiddy-public…)
+[s3] PASS: reference stored
+[s3] PASS: upload timestamp stored
+[s3] PASS: exactly one storage object written (was 0, now 1)
+[s3] PASS: owner row shows the proof link, upload date and reference
+[s3] PASS: wrong-type refusal banner shown
+[s3] PASS: wrong-type attempt left the stored proof untouched
+[s3] PASS: wrong-type attempt wrote no storage object
+[s3] PASS: oversize refusal banner shown
+[s3] PASS: oversize attempt left the stored proof untouched
+[s3] PASS: oversize attempt wrote no storage object
+[s3] PASS: invoice still pending after the replacement
+[s3] PASS: replacement stored the new reference
+[s3] PASS: replacement stored a new proof URL
+[s3] PASS: replacement proof is the PDF (eb-9c62-56ca2fb03def.pdf)
+[s3] PASS: replacement added exactly one object (now 2)
+[s3] PASS: overdue row still offers the proof upload
+[s3] PASS: parent is bounced off /portal/account-billing to /portal/dashboard
+[s3] s3 complete
+[s3b] FAIL: clearing deletes the platform_setting row
+[s3b] PASS: Clear link button renders while a link is set
+[s3b] DEFECT D1: Clear link button did NOT clear — row still holds [
+  {
+    "value": "https://instapay.example.com/kid738-qa"
+  }
+] (audit says a Set, not a Clear)
+[s3b] PASS: blank value + Save clears the platform_setting row
+[s3b] PASS: no Pay-with-Instapay button while the link is unset
+[s3b] PASS: both unpaid rows show the no-link hint (got 2)
+[s3b] PASS: proof upload forms are independent of the link and still render
+[s3b] PASS: the stored proof stays visible while the link is unset
+[s3b] PASS: restored link stored again
+[s3b] PASS: Pay button returns on both unpaid rows once the link is set again
+[s3b] s3b complete
+[s4] PASS: invoice list has a Proof column
+[s4] FAIL: operator row shows the proof link, upload date and reference
+[s4] PASS: invoice list has a Proof column
+[s4] PASS: operator row shows the proof link, upload date and reference
+[s4] PASS: proof link points at the stored PDF (a78fdda3-9fdb-4feb-9c62-56ca2fb03def.pdf)
+[s4] PASS: invoice without a proof shows the empty marker
+[s4] PASS: mark-as-paid form renders for the pending invoice
+[s4] PASS: mark-paid success banner shown
+[s4] FAIL: invoice status is now paid
+[s4] PASS: invoice list has a Proof column
+[s4] PASS: operator row shows the proof link, upload date and reference
+[s4] PASS: proof link points at the stored PDF (a78fdda3-9fdb-4feb-9c62-56ca2fb03def.pdf)
+[s4] PASS: invoice without a proof shows the empty marker
+[s4] invoiceRow(mw93qbqz-dlc1h5uc) raw=[ { "id": "mw93qbqz-dlc1h5uc", "status": "pending", "paid_at": null, "payment_proof_url": "http://127.0.0.1:54321/storage/v1/object/public/kiddy-public/payments/mw92wji6-edle8kvr/mw93qbqz-dlc1h5uc/proof-1794219271736-a78fdda3-9fdb-4feb-9c62-56ca2fb03def.pdf", "payment_proof_uploaded_at": "2026-11-09T10:14:31.742Z", "payment_reference": "QA-KID738-REF2" } ] 
+[s4] PASS: mark-as-paid form renders for the pending invoice
+[s4] PASS: mark-paid success banner shown
+[s4] invoiceRow(mw93qbqz-dlc1h5uc) raw=[ { "id": "mw93qbqz-dlc1h5uc", "status": "paid", "paid_at": "2026-11-09T10:28:13.167Z", "payment_proof_url": "http://127.0.0.1:54321/storage/v1/object/public/kiddy-public/payments/mw92wji6-edle8kvr/mw93qbqz-dlc1h5uc/proof-1794219271736-a78fdda3-9fdb-4feb-9c62-56ca2fb03def.pdf", "payment_proof_uploaded_at": "2026-11-09T10:14:31.742Z", "payment_reference": "QA-KID738-REF2" } ] 
+[s4] PASS: invoice status is now paid
+[s4] PASS: paid_at stamped
+[s4] PASS: proof URL kept after payment
+[s4] PASS: proof reference kept after payment
+[s4] PASS: marking paid wrote no storage object
+[s4] PASS: proof stays visible on the operator list after payment
+[s4] PASS: only the still-unpaid (overdue) row keeps the Pay button
+[s4] PASS: the paid invoice no longer renders an upload form
+[s4] PASS: the unpaid invoice still renders its upload form
+[s4] FAIL: owner still sees the proof view link on the paid row
+[s4] PASS: invoice list has a Proof column
+[s4] PASS: operator row shows the proof link, upload date and reference
+[s4] PASS: proof link points at the stored PDF (a78fdda3-9fdb-4feb-9c62-56ca2fb03def.pdf)
+[s4] PASS: invoice without a proof shows the empty marker
+[s4] invoiceRow(mw93qbqz-dlc1h5uc) raw=[ { "id": "mw93qbqz-dlc1h5uc", "status": "paid", "paid_at": "2026-11-09T10:28:13.167Z", "payment_proof_url": "http://127.0.0.1:54321/storage/v1/object/public/kiddy-public/payments/mw92wji6-edle8kvr/mw93qbqz-dlc1h5uc/proof-1794219271736-a78fdda3-9fdb-4feb-9c62-56ca2fb03def.pdf", "payment_proof_uploaded_at": "2026-11-09T10:14:31.742Z", "payment_reference": "QA-KID738-REF2" } ] 
+[s4] FAIL: mark-as-paid form renders for the pending invoice
+[s4] PASS: invoice list has a Proof column
+[s4] PASS: operator row shows the proof link, upload date and reference
+[s4] PASS: proof link points at the stored PDF (a78fdda3-9fdb-4feb-9c62-56ca2fb03def.pdf)
+[s4] PASS: invoice without a proof shows the empty marker
+[s4] invoiceRow(mw93qbqz-dlc1h5uc) raw=[ { "id": "mw93qbqz-dlc1h5uc", "status": "pending", "paid_at": null, "payment_proof_url": "http://127.0.0.1:54321/storage/v1/object/public/kiddy-public/payments/mw92wji6-edle8kvr/mw93qbqz-dlc1h5uc/proof-1794219271736-a78fdda3-9fdb-4feb-9c62-56ca2fb03def.pdf", "payment_proof_uploaded_at": "2026-11-09T10:14:31.742Z", "payment_reference": "QA-KID738-REF2" } ] 
+[s4] PASS: mark-as-paid form renders for the pending invoice
+[s4] PASS: mark-paid success banner shown
+[s4] invoiceRow(mw93qbqz-dlc1h5uc) raw=[ { "id": "mw93qbqz-dlc1h5uc", "status": "paid", "paid_at": "2026-11-09T10:29:27.198Z", "payment_proof_url": "http://127.0.0.1:54321/storage/v1/object/public/kiddy-public/payments/mw92wji6-edle8kvr/mw93qbqz-dlc1h5uc/proof-1794219271736-a78fdda3-9fdb-4feb-9c62-56ca2fb03def.pdf", "payment_proof_uploaded_at": "2026-11-09T10:14:31.742Z", "payment_reference": "QA-KID738-REF2" } ] 
+[s4] PASS: invoice status is now paid
+[s4] PASS: paid_at stamped
+[s4] PASS: proof URL kept after payment
+[s4] PASS: proof reference kept after payment
+[s4] PASS: marking paid wrote no storage object
+[s4] PASS: proof stays visible on the operator list after payment
+[s4] PASS: only the still-unpaid (overdue) row keeps the Pay button
+[s4] PASS: the paid invoice no longer renders an upload form
+[s4] PASS: the unpaid invoice still renders its upload form
+[s4] PASS: owner still sees the proof view link on the paid row
+[s4] PASS: paid status badge shown
+[s4] paid-invoice upload POST -> 303 /portal/account-billing?proofError=paid
+[s4] PASS: paid invoice refuses a new upload (303 → ?proofError=paid)
+[s4] invoiceRow(mw93qbqz-dlc1h5uc) raw=[ { "id": "mw93qbqz-dlc1h5uc", "status": "paid", "paid_at": "2026-11-09T10:29:27.198Z", "payment_proof_url": "http://127.0.0.1:54321/storage/v1/object/public/kiddy-public/payments/mw92wji6-edle8kvr/mw93qbqz-dlc1h5uc/proof-1794219271736-a78fdda3-9fdb-4feb-9c62-56ca2fb03def.pdf", "payment_proof_uploaded_at": "2026-11-09T10:14:31.742Z", "payment_reference": "QA-KID738-REF2" } ] 
+[s4] PASS: refused upload changed nothing on the paid invoice
+[s4] PASS: refused upload wrote no storage object
+[s4] anonymous upload POST -> 303 /login
+[s4] PASS: anonymous upload POST is bounced to /login
+[s4] PASS: anonymous upload wrote no storage object
+[s4] s4 complete
+[s5] PASS: second daycare created through the operator UI
+[s5] PASS: two daycares exist (Sunshine Daycare, QA Cross738)
+[s5] PASS: second daycare row written (mw94g4ew-h5g0bahg)
+[s5] PASS: owner B account exists with role owner (6063a487-ae2e-4535-97d0-1efb2eb8a1d7)
+[s5] billing sweep: {"now":"2026-11-02T00:00:00.000Z","generated":1,"disabled":1}
+[s5] PASS: daycare B has one pending invoice (mw94g5wy-2q8o7ge1)
+[s5] PASS: owner B page lists owner B's invoice
+[s5] PASS: owner B page never lists Sunshine's invoices
+[s5] PASS: owner B sees Pay with Instapay on their unpaid invoice
+[s5b] PASS: daycare B pending invoice mw94g5wy-2q8o7ge1
+[s5b] PASS: owner A page still lists their own invoices
+[s5b] PASS: owner A page never lists daycare B's invoice
+[s5b] PASS: owner A refused on daycare B's invoice (→ /login?error=wrong-tenant)
+[s5b] PASS: owner B refused on Sunshine's invoice
+[s5b] PASS: non-owner role refused (→ /login?error=wrong-tenant)
+[s5b] PASS: anonymous refused (→ /login)
+[s5b] PASS: own-invoice POST passes tenancy and reaches file validation
+[s5b] PASS: owner B's own invoice passes tenancy and reaches file validation
+[s5b] PASS: daycare B's invoice still has no proof after every refusal
+[s5b] PASS: Sunshine's invoice proof untouched by every refusal
+[s5b] PASS: no storage object written by any refusal (still 2)
+[s5b] s5b complete
+[s6] PASS: overdue invoice starts unpaid with no proof
+[s6] PASS: JPG upload accepted with the success banner
+[s6] PASS: upload left the overdue status untouched (still overdue)
+[s6] PASS: JPG proof reference stored
+[s6] PASS: JPG proof stored (1df-8abbd108d210.jpg)
+[s6] PASS: exactly one new storage object (now 3)
+[s6] s6 complete

@@ -1,0 +1,943 @@
+[33mThe CJS build of Vite's Node API is deprecated. See https://vite.dev/guide/troubleshooting.html#vite-cjs-node-api-deprecated for more details.[39m
+
+ RUN  v2.1.9 /tmp/kid738-qa/wt
+
+stdout | tests/unit/kid737-platform-payment.test.tsx > KID-737: schema (Postgres migration mirrored in SQLite) > the migration adds the platform_setting table and the three proof columns idempotently
+Seeded platform operator account: superadmin@kiddy.test
+
+stdout | tests/unit/kid737-platform-payment.test.tsx > KID-737: schema (Postgres migration mirrored in SQLite) > the migration adds the platform_setting table and the three proof columns idempotently
+Seeded demo daycare: mw968ajt-tbdxk66l
+
+stdout | tests/unit/kid737-platform-payment.test.tsx > KID-737: schema (Postgres migration mirrored in SQLite) > the SQLite mirror carries the columns; a fresh invoice reads all NULL
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw968etw-51waus0e
+
+stdout | tests/unit/kid737-platform-payment.test.tsx > KID-737: the platform link boundary (parsePaymentLink) > stores only absolute http/https links
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw968j7m-pbz87twr
+
+stdout | tests/unit/kid737-platform-payment.test.tsx > KID-737: the platform link boundary (parsePaymentLink) > a blank value clears the setting
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw968nig-lv9hntus
+
+stdout | tests/unit/kid737-platform-payment.test.tsx > KID-737: the platform link boundary (parsePaymentLink) > anything else is refused before it can ever be stored
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw968rmf-mf8gju0j
+
+stdout | tests/unit/kid737-platform-payment.test.tsx > KID-737: setPlatformInstapayAction (operator-only) > saves an https link, beats it into the audit trail with the operator attached
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw968vli-6a1dt4jy
+
+stdout | tests/unit/kid737-platform-payment.test.tsx > KID-737: setPlatformInstapayAction (operator-only) > a broken link is refused with a localized banner and nothing is stored
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw968zyv-8aexmyt3
+
+stdout | tests/unit/kid737-platform-payment.test.tsx > KID-737: setPlatformInstapayAction (operator-only) > blank clears the stored link (row deleted) and records the clear
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw9694g9-71oldm4b
+
+stdout | tests/unit/kid737-platform-payment.test.tsx > KID-737: setPlatformInstapayAction (operator-only) > a non-operator POST is bounced to /login and stores nothing
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw9698kn-v4p4djc3
+
+stdout | tests/unit/kid737-platform-payment.test.tsx > KID-737: setPlatformInstapayAction (operator-only) > an anonymous POST lands on /login too
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw969cq4-m6fljotq
+
+stdout | tests/unit/kid737-platform-payment.test.tsx > KID-737: uploadDaycareInvoiceProofAction (owner-only) > stores the proof for the daycare's own pending invoice — status untouched
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw969gvx-1phr6xz4
+
+stdout | tests/unit/kid737-platform-payment.test.tsx > KID-737: uploadDaycareInvoiceProofAction (owner-only) > an overdue invoice accepts a proof too
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw969l1v-9q8lq7ol
+
+stdout | tests/unit/kid737-platform-payment.test.tsx > KID-737: uploadDaycareInvoiceProofAction (owner-only) > a replacement upload replaces the whole snapshot before payment
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw969p2s-8g9khzc2
+
+stdout | tests/unit/kid737-platform-payment.test.tsx > KID-737: uploadDaycareInvoiceProofAction (owner-only) > a paid invoice refuses an upload, fail-closed before any write
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw969thi-krn14v9g
+
+stderr | tests/unit/kid737-platform-payment.test.tsx > KID-737: uploadDaycareInvoiceProofAction (owner-only) > a paid invoice refuses an upload, fail-closed before any write
+KID-737 refused a payment-proof upload for invoice status: paid
+
+stdout | tests/unit/kid737-platform-payment.test.tsx > KID-737: uploadDaycareInvoiceProofAction (owner-only) > a non-owner role (staff) is refused with no leak and no write
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw969xhe-ttnnh7mv
+
+stderr | tests/unit/kid737-platform-payment.test.tsx > KID-737: uploadDaycareInvoiceProofAction (owner-only) > a non-owner role (staff) is refused with no leak and no write
+KID-737 refused a subscription payment-proof upload by a non-owner role: kid737-staff@example.test
+
+stdout | tests/unit/kid737-platform-payment.test.tsx > KID-737: uploadDaycareInvoiceProofAction (owner-only) > another daycare's invoice id is refused for a real owner session
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw96a1rz-llo0h8a1
+
+stderr | tests/unit/kid737-platform-payment.test.tsx > KID-737: uploadDaycareInvoiceProofAction (owner-only) > another daycare's invoice id is refused for a real owner session
+KID-737 refused a subscription payment-proof upload by raw id: trois4ever+admin@gmail.com
+
+stdout | tests/unit/kid737-platform-payment.test.tsx > KID-737: uploadDaycareInvoiceProofAction (owner-only) > oversize, wrong-type and storage failures write nothing
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw96a5vz-7yse09tp
+
+stderr | tests/unit/kid737-platform-payment.test.tsx > KID-737: uploadDaycareInvoiceProofAction (owner-only) > oversize, wrong-type and storage failures write nothing
+KID-737 payment proof storage upload failed: boom
+
+stdout | tests/unit/kid737-platform-payment.test.tsx > KID-737: the surfaces > the owner sees no pay link and a form per unpaid invoice while the platform link is unset
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw96aa0i-8omiesw1
+
+stdout | tests/unit/kid737-platform-payment.test.tsx > KID-737: the surfaces > with the link set the unpaid row shows Pay with Instapay; the paid row shows neither pay link nor form
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw96ae52-kq4zybyd
+
+stdout | tests/unit/kid737-platform-payment.test.tsx > KID-737: the surfaces > the uploaded proof renders as a view link with the recorded reference
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw96aies-13fjtmb8
+
+stdout | tests/unit/kid737-platform-payment.test.tsx > KID-737: the surfaces > the platform invoice list shows the proof link, upload date and reference for paid rows too
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw96amgg-elc1axs9
+
+stdout | tests/unit/kid737-platform-payment.test.tsx > KID-737: the surfaces > the /platform operator page renders the Instapay card with the stored value
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw96aqsj-0xahq3l5
+
+stdout | tests/unit/kid737-platform-payment.test.tsx > KID-737: EN + AR parity > every new key ships in both dictionaries
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw96auxg-t13ezpi2
+
+ ✓ tests/unit/kid737-platform-payment.test.tsx (23 tests) 124488ms
+   ✓ KID-737: schema (Postgres migration mirrored in SQLite) > the migration adds the platform_setting table and the three proof columns idempotently 4730ms
+   ✓ KID-737: schema (Postgres migration mirrored in SQLite) > the SQLite mirror carries the columns; a fresh invoice reads all NULL 5601ms
+   ✓ KID-737: the platform link boundary (parsePaymentLink) > stores only absolute http/https links 5412ms
+   ✓ KID-737: the platform link boundary (parsePaymentLink) > a blank value clears the setting 5629ms
+   ✓ KID-737: the platform link boundary (parsePaymentLink) > anything else is refused before it can ever be stored 5240ms
+   ✓ KID-737: setPlatformInstapayAction (operator-only) > saves an https link, beats it into the audit trail with the operator attached 5775ms
+   ✓ KID-737: setPlatformInstapayAction (operator-only) > a broken link is refused with a localized banner and nothing is stored 5455ms
+   ✓ KID-737: setPlatformInstapayAction (operator-only) > blank clears the stored link (row deleted) and records the clear 5477ms
+   ✓ KID-737: setPlatformInstapayAction (operator-only) > a non-operator POST is bounced to /login and stores nothing 5613ms
+   ✓ KID-737: setPlatformInstapayAction (operator-only) > an anonymous POST lands on /login too 5148ms
+   ✓ KID-737: uploadDaycareInvoiceProofAction (owner-only) > stores the proof for the daycare's own pending invoice — status untouched 5431ms
+   ✓ KID-737: uploadDaycareInvoiceProofAction (owner-only) > an overdue invoice accepts a proof too 5436ms
+   ✓ KID-737: uploadDaycareInvoiceProofAction (owner-only) > a replacement upload replaces the whole snapshot before payment 5301ms
+   ✓ KID-737: uploadDaycareInvoiceProofAction (owner-only) > a paid invoice refuses an upload, fail-closed before any write 5611ms
+   ✓ KID-737: uploadDaycareInvoiceProofAction (owner-only) > a non-owner role (staff) is refused with no leak and no write 5287ms
+   ✓ KID-737: uploadDaycareInvoiceProofAction (owner-only) > another daycare's invoice id is refused for a real owner session 5464ms
+   ✓ KID-737: uploadDaycareInvoiceProofAction (owner-only) > oversize, wrong-type and storage failures write nothing 5331ms
+   ✓ KID-737: the surfaces > the owner sees no pay link and a form per unpaid invoice while the platform link is unset 5390ms
+   ✓ KID-737: the surfaces > with the link set the unpaid row shows Pay with Instapay; the paid row shows neither pay link nor form 5338ms
+   ✓ KID-737: the surfaces > the uploaded proof renders as a view link with the recorded reference 5539ms
+   ✓ KID-737: the surfaces > the platform invoice list shows the proof link, upload date and reference for paid rows too 5252ms
+   ✓ KID-737: the surfaces > the /platform operator page renders the Instapay card with the stored value 5519ms
+   ✓ KID-737: EN + AR parity > every new key ships in both dictionaries 5505ms
+stdout | tests/unit/kid245-invoices.test.ts > pure date/cycle helpers > the due date is the 5th of the month after the cycle ends
+Seeded platform operator account: superadmin@kiddy.test
+
+stdout | tests/unit/kid245-invoices.test.ts > pure date/cycle helpers > the due date is the 5th of the month after the cycle ends
+Seeded demo daycare: mw96azf2-g776ix0k
+
+stdout | tests/unit/kid245-invoices.test.ts > pure date/cycle helpers > cycle months cross year boundaries correctly
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw96b3lx-2p7ebaiv
+
+stdout | tests/unit/kid245-invoices.test.ts > pure date/cycle helpers > a cycle ends before today, never during today (generation runs the day after)
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw96b7r4-hcu4r25v
+
+stdout | tests/unit/kid245-invoices.test.ts > the board-confirmed formula (invoiceBreakdown) > exactly 10 children bills the flat rate only; 11 adds the first 50
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw96bbqt-nn9atu99
+
+stdout | tests/unit/kid245-invoices.test.ts > the board-confirmed formula (invoiceBreakdown) > 20 peak children bills 500 + 10x50 = 1000 EGP — never flat-rate-times-all
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw96bg1u-wglwvw6x
+
+stdout | tests/unit/kid245-invoices.test.ts > the board-confirmed formula (invoiceBreakdown) > respects operator-configured thresholds and rates
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw96bjzd-6r7ftf9u
+
+stdout | tests/unit/kid245-invoices.test.ts > the board-confirmed formula (invoiceBreakdown) > the annual plan bills the configured annual amount regardless of the roster
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw96bo60-f8a9dh9d
+
+stdout | tests/unit/kid245-invoices.test.ts > peak max-children measurement > uses the PEAK, not the end-of-month count: 20 peak / 15 end -> 20
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw96bshh-5ctbrlma
+
+stdout | tests/unit/kid245-invoices.test.ts > peak max-children measurement > a same-day handover counts both children on the shared day
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw96bwzf-w5jl7440
+
+stdout | tests/unit/kid245-invoices.test.ts > peak max-children measurement > children withdrawn before the cycle and children enrolled after it never count
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw96c1er-hq81i9nc
+
+stdout | tests/unit/kid245-invoices.test.ts > invoice generation > generates the ended monthly cycle with peak, formula fields, due date and EGP
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw96c5h0-ugh7tpxk
+
+stderr | tests/unit/kid245-invoices.test.ts > invoice generation > generates the ended monthly cycle with peak, formula fields, due date and EGP
+KID-246 invoice Maple Grove/2026-03: no mail provider configured (SUPABASE_SERVICE_ROLE_KEY unset); invoice surfaced in the owner's in-app feed, email not sent
+A new invoice was generated for Maple Grove:
+
+Billing cycle: 2026-03
+Total: 1000 EGP
+Due date: 2026-04-05 (pay before then to keep the daycare open)
+
+Open Platform > Tools > Account billing in your portal to see the full invoice ledger.
+
+stdout | tests/unit/kid245-invoices.test.ts > invoice generation > the signup month is free: no invoice before the first cycle and never for it
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw96c9zd-43mynsia
+
+stderr | tests/unit/kid245-invoices.test.ts > invoice generation > the signup month is free: no invoice before the first cycle and never for it
+KID-246 invoice Maple Grove/2026-02: no mail provider configured (SUPABASE_SERVICE_ROLE_KEY unset); invoice surfaced in the owner's in-app feed, email not sent
+A new invoice was generated for Maple Grove:
+
+Billing cycle: 2026-02
+Total: 500 EGP
+Due date: 2026-03-05 (pay before then to keep the daycare open)
+
+Open Platform > Tools > Account billing in your portal to see the full invoice ledger.
+
+stdout | tests/unit/kid245-invoices.test.ts > invoice generation > catches up every ended cycle with one invoice per month, then idles
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw96cefy-v19a3lbe
+
+stderr | tests/unit/kid245-invoices.test.ts > invoice generation > catches up every ended cycle with one invoice per month, then idles
+KID-246 invoice Maple Grove/2026-01: no mail provider configured (SUPABASE_SERVICE_ROLE_KEY unset); invoice surfaced in the owner's in-app feed, email not sent
+A new invoice was generated for Maple Grove:
+
+Billing cycle: 2026-01
+Total: 600 EGP
+Due date: 2026-02-05 (pay before then to keep the daycare open)
+
+Open Platform > Tools > Account billing in your portal to see the full invoice ledger.
+KID-246 invoice Maple Grove/2026-02: no mail provider configured (SUPABASE_SERVICE_ROLE_KEY unset); invoice surfaced in the owner's in-app feed, email not sent
+A new invoice was generated for Maple Grove:
+
+Billing cycle: 2026-02
+Total: 600 EGP
+Due date: 2026-03-05 (pay before then to keep the daycare open)
+
+Open Platform > Tools > Account billing in your portal to see the full invoice ledger.
+
+stdout | tests/unit/kid245-invoices.test.ts > invoice generation > the demo plan never generates an invoice
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw96ciw8-d8a9gs96
+
+stdout | tests/unit/kid245-invoices.test.ts > invoice generation > the annual plan bills one invoice per 12-month cycle, due the 5th after the block
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw96cndr-9lkcup7h
+
+stderr | tests/unit/kid245-invoices.test.ts > invoice generation > the annual plan bills one invoice per 12-month cycle, due the 5th after the block
+KID-246 invoice Annual Grove/2026-02: no mail provider configured (SUPABASE_SERVICE_ROLE_KEY unset); invoice surfaced in the owner's in-app feed, email not sent
+A new invoice was generated for Annual Grove:
+
+Billing cycle: 2026-02
+Total: 24000 EGP
+Due date: 2027-02-05 (pay before then to keep the daycare open)
+
+Open Platform > Tools > Account billing in your portal to see the full invoice ledger.
+KID-246 invoice Annual Grove/2027-02: no mail provider configured (SUPABASE_SERVICE_ROLE_KEY unset); invoice surfaced in the owner's in-app feed, email not sent
+A new invoice was generated for Annual Grove:
+
+Billing cycle: 2027-02
+Total: 24000 EGP
+Due date: 2028-02-05 (pay before then to keep the daycare open)
+
+Open Platform > Tools > Account billing in your portal to see the full invoice ledger.
+
+stdout | tests/unit/kid245-invoices.test.ts > invoice generation > the bootstrap sweep generates and enforces in one pass
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw96crza-6wxmo91q
+
+stderr | tests/unit/kid245-invoices.test.ts > invoice generation > the bootstrap sweep generates and enforces in one pass
+KID-246 invoice Maple Grove/2026-03: no mail provider configured (SUPABASE_SERVICE_ROLE_KEY unset); invoice surfaced in the owner's in-app feed, email not sent
+A new invoice was generated for Maple Grove:
+
+Billing cycle: 2026-03
+Total: 550 EGP
+Due date: 2026-04-05 (pay before then to keep the daycare open)
+
+Open Platform > Tools > Account billing in your portal to see the full invoice ledger.
+
+stdout | tests/unit/kid245-invoices.test.ts > invoice generation > the lazy bootstrap actually runs the sweep (lib/bootstrap.ts wiring)
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw96cwk5-sbcmdmjs
+
+stdout | tests/unit/kid245-invoices.test.ts > invoice generation > the lazy bootstrap actually runs the sweep (lib/bootstrap.ts wiring)
+Platform operator bootstrap skipped: no PLATFORM_ADMIN_EMAIL set.
+
+stderr | tests/unit/kid245-invoices.test.ts > invoice generation > the lazy bootstrap actually runs the sweep (lib/bootstrap.ts wiring)
+KID-246 invoice Maple Grove/2026-09: no mail provider configured (SUPABASE_SERVICE_ROLE_KEY unset); invoice surfaced in the owner's in-app feed, email not sent
+A new invoice was generated for Maple Grove:
+
+Billing cycle: 2026-09
+Total: 550 EGP
+Due date: 2026-10-05 (pay before then to keep the daycare open)
+
+Open Platform > Tools > Account billing in your portal to see the full invoice ledger.
+KID-246 invoice Maple Grove/2026-10: no mail provider configured (SUPABASE_SERVICE_ROLE_KEY unset); invoice surfaced in the owner's in-app feed, email not sent
+A new invoice was generated for Maple Grove:
+
+Billing cycle: 2026-10
+Total: 550 EGP
+Due date: 2026-11-05 (pay before then to keep the daycare open)
+
+Open Platform > Tools > Account billing in your portal to see the full invoice ledger.
+
+stdout | tests/unit/kid245-invoices.test.ts > overdue enforcement and re-enable > an unpaid invoice past its due date becomes overdue and disables the daycare
+Seeded platform operator account: superadmin@kiddy.test
+
+stderr | tests/unit/kid245-invoices.test.ts > overdue enforcement and re-enable > an unpaid invoice past its due date becomes overdue and disables the daycare
+KID-246 invoice Maple Grove/2026-03: no mail provider configured (SUPABASE_SERVICE_ROLE_KEY unset); invoice surfaced in the owner's in-app feed, email not sent
+A new invoice was generated for Maple Grove:
+
+Billing cycle: 2026-03
+Total: 500 EGP
+Due date: 2026-04-05 (pay before then to keep the daycare open)
+
+Open Platform > Tools > Account billing in your portal to see the full invoice ledger.
+
+stdout | tests/unit/kid245-invoices.test.ts > overdue enforcement and re-enable > an unpaid invoice past its due date becomes overdue and disables the daycare
+Seeded demo daycare: mw96d10f-yp2ci19n
+
+stdout | tests/unit/kid245-invoices.test.ts > overdue enforcement and re-enable > marking the invoice paid flips the daycare back to active
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw96d5ld-cudr2vln
+
+stderr | tests/unit/kid245-invoices.test.ts > overdue enforcement and re-enable > marking the invoice paid flips the daycare back to active
+KID-246 invoice Maple Grove/2026-03: no mail provider configured (SUPABASE_SERVICE_ROLE_KEY unset); invoice surfaced in the owner's in-app feed, email not sent
+A new invoice was generated for Maple Grove:
+
+Billing cycle: 2026-03
+Total: 500 EGP
+Due date: 2026-04-05 (pay before then to keep the daycare open)
+
+Open Platform > Tools > Account billing in your portal to see the full invoice ledger.
+
+stdout | tests/unit/kid245-invoices.test.ts > overdue enforcement and re-enable > the daycare stays disabled while any OTHER overdue invoice remains
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw96da6g-np7xboiz
+
+stderr | tests/unit/kid245-invoices.test.ts > overdue enforcement and re-enable > the daycare stays disabled while any OTHER overdue invoice remains
+KID-246 invoice Maple Grove/2026-02: no mail provider configured (SUPABASE_SERVICE_ROLE_KEY unset); invoice surfaced in the owner's in-app feed, email not sent
+A new invoice was generated for Maple Grove:
+
+Billing cycle: 2026-02
+Total: 500 EGP
+Due date: 2026-03-05 (pay before then to keep the daycare open)
+
+Open Platform > Tools > Account billing in your portal to see the full invoice ledger.
+KID-246 invoice Maple Grove/2026-03: no mail provider configured (SUPABASE_SERVICE_ROLE_KEY unset); invoice surfaced in the owner's in-app feed, email not sent
+A new invoice was generated for Maple Grove:
+
+Billing cycle: 2026-03
+Total: 500 EGP
+Due date: 2026-04-05 (pay before then to keep the daycare open)
+
+Open Platform > Tools > Account billing in your portal to see the full invoice ledger.
+
+stdout | tests/unit/kid245-invoices.test.ts > manual amount override (superadmin) > overrides the total with a note before payment; the formula snapshot stays
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw96delb-ynu002cc
+
+stderr | tests/unit/kid245-invoices.test.ts > manual amount override (superadmin) > overrides the total with a note before payment; the formula snapshot stays
+KID-246 invoice Maple Grove/2026-03: no mail provider configured (SUPABASE_SERVICE_ROLE_KEY unset); invoice surfaced in the owner's in-app feed, email not sent
+A new invoice was generated for Maple Grove:
+
+Billing cycle: 2026-03
+Total: 1000 EGP
+Due date: 2026-04-05 (pay before then to keep the daycare open)
+
+Open Platform > Tools > Account billing in your portal to see the full invoice ledger.
+
+stdout | tests/unit/kid245-invoices.test.ts > manual amount override (superadmin) > refuses negative or nonsense totals and locks paid invoices
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw96dj4s-8xziso31
+
+stderr | tests/unit/kid245-invoices.test.ts > manual amount override (superadmin) > refuses negative or nonsense totals and locks paid invoices
+KID-246 invoice Maple Grove/2026-03: no mail provider configured (SUPABASE_SERVICE_ROLE_KEY unset); invoice surfaced in the owner's in-app feed, email not sent
+A new invoice was generated for Maple Grove:
+
+Billing cycle: 2026-03
+Total: 600 EGP
+Due date: 2026-04-05 (pay before then to keep the daycare open)
+
+Open Platform > Tools > Account billing in your portal to see the full invoice ledger.
+
+stdout | tests/unit/kid245-invoices.test.ts > the login gate distinguishes billing from manual disable (EN + AR) > a manually disabled daycare keeps the generic disabled message (EN)
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw96dnjk-bfvw21oi
+
+stdout | tests/unit/kid245-invoices.test.ts > the login gate distinguishes billing from manual disable (EN + AR) > a billing-blocked daycare shows the temporary-block message (EN)
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw96drwy-g3r3yvio
+
+stdout | tests/unit/kid245-invoices.test.ts > the login gate distinguishes billing from manual disable (EN + AR) > the billing message ships in Arabic for an Arabic account
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw96dwcg-1f2fgjrw
+
+stdout | tests/unit/kid245-invoices.test.ts > the login gate distinguishes billing from manual disable (EN + AR) > paying the overdue invoice restores the login (redirect, no error)
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw96e0s1-rifcuezo
+
+stdout | tests/unit/kid245-invoices.test.ts > the login gate distinguishes billing from manual disable (EN + AR) > isTenancyBillingBlocked reads the overdue-invoice signature, not the flag alone
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw96e570-6xenv7fn
+
+stdout | tests/unit/kid245-invoices.test.ts > the shared gate message builder > renders both reasons in EN and AR, always naming the contact inbox
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw96e9af-kx2xi2z2
+
+stdout | tests/unit/kid245-invoices.test.ts > i18n > carries the KID-245 invoice labels in both EN and AR with matching key sets
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw96edcz-2vl4kmbx
+
+stdout | tests/unit/kid245-invoices.test.ts > schema > the invoice table carries the issue-specified columns and one invoice per cycle
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw96ehd3-umty42gv
+
+ ✓ tests/unit/kid245-invoices.test.ts (30 tests) 168641ms
+   ✓ pure date/cycle helpers > the due date is the 5th of the month after the cycle ends 5235ms
+   ✓ pure date/cycle helpers > cycle months cross year boundaries correctly 5403ms
+   ✓ pure date/cycle helpers > a cycle ends before today, never during today (generation runs the day after) 5395ms
+   ✓ the board-confirmed formula (invoiceBreakdown) > exactly 10 children bills the flat rate only; 11 adds the first 50 5290ms
+   ✓ the board-confirmed formula (invoiceBreakdown) > 20 peak children bills 500 + 10x50 = 1000 EGP — never flat-rate-times-all 5326ms
+   ✓ the board-confirmed formula (invoiceBreakdown) > respects operator-configured thresholds and rates 5339ms
+   ✓ the board-confirmed formula (invoiceBreakdown) > the annual plan bills the configured annual amount regardless of the roster 5423ms
+   ✓ peak max-children measurement > uses the PEAK, not the end-of-month count: 20 peak / 15 end -> 20 6119ms
+   ✓ peak max-children measurement > a same-day handover counts both children on the shared day 5498ms
+   ✓ peak max-children measurement > children withdrawn before the cycle and children enrolled after it never count 5504ms
+   ✓ invoice generation > generates the ended monthly cycle with peak, formula fields, due date and EGP 5707ms
+   ✓ invoice generation > the signup month is free: no invoice before the first cycle and never for it 5874ms
+   ✓ invoice generation > catches up every ended cycle with one invoice per month, then idles 5811ms
+   ✓ invoice generation > the demo plan never generates an invoice 5746ms
+   ✓ invoice generation > the annual plan bills one invoice per 12-month cycle, due the 5th after the block 6097ms
+   ✓ invoice generation > the bootstrap sweep generates and enforces in one pass 5578ms
+   ✓ invoice generation > the lazy bootstrap actually runs the sweep (lib/bootstrap.ts wiring) 6082ms
+   ✓ overdue enforcement and re-enable > an unpaid invoice past its due date becomes overdue and disables the daycare 5600ms
+   ✓ overdue enforcement and re-enable > marking the invoice paid flips the daycare back to active 6209ms
+   ✓ overdue enforcement and re-enable > the daycare stays disabled while any OTHER overdue invoice remains 5575ms
+   ✓ manual amount override (superadmin) > overrides the total with a note before payment; the formula snapshot stays 6093ms
+   ✓ manual amount override (superadmin) > refuses negative or nonsense totals and locks paid invoices 5626ms
+   ✓ the login gate distinguishes billing from manual disable (EN + AR) > a manually disabled daycare keeps the generic disabled message (EN) 5531ms
+   ✓ the login gate distinguishes billing from manual disable (EN + AR) > a billing-blocked daycare shows the temporary-block message (EN) 5525ms
+   ✓ the login gate distinguishes billing from manual disable (EN + AR) > the billing message ships in Arabic for an Arabic account 5696ms
+   ✓ the login gate distinguishes billing from manual disable (EN + AR) > paying the overdue invoice restores the login (redirect, no error) 6138ms
+   ✓ the login gate distinguishes billing from manual disable (EN + AR) > isTenancyBillingBlocked reads the overdue-invoice signature, not the flag alone 5202ms
+   ✓ the shared gate message builder > renders both reasons in EN and AR, always naming the contact inbox 5468ms
+   ✓ i18n > carries the KID-245 invoice labels in both EN and AR with matching key sets 5105ms
+   ✓ schema > the invoice table carries the issue-specified columns and one invoice per cycle 5443ms
+stdout | tests/unit/kid372-cross-tenant-id-guards.test.ts > KID-372: setTicketStatusAction — session + institute ownership > an anonymous POST is refused with /login and the ticket stays untouched
+Seeded platform operator account: superadmin@kiddy.test
+
+stdout | tests/unit/kid372-cross-tenant-id-guards.test.ts > KID-372: setTicketStatusAction — session + institute ownership > an anonymous POST is refused with /login and the ticket stays untouched
+Seeded demo daycare: mw96em6s-m7pm0i4p
+
+stdout | tests/unit/kid372-cross-tenant-id-guards.test.ts > KID-372: setTicketStatusAction — session + institute ownership > a staff session of the ticket's own centre can flip it (positive path)
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw96eqi5-dwj4fsqp
+
+stdout | tests/unit/kid372-cross-tenant-id-guards.test.ts > KID-372: setTicketStatusAction — session + institute ownership > a FOREIGN centre's ticket id is refused fail closed (no write, no render)
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw96eupj-9f3eaqss
+
+stderr | tests/unit/kid372-cross-tenant-id-guards.test.ts > KID-372: setTicketStatusAction — session + institute ownership > a FOREIGN centre's ticket id is refused fail closed (no write, no render)
+KID-372 refused cross-tenant support_ticket access by raw id: trois4ever+admin@gmail.com
+
+stdout | tests/unit/kid372-cross-tenant-id-guards.test.ts > KID-372: room detail page + updateRoomAction — institute ownership > the page renders the centre's own room for its admin (positive path)
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw96eyz1-im0qazp2
+
+stdout | tests/unit/kid372-cross-tenant-id-guards.test.ts > KID-372: room detail page + updateRoomAction — institute ownership > the page 404s another centre's room by URL id (fail closed)
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw96f3c3-3jtztubc
+
+stdout | tests/unit/kid372-cross-tenant-id-guards.test.ts > KID-372: room detail page + updateRoomAction — institute ownership > updateRoomAction refuses another centre's room by raw id (no write)
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw96f7g5-6vtdyr20
+
+stderr | tests/unit/kid372-cross-tenant-id-guards.test.ts > KID-372: room detail page + updateRoomAction — institute ownership > updateRoomAction refuses another centre's room by raw id (no write)
+KID-372 refused cross-tenant room access by raw id: trois4ever+admin@gmail.com
+
+stdout | tests/unit/kid372-cross-tenant-id-guards.test.ts > KID-372: room detail page + updateRoomAction — institute ownership > updateRoomAction still edits the centre's own room (positive path)
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw96fbro-w5m3xrn5
+
+stdout | tests/unit/kid372-cross-tenant-id-guards.test.ts > KID-372: parent /child/[id] — family-scoped child visibility > isChildVisibleToAccount: the parent passes on their OWN institute child only
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw96fg89-x69kgawe
+
+stdout | tests/unit/kid372-cross-tenant-id-guards.test.ts > KID-372: parent /child/[id] — family-scoped child visibility > isChildVisibleToAccount: a same-centre parent with NO family link is refused
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw96fkdl-8hl4idnq
+
+stdout | tests/unit/kid372-cross-tenant-id-guards.test.ts > KID-372: parent /child/[id] — family-scoped child visibility > isChildVisibleToAccount: staff without classroom records in scope get nothing
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw96fou4-n83uk7sd
+
+stdout | tests/unit/kid372-cross-tenant-id-guards.test.ts > KID-372: parent /child/[id] — family-scoped child visibility > the page renders the parent's own child on the tenant host (kid254 stays green)
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw96ft3q-p2juwblr
+
+stdout | tests/unit/kid372-cross-tenant-id-guards.test.ts > KID-372: parent /child/[id] — family-scoped child visibility > the page 404s a foreign centre's child id instead of rendering its data
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw96fxle-rep2ss3k
+
+stdout | tests/unit/kid372-cross-tenant-id-guards.test.ts > KID-372: parent /child/[id] — family-scoped child visibility > the page 404s a foreign-centre child id on the apex host too (no fallback)
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw96g1wk-6x60jjti
+
+stdout | tests/unit/kid372-cross-tenant-id-guards.test.ts > KID-372: setFormResponseStatusAction — response verified against the session's institute > flips a response of the centre's own form (positive path)
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw96g64f-uxcj3ywa
+
+stdout | tests/unit/kid372-cross-tenant-id-guards.test.ts > KID-372: setFormResponseStatusAction — response verified against the session's institute > refuses a response whose form belongs to another centre (no flip)
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw96gaa2-hgcilevn
+
+stderr | tests/unit/kid372-cross-tenant-id-guards.test.ts > KID-372: setFormResponseStatusAction — response verified against the session's institute > refuses a response whose form belongs to another centre (no flip)
+KID-372 refused cross-tenant form_response r JOIN form_template f ON f.id = r.form_id access by raw id: trois4ever+admin@gmail.com
+
+stdout | tests/unit/kid372-cross-tenant-id-guards.test.ts > KID-372: generateFormShareLinkAction — share tokens only for own forms > mints a share token for the centre's own form (positive path)
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw96gel0-g4pms0x8
+
+stdout | tests/unit/kid372-cross-tenant-id-guards.test.ts > KID-372: generateFormShareLinkAction — share tokens only for own forms > refuses to mint a share link for another centre's form by raw id
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw96giqw-arq6qgyr
+
+stderr | tests/unit/kid372-cross-tenant-id-guards.test.ts > KID-372: generateFormShareLinkAction — share tokens only for own forms > refuses to mint a share link for another centre's form by raw id
+KID-372 refused cross-tenant form_template access by raw id: trois4ever+admin@gmail.com
+
+stdout | tests/unit/kid372-cross-tenant-id-guards.test.ts > KID-372: updateSupplyStatusAction — institute-owned supplies > updates the centre's own supply (positive path)
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw96gn3a-ayuim3zo
+
+stdout | tests/unit/kid372-cross-tenant-id-guards.test.ts > KID-372: updateSupplyStatusAction — institute-owned supplies > refuses another centre's supply id (no flip, no newsfeed side effect)
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw96grew-y9ntmir4
+
+stderr | tests/unit/kid372-cross-tenant-id-guards.test.ts > KID-372: updateSupplyStatusAction — institute-owned supplies > refuses another centre's supply id (no flip, no newsfeed side effect)
+KID-372 refused cross-tenant supply_request access by raw id: trois4ever+admin@gmail.com
+
+stdout | tests/unit/kid372-cross-tenant-id-guards.test.ts > KID-372: createTagAction / createSmartListAction — authAccount() first > an anonymous POST cannot write a tag into ANY daycare (no first-institute ride)
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw96gvpl-5m1a8i14
+
+stdout | tests/unit/kid372-cross-tenant-id-guards.test.ts > KID-372: createTagAction / createSmartListAction — authAccount() first > an anonymous POST cannot write a smart list either
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw96h01r-wxl2tpc5
+
+stdout | tests/unit/kid372-cross-tenant-id-guards.test.ts > KID-372: createTagAction / createSmartListAction — authAccount() first > a signed-in session writes tags into its OWN request tenant only (positive path)
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw96h44i-xmvm60en
+
+stdout | tests/unit/kid372-cross-tenant-id-guards.test.ts > KID-372: createTagAction / createSmartListAction — authAccount() first > a cross-tenant session cannot borrow another host's tenant
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw96h8b1-68vbxa84
+
+stderr | tests/unit/kid372-cross-tenant-id-guards.test.ts > KID-372: createTagAction / createSmartListAction — authAccount() first > a cross-tenant session cannot borrow another host's tenant
+KID-372 refused a tag write with no request tenant (cross-tenant session): owner@mapletree.test
+
+ ✓ tests/unit/kid372-cross-tenant-id-guards.test.ts (23 tests) 127967ms
+   ✓ KID-372: setTicketStatusAction — session + institute ownership > an anonymous POST is refused with /login and the ticket stays untouched 5990ms
+   ✓ KID-372: setTicketStatusAction — session + institute ownership > a staff session of the ticket's own centre can flip it (positive path) 5449ms
+   ✓ KID-372: setTicketStatusAction — session + institute ownership > a FOREIGN centre's ticket id is refused fail closed (no write, no render) 5425ms
+   ✓ KID-372: room detail page + updateRoomAction — institute ownership > the page renders the centre's own room for its admin (positive path) 5748ms
+   ✓ KID-372: room detail page + updateRoomAction — institute ownership > the page 404s another centre's room by URL id (fail closed) 5285ms
+   ✓ KID-372: room detail page + updateRoomAction — institute ownership > updateRoomAction refuses another centre's room by raw id (no write) 5767ms
+   ✓ KID-372: room detail page + updateRoomAction — institute ownership > updateRoomAction still edits the centre's own room (positive path) 5434ms
+   ✓ KID-372: parent /child/[id] — family-scoped child visibility > isChildVisibleToAccount: the parent passes on their OWN institute child only 5610ms
+   ✓ KID-372: parent /child/[id] — family-scoped child visibility > isChildVisibleToAccount: a same-centre parent with NO family link is refused 5587ms
+   ✓ KID-372: parent /child/[id] — family-scoped child visibility > isChildVisibleToAccount: staff without classroom records in scope get nothing 5661ms
+   ✓ KID-372: parent /child/[id] — family-scoped child visibility > the page renders the parent's own child on the tenant host (kid254 stays green) 5879ms
+   ✓ KID-372: parent /child/[id] — family-scoped child visibility > the page 404s a foreign centre's child id instead of rendering its data 5416ms
+   ✓ KID-372: parent /child/[id] — family-scoped child visibility > the page 404s a foreign-centre child id on the apex host too (no fallback) 5751ms
+   ✓ KID-372: setFormResponseStatusAction — response verified against the session's institute > flips a response of the centre's own form (positive path) 5313ms
+   ✓ KID-372: setFormResponseStatusAction — response verified against the session's institute > refuses a response whose form belongs to another centre (no flip) 5336ms
+   ✓ KID-372: generateFormShareLinkAction — share tokens only for own forms > mints a share token for the centre's own form (positive path) 5609ms
+   ✓ KID-372: generateFormShareLinkAction — share tokens only for own forms > refuses to mint a share link for another centre's form by raw id 5536ms
+   ✓ KID-372: updateSupplyStatusAction — institute-owned supplies > updates the centre's own supply (positive path) 5541ms
+   ✓ KID-372: updateSupplyStatusAction — institute-owned supplies > refuses another centre's supply id (no flip, no newsfeed side effect) 5776ms
+   ✓ KID-372: createTagAction / createSmartListAction — authAccount() first > an anonymous POST cannot write a tag into ANY daycare (no first-institute ride) 5411ms
+   ✓ KID-372: createTagAction / createSmartListAction — authAccount() first > an anonymous POST cannot write a smart list either 5476ms
+   ✓ KID-372: createTagAction / createSmartListAction — authAccount() first > a signed-in session writes tags into its OWN request tenant only (positive path) 5352ms
+   ✓ KID-372: createTagAction / createSmartListAction — authAccount() first > a cross-tenant session cannot borrow another host's tenant 5609ms
+stdout | tests/unit/kid489-payment-proof.test.tsx > KID-492: schema (Postgres migration mirrored in SQLite) > the migration adds the three nullable proof columns idempotently
+Seeded platform operator account: superadmin@kiddy.test
+
+stdout | tests/unit/kid489-payment-proof.test.tsx > KID-492: schema (Postgres migration mirrored in SQLite) > the migration adds the three nullable proof columns idempotently
+Seeded demo daycare: mw96hd53-8u3juy7s
+
+stdout | tests/unit/kid489-payment-proof.test.tsx > KID-492: schema (Postgres migration mirrored in SQLite) > the SQLite mirror carries the columns; a fresh invoice reads all NULL
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw96hhh5-c26fq8rz
+
+stdout | tests/unit/kid489-payment-proof.test.tsx > KID-492: validatePaymentProof boundary > accepts PNG, JPG and PDF at or under the size cap
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw96hll4-igivw5qq
+
+stdout | tests/unit/kid489-payment-proof.test.tsx > KID-492: validatePaymentProof boundary > rejects wrong types, oversize and empty files
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw96hpor-6mot1gcw
+
+stdout | tests/unit/kid489-payment-proof.test.tsx > KID-492: the parent uploads a proof for their own family's invoice > stores the URL, uploaded_at and reference — and keeps the invoice pending
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw96htti-t3nuho5z
+
+stdout | tests/unit/kid489-payment-proof.test.tsx > KID-492: the parent uploads a proof for their own family's invoice > a re-upload replaces the previous proof without duplicating the feed item
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw96hyae-4zoftf7e
+
+stdout | tests/unit/kid489-payment-proof.test.tsx > KID-492: rejections never create a partial record > a missing/empty file redirects with ?error=proofType and writes nothing
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw96i2d2-vb8xqijs
+
+stdout | tests/unit/kid489-payment-proof.test.tsx > KID-492: rejections never create a partial record > a wrong file type redirects with ?error=proofType and writes nothing
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw96i6pv-u338rpxk
+
+stdout | tests/unit/kid489-payment-proof.test.tsx > KID-492: rejections never create a partial record > an oversize file redirects with ?error=proofSize and writes nothing
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw96iapm-bh3g3uxc
+
+stdout | tests/unit/kid489-payment-proof.test.tsx > KID-492: rejections never create a partial record > a storage failure redirects with ?error=proofUpload and writes nothing
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw96if7d-14s1ywiu
+
+stderr | tests/unit/kid489-payment-proof.test.tsx > KID-492: rejections never create a partial record > a storage failure redirects with ?error=proofUpload and writes nothing
+KID-492 payment proof storage upload failed: boom
+
+stdout | tests/unit/kid489-payment-proof.test.tsx > KID-492: cross-tenant / cross-family upload is denied > a same-center outsider parent is refused fail closed
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw96ije1-4gjjddg7
+
+stderr | tests/unit/kid489-payment-proof.test.tsx > KID-492: cross-tenant / cross-family upload is denied > a same-center outsider parent is refused fail closed
+KID-492 refused a payment-proof upload with no family link: kid492-outsider@example.test
+
+stdout | tests/unit/kid489-payment-proof.test.tsx > KID-492: cross-tenant / cross-family upload is denied > a foreign institute's invoice id is refused for a real parent session
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw96inhh-c5h9r5ez
+
+stderr | tests/unit/kid489-payment-proof.test.tsx > KID-492: cross-tenant / cross-family upload is denied > a foreign institute's invoice id is refused for a real parent session
+KID-492 refused a payment-proof upload by raw id: parent@example.test
+
+stdout | tests/unit/kid489-payment-proof.test.tsx > KID-492: cross-tenant / cross-family upload is denied > a same-center admin account has no family link and is refused
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw96irn7-yxnv7wwv
+
+stderr | tests/unit/kid489-payment-proof.test.tsx > KID-492: cross-tenant / cross-family upload is denied > a same-center admin account has no family link and is refused
+KID-492 refused a payment-proof upload with no family link: trois4ever+admin@gmail.com
+
+stdout | tests/unit/kid489-payment-proof.test.tsx > KID-492: cross-tenant / cross-family upload is denied > an anonymous caller never writes anything
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw96ivrg-ctkncotb
+
+stdout | tests/unit/kid489-payment-proof.test.tsx > KID-492: the admin sees the proof and the activity item > the admin activity feed surfaces exactly one proof item; paid clears it
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw96izov-tvpfumwh
+
+stdout | tests/unit/kid489-payment-proof.test.tsx > KID-492: the admin sees the proof and the activity item > a second invoice adds a second item — dedupe is per invoice/upload event
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw96j3rc-7vwt9a4u
+
+stdout | tests/unit/kid489-payment-proof.test.tsx > KID-492: the admin sees the proof and the activity item > the admin billing table shows the proof link, date and reference
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw96j85w-c1s011e5
+
+stdout | tests/unit/kid489-payment-proof.test.tsx > KID-492: the admin sees the proof and the activity item > without a proof the admin table shows the placeholder cell
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw96jcdw-5zxwco6i
+
+stdout | tests/unit/kid489-payment-proof.test.tsx > KID-492: the admin sees the proof and the activity item > the portal notifications page renders the review item for the admin
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw96jgpi-w2o6tlwh
+
+stdout | tests/unit/kid489-payment-proof.test.tsx > KID-492: the parent surface > renders the upload form for an unpaid invoice and the proof view after upload
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw96jksk-9zuxov7y
+
+stdout | tests/unit/kid489-payment-proof.test.tsx > KID-492: the parent surface > renders the rejection and success banners
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw96jp8f-encix51o
+
+stdout | tests/unit/kid489-payment-proof.test.tsx > KID-492: the parent surface > a paid invoice shows no upload form
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw96jthu-dsljchg0
+
+stdout | tests/unit/kid489-payment-proof.test.tsx > KID-492: the parent surface > tenant isolation: an unrelated parent cannot render the child surface at all
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw96jxrv-0bvb2q2m
+
+stdout | tests/unit/kid489-payment-proof.test.tsx > KID-492: EN + AR labels > ships both dictionaries for every new string
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw96k2bv-ek7jhgjg
+
+ ✓ tests/unit/kid489-payment-proof.test.tsx (24 tests) 131407ms
+   ✓ KID-492: schema (Postgres migration mirrored in SQLite) > the migration adds the three nullable proof columns idempotently 5786ms
+   ✓ KID-492: schema (Postgres migration mirrored in SQLite) > the SQLite mirror carries the columns; a fresh invoice reads all NULL 5450ms
+   ✓ KID-492: validatePaymentProof boundary > accepts PNG, JPG and PDF at or under the size cap 5146ms
+   ✓ KID-492: validatePaymentProof boundary > rejects wrong types, oversize and empty files 5519ms
+   ✓ KID-492: the parent uploads a proof for their own family's invoice > stores the URL, uploaded_at and reference — and keeps the invoice pending 5411ms
+   ✓ KID-492: the parent uploads a proof for their own family's invoice > a re-upload replaces the previous proof without duplicating the feed item 5671ms
+   ✓ KID-492: rejections never create a partial record > a missing/empty file redirects with ?error=proofType and writes nothing 5336ms
+   ✓ KID-492: rejections never create a partial record > a wrong file type redirects with ?error=proofType and writes nothing 5422ms
+   ✓ KID-492: rejections never create a partial record > an oversize file redirects with ?error=proofSize and writes nothing 5602ms
+   ✓ KID-492: rejections never create a partial record > a storage failure redirects with ?error=proofUpload and writes nothing 5631ms
+   ✓ KID-492: cross-tenant / cross-family upload is denied > a same-center outsider parent is refused fail closed 5218ms
+   ✓ KID-492: cross-tenant / cross-family upload is denied > a foreign institute's invoice id is refused for a real parent session 5499ms
+   ✓ KID-492: cross-tenant / cross-family upload is denied > a same-center admin account has no family link and is refused 5287ms
+   ✓ KID-492: cross-tenant / cross-family upload is denied > an anonymous caller never writes anything 5137ms
+   ✓ KID-492: the admin sees the proof and the activity item > the admin activity feed surfaces exactly one proof item; paid clears it 5392ms
+   ✓ KID-492: the admin sees the proof and the activity item > a second invoice adds a second item — dedupe is per invoice/upload event 5374ms
+   ✓ KID-492: the admin sees the proof and the activity item > the admin billing table shows the proof link, date and reference 5506ms
+   ✓ KID-492: the admin sees the proof and the activity item > without a proof the admin table shows the placeholder cell 5592ms
+   ✓ KID-492: the admin sees the proof and the activity item > the portal notifications page renders the review item for the admin 5448ms
+   ✓ KID-492: the parent surface > renders the upload form for an unpaid invoice and the proof view after upload 5658ms
+   ✓ KID-492: the parent surface > renders the rejection and success banners 5432ms
+   ✓ KID-492: the parent surface > a paid invoice shows no upload form 5777ms
+   ✓ KID-492: the parent surface > tenant isolation: an unrelated parent cannot render the child surface at all 5459ms
+   ✓ KID-492: EN + AR labels > ships both dictionaries for every new string 5648ms
+stdout | tests/unit/kid246-account-billing.test.tsx > the Account billing tab under Tools (owner-only) > the owner sees the tab; every other role does not
+Seeded platform operator account: superadmin@kiddy.test
+
+stdout | tests/unit/kid246-account-billing.test.tsx > the Account billing tab under Tools (owner-only) > the owner sees the tab; every other role does not
+Seeded demo daycare: mw96k6po-jdmyolma
+
+stdout | tests/unit/kid246-account-billing.test.tsx > the Account billing tab under Tools (owner-only) > labels ship in EN and AR against lib/i18n
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw96kb2v-93aif4nr
+
+stdout | tests/unit/kid246-account-billing.test.tsx > the accountBilling dictionary parity (EN + AR) > every accountBilling page key exists in both dictionaries
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw96kfcp-u90igku7
+
+stdout | tests/unit/kid246-account-billing.test.tsx > /portal/account-billing access > an owner session renders the plan card, rates and the invoice ledger
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw96kjhx-540sg1i1
+
+stdout | tests/unit/kid246-account-billing.test.tsx > /portal/account-billing access > a non-owner session (admin / parent) is refused at the URL
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw96knwy-hn1jz0eq
+
+stdout | tests/unit/kid246-account-billing.test.tsx > the owner-facing invoice notification feed > a new invoice appears in the owner's feed, only for the owner role
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw96ks4r-j20m0a72
+
+stdout | tests/unit/kid246-account-billing.test.tsx > the owner-facing invoice notification feed > honors the notification_pref: a disabled billing/inapp pref suppresses the slice
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw96kwk8-kv5uesx0
+
+stdout | tests/unit/kid246-account-billing.test.tsx > the owner-facing invoice notification feed > warns while the owner can still act: due within 3 days and overdue
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw96l0k6-uh9i043x
+
+stdout | tests/unit/kid246-account-billing.test.tsx > the invoice creation email (best-effort, existing Supabase path) > sends nothing without a provider configured — the feed is the channel
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw96l4ok-y6cvdfx5
+
+stderr | tests/unit/kid246-account-billing.test.tsx > the invoice creation email (best-effort, existing Supabase path) > sends nothing without a provider configured — the feed is the channel
+KID-246 invoice Sunshine Daycare/2026-10: no mail provider configured (SUPABASE_SERVICE_ROLE_KEY unset); invoice surfaced in the owner's in-app feed, email not sent
+A new invoice was generated for Sunshine Daycare:
+
+Billing cycle: 2026-10
+Total: 600 EGP
+Due date: 2026-11-05 (pay before then to keep the daycare open)
+
+Open Platform > Tools > Account billing in your portal to see the full invoice ledger.
+
+stdout | tests/unit/kid246-account-billing.test.tsx > the invoice creation email (best-effort, existing Supabase path) > the already-registered owner degrades honestly instead of re-pretending
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw96l8w9-u2dc23t5
+
+stderr | tests/unit/kid246-account-billing.test.tsx > the invoice creation email (best-effort, existing Supabase path) > the already-registered owner degrades honestly instead of re-pretending
+KID-246 invoice Sunshine Daycare/2026-10: owner email is already registered with the mail provider, so no further invite mail can be sent; notification stays in the in-app feed
+
+stdout | tests/unit/kid246-account-billing.test.tsx > the invoice creation email (best-effort, existing Supabase path) > generateDueInvoices emails the owner(s), honoring the billing/email pref
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw96ld90-b4vi43fq
+
+stdout | tests/unit/kid246-account-billing.test.tsx > the invoice creation email (best-effort, existing Supabase path) > generateDueInvoices emails the owner(s), honoring the billing/email pref
+KID-246 invoice Maple Grove Mail/2026-03: owner email accepted by provider for mailer-oo08dr@maplegrove.test (templated invite mail; invoice content logged for manual forwarding):
+A new invoice was generated for Maple Grove Mail:
+
+Billing cycle: 2026-03
+Total: 500 EGP
+Due date: 2026-04-05 (pay before then to keep the daycare open)
+
+Open Platform > Tools > Account billing in your portal to see the full invoice ledger.
+
+stdout | tests/unit/kid246-account-billing.test.tsx > the invoice creation email (best-effort, existing Supabase path) > a disabled billing/email pref skips the owner's email; the feed stays on
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw96lhsg-9k6yqgq1
+
+ ✓ tests/unit/kid246-account-billing.test.tsx (12 tests) 67005ms
+   ✓ the Account billing tab under Tools (owner-only) > the owner sees the tab; every other role does not 5604ms
+   ✓ the Account billing tab under Tools (owner-only) > labels ship in EN and AR against lib/i18n 5335ms
+   ✓ the accountBilling dictionary parity (EN + AR) > every accountBilling page key exists in both dictionaries 5654ms
+   ✓ /portal/account-billing access > an owner session renders the plan card, rates and the invoice ledger 5352ms
+   ✓ /portal/account-billing access > a non-owner session (admin / parent) is refused at the URL 5854ms
+   ✓ the owner-facing invoice notification feed > a new invoice appears in the owner's feed, only for the owner role 5495ms
+   ✓ the owner-facing invoice notification feed > honors the notification_pref: a disabled billing/inapp pref suppresses the slice 5395ms
+   ✓ the owner-facing invoice notification feed > warns while the owner can still act: due within 3 days and overdue 5310ms
+   ✓ the invoice creation email (best-effort, existing Supabase path) > sends nothing without a provider configured — the feed is the channel 5493ms
+   ✓ the invoice creation email (best-effort, existing Supabase path) > the already-registered owner degrades honestly instead of re-pretending 5181ms
+   ✓ the invoice creation email (best-effort, existing Supabase path) > generateDueInvoices emails the owner(s), honoring the billing/email pref 6095ms
+   ✓ the invoice creation email (best-effort, existing Supabase path) > a disabled billing/email pref skips the owner's email; the feed stays on 6233ms
+stdout | tests/unit/kid489-instapay-payment-link.test.tsx > KID-491: parsePaymentLink > accepts absolute http/https URLs as given
+Seeded platform operator account: superadmin@kiddy.test
+
+stdout | tests/unit/kid489-instapay-payment-link.test.tsx > KID-491: parsePaymentLink > accepts absolute http/https URLs as given
+Seeded demo daycare: mw96lmy1-apjvl7ub
+
+stdout | tests/unit/kid489-instapay-payment-link.test.tsx > KID-491: parsePaymentLink > blanks and missing values mean no link (NULL), not a broken URL
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw96lre0-wo2zvq0c
+
+stdout | tests/unit/kid489-instapay-payment-link.test.tsx > KID-491: parsePaymentLink > rejects non-http schemes and garbage
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw96lvt0-6ak0uh86
+
+stdout | tests/unit/kid489-instapay-payment-link.test.tsx > KID-491: schema (Postgres migration mirrored in SQLite) > the migration adds both optional link columns idempotently
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw96m066-fgu810be
+
+stdout | tests/unit/kid489-instapay-payment-link.test.tsx > KID-491: schema (Postgres migration mirrored in SQLite) > the SQLite mirror carries the columns; fresh rows read no link
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw96m4zu-cbu5znys
+
+stdout | tests/unit/kid489-instapay-payment-link.test.tsx > KID-491: center settings Instapay link > an admin saves a valid URL and it survives reload
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw96m9cs-qi2ucj6c
+
+stdout | tests/unit/kid489-instapay-payment-link.test.tsx > KID-491: center settings Instapay link > an invalid value is rejected with the error banner and nothing is stored
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw96mdud-wkhis26h
+
+stdout | tests/unit/kid489-instapay-payment-link.test.tsx > KID-491: center settings Instapay link > clearing the field removes the center link
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw96mi3e-k0uzozlp
+
+stdout | tests/unit/kid489-instapay-payment-link.test.tsx > KID-491: the invoice create form prefill, override and persistence > the form prefills the center's Instapay link
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw96mm7s-zcrbkggw
+
+stdout | tests/unit/kid489-instapay-payment-link.test.tsx > KID-491: the invoice create form prefill, override and persistence > an explicit per-invoice link is stored and can override the center default
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw96mtcd-y16rfinz
+
+stdout | tests/unit/kid489-instapay-payment-link.test.tsx > KID-491: the invoice create form prefill, override and persistence > a cleared prefill stores an invoice WITHOUT a link
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw96mxyo-uh8pkv08
+
+stdout | tests/unit/kid489-instapay-payment-link.test.tsx > KID-491: the invoice create form prefill, override and persistence > an invalid link refuses the whole create with the banner redirect
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw96n2ck-elo56f83
+
+stdout | tests/unit/kid489-instapay-payment-link.test.tsx > KID-491: the parent sees only their own invoices, with a working payment link > an invoice with a link renders the Pay with Instapay button in a new tab
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw96n6la-be28avxf
+
+stdout | tests/unit/kid489-instapay-payment-link.test.tsx > KID-491: the parent sees only their own invoices, with a working payment link > an invoice without a link renders unchanged — no Pay button
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw96nb1q-rrz6zah9
+
+stdout | tests/unit/kid489-instapay-payment-link.test.tsx > KID-491: the parent sees only their own invoices, with a working payment link > tenant isolation: a parent with no family link to the child never renders that child or its payment link
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw96nfli-xynl3lgp
+
+stdout | tests/unit/kid489-instapay-payment-link.test.tsx > KID-491: the parent sees only their own invoices, with a working payment link > the portal admin billing table lists the link (center staff can verify)
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw96njnz-j5erv5td
+
+stdout | tests/unit/kid489-instapay-payment-link.test.tsx > KID-491: EN + AR labels > ships both dictionaries for every new string
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw96nnzo-0yi37ri7
+
+ ✓ tests/unit/kid489-instapay-payment-link.test.tsx (17 tests) 100151ms
+   ✓ KID-491: parsePaymentLink > accepts absolute http/https URLs as given 5999ms
+   ✓ KID-491: parsePaymentLink > blanks and missing values mean no link (NULL), not a broken URL 5623ms
+   ✓ KID-491: parsePaymentLink > rejects non-http schemes and garbage 5323ms
+   ✓ KID-491: schema (Postgres migration mirrored in SQLite) > the migration adds both optional link columns idempotently 6494ms
+   ✓ KID-491: schema (Postgres migration mirrored in SQLite) > the SQLite mirror carries the columns; fresh rows read no link 5760ms
+   ✓ KID-491: center settings Instapay link > an admin saves a valid URL and it survives reload 5843ms
+   ✓ KID-491: center settings Instapay link > an invalid value is rejected with the error banner and nothing is stored 5409ms
+   ✓ KID-491: center settings Instapay link > clearing the field removes the center link 5630ms
+   ✓ KID-491: the invoice create form prefill, override and persistence > the form prefills the center's Instapay link 5657ms
+   ✓ KID-491: the invoice create form prefill, override and persistence > an explicit per-invoice link is stored and can override the center default 9170ms
+   ✓ KID-491: the invoice create form prefill, override and persistence > a cleared prefill stores an invoice WITHOUT a link 5872ms
+   ✓ KID-491: the invoice create form prefill, override and persistence > an invalid link refuses the whole create with the banner redirect 5585ms
+   ✓ KID-491: the parent sees only their own invoices, with a working payment link > an invoice with a link renders the Pay with Instapay button in a new tab 5664ms
+   ✓ KID-491: the parent sees only their own invoices, with a working payment link > an invoice without a link renders unchanged — no Pay button 5682ms
+   ✓ KID-491: the parent sees only their own invoices, with a working payment link > tenant isolation: a parent with no family link to the child never renders that child or its payment link 5638ms
+   ✓ KID-491: the parent sees only their own invoices, with a working payment link > the portal admin billing table lists the link (center staff can verify) 5682ms
+   ✓ KID-491: EN + AR labels > ships both dictionaries for every new string 5114ms
+stdout | tests/unit/kid244-daycare-billing.test.ts > defaults > writes a demo billing row at creation with the platform defaults
+Seeded platform operator account: superadmin@kiddy.test
+
+stdout | tests/unit/kid244-daycare-billing.test.ts > defaults > writes a demo billing row at creation with the platform defaults
+Seeded demo daycare: mw96nshg-8ampdjp0
+
+stdout | tests/unit/kid244-daycare-billing.test.ts > defaults > the signup month is free: first billing cycle starts the 1st AFTER signup
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw96nwzx-dpdgza19
+
+stdout | tests/unit/kid244-daycare-billing.test.ts > defaults > accepts the monthly plan with the operator-typed rate values
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw96o1jm-2d9gep41
+
+stdout | tests/unit/kid244-daycare-billing.test.ts > defaults > accepts the annual plan
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw96o6uv-t7sknaj7
+
+stdout | tests/unit/kid244-daycare-billing.test.ts > updateDaycareBilling > the operator can change plan and all amounts later; changes persist
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw96obam-hxpyb4r8
+
+stdout | tests/unit/kid244-daycare-billing.test.ts > updateDaycareBilling > a pre-existing institute without a row reads the defaults (backfill-equivalent)
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw96ofk4-p6sv3ktq
+
+stdout | tests/unit/kid244-daycare-billing.test.ts > updateDaycareBilling > refuses an unknown plan and negative amounts (fail fast, named errors)
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw96okdv-wdmxgoa9
+
+stdout | tests/unit/kid244-daycare-billing.test.ts > cycleAmountEgp > the demo plan bills 0, whatever is enrolled
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw96oope-lvf1ctxh
+
+stdout | tests/unit/kid244-daycare-billing.test.ts > cycleAmountEgp > monthly: first 10 children included; child #11 is the first charged
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw96ot2x-dto7fage
+
+stdout | tests/unit/kid244-daycare-billing.test.ts > cycleAmountEgp > annual bills the configured annual amount
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw96ox5q-utormj44
+
+stdout | tests/unit/kid244-daycare-billing.test.ts > i18n > carries the KID-244 billing labels in both EN and AR with matching key sets
+Seeded platform operator account: superadmin@kiddy.test
+Seeded demo daycare: mw96p1e8-6m2tdfv8
+
+ ✓ tests/unit/kid244-daycare-billing.test.ts (11 tests) 63674ms
+   ✓ defaults > writes a demo billing row at creation with the platform defaults 5716ms
+   ✓ defaults > the signup month is free: first billing cycle starts the 1st AFTER signup 5803ms
+   ✓ defaults > accepts the monthly plan with the operator-typed rate values 6995ms
+   ✓ defaults > accepts the annual plan 5838ms
+   ✓ updateDaycareBilling > the operator can change plan and all amounts later; changes persist 5937ms
+   ✓ updateDaycareBilling > a pre-existing institute without a row reads the defaults (backfill-equivalent) 5252ms
+   ✓ updateDaycareBilling > refuses an unknown plan and negative amounts (fail fast, named errors) 6484ms
+   ✓ cycleAmountEgp > the demo plan bills 0, whatever is enrolled 5506ms
+   ✓ cycleAmountEgp > monthly: first 10 children included; child #11 is the first charged 5454ms
+   ✓ cycleAmountEgp > annual bills the configured annual amount 5505ms
+   ✓ i18n > carries the KID-244 billing labels in both EN and AR with matching key sets 5181ms
+
+ Test Files  7 passed (7)
+      Tests  140 passed (140)
+   Start at  11:21:42
+   Duration  786.99s (transform 1.87s, setup 0ms, collect 1.60s, tests 783.33s, environment 1ms, prepare 406ms)
+

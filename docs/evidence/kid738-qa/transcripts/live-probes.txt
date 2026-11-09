@@ -1,0 +1,7 @@
+anon: GET /portal/account-billing -> 200 final=/login
+staff: login -> /portal/dashboard
+staff: GET /portal/account-billing -> final=/portal/dashboard renderedBillingAndPayButton=false
+parent: login -> /child
+parent: GET /portal/account-billing -> final=/portal/dashboard renderedBillingAndPayButton=false
+anon: GET /platform -> 200 final=/login
+demo-operator: login attempt -> final=/login invalidCredsBanner=true
