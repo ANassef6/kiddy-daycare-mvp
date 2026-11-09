@@ -886,6 +886,40 @@ export const en = {
     billingCycleHint: "The signup month is free; billing starts the 1st of the next month.",
     billingSave: "Save billing settings",
     billingDefaultsHint: "Platform defaults (monthly / per child / free children / annual)",
+    // KID-745: the signed-contract card on the same gear-icon settings page.
+    // The draft section is the content task's output (read-only here); the
+    // signed-contract upload is PDF/PNG/JPG up to 10 MB, operator-only.
+    contractCardTitle: "Signed contract",
+    contractCardHint: "The contract this daycare signed. Contract files stay private to the platform.",
+    contractDraftLabel: "Draft",
+    contractDraftNone: "No draft has been generated yet.",
+    contractDraftGenerated: "Generated {date}",
+    contractDraftDownload: "Download draft",
+    contractTemplateVersion: "Template version: {version}",
+    contractSignedLabel: "Signed file",
+    contractSignedNone: "No signed contract uploaded yet.",
+    contractSignedUploaded: "Uploaded {date}",
+    contractSignedBy: "by {name}",
+    contractUploadLabel: "Upload the signed contract (PDF, PNG or JPG, up to 10 MB)",
+    contractReplaceLabel: "Replace the signed contract (PDF, PNG or JPG, up to 10 MB)",
+    contractUploadBtn: "Upload signed contract",
+    contractReplaceBtn: "Replace signed contract",
+    contractUploaded: "Signed contract uploaded.",
+    contractErrorType: "Rejected: the contract must be a PDF, PNG or JPG file, and it cannot be empty.",
+    contractErrorSize: "Rejected: the contract file is larger than 10 MB.",
+    contractErrorUpload: "Something went wrong storing the contract. Nothing was changed. Please try again.",
+    // KID-746: the operator's contract queue on /platform plus the per-row
+    // contract status badge and the operator push-subscribe card.
+    contractQueueTitle: "Contracts awaiting review",
+    contractQueueHint: "Drafts auto-generated from the approved template when a daycare is created. Confirm the open points, then send to sign.",
+    contractQueueEmpty: "No contracts awaiting review.",
+    contractQueuePlan: "Plan: {plan}",
+    contractRowDraftBadge: "Contract: awaiting review",
+    contractRowSignedBadge: "Contract: signed",
+    contractDraftDownloadAr: "Arabic draft",
+    contractDraftDownloadEn: "English draft",
+    pushOperatorTitle: "Operator push notifications",
+    pushOperatorHint: "Get a push notification when a new daycare — and its contract drafts — are created.",
     // KID-481: the Billing | Insights tabbed page behind the gear icon. The
     // Billing tab is the unchanged KID-244 UI; the Insights tab is the
     // cross-tenant tool-usage view. Operator-only (never shown to daycares).
@@ -1300,6 +1334,11 @@ export const en = {
     // notification. The child rides {child}, the invoice name rides
     // {description}; the amount/total body reuses invoiceBody at view time.
     invoiceCreatedTitle: "New invoice for {child}: {description}",
+    // KID-746: platform-operator "contract drafts generated for a new
+    // daycare" — the operator queue, the in-app card, and the push copy all
+    // reuse this pair at view time (store.notificationViewCopy).
+    contractDraftReadyTitle: "Contract drafts ready: {name}",
+    contractDraftReadyBody: "New Arabic + English daycare contract drafts ({plan} plan) await your review.",
   },
   // KID-221: the staff newsfeed composer (Home group) — it had no localized
   // keys and spoke English inside the translated shell.
@@ -2203,6 +2242,40 @@ export const ar = {
     billingCycleHint: "شهر التسجيل مجاني؛ يبدأ الفاتورة في الأول من الشهر التالي.",
     billingSave: "حفظ إعدادات الفاتورة",
     billingDefaultsHint: "الإعدادات الافتراضية (شهري / لكل طفل / أطفال مشمولون / سنوي)",
+    // KID-745: بطاقة العقد الموقّع على نفس صفحة إعدادات الترس. قسم المسودة
+    // يأتي من مهمة المحتوى (عرض فقط هنا)؛ ورفع العقد الموقّع بصيغة PDF/PNG/JPG
+    // بحد 10 ميجابايت، ومتاح للأوبريتور فقط.
+    contractCardTitle: "العقد الموقّع",
+    contractCardHint: "العقد الذي وقّعه مركز الحضانة. ملفات العقود تبقى خاصة بالمنصة.",
+    contractDraftLabel: "المسودة",
+    contractDraftNone: "لم يتم توليد مسودة بعد.",
+    contractDraftGenerated: "تم توليدها {date}",
+    contractDraftDownload: "تنزيل المسودة",
+    contractTemplateVersion: "إصدار النموذج: {version}",
+    contractSignedLabel: "الملف الموقّع",
+    contractSignedNone: "لم يتم رفع عقد موقّع بعد.",
+    contractSignedUploaded: "تم الرفع {date}",
+    contractSignedBy: "بواسطة {name}",
+    contractUploadLabel: "ارفع العقد الموقّع (PDF أو PNG أو JPG، حتى 10 ميجابايت)",
+    contractReplaceLabel: "استبدل العقد الموقّع (PDF أو PNG أو JPG، حتى 10 ميجابايت)",
+    contractUploadBtn: "رفع العقد الموقّع",
+    contractReplaceBtn: "استبدال العقد الموقّع",
+    contractUploaded: "تم رفع العقد الموقّع.",
+    contractErrorType: "تم الرفض: يجب أن يكون العقد ملفًا بصيغة PDF أو PNG أو JPG، ولا يمكن أن يكون فارغًا.",
+    contractErrorSize: "تم الرفض: ملف العقد أكبر من 10 ميجابايت.",
+    contractErrorUpload: "حدث خطأ أثناء تخزين العقد. لم يتغير أي شيء. حاول مرة أخرى.",
+    // KID-746: قائمة عقد الأوبريتور على /platform مع شارة حالة العقد لكل صف
+    // وبطاقة الاشتراك في الإشعارات الفورية للأوبريتور.
+    contractQueueTitle: "العقود بانتظار المراجعة",
+    contractQueueHint: "مسودات مُولَّدة تلقائيًا من النموذج المعتمد عند إنشاء حضانة. أكّد النقاط المفتوحة ثم أرسلها للتوقيع.",
+    contractQueueEmpty: "لا توجد عقود بانتظار المراجعة.",
+    contractQueuePlan: "الخطة: {plan}",
+    contractRowDraftBadge: "العقد: بانتظار المراجعة",
+    contractRowSignedBadge: "العقد: مُوقَّع",
+    contractDraftDownloadAr: "المسودة العربية",
+    contractDraftDownloadEn: "المسودة الإنجليزية",
+    pushOperatorTitle: "الإشعارات الفورية للأوبريتور",
+    pushOperatorHint: "استلم إشعارًا فوريًا عند إنشاء حضانة جديدة — ومسودات عقد الحضانة.",
     // KID-481: صفحة التبويبين (الفاتورة | الإحصاءات) خلف أيقونة الترس. تبويب
     // الفاتورة هو واجهة KID-244 دون تغيير؛ وتبويب الإحصاءات هو عرض استخدام
     // الأدوات على مستوى المنصة. للأوبريتور فقط (لا تراه مراكز الحضانة).
@@ -2554,6 +2627,10 @@ export const ar = {
     invoicePendingMeta: "معلّقة",
     // KID-684: إشعار ولي الأمر عند إنشاء فاتورة جديدة (AR).
     invoiceCreatedTitle: "فاتورة جديدة لـ {child}: {description}",
+    // KID-746: إشعار الأوبريتور عند توليد مسودات عقد حضانة جديدة — تستخدمه
+    // قائمة المنصة والبطاقة داخل التطبيق والإشعار الفوري وقت العرض.
+    contractDraftReadyTitle: "مسودات العقد جاهزة: {name}",
+    contractDraftReadyBody: "مسودات عقد حضانة جديدة بالعربية والإنجليزية (خطة {plan}) بانتظار مراجعتك.",
   },
   // KID-221: محرّر الأخبار الخاص بالفريق (قائمة الرئيسية) — لم تكن له مفاتيح
   // مترجمة وكان يتحدث بالإنجليزية داخل الهيكل المترجم.
@@ -2876,6 +2953,9 @@ export type FeedCopy = {
   invoicePendingMeta: () => string;
   // KID-684: invoice-created parent notification title.
   invoiceCreatedTitle: (child: string, description: string) => string;
+  // KID-746: platform-operator drafts-ready notification copy.
+  contractDraftReadyTitle: (name: string) => string;
+  contractDraftReadyBody: (plan: string) => string;
   // status label resolvers for the raw DB enums that surface in the feed.
   supplyStatusLabel: (status: string) => string;
   billingStatusLabel: (status: string) => string;
@@ -2919,6 +2999,8 @@ export function feedCopyFor(locale: Locale): FeedCopy {
     invoiceOverdueMeta: () => t("feed.invoiceOverdueMeta"),
     invoicePendingMeta: () => t("feed.invoicePendingMeta"),
     invoiceCreatedTitle: (child, description) => t("feed.invoiceCreatedTitle", { child, description }),
+    contractDraftReadyTitle: (name) => t("feed.contractDraftReadyTitle", { name }),
+    contractDraftReadyBody: (plan) => t("feed.contractDraftReadyBody", { plan }),
     supplyStatusLabel: (status) =>
       status === "fulfilled"
         ? t("supplies.fulfilled")

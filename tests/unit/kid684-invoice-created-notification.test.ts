@@ -48,12 +48,13 @@ import { readFileSync } from "node:fs";
 const pushState = vi.hoisted(() => ({
   sends: [] as Array<{ endpoint: string; payload: Record<string, unknown> }>,
 }));
+// KID-816: the mock mirrors the REAL web-push v4 shape — pure ESM, named
+// exports only, NO `default` wrapper (the old `{ default: { … } }` mock hid
+// the production default-import bug on the invoice-created send path).
 vi.mock("web-push", () => ({
-  default: {
-    sendNotification: async (subscription: unknown, payload: string) => {
-      const endpoint = String((subscription as { endpoint?: string })?.endpoint ?? "");
-      pushState.sends.push({ endpoint, payload: JSON.parse(payload) });
-    },
+  sendNotification: async (subscription: unknown, payload: string) => {
+    const endpoint = String((subscription as { endpoint?: string })?.endpoint ?? "");
+    pushState.sends.push({ endpoint, payload: JSON.parse(payload) });
   },
 }));
 

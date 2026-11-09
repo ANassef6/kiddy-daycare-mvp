@@ -60,8 +60,11 @@ import { queryGet } from "@/lib/db";
 import { resetDb } from "../helpers";
 
 const sendNotificationMock = vi.fn();
+// KID-816: the mock mirrors the REAL web-push v4 shape — pure ESM, named
+// exports only, NO `default` wrapper (the old `{ default: { … } }` mock hid
+// the production default-import bug).
 vi.mock("web-push", () => ({
-  default: { sendNotification: (...args: unknown[]) => sendNotificationMock(...args) },
+  sendNotification: (...args: unknown[]) => sendNotificationMock(...args),
 }));
 
 const fakeSubscription = {
@@ -183,6 +186,26 @@ describe("KID-480 push fan-out", () => {
     expect(body.tag).toBe("msg-x1");
     expect(body.icon).toBe("/brand-icon.svg");
     expect((options as { vapidDetails?: unknown }).vapidDetails).toBeTruthy();
+  });
+
+  it("KID-816 regression: the production defaultSender reaches sendNotification through the real web-push module shape (named exports, no default)", async () => {
+    // No injected `sender`: the production defaultSender is exercised exactly
+    // as Next serves it. The mock carries ONLY the named export (the real
+    // web-push v4 namespace shape), so the old `(await import("web-push")).default`
+    // code resolves `undefined` and fails this test with 0 sends while every
+    // push attempt dies on `TypeError: Cannot read properties of undefined`.
+    await savePushSubscription(parentId, fakeSubscription as never);
+    const delivered = await sendPushToAccounts([parentId], {
+      activity: "messages",
+      kind: "message",
+      payload: { senderName: "Sal Staff", body: "kid816" },
+      ref: "kid816-regression",
+    });
+    expect(sendNotificationMock).toHaveBeenCalledTimes(1);
+    const [, payload, options] = sendNotificationMock.mock.calls[0]!;
+    expect(JSON.parse(String(payload)).tag).toBe("kid816-regression");
+    expect((options as { vapidDetails?: unknown }).vapidDetails).toBeTruthy();
+    expect(delivered).toBe(1);
   });
 
   it("honors a stored disabled push row (missing rows default to enabled)", async () => {

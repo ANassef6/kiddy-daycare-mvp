@@ -72,14 +72,17 @@ vi.mock("next/cache", () => ({
 vi.mock("@/lib/supabase", () => ({
   supabaseConfigured: () => true,
   getSupabase: () => ({
-    storage: {
-      from: () => ({
-        upload: async () => ({ error: mockState.uploadError }),
-        getPublicUrl: (path: string) => ({ data: { publicUrl: `https://storage.test/kiddy-public/${path}` } }),
-      }),
+    auth: {
+      signInWithPassword: async () => ({ data: {}, error: null }),
+      getUser: async () => ({ data: {}, error: null }),
     },
   }),
 }));
+// KID-1177: proof uploads ride the service-key client into kiddy-private and
+// the row keeps the private REF; render sites mint signed URLs (stand-in:
+// tests/helpers/kid1177-storage.ts).
+vi.mock("@/lib/storage", async () => (await import("../helpers/kid1177-storage")).kid1177StorageMock);
+import { storage1177 } from "../helpers/kid1177-storage";
 
 import { createSessionToken, createAccount } from "@/lib/auth";
 import { MAX_PAYMENT_PROOF_BYTES, validatePaymentProof } from "@/lib/payment-proof";
@@ -157,6 +160,7 @@ beforeEach(async () => {
   mockState.host = "";
   mockState.cookies = {};
   mockState.uploadError = null;
+  storage1177.uploadError = null;
   await seedFixture();
   sunshineIid = String((await queryGet("SELECT id FROM institute LIMIT 1"))!.id);
   const owner = await queryGet("SELECT id, email FROM account WHERE role = 'owner'");
@@ -318,8 +322,10 @@ describe("KID-737: uploadDaycareInvoiceProofAction (owner-only)", () => {
     expect(target).toBe("/portal/account-billing?proof=uploaded");
     const row = await proofRowFor("inv-737-a");
     expect(String(row.payment_proof_url)).toMatch(
-      /^https:\/\/storage\.test\/kiddy-public\/payments\/[^/]+\/inv-737-a\/proof-\d+-[0-9a-f-]+\.png$/
+      /^kiddy-private:payments\/[^/]+\/inv-737-a\/proof-\d+-[0-9a-f-]+\.png$/
     );
+    // KID-1177: the object went to the private bucket through the service key.
+    expect(storage1177.uploads.every((u) => u.bucket === "kiddy-private")).toBe(true);
     expect(String(row.payment_proof_uploaded_at ?? "")).not.toBe("");
     expect(String(row.payment_reference)).toBe("TX-7371");
     // THE rule: an upload never pays an invoice — the operator stays the
@@ -419,6 +425,7 @@ describe("KID-737: uploadDaycareInvoiceProofAction (owner-only)", () => {
       "/portal/account-billing?proofError=proofType"
     );
     mockState.uploadError = { message: "boom" };
+    storage1177.uploadError = { message: "boom" };
     expect(await uploadProof("inv-737-f")).toBe("/portal/account-billing?proofError=proofUpload");
     const row = await proofRowFor("inv-737-f");
     expect(row.payment_proof_url).toBeNull();
@@ -469,7 +476,9 @@ describe("KID-737: the surfaces", () => {
     form.set("file", fileFor(120, "image/png", "receipt.png"));
     await redirectTargetFor(() => uploadDaycareInvoiceProofAction(form));
     const html = await renderOwnerBilling();
-    expect(html).toContain("https://storage.test/kiddy-public/payments/");
+    // KID-1177: the stored ref resolves to a signed private URL at render.
+    expect(html).toMatch(/storage\.test\/storage\/v1\/object\/sign\/kiddy-private\/payments\//);
+    expect(html).not.toContain("kiddy-public/payments/");
     expect(html).toContain("TX-7372");
     expect(html).toContain("Replace proof");
   });

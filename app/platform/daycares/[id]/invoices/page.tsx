@@ -13,6 +13,7 @@ import { getDaycareBilling, listInvoices, type DaycareInvoice } from "@/lib/bill
 import { markInvoicePaidAction, updateInvoiceAmountAction } from "@/lib/actions";
 import { i18nForAccount } from "@/lib/i18n-session";
 import { tr } from "@/lib/i18n";
+import { signedUrlsForRefs } from "@/lib/storage";
 
 export const dynamic = "force-dynamic";
 
@@ -51,6 +52,11 @@ export default async function DaycareInvoicesPage(
     listInvoices(instituteId),
     getDaycareBilling(instituteId),
   ]);
+  // KID-1177: proof links resolve to signed URLs in this operator-only
+  // surface; legacy public URLs (pre-migration rows) pass through.
+  const proofHrefs = await signedUrlsForRefs(
+    invoices.map((inv) => String(inv.paymentProofUrl ?? ""))
+  );
   const saved = searchParams.saved === "1";
   const error = searchParams.error ? (INVOICE_ERRORS[searchParams.error] ?? INVOICE_ERRORS.unknown) : "";
   const daycareActive = Number(inst.active ?? 1) === 1;
@@ -139,9 +145,9 @@ export default async function DaycareInvoicesPage(
                       review-only, and the proof stays visible after the
                       invoice is paid for history. */}
                   <td className="small" style={{ padding: 8 }}>
-                    {inv.paymentProofUrl ? (
+                    {inv.paymentProofUrl && proofHrefs.get(String(inv.paymentProofUrl)) ? (
                       <div>
-                        <a href={inv.paymentProofUrl} target="_blank" rel="noreferrer">
+                        <a href={proofHrefs.get(String(inv.paymentProofUrl))!} target="_blank" rel="noreferrer">
                           {tr(dict, "platform.invoiceProofView")}
                         </a>
                         {inv.paymentProofUploadedAt && (

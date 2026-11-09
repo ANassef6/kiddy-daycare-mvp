@@ -61,7 +61,18 @@ export default function AuthConfirmPage() {
           throw new Error("Could not read the confirmed email address.");
         }
 
-        await confirmEmailAction(email);
+        // KID-1175/F-07: the server action no longer trusts a bare email — it
+        // verifies the confirmation session's access token against GoTrue
+        // (and the matching email) before marking the local account
+        // confirmed. Hand it the token from the session this link just
+        // created; unverified calls change nothing server-side.
+        const { data: sessionData } = await supabase.auth.getSession();
+        const confirmationToken = sessionData.session?.access_token ?? "";
+        if (!confirmationToken) {
+          throw new Error("Could not read the confirmation session token.");
+        }
+
+        await confirmEmailAction(email, confirmationToken);
 
         if (!cancelled) {
           setStatus("confirmed");

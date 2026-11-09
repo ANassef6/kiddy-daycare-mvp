@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { storageSrcFor } from "@/lib/storage";
 import { resolveTenantInstituteId } from "@/lib/tenant";
 import { notFound, redirect } from "next/navigation";
 import { requireSession } from "@/lib/require";
@@ -77,7 +78,7 @@ export default async function StaffProfilePage({ params, searchParams }: { param
     <div>
       <Link className="small muted" href="/portal/staff">← Staff</Link>
       <div className="row mt-2" style={{ alignItems: "center", gap: 12 }}>
-        <Avatar src={staff.photo_url} name={staff.full_name} size={52} />
+        <Avatar src={await storageSrcFor(staff.photo_url)} name={staff.full_name} size={52} />
         <div style={{ flex: 1 }}>
           <h1 className="title" style={{ margin: 0 }}>{staff.full_name}</h1>
           <div className="subtitle">{cap(staff.role)} · {email ?? "No login yet"} · {(rooms as any[]).map((r: any) => r.name).join(", ") || "No rooms"}{staffUnactivated && email ? (<> · <ResendActivationButton email={email} /></>) : null}</div>

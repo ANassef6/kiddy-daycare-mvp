@@ -23,6 +23,7 @@ import { queryGet, queryRun, queryAll, ensureSchema, isForeignKeyViolation } fro
 import { normalizeCurrency } from "@/lib/currency";
 import { parsePaymentLink } from "@/lib/instapay";
 import { validatePaymentProof, paymentProofFilename } from "@/lib/payment-proof";
+import { validateContract, contractStorageFilename } from "@/lib/contract";
 import { configuredReportDate, todayIso } from "@/lib/report-dates";
 // KID-1178/F-06: brute-force + abuse throttling (see lib/rate-limit.ts).
 import {
@@ -89,6 +90,14 @@ import {
 } from "@/lib/store";
 import type { WorkingWeek } from "@/lib/working-hours";
 import { supabaseConfigured, getSupabase, isGoTrueAlreadyRegisteredError, isGoTrueServerError } from "@/lib/supabase";
+import {
+  storageAdminConfigured,
+  getStorageAdmin,
+  PUBLIC_BUCKET,
+  PRIVATE_BUCKET,
+  privateRef,
+  publicUrl,
+} from "@/lib/storage";
 import { activationStepError } from "@/lib/activation";
 import { requestOrigin, publicOrigin } from "@/lib/url";
 import { sendContactInvite, contactNameForInvite } from "@/lib/contact-invite";
@@ -617,8 +626,29 @@ export async function resendConfirmationAction() {
 
 // Called by /auth/confirm after Supabase verifies the email token. Marks the
 // local account mirror as confirmed so password sign-in and the UI banner agree.
-export async function confirmEmailAction(email: string) {
-  const account = await findAccountByEmail(email);
+//
+// KID-1175/F-07: the action used to take the email alone — any caller could
+// flip `email_confirmed` for any account by just naming its address. Now a
+// Supabase GoTrue access token that verifies NOW (auth.getUser) and belongs
+// to exactly the submitted email is required before any state change; the
+// /auth/confirm page supplies the token from the session its confirmation
+// link created. Unverified calls are uniform no-ops — the same `{ ok: true }`
+// for every bad shape, so the response never distinguishes accounts (no
+// enumeration) and never leaves the flag half-set. Same pattern as
+// syncAppPasswordAfterResetAction (KID-495).
+export async function confirmEmailAction(email: string, accessToken: string) {
+  const cleanEmail = String(email ?? "").trim().toLowerCase();
+  const token = String(accessToken ?? "").trim();
+  if (!cleanEmail || !token || !supabaseConfigured()) return { ok: true };
+  const { data, error } = await getSupabase().auth.getUser(token);
+  if (error || !data.user || String(data.user.email ?? "").toLowerCase() !== cleanEmail) {
+    console.error(
+      "KID-1175/F-07 confirm-email: confirmation token did not verify against GoTrue for the submitted email; " +
+      "the local email_confirmed flag was left unchanged."
+    );
+    return { ok: true };
+  }
+  const account = await findAccountByEmail(cleanEmail);
   if (account && !emailConfirmedFor(account)) {
     await setEmailConfirmed(account.id, true);
   }
@@ -768,18 +798,19 @@ async function uploadBrandingFile(
 ): Promise<string | null> {
   const ext = file.name.split(".").pop() || "png";
   const filename = `branding/${instituteId}/${kind}-${Date.now()}.${ext}`;
-  if (!supabaseConfigured()) return null;
-  const { getSupabase } = await import("@/lib/supabase");
-  const supabase = getSupabase();
-  const { error } = await supabase.storage
-    .from("kiddy-public")
+  // KID-1177: branding is a genuinely PUBLIC asset (marketing pages render it
+  // for anonymous visitors) so it stays in kiddy-public — but the upload goes
+  // through the service-key client now, because 0041 removed the anonymous
+  // storage writes the old anon-key upload relied on.
+  if (!storageAdminConfigured()) return null;
+  const { error } = await getStorageAdmin()
+    .storage.from(PUBLIC_BUCKET)
     .upload(filename, file, { contentType: file.type, upsert: true });
   if (error) {
     console.error("KID-199.4r branding upload failed:", error.message);
     return null;
   }
-  const { data: urlData } = supabase.storage.from("kiddy-public").getPublicUrl(filename);
-  return urlData.publicUrl;
+  return publicUrl(filename);
 }
 
 // KID-199.4: enable/disable a daycare account. The active flag already gates
@@ -933,6 +964,22 @@ export async function createDaycareAction(formData: FormData) {
           accountId: res.ownerAccountId,
         });
       }
+    }
+    // KID-746: auto-generate the AR + EN contract drafts on successful
+    // creation (from the approved template pack — never invented legal text),
+    // store them through the existing contracts/ storage path, and notify
+    // the platform operator(s) only. Idempotent and failure-contained inside
+    // generateDaycareContractDrafts: a generation failure is logged and never
+    // blocks the created daycare or its owner login. Nothing is ever sent to
+    // the daycare owner — the CEO sends the drafts and uploads the signed copy.
+    try {
+      const { generateDaycareContractDrafts } = await import("@/lib/contract");
+      await generateDaycareContractDrafts({
+        instituteId: res.instituteId,
+        ownerAccountId: res.ownerAccountId,
+      });
+    } catch (err) {
+      console.error("KID-746 contract draft generation failed:", err);
     }
   } catch (err) {
     const reason = String((err as Error)?.message ?? "");
@@ -1095,10 +1142,16 @@ export async function updateInvoiceAmountAction(formData: FormData) {
  *  link boundaries: blank clears the setting, an absolute http/https URL is
  *  stored as given, anything else (relative paths, javascript:, ftp:, garbage)
  *  is refused — a broken link can never be stored, so the owner side can
- *  always safely open it in a new tab. Every save is attributed per operator. */
+ *  always safely open it in a new tab. Every save is attributed per operator.
+ *  KID-1204: the "Clear link" button submits an explicit instapayIntent=clear
+ *  signal that wins over the input — the pre-filled "instapayUrl" field would
+ *  otherwise ship the stored URL with the click (the first same-name entry
+ *  wins in FormData) and re-save it instead of clearing. A plain Save with a
+ *  blanked field keeps clearing (no intent entry, blank parse → null). */
 export async function setPlatformInstapayAction(formData: FormData) {
   const operator = await requirePlatformOperator();
-  const link = parsePaymentLink(formData.get("instapayUrl"));
+  const clearIntent = formData.get("instapayIntent") === "clear";
+  const link = clearIntent ? { ok: true as const, value: null } : parsePaymentLink(formData.get("instapayUrl"));
   if (!link.ok) {
     // Fail the save, never store a broken link; the page renders the same
     // wording for every invalid shape (the parser returns one error code).
@@ -3288,7 +3341,10 @@ export async function uploadBrandingImageAction(formData: FormData) {
   // upload redirects back with an error banner instead of silently keeping
   // the previous branding, and a success purges the short-lived branding
   // cache + revalidates so the banner/logo updates on the next navigation.
-  if (!supabaseConfigured()) {
+  // KID-1177: uploads ride the service-key client, so the gate is the
+  // service key, not the anon one — an anon-only configuration can no longer
+  // write to storage at all (migration 0041).
+  if (!storageAdminConfigured()) {
     redirect("/portal/settings?error=upload-storage");
   }
   const url = await uploadBrandingFile(file, instituteId, kind);
@@ -3320,18 +3376,20 @@ export async function uploadPhotoAction(formData: FormData) {
   if (entityType === "child") await assertChildInScope(entityId, me);
 
   const ext = file.name.split(".").pop() || "jpg";
-  const filename = `${entityType}/${entityId}/photo-${Date.now()}.${ext}`;
+  // KID-1177: child/staff photos are sensitive — the object part is
+  // unchanged (the per-scope folder + file name), but it goes to the
+  // kiddy-private bucket and the row keeps the private REF, not a public URL
+  // (render sites mint signed URLs from it via lib/storage.ts storageSrcFor).
+  const photoPath = `${entityType}/${entityId}/photo-${Date.now()}.${ext}`;
 
-  const { supabaseConfigured, getSupabase } = await import("@/lib/supabase");
-  if (supabaseConfigured()) {
-    const supabase = getSupabase();
-    const { error } = await supabase.storage
-      .from("kiddy-public")
-      .upload(filename, file, { contentType: file.type, upsert: true });
+  if (storageAdminConfigured()) {
+    const { error } = await getStorageAdmin()
+      .storage.from(PRIVATE_BUCKET)
+      .upload(photoPath, file, { contentType: file.type, upsert: true });
     if (!error) {
-      const { data: urlData } = supabase.storage.from("kiddy-public").getPublicUrl(filename);
+      const storedRef = privateRef(photoPath);
       if (entityType === "child") {
-        await updateChildPhoto(entityId, urlData.publicUrl);
+        await updateChildPhoto(entityId, storedRef);
         // KID-477: photo changes are attributed (no URL data on the trail).
         const child = await queryGet(
           "SELECT institute_id, first_name, last_name FROM child WHERE id = ?",
@@ -3348,7 +3406,7 @@ export async function uploadPhotoAction(formData: FormData) {
           });
         }
       } else {
-        await updateStaffPhoto(entityId, urlData.publicUrl);
+        await updateStaffPhoto(entityId, storedRef);
         // KID-477: staff photo changes are attributed the same way.
         const staff = await queryGet("SELECT institute_id, full_name FROM staff WHERE id = ?", entityId);
         if (staff) {
@@ -3387,17 +3445,15 @@ export async function uploadAccountPhotoAction(formData: FormData) {
   }
 
   const ext = file.name.split(".").pop() || "jpg";
-  const filename = `staff/${staffId}/photo-${Date.now()}.${ext}`;
+  // KID-1177: same private-bucket treatment as every other photo.
+  const photoPath = `staff/${staffId}/photo-${Date.now()}.${ext}`;
 
-  const { supabaseConfigured, getSupabase } = await import("@/lib/supabase");
-  if (supabaseConfigured()) {
-    const supabase = getSupabase();
-    const { error } = await supabase.storage
-      .from("kiddy-public")
-      .upload(filename, file, { contentType: file.type, upsert: true });
+  if (storageAdminConfigured()) {
+    const { error } = await getStorageAdmin()
+      .storage.from(PRIVATE_BUCKET)
+      .upload(photoPath, file, { contentType: file.type, upsert: true });
     if (!error) {
-      const { data: urlData } = supabase.storage.from("kiddy-public").getPublicUrl(filename);
-      await updateStaffPhoto(staffId, urlData.publicUrl);
+      await updateStaffPhoto(staffId, privateRef(photoPath));
     }
   }
   redirect("/portal/account");
@@ -3573,35 +3629,31 @@ export async function uploadPaymentProofAction(formData: FormData) {
   const proof = validatePaymentProof(file);
   if (!proof.ok) redirect(`${back}?error=proof${proof.code === "size" ? "Size" : "Type"}`);
   // Storage upload into the per-invoice folder, following the existing
-  // kiddy-public pattern; a random suffix keeps the object unguessable.
-  const { supabaseConfigured, getSupabase } = await import("@/lib/supabase");
-  if (!supabaseConfigured()) {
+  // path pattern; a random suffix keeps the object unguessable.
+  // KID-1177: proofs are financial documents — they live in kiddy-private
+  // now and the row keeps the private REF (rendered through signed URLs),
+  // so "unguessable name" is no longer the only wall.
+  if (!storageAdminConfigured()) {
     console.error("KID-492 payment proof upload: no storage configured; nothing stored");
     redirect(`${back}?error=proofUpload`);
   }
-  const supabase = getSupabase();
   const filename = paymentProofFilename(
     String(billing!.institute_id),
     billingId,
     proof.ext,
     crypto.randomUUID()
   );
-  const { error } = await supabase.storage
-    .from("kiddy-public")
+  const { error } = await getStorageAdmin()
+    .storage.from(PRIVATE_BUCKET)
     .upload(filename, file, { contentType: file.type, upsert: false });
   if (error) {
     console.error("KID-492 payment proof storage upload failed:", error.message);
     redirect(`${back}?error=proofUpload`);
   }
-  const { data: urlData } = supabase.storage.from("kiddy-public").getPublicUrl(filename);
-  if (!urlData?.publicUrl) {
-    console.error("KID-492 payment proof upload: storage returned no public URL; nothing stored");
-    redirect(`${back}?error=proofUpload`);
-  }
   const reference = String(formData.get("paymentReference") ?? "").trim().slice(0, 200) || null;
   // Only now the row is touched — columns move together, status untouched.
   await setChildBillingPaymentProof(billingId, {
-    proofUrl: urlData.publicUrl,
+    proofUrl: privateRef(filename),
     proofUploadedAt: new Date().toISOString(),
     reference,
   });
@@ -3670,28 +3722,22 @@ export async function uploadDaycareInvoiceProofAction(formData: FormData) {
   // Storage upload into the per-invoice folder under the same payments/
   // root the parent proofs use; the random suffix keeps the object
   // unguessable to another daycare.
-  const { supabaseConfigured, getSupabase } = await import("@/lib/supabase");
-  if (!supabaseConfigured()) {
+  // KID-1177: kiddy-private + a stored private REF — see the KID-492 note.
+  if (!storageAdminConfigured()) {
     console.error("KID-737 payment proof upload: no storage configured; nothing stored");
     redirect(`${back}?proofError=proofUpload`);
   }
-  const supabase = getSupabase();
   const filename = paymentProofFilename(
     String(invoice!.institute_id),
     invoiceId,
     proof.ext,
     crypto.randomUUID()
   );
-  const { error } = await supabase.storage
-    .from("kiddy-public")
+  const { error } = await getStorageAdmin()
+    .storage.from(PRIVATE_BUCKET)
     .upload(filename, file, { contentType: file.type, upsert: false });
   if (error) {
     console.error("KID-737 payment proof storage upload failed:", error.message);
-    redirect(`${back}?proofError=proofUpload`);
-  }
-  const { data: urlData } = supabase.storage.from("kiddy-public").getPublicUrl(filename);
-  if (!urlData?.publicUrl) {
-    console.error("KID-737 payment proof upload: storage returned no public URL; nothing stored");
     redirect(`${back}?proofError=proofUpload`);
   }
   const reference = String(formData.get("paymentReference") ?? "").trim().slice(0, 200) || null;
@@ -3699,7 +3745,7 @@ export async function uploadDaycareInvoiceProofAction(formData: FormData) {
   // the status column is untouched.
   const { setDaycareInvoicePaymentProof } = await import("@/lib/billing");
   await setDaycareInvoicePaymentProof(invoiceId, {
-    proofUrl: urlData.publicUrl,
+    proofUrl: privateRef(filename),
     proofUploadedAt: new Date().toISOString(),
     reference,
   });
@@ -3714,6 +3760,71 @@ export async function uploadDaycareInvoiceProofAction(formData: FormData) {
     metadata: { statusBefore: status, hasPaymentProof: true },
   });
   redirect(`${back}?proof=uploaded`);
+}
+
+// ---- KID-745: the operator's signed daycare contract ----
+// The per-daycare settings page (the same gear-icon surface as
+// updateDaycareBillingAction) carries a signed-contract upload. Operator-only
+// (requirePlatformOperator — a non-operator POST is bounced to /login before
+// anything else), authorize -> validate -> upload -> write, the same chain as
+// the two proof uploads above. A replacement upload replaces the whole signed
+// snapshot (lib/contract.ts writer); every upload records exactly one audit
+// event carrying ids only — never the URL and never file content.
+export async function uploadDaycareContractAction(formData: FormData) {
+  const operator = requirePlatformOperator();
+  const instituteId = String(formData.get("instituteId") ?? "");
+  const file = formData.get("file") as File | null;
+  // The daycare must exist: the raw id alone is not a row, and the settings
+  // surface is reachable only through a known institute id.
+  const inst = instituteId
+    ? await queryGet("SELECT id FROM institute WHERE id = ?", instituteId)
+    : null;
+  if (!inst) redirect("/platform?error=missing-id");
+  const back = `/platform/daycares/${instituteId}/billing`;
+  // Boundary validation — before any storage or DB write. Wrong type,
+  // oversize and empty files are refused with a localized error code.
+  if (!file || file.size === 0) redirect(`${back}?error=contractType`);
+  const contract = validateContract(file);
+  if (!contract.ok) {
+    redirect(`${back}?error=contract${contract.code === "size" ? "Size" : "Type"}`);
+  }
+  // Storage upload into the per-daycare contracts folder. KID-1177: the
+  // long random suffix is no longer the confidentiality story — the object
+  // goes to kiddy-private and the row keeps the private REF.
+  if (!storageAdminConfigured()) {
+    console.error("KID-745 contract upload: no storage configured; nothing stored");
+    redirect(`${back}?error=contractUpload`);
+  }
+  const filename = contractStorageFilename(instituteId, contract.ext, crypto.randomUUID());
+  const { error } = await getStorageAdmin()
+    .storage.from(PRIVATE_BUCKET)
+    .upload(filename, file, { contentType: file.type, upsert: false });
+  if (error) {
+    console.error("KID-745 contract storage upload failed:", error.message);
+    redirect(`${back}?error=contractUpload`);
+  }
+  // Only now the row is touched — replace-or-create, the three signed
+  // columns + uploader move together, the draft columns stay untouched.
+  const { setDaycareContractSigned } = await import("@/lib/contract");
+  await setDaycareContractSigned(instituteId, {
+    signedUrl: privateRef(filename),
+    signedFileName: String(file.name ?? "").slice(0, 200),
+    signedUploadedAt: new Date().toISOString(),
+    uploadedByAccountId: operator.accountId,
+  });
+  // KID-477: every upload is an audit event — actor + daycare + flag only,
+  // never the URL, filename or file content.
+  await recordAuditEvent({
+    instituteId,
+    actorAccountId: operator.accountId,
+    action: "update",
+    entityType: "daycare_contract",
+    entityId: instituteId,
+    summary: "Signed daycare contract uploaded",
+    metadata: { contractUpload: true },
+  });
+  revalidatePath(back);
+  redirect(`${back}?contract=uploaded`);
 }
 
 // ---- #8 Newsfeed likes (client calls this) ----

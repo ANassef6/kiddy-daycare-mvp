@@ -13,9 +13,11 @@ import { isPlatformOperatorEmail, isPlatformOperatorRole } from "@/lib/platform"
 import { getInstitute } from "@/lib/store";
 import { enrolledChildCount } from "@/lib/billing";
 import { BILLING_PLANS, BILLING_DEFAULTS, cycleAmountEgp, getDaycareBilling, type DaycareBilling } from "@/lib/billing";
-import { updateDaycareBillingAction } from "@/lib/actions";
+import { updateDaycareBillingAction, uploadDaycareContractAction } from "@/lib/actions";
+import { getDaycareContract, getDaycareContractUploaderName } from "@/lib/contract";
+import { storageSrcFor } from "@/lib/storage";
+import { fmtDateTimeFor, tr } from "@/lib/i18n";
 import { i18nForAccount } from "@/lib/i18n-session";
-import { tr } from "@/lib/i18n";
 import {
   backfillToolUsageEstimates,
   insightsTimeframe,
@@ -45,6 +47,7 @@ export default async function DaycareBillingPage(
     searchParams: Promise<{
       saved?: string;
       error?: string;
+      contract?: string;
       tab?: string;
       days?: string;
       from?: string;
@@ -58,7 +61,7 @@ export default async function DaycareBillingPage(
   if (!isPlatformOperatorRole(session.role) || !isPlatformOperatorEmail(session.email)) {
     redirect("/login");
   }
-  const { dict, dir } = await i18nForAccount(session.accountId);
+  const { dict, dir, locale } = await i18nForAccount(session.accountId);
   const instituteId = String(params.id ?? "");
   const inst = await getInstitute(instituteId);
   if (!inst) redirect("/platform?error=missing-id");
@@ -67,6 +70,19 @@ export default async function DaycareBillingPage(
   const saved = searchParams.saved === "1";
   const error = searchParams.error ? (ERRORS[searchParams.error] ?? ERRORS.unknown) : "";
 
+  // KID-745: the contract banner codes ride the same ?error= channel as the
+  // billing form's — but theirs are localized keys, not the hardcoded English
+  // ERRORS map above.
+  let errorText = "";
+  if (error) {
+    if (searchParams.error === "contractType") errorText = tr(dict, "platform.contractErrorType");
+    else if (searchParams.error === "contractSize") errorText = tr(dict, "platform.contractErrorSize");
+    else if (searchParams.error === "contractUpload") errorText = tr(dict, "platform.contractErrorUpload");
+    else errorText = error;
+  } else if (searchParams.contract === "uploaded") {
+    errorText = ""; // rendered as the success banner below
+  }
+  const contractSaved = searchParams.contract === "uploaded";
   // KID-481: the tab. Anything that is not literally "insights" is billing —
   // the pre-existing default stays the default.
   const tab = searchParams.tab === "insights" ? "insights" : "billing";
@@ -137,6 +153,27 @@ export default async function DaycareBillingPage(
     );
   }
 
+  // KID-745: this daycare's contract row — the draft (content task's output)
+  // and the CURRENT signed upload. Read-only here; uploadDaycareContractAction
+  // is the row's only writer.
+  const contract = await getDaycareContract(instituteId);
+  const uploaderName = contract?.uploaded_by_account_id
+    ? await getDaycareContractUploaderName(contract.uploaded_by_account_id)
+    : null;
+  // KID-1177: the contract is sensitive — its stored private ref resolves to
+  // a short-lived signed URL here, in the operator-only surface. Legacy
+  // public URLs (pre-migration rows) pass through.
+  const contractHref = contract?.signed_url
+    ? await storageSrcFor(contract.signed_url)
+    : null;
+  const [draftHrefAr, draftHrefEn, draftHrefLegacy] = contract
+    ? await Promise.all([
+        contract.draft_url_ar ? storageSrcFor(contract.draft_url_ar) : Promise.resolve(null),
+        contract.draft_url_en ? storageSrcFor(contract.draft_url_en) : Promise.resolve(null),
+        contract.draft_url ? storageSrcFor(contract.draft_url) : Promise.resolve(null),
+      ])
+    : [null, null, null];
+
   return (
     <div dir={dir}>
       <h1 className="title">{tr(dict, "platform.billingTitle")}</h1>
@@ -172,7 +209,7 @@ export default async function DaycareBillingPage(
       </div>
 
       {saved && <div className="card mb-4 banner-success">{tr(dict, "platform.billingSaved")}</div>}
-      {error && <div className="card mb-4 banner-error">{error}</div>}
+      {errorText ? <div className="card mb-4 banner-error">{errorText}</div> : null}
 
       <form className="card" action={updateDaycareBillingAction}>
         <input type="hidden" name="instituteId" value={instituteId} />
@@ -242,6 +279,114 @@ export default async function DaycareBillingPage(
         </div>
         <button className="btn btn-primary" type="submit">
           {tr(dict, "platform.billingSave")}
+        </button>
+      </form>
+
+      {contractSaved && (
+        <div className="card mb-4 banner-success">{tr(dict, "platform.contractUploaded")}</div>
+      )}
+
+      {/* KID-745: the signed-contract card — the placeholder inside the
+          settings (gear-icon) surface for the daycare's signed contract.
+          Operator-only by the page guard above; the row is keyed by this
+          institute id, so another daycare's contract is never reachable
+          here. The draft section is the content task's output (read-only
+          here); the signed section carries the current upload with its
+          original file name, upload date and uploader, and the same form
+          replaces it. */}
+      <form className="card mb-4" action={uploadDaycareContractAction}>
+        <input type="hidden" name="instituteId" value={instituteId} />
+        <label className="label">{tr(dict, "platform.contractCardTitle")}</label>
+        <span className="small muted">{tr(dict, "platform.contractCardHint")}</span>
+        <div className="row" style={{ marginTop: 8 }}>
+          <div className="col field">
+            <span className="small">
+              <strong>{tr(dict, "platform.contractDraftLabel")}</strong>
+            </span>
+            {contract?.template_version ? (
+              <span className="small">
+                {tr(dict, "platform.contractTemplateVersion", {
+                  version: String(contract.template_version),
+                })}
+              </span>
+            ) : null}
+            {contract?.draft_url_ar && contract?.draft_url_en ? (
+              // KID-746: the auto-generated bilingual drafts — one link per
+              // language, generated together, template version stamped.
+              // KID-1177: resolvable hrefs only (a private ref with an
+              // unreachable storage service renders no dead link).
+              <>
+                {draftHrefAr && (
+                  <a className="small" href={draftHrefAr}>
+                    {tr(dict, "platform.contractDraftDownloadAr")}
+                  </a>
+                )}
+                {draftHrefEn && (
+                  <a className="small" href={draftHrefEn}>
+                    {tr(dict, "platform.contractDraftDownloadEn")}
+                  </a>
+                )}
+                <span className="small muted">
+                  {tr(dict, "platform.contractDraftGenerated", {
+                    date: fmtDateTimeFor(locale, contract.draft_generated_at),
+                  })}
+                </span>
+              </>
+            ) : contract?.draft_url ? (
+              <>
+                {draftHrefLegacy && (
+                  <a className="small" href={draftHrefLegacy}>
+                    {tr(dict, "platform.contractDraftDownload")}
+                  </a>
+                )}
+                <span className="small muted">
+                  {tr(dict, "platform.contractDraftGenerated", {
+                    date: fmtDateTimeFor(locale, contract.draft_generated_at),
+                  })}
+                </span>
+              </>
+            ) : (
+              <span className="small muted">{tr(dict, "platform.contractDraftNone")}</span>
+            )}
+          </div>
+          <div className="col field">
+            <span className="small">
+              <strong>{tr(dict, "platform.contractSignedLabel")}</strong>
+            </span>
+            {contract?.signed_url ? (
+              <>
+                {contractHref && (
+                  <a className="small" href={contractHref}>
+                    {String(contract.signed_file_name ?? "")}
+                  </a>
+                )}
+                <span className="small muted">
+                  {tr(dict, "platform.contractSignedUploaded", {
+                    date: fmtDateTimeFor(locale, contract.signed_uploaded_at),
+                  })}
+                </span>
+                {uploaderName ? (
+                  <span className="small muted">
+                    {tr(dict, "platform.contractSignedBy", { name: uploaderName })}
+                  </span>
+                ) : null}
+              </>
+            ) : (
+              <span className="small muted">{tr(dict, "platform.contractSignedNone")}</span>
+            )}
+          </div>
+        </div>
+        <label className="label" style={{ marginTop: 8 }}>
+          {tr(dict, contract?.signed_url ? "platform.contractReplaceLabel" : "platform.contractUploadLabel")}
+        </label>
+        <input
+          className="input"
+          type="file"
+          name="file"
+          accept=".pdf,.png,.jpg,.jpeg,application/pdf,image/png,image/jpeg"
+        />
+        <button className="btn btn-primary" type="submit">
+          {tr(dict, contract?.signed_url ? "platform.contractReplaceBtn" : "platform.contractUploadBtn")}
         </button>
       </form>
 

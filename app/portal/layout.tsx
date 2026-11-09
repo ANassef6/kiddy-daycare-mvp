@@ -13,6 +13,7 @@ import { tr } from "@/lib/i18n";
 import { accountProfile, getAccount, mustChangePasswordFor } from "@/lib/auth";
 import { unreadNotificationCount } from "@/lib/store";
 import { instituteNameForOperatorView } from "@/lib/operator-view";
+import { storageSrcFor } from "@/lib/storage";
 
 export const dynamic = "force-dynamic";
 
@@ -89,7 +90,9 @@ export default async function PortalLayout({ children }: { children: React.React
             email={session.email}
             role={session.role}
             displayName={displayName}
-            photoUrl={profile.photoUrl}
+            // KID-1177: private photo refs mint their signed URL here, in the
+            // server layout — the client menu stays a dumb renderer.
+            photoUrl={profile.photoUrl ? await storageSrcFor(profile.photoUrl) : null}
             dict={dict}
           />
         </div>

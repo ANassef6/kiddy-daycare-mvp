@@ -9,6 +9,7 @@ import CreateParentLoginForm from "@/components/CreateParentLoginForm";
 import AddChildParentLoginFields from "@/components/AddChildParentLoginFields";
 import { recordToolUsage } from "@/lib/tool-usage";
 import { i18nForAccount } from "@/lib/i18n-session";
+import { signedUrlsForRefs } from "@/lib/storage";
 import { tr } from "@/lib/i18n";
 import type { Dict } from "@/lib/i18n";
 
@@ -62,6 +63,8 @@ export default async function PortalChildrenPage(
     instituteId ? listChildren(instituteId, { status: statusFilter, accountId: session.accountId }) : Promise.resolve([]),
     instituteId ? listRoomsScoped(instituteId, session.accountId) : Promise.resolve([]),
   ]);
+  // KID-1177: photo refs resolve to signed URLs before the render loop.
+  const avatarSrcs = await signedUrlsForRefs(children.map((c) => String(c.photo_url ?? "")));
   const guardianError = searchParams.error === "guardian";
   const relationshipError = searchParams.error === "relationship";
   // KID-733: the Add-a-child parent-login rejections each name what went wrong
@@ -199,7 +202,7 @@ export default async function PortalChildrenPage(
               style={{ color: "inherit", textDecoration: "none" }}
             >
               <div className="row" style={{ alignItems: "center", gap: 12, marginBottom: 12 }}>
-                <Avatar src={c.photo_url} name={`${c.first_name} ${c.last_name}`} size={48} />
+                <Avatar src={avatarSrcs.get(String(c.photo_url ?? "")) ?? c.photo_url} name={`${c.first_name} ${c.last_name}`} size={48} />
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <strong style={{ display: "block" }}>{c.first_name} {c.last_name}</strong>
                   <span className="small muted">{c.room_name ?? "No room"}</span>
