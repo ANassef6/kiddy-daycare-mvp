@@ -12,7 +12,7 @@ import { recordToolUsage } from "@/lib/tool-usage";
 export const dynamic = "force-dynamic";
 
 export default async function PortalActivitiesPage() {
-  const session = requireSession();
+  const session = await requireSession();
   const { dict } = await i18nForAccount(session.accountId);
   const t = (key: string, vars?: Record<string, string | number>) => tr(dict, key, vars);
   const instituteId = await firstInstituteId();

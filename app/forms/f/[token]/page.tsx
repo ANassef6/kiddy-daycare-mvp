@@ -6,13 +6,14 @@ export const dynamic = "force-dynamic";
 
 type Field = { id: string; label: string; type: string; required?: boolean; options?: string[] };
 
-export default async function PublicFormFillPage({
-  params,
-  searchParams,
-}: {
-  params: { token: string };
-  searchParams: { sent?: string };
-}) {
+export default async function PublicFormFillPage(
+  props: {
+    params: Promise<{ token: string }>;
+    searchParams: Promise<{ sent?: string }>;
+  }
+) {
+  const searchParams = await props.searchParams;
+  const params = await props.params;
   const form = await getFormByShareToken(params.token);
   if (!form) return <p className="muted">This form link is invalid or expired.</p>;
   const fields = safeJson<Field[]>(form.fields_json, []);

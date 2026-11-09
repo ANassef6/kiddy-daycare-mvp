@@ -15,7 +15,7 @@ function badge(s: string) {
 }
 
 export default async function PortalSupportInboxPage() {
-  requireSession();
+  await requireSession();
   const instituteId = await firstInstituteId();
   if (!instituteId) return <p className="muted">No institute configured.</p>;
   const tickets = await listSupportTickets(instituteId);

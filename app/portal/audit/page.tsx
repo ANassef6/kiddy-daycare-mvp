@@ -59,10 +59,10 @@ function slugFor(entityType: string, entityId: string | null): string {
 export default async function AuditTrailPage({
   searchParams,
 }: {
-  searchParams: Promise<SearchParams> | SearchParams;
+  searchParams: Promise<SearchParams>;
 }) {
   const sp = (await searchParams) as SearchParams;
-  const session = requireSession();
+  const session = await requireSession();
   if (!isAdminRole(session.role)) redirect("/portal/dashboard");
   const { locale, dict } = await i18nForAccount(session.accountId);
   const t = (key: string, vars?: Record<string, string | number>) => tr(dict, key, vars);

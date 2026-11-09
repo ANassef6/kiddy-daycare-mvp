@@ -11,7 +11,7 @@ export const dynamic = "force-dynamic";
 const noStore = { "Cache-Control": "no-store" };
 
 export async function GET() {
-  const s = readSessionFromCookieValue(cookies().get("kiddy_sess")?.value ?? null);
+  const s = readSessionFromCookieValue((await cookies()).get("kiddy_sess")?.value ?? null);
   if (!s?.accountId) {
     return NextResponse.json(
       { error: { code: "unauthorized", message: "Sign in to check notifications." } },

@@ -6,13 +6,13 @@ import { recordToolUsage } from "@/lib/tool-usage";
 
 export const dynamic = "force-dynamic";
 
-export default async function PortalSurveysPage({ searchParams }: { searchParams: { view?: string } }) {
-  const session = requireSession();
+export default async function PortalSurveysPage({ searchParams }: { searchParams: Promise<{ view?: string }> }) {
+  const session = await requireSession();
   const instituteId = await firstInstituteId();
   if (!instituteId) return <p className="muted">No institute configured.</p>;
   await recordToolUsage({ instituteId: String(instituteId ?? "") || null, accountId: session.accountId, toolKey: "surveys", source: "portal", metadata: null });
   const surveys = await listForms(instituteId, "survey");
-  const viewId = searchParams.view;
+  const viewId = (await searchParams).view;
   const active = surveys.find((f: any) => f.id === viewId);
   const responses = active ? await formResponses(active.id) : [];
 

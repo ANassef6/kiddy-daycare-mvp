@@ -147,7 +147,7 @@ export async function sendContactInvite(input: {
   if (!instituteId) return { status: "failed", detail: "No center configured yet." };
 
   // KID-119: parent devices follow this link, so use the public host.
-  const origin = publicOrigin(requestOrigin());
+  const origin = await publicOrigin(await requestOrigin());
   // Resend an existing pending invite instead of stacking duplicates.
   const existing = await getPendingInvitesByEmail(email);
   if (existing.length > 0) {

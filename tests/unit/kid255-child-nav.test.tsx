@@ -60,16 +60,20 @@ describe("ChildNavMenu (KID-255)", () => {
 
   it("pins the sign-out button as the last header item, outside the nav flow", () => {
     const markup = html();
-    expect(markup).toContain('formaction="/api/logout"');
+    // KID-1176: React 19 renders the JSX `formAction` prop with its camelCase
+    // spelling (React 18 lowercased it); HTML attribute names are
+    // case-insensitive, so pin case-insensitively.
+    expect(markup.toLocaleLowerCase()).toContain('formaction="/api/logout"');
     // The sign-out form is a direct child of .child-nav, after the inline nav.
-    expect(markup.indexOf("child-nav-inline")).toBeLessThan(markup.indexOf('formaction="/api/logout"'));
+    const lower = markup.toLocaleLowerCase();
+    expect(markup.indexOf("child-nav-inline")).toBeLessThan(lower.indexOf('formaction="/api/logout"'));
   });
 
   it("collapses to a single link set when the pickup role shrinks the nav", () => {
     const markup = html({ items: [{ href: "/child", label: "My children" }] });
     expect(markup).toContain('href="/child"');
     expect(markup).not.toContain('href="/child/newsfeed"');
-    expect(markup).toContain('formaction="/api/logout"');
+    expect(markup.toLocaleLowerCase()).toContain('formaction="/api/logout"');
   });
 
   it("labels the hamburger in both locales (expand/collapse + menu)", () => {

@@ -9,14 +9,15 @@ export const dynamic = "force-dynamic";
 // (KID-472 item 4: `?date=YYYY-MM-DD` optionally selects a past day's report
 // while today remains the default), plus contacts, newsfeed and incidents —
 // the parent's day view.
-export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await requireMobileSession(req);
   if (session instanceof NextResponse) return session;
 
-  const child = await getChild(params.id);
+  const childId = (await params).id;
+  const child = await getChild(childId);
   if (!child) return errorPayload("child not found", 404);
 
-  const inFamily = await isChildInFamily(session.accountId, params.id);
+  const inFamily = await isChildInFamily(session.accountId, childId);
   if (!inFamily) return errorPayload("forbidden", 403);
 
   const roomRow = child.room_id
@@ -25,9 +26,9 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
 
   const [summary, contacts, newsfeed, incidents] = await Promise.all([
     childSummary(child, req.nextUrl.searchParams.get("date") ?? undefined),
-    listContacts(params.id),
-    newsfeedForChild(params.id),
-    incidentsForChild(params.id),
+    listContacts(childId),
+    newsfeedForChild(childId),
+    incidentsForChild(childId),
   ]);
 
   return NextResponse.json({

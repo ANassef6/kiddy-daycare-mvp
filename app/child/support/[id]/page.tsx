@@ -14,13 +14,14 @@ export const dynamic = "force-dynamic";
 // unpublished renders (both degrade to a not-found, consistent with the
 // /child page family gates). KID-478 item 6: the "still stuck" exit returns
 // to the help list, where the Chatwoot chat bubble answers the rest.
-export default async function ParentSupportArticlePage({
-  params,
-  searchParams,
-}: {
-  params: { id: string };
-  searchParams: { [key: string]: string | string[] | undefined };
-}) {
+export default async function ParentSupportArticlePage(
+  props: {
+    params: Promise<{ id: string }>;
+    searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
+  }
+) {
+  const searchParams = await props.searchParams;
+  const params = await props.params;
   const session = await requireFamilyPage(`/child/support/${params.id}`);
   const { locale } = await i18nForAccount(session.accountId);
   const language = await helpLanguageForRequest(searchParams.lang, locale);

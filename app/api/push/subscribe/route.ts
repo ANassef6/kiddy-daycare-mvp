@@ -14,12 +14,12 @@ export const dynamic = "force-dynamic";
 const noStore = { "Cache-Control": "no-store" };
 type SessionLike = { accountId: string } | null;
 
-function session(): SessionLike {
-  return readSessionFromCookieValue(cookies().get("kiddy_sess")?.value ?? null) as SessionLike;
+async function session(): Promise<SessionLike> {
+  return readSessionFromCookieValue((await cookies()).get("kiddy_sess")?.value ?? null) as SessionLike;
 }
 
 export async function POST(request: Request) {
-  const s = session();
+  const s = await session();
   if (!s?.accountId) {
     return NextResponse.json(
       { error: { code: "unauthorized", message: "Sign in to save a push subscription." } },
@@ -58,7 +58,7 @@ export async function POST(request: Request) {
 }
 
 export async function DELETE(request: Request) {
-  const s = session();
+  const s = await session();
   if (!s?.accountId) {
     return NextResponse.json(
       { error: { code: "unauthorized", message: "Sign in to remove a push subscription." } },

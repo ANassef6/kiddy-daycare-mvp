@@ -51,12 +51,13 @@ const PRIORITY_LABEL: Record<string, string> = {
   low: "priorityLow",
 };
 
-export default async function PortalEnhancementsPage({
-  searchParams,
-}: {
-  searchParams: { submitted?: string; error?: string };
-}) {
-  const session = requireSession();
+export default async function PortalEnhancementsPage(
+  props: {
+    searchParams: Promise<{ submitted?: string; error?: string }>;
+  }
+) {
+  const searchParams = await props.searchParams;
+  const session = await requireSession();
   // KID-489/7: the platform superadmin gets the same page with the Vikunja
   // link column; everyone who is neither the owner nor the superadmin is
   // refused exactly as before.

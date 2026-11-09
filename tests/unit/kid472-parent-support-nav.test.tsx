@@ -96,7 +96,7 @@ async function renderParentSupport(searchParams: Record<string, string> = {}): P
     cookie: sessionCookie(parentAccountId, "parent", "parent@example.test"),
   };
   const page = await import("@/app/child/support/page");
-  return renderToStaticMarkup(await page.default({ searchParams }));
+  return renderToStaticMarkup(await page.default({ searchParams: Promise.resolve(searchParams) }));
 }
 
 const repoRoot = path.resolve(__dirname, "../..");

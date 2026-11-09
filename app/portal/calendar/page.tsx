@@ -7,7 +7,7 @@ import { recordToolUsage } from "@/lib/tool-usage";
 export const dynamic = "force-dynamic";
 
 export default async function PortalCalendarPage() {
-  const session = requireSession();
+  const session = await requireSession();
   const instituteId = await firstInstituteId();
   if (!instituteId) return <p className="muted">No institute configured.</p>;
   await recordToolUsage({ instituteId: String(instituteId ?? "") || null, accountId: session.accountId, toolKey: "calendar", source: "portal", metadata: null });

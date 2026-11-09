@@ -14,14 +14,15 @@ export const dynamic = "force-dynamic";
 // filter exactly. The exit button keeps the ticket-inbox escalation path
 // (this is a distinct page from the Help & Support list, which carries no
 // inbox link since KID-428).
-export default async function PortalSupportArticlePage({
-  params,
-  searchParams,
-}: {
-  params: { id: string };
-  searchParams: { [key: string]: string | string[] | undefined };
-}) {
-  const session = requireSession();
+export default async function PortalSupportArticlePage(
+  props: {
+    params: Promise<{ id: string }>;
+    searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
+  }
+) {
+  const searchParams = await props.searchParams;
+  const params = await props.params;
+  const session = await requireSession();
   const { locale } = await i18nForAccount(session.accountId);
   const language = await helpLanguageForRequest(searchParams.lang, locale);
   const dict = getDictionary(language);

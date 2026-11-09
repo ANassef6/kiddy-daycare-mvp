@@ -1,0 +1,26 @@
+# KID-1176 (P2 hygiene): dependency-audit gate.
+# Fails the build when `npm audit` reports any unresolved critical/high
+# vulnerability that is not covered by a reviewed, expiring exception in
+# scripts/audit-exceptions.json (see scripts/audit-gate.mjs).
+name: dependency-audit
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Gate self-test (proves the gate fails on an unexcepted high)
+        run: node scripts/audit-gate.mjs --self-test
+      - name: Dependency audit gate (critical/high)
+        run: node scripts/audit-gate.mjs

@@ -11,7 +11,7 @@ import { recordToolUsage } from "@/lib/tool-usage";
 export const dynamic = "force-dynamic";
 
 export default async function PortalLearningPage() {
-  const session = requireSession();
+  const session = await requireSession();
   const { locale, dict } = await i18nForAccount(session.accountId);
   const t = (key: string, vars?: Record<string, string | number>) => tr(dict, key, vars);
   // KID-221: the kind badge showed the raw DB enum ("observation" etc.) in

@@ -102,7 +102,7 @@ describe("PLATFORM_CONTACT_EMAIL", () => {
 describe("the /contact page and footer name the address", () => {
   it("the contact page renders a visible mailto link and the Prefer email line", async () => {
     const { default: ContactPage } = await import("@/app/contact/page");
-    const html = renderToStaticMarkup(await ContactPage({ searchParams: {} }));
+    const html = renderToStaticMarkup(await ContactPage({ searchParams: Promise.resolve({}) }));
     expect(html).toContain(`mailto:${DEFAULT_CONTACT_EMAIL}`);
     expect(html).toContain(DEFAULT_CONTACT_EMAIL);
     expect(html).toContain("Prefer email?");

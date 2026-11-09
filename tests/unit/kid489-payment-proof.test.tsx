@@ -375,7 +375,7 @@ describe("KID-492: the admin sees the proof and the activity item", () => {
     await uploadProof(String(billing.id), { reference: "TX-9" });
     sessionCookieFor(sunshineAdminId, "owner", "trois4ever+admin@gmail.com");
     const { default: AdminBillingPage } = await import("@/app/portal/children/[id]/billing/page");
-    const html = renderToStaticMarkup(await AdminBillingPage({ params: { id: sunshineChildId } }) as never);
+    const html = renderToStaticMarkup(await AdminBillingPage({ params: Promise.resolve({ id: sunshineChildId }) }) as never);
     expect(html).toContain(">View proof</a>");
     expect(html).toContain("TX-9");
     expect(html).toContain("Ref: TX-9");
@@ -385,7 +385,7 @@ describe("KID-492: the admin sees the proof and the activity item", () => {
     await createInvoice("Proofless");
     sessionCookieFor(sunshineAdminId, "owner", "trois4ever+admin@gmail.com");
     const { default: AdminBillingPage } = await import("@/app/portal/children/[id]/billing/page");
-    const html = renderToStaticMarkup(await AdminBillingPage({ params: { id: sunshineChildId } }) as never);
+    const html = renderToStaticMarkup(await AdminBillingPage({ params: Promise.resolve({ id: sunshineChildId }) }) as never);
     expect(html).toContain("Proofless");
     expect(html).not.toContain("View proof");
   });
@@ -406,14 +406,14 @@ describe("KID-492: the parent surface", () => {
     const billing = await createInvoice("UI fees");
     sessionCookieFor(parentId, "parent", "parent@example.test");
     const { default: ParentPage } = await import("@/app/child/[id]/page");
-    let html = renderToStaticMarkup(await ParentPage({ params: { id: sunshineChildId }, searchParams: {} }) as never);
+    let html = renderToStaticMarkup(await ParentPage({ params: Promise.resolve({ id: sunshineChildId }), searchParams: Promise.resolve({}) }) as never);
     expect(html).toContain(dictionaries.en.child.payProofUpload);
     expect(html).toContain(dictionaries.en.child.payProofPlaceholder);
     expect(html).not.toContain(dictionaries.en.child.payProofView);
     expect(html).not.toContain(ddict("payProofPendingReview"));
 
     await uploadProof(String(billing.id));
-    html = renderToStaticMarkup(await ParentPage({ params: { id: sunshineChildId }, searchParams: {} }) as never);
+    html = renderToStaticMarkup(await ParentPage({ params: Promise.resolve({ id: sunshineChildId }), searchParams: Promise.resolve({}) }) as never);
     expect(html).toContain(dictionaries.en.child.payProofView);
     expect(html).toContain(dictionaries.en.child.payProofReplace);
   });
@@ -421,11 +421,11 @@ describe("KID-492: the parent surface", () => {
   it("renders the rejection and success banners", async () => {
     sessionCookieFor(parentId, "parent", "parent@example.test");
     const { default: ParentPage } = await import("@/app/child/[id]/page");
-    let html = renderToStaticMarkup(await ParentPage({ params: { id: sunshineChildId }, searchParams: { error: "proofSize" } }) as never);
+    let html = renderToStaticMarkup(await ParentPage({ params: Promise.resolve({ id: sunshineChildId }), searchParams: Promise.resolve({ error: "proofSize" }) }) as never);
     expect(html).toContain(dictionaries.en.child.payProofErrorSize);
-    html = renderToStaticMarkup(await ParentPage({ params: { id: sunshineChildId }, searchParams: { error: "proofType" } }) as never);
+    html = renderToStaticMarkup(await ParentPage({ params: Promise.resolve({ id: sunshineChildId }), searchParams: Promise.resolve({ error: "proofType" }) }) as never);
     expect(html).toContain(dictionaries.en.child.payProofErrorType);
-    html = renderToStaticMarkup(await ParentPage({ params: { id: sunshineChildId }, searchParams: { proof: "uploaded" } }) as never);
+    html = renderToStaticMarkup(await ParentPage({ params: Promise.resolve({ id: sunshineChildId }), searchParams: Promise.resolve({ proof: "uploaded" }) }) as never);
     // renderToStaticMarkup escapes the apostrophe in the EN string.
     expect(html).toContain(dictionaries.en.child.payProofPendingReview.replace(/'/g, "&#x27;"));
   });
@@ -440,7 +440,7 @@ describe("KID-492: the parent surface", () => {
     });
     sessionCookieFor(parentId, "parent", "parent@example.test");
     const { default: ParentPage } = await import("@/app/child/[id]/page");
-    const html = renderToStaticMarkup(await ParentPage({ params: { id: sunshineChildId }, searchParams: {} }) as never);
+    const html = renderToStaticMarkup(await ParentPage({ params: Promise.resolve({ id: sunshineChildId }), searchParams: Promise.resolve({}) }) as never);
     expect(html).toContain("Settled fees");
     expect(html).not.toContain(dictionaries.en.child.payProofUpload);
   });
@@ -455,7 +455,7 @@ describe("KID-492: the parent surface", () => {
     });
     sessionCookieFor(String(outsider.id), "parent", "kid492-outsider-page@example.test");
     const { default: ParentPage } = await import("@/app/child/[id]/page");
-    await expect(ParentPage({ params: { id: sunshineChildId }, searchParams: {} })).rejects.toThrow(/NEXT_NOT_FOUND/);
+    await expect(ParentPage({ params: Promise.resolve({ id: sunshineChildId }), searchParams: Promise.resolve({}) })).rejects.toThrow(/NEXT_NOT_FOUND/);
   });
 });
 

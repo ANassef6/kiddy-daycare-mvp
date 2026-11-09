@@ -8,7 +8,7 @@ import { cap, safeJson } from "@/lib/helpers";
 export const dynamic = "force-dynamic";
 
 export default async function PortalStaffHoursPage() {
-  const session = requireSession();
+  const session = await requireSession();
   const iid = await resolveTenantInstituteId();
   const allStaff = iid ? await listStaff(iid) : [];
 

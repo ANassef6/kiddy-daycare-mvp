@@ -81,7 +81,7 @@ describe("KID-437: tenant auth auth pages name their own daycare in the SSR pain
 
   it("/login on a known subdomain no longer paints the generic-Kiddy fallback either", async () => {
     mockHeaders = { host: `${sunshineSlug}.${APEX}` };
-    const html = renderToStaticMarkup(await LoginPage({ searchParams: {} }));
+    const html = renderToStaticMarkup(await LoginPage({ searchParams: Promise.resolve({}) }));
     expect(html).toContain('<span class="brand">Sunshine Daycare</span>');
     expect(html).not.toContain('<span class="brand">Kiddy</span>');
   });
@@ -91,7 +91,7 @@ describe("KID-437: tenant auth auth pages name their own daycare in the SSR pain
       mockHeaders = host ? { host } : {};
       const registerHtml = renderToStaticMarkup(await RegisterPage());
       const forgotHtml = renderToStaticMarkup(await ForgotPasswordPage());
-      const loginHtml = renderToStaticMarkup(await LoginPage({ searchParams: {} }));
+      const loginHtml = renderToStaticMarkup(await LoginPage({ searchParams: Promise.resolve({}) }));
       for (const html of [registerHtml, forgotHtml, loginHtml]) {
         expect(html).toContain('<span class="brand">Kiddy</span>');
         expect(html).not.toContain('<span class="brand">Sunshine Daycare</span>');

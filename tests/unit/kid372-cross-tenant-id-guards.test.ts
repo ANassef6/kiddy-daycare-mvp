@@ -183,7 +183,7 @@ describe("KID-372: room detail page + updateRoomAction — institute ownership",
     };
     const { default: RoomPage } = await import("@/app/portal/rooms/[id]/page");
     const { renderToStaticMarkup } = await import("react-dom/server");
-    const html = renderToStaticMarkup(await RoomPage({ params: { id: sunshineRoomId } }));
+    const html = renderToStaticMarkup(await RoomPage({ params: Promise.resolve({ id: sunshineRoomId }) }));
     expect(html).toContain("Toddlers");
   });
 
@@ -196,7 +196,7 @@ describe("KID-372: room detail page + updateRoomAction — institute ownership",
       )}`,
     };
     const { default: RoomPage } = await import("@/app/portal/rooms/[id]/page");
-    await expect(RoomPage({ params: { id: String(mapleRoom.id) } })).rejects.toThrow("NEXT_NOT_FOUND");
+    await expect(RoomPage({ params: Promise.resolve({ id: String(mapleRoom.id) }) })).rejects.toThrow("NEXT_NOT_FOUND");
   });
 
   it("updateRoomAction refuses another centre's room by raw id (no write)", async () => {
@@ -295,7 +295,7 @@ describe("KID-372: parent /child/[id] — family-scoped child visibility", () =>
     };
     const { default: ChildPage } = await import("@/app/child/[id]/page");
     const { renderToStaticMarkup } = await import("react-dom/server");
-    const html = renderToStaticMarkup(await ChildPage({ params: { id: ella } }));
+    const html = renderToStaticMarkup(await ChildPage({ params: Promise.resolve({ id: ella }) }));
     expect(html).toContain("Ella");
   });
 
@@ -308,7 +308,7 @@ describe("KID-372: parent /child/[id] — family-scoped child visibility", () =>
       )}`,
     };
     const { default: ChildPage } = await import("@/app/child/[id]/page");
-    await expect(ChildPage({ params: { id: maple } })).rejects.toThrow("NEXT_NOT_FOUND");
+    await expect(ChildPage({ params: Promise.resolve({ id: maple }) })).rejects.toThrow("NEXT_NOT_FOUND");
   });
 
   it("the page 404s a foreign-centre child id on the apex host too (no fallback)", async () => {
@@ -320,7 +320,7 @@ describe("KID-372: parent /child/[id] — family-scoped child visibility", () =>
       )}`,
     };
     const { default: ChildPage } = await import("@/app/child/[id]/page");
-    await expect(ChildPage({ params: { id: maple } })).rejects.toThrow("NEXT_NOT_FOUND");
+    await expect(ChildPage({ params: Promise.resolve({ id: maple }) })).rejects.toThrow("NEXT_NOT_FOUND");
   });
 });
 

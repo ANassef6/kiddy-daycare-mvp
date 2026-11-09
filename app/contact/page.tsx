@@ -10,11 +10,12 @@ export const metadata = {
     "Book a personalized demo of the white-label childcare management platform, or send us your questions.",
 };
 
-export default async function ContactPage({
-  searchParams,
-}: {
-  searchParams?: { sent?: string; error?: string };
-}) {
+export default async function ContactPage(
+  props: {
+    searchParams?: Promise<{ sent?: string; error?: string }>;
+  }
+) {
+  const searchParams = await props.searchParams;
   const errorMessage =
     searchParams?.error === "name"
       ? "Please add your name."

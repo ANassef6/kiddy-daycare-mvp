@@ -6,7 +6,7 @@ import ResendConfirmButton from "@/components/resend-confirm";
 export const dynamic = "force-dynamic";
 
 export default async function WelcomePage() {
-  const session = requireSession();
+  const session = await requireSession();
   if (session.emailConfirmed) {
     redirect(session.role === "parent" ? "/child" : "/portal/dashboard");
   }

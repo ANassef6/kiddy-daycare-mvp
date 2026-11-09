@@ -29,7 +29,7 @@ function timeAgo(locale: Locale, dict: Dict, when: Date): string {
 }
 
 export default async function ChildNotificationsPage() {
-  const session = requireSession();
+  const session = await requireSession();
   const { locale, dict } = await i18nForAccount(session.accountId);
   const t = (key: string, vars?: Record<string, string | number>) => tr(dict, key, vars);
   const iid = await resolveTenantInstituteId();

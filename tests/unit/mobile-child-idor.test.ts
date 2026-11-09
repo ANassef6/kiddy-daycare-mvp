@@ -52,7 +52,7 @@ describe("mobile child IDOR guard", () => {
         role: "parent",
       });
       const res = await GET(mobileRequest("GET", childId, String(stranger.id)), {
-        params: { id: childId },
+        params: Promise.resolve({ id: childId }),
       });
       expect(res.status).toBe(403);
       expect(await res.json()).toEqual({ error: "forbidden" });
@@ -67,7 +67,7 @@ describe("mobile child IDOR guard", () => {
       });
       await linkFamily(String(parent.id), childId);
       const res = await GET(mobileRequest("GET", childId, String(parent.id)), {
-        params: { id: childId },
+        params: Promise.resolve({ id: childId }),
       });
       expect(res.status).toBe(200);
       const json = await res.json();
@@ -86,7 +86,7 @@ describe("mobile child IDOR guard", () => {
       });
       const res = await POST(
         mobileRequest("POST", childId, String(stranger.id), { type: "in" }),
-        { params: { id: childId } }
+        { params: Promise.resolve({ id: childId }) }
       );
       expect(res.status).toBe(403);
       expect(await res.json()).toEqual({ error: "forbidden" });
@@ -102,7 +102,7 @@ describe("mobile child IDOR guard", () => {
       await linkFamily(String(parent.id), childId);
       const res = await POST(
         mobileRequest("POST", childId, String(parent.id), { type: "in" }),
-        { params: { id: childId } }
+        { params: Promise.resolve({ id: childId }) }
       );
       expect(res.status).toBe(200);
       const json = await res.json();

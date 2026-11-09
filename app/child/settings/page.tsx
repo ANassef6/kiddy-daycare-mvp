@@ -24,12 +24,13 @@ const PARENT_ACTIVITY_LABEL_KEYS: Record<string, string> = {
   billing: "parent.prefBilling",
 };
 
-export default async function ParentSettingsPage({
-  searchParams,
-}: {
-  searchParams: { saved?: string; pw?: string };
-}) {
-  const session = requireSession();
+export default async function ParentSettingsPage(
+  props: {
+    searchParams: Promise<{ saved?: string; pw?: string }>;
+  }
+) {
+  const searchParams = await props.searchParams;
+  const session = await requireSession();
   const { locale, dict } = await i18nForAccount(session.accountId);
   await ensureSchema();
   const prefs = await getNotificationPrefs(session.accountId);

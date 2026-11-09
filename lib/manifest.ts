@@ -123,7 +123,7 @@ export function brandIconSvg(initials: string, primaryColor: string): string {
  *  the generic Kiddy default — never tenant data, never the first institute. */
 export async function brandingForRequestHost(): Promise<Branding> {
   try {
-    const h = (await import("next/headers")).headers();
+    const h = await (await import("next/headers")).headers();
     const ctx = splitSubdomainHost(h.get("host"));
     if (ctx.kind === "subdomain") {
       const { instituteIdBySubdomain } = await import("./store");

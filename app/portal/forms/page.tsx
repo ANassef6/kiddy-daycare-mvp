@@ -11,12 +11,13 @@ function stripHtml(v: unknown): string {
   return String(v ?? "").replace(/<[^>]*>/g, "");
 }
 
-export default async function PortalFormsPage({
-  searchParams,
-}: {
-  searchParams: { view?: string; q?: string; status?: string; type?: string; form?: string };
-}) {
-  const session = requireSession();
+export default async function PortalFormsPage(
+  props: {
+    searchParams: Promise<{ view?: string; q?: string; status?: string; type?: string; form?: string }>;
+  }
+) {
+  const searchParams = await props.searchParams;
+  const session = await requireSession();
   const instituteId = await firstInstituteId();
   if (!instituteId) return <p className="muted">No institute configured.</p>;
   await recordToolUsage({ instituteId: String(instituteId ?? "") || null, accountId: session.accountId, toolKey: "forms", source: "portal", metadata: null });

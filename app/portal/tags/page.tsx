@@ -10,20 +10,21 @@ export const dynamic = "force-dynamic";
 const COLUMNS = ["Name", "DOB", "Age", "Gender", "Room", "Allergies"] as const;
 const COL_KEYS: Record<string, string> = { Name: "name", DOB: "dob", Age: "age", Gender: "gender", Room: "room", Allergies: "allergies" };
 
-export default async function PortalTagsPage({
-  searchParams,
-}: {
-  searchParams: {
-    list?: string;
-    child?: string;
-    gender?: string;
-    maxAge?: string;
-    roomId?: string;
-    enrolledFrom?: string;
-    cols?: string;
-  };
-}) {
-  const session = requireSession();
+export default async function PortalTagsPage(
+  props: {
+    searchParams: Promise<{
+      list?: string;
+      child?: string;
+      gender?: string;
+      maxAge?: string;
+      roomId?: string;
+      enrolledFrom?: string;
+      cols?: string;
+    }>;
+  }
+) {
+  const searchParams = await props.searchParams;
+  const session = await requireSession();
   const instituteId = await firstInstituteId();
   if (!instituteId) return <p className="muted">No institute configured.</p>;
   // KID-103: smart lists respect classroom scoping.

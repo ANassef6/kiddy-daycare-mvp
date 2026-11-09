@@ -9,9 +9,9 @@ import { updateRoomAction } from "@/lib/actions";
 
 export const dynamic = "force-dynamic";
 
-export default async function PortalRoomDetailPage({ params }: { params: { id: string } }) {
-  const session = requireSession();
-  const room = await getRoom(params.id);
+export default async function PortalRoomDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const session = await requireSession();
+  const room = await getRoom((await params).id);
   if (!room) notFound();
   // KID-372: the raw room id in the URL is not authorization — admins could
   // open and list the children of ANOTHER center's room. The room must

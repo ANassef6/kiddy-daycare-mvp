@@ -13,8 +13,8 @@ export const dynamic = "force-dynamic";
 // via a weekday-map, so the card badge stops leaking English day names.
 const WEEKDAYS = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
 
-export default async function PortalEventsPage({ searchParams }: { searchParams: { open?: string } }) {
-  const session = requireSession();
+export default async function PortalEventsPage({ searchParams }: { searchParams: Promise<{ open?: string }> }) {
+  const session = await requireSession();
   const { locale, dict } = await i18nForAccount(session.accountId);
   const t = (key: string, vars?: Record<string, string | number>) => tr(dict, key, vars);
   const instituteId = await firstInstituteId();
@@ -22,7 +22,7 @@ export default async function PortalEventsPage({ searchParams }: { searchParams:
   await recordToolUsage({ instituteId: String(instituteId ?? "") || null, accountId: session.accountId, toolKey: "events", source: "portal", metadata: null });
   const events = await listEvents(instituteId);
   const withMedia = await Promise.all(events.map(async (e: any) => ({ ...e, media: await eventMedia(e.id) })));
-  const openId = searchParams.open;
+  const openId = (await searchParams).open;
   const weekdayLabel = (raw: unknown) => {
     const idx = WEEKDAYS.indexOf(String(raw ?? "").toLowerCase());
     if (idx < 0) return String(raw ?? "");

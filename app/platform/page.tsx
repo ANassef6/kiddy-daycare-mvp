@@ -58,12 +58,13 @@ const ENTRY_ERRORS: Record<string, string> = {
   "enter-no-address": "This daycare has no web address yet. Set a web prefix first.",
 };
 
-export default async function PlatformDaycaresPage({
-  searchParams,
-}: {
-  searchParams: { created?: string; error?: string; edit?: string; prefix?: string; instapay?: string };
-}) {
-  const session = requireSession();
+export default async function PlatformDaycaresPage(
+  props: {
+    searchParams: Promise<{ created?: string; error?: string; edit?: string; prefix?: string; instapay?: string }>;
+  }
+) {
+  const searchParams = await props.searchParams;
+  const session = await requireSession();
   // Same double check as the layout + every server action: internal sentinel
   // session AND the env allowlist (KID-199.4r — accessing is not a role).
   if (!isPlatformOperatorRole(session.role) || !isPlatformOperatorEmail(session.email)) {

@@ -69,7 +69,7 @@ function pressedOption(html: string): string | null {
 describe("KID-443: /login serves the EN/AR control for the pre-sign-in visitor", () => {
   it("renders the toggle under the EN default (no cookie) — English pressed", async () => {
     mockHeaders = { host: APEX };
-    const html = renderToStaticMarkup(await LoginPage({ searchParams: {} }));
+    const html = renderToStaticMarkup(await LoginPage({ searchParams: Promise.resolve({}) }));
     expect(html).toContain('class="login-lang-toggle"');
     expect(html).toContain('role="group"');
     expect(pressedOption(html)).toBe("en");
@@ -82,7 +82,7 @@ describe("KID-443: /login serves the EN/AR control for the pre-sign-in visitor",
 
   it("renders the toggle with the AR cookie pressed, everything else AR too", async () => {
     mockHeaders = { host: APEX, kiddy_lang: "ar" };
-    const html = renderToStaticMarkup(await LoginPage({ searchParams: {} }));
+    const html = renderToStaticMarkup(await LoginPage({ searchParams: Promise.resolve({}) }));
     expect(html).toContain('class="login-lang-toggle"');
     expect(pressedOption(html)).toBe("ar");
     expect(html).toContain("English");
@@ -93,7 +93,7 @@ describe("KID-443: /login serves the EN/AR control for the pre-sign-in visitor",
 
   it("the tenant subdomain keeps the toggle + tenant brand (Sunshine parents get both)", async () => {
     mockHeaders = { host: `${sunshineSlug}.${APEX}` };
-    const html = renderToStaticMarkup(await LoginPage({ searchParams: {} }));
+    const html = renderToStaticMarkup(await LoginPage({ searchParams: Promise.resolve({}) }));
     expect(html).toContain('class="login-lang-toggle"');
     expect(html).toContain('<span class="brand">Sunshine Daycare</span>');
     expect(pressedOption(html)).toBe("en");

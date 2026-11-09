@@ -15,7 +15,7 @@ export const dynamic = "force-dynamic";
 // create form, capacity/children counts and the click hint. Localized; the
 // "1 child" case now gets a proper singular form per locale.
 export default async function PortalRoomsPage() {
-  const session = requireSession();
+  const session = await requireSession();
   const { dict } = await i18nForAccount(session.accountId);
   const t = (key: string, vars?: Record<string, string | number>) => tr(dict, key, vars);
   const iid = await resolveTenantInstituteId();

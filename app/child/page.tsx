@@ -8,7 +8,7 @@ import { recordToolUsage } from "@/lib/tool-usage";
 export const dynamic = "force-dynamic";
 
 export default async function MyChildrenPage() {
-  const session = requireSession();
+  const session = await requireSession();
   await recordToolUsage({ instituteId: null, accountId: session.accountId, toolKey: "dashboard", source: "child", metadata: null });
   const { dict } = await i18nForAccount(session.accountId);
   const t = (key: string, vars?: Record<string, string | number>) => tr(dict, key, vars);

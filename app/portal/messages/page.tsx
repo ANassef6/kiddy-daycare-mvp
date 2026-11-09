@@ -22,12 +22,13 @@ import { recordToolUsage } from "@/lib/tool-usage";
 
 export const dynamic = "force-dynamic";
 
-export default async function PortalMessagesPage({
-  searchParams,
-}: {
-  searchParams: { with?: string; thread?: string; compose?: string; unread?: string; q?: string; error?: string };
-}) {
-  const session = requireSession();
+export default async function PortalMessagesPage(
+  props: {
+    searchParams: Promise<{ with?: string; thread?: string; compose?: string; unread?: string; q?: string; error?: string }>;
+  }
+) {
+  const searchParams = await props.searchParams;
+  const session = await requireSession();
   const { dict } = await i18nForAccount(session.accountId);
   const t = (key: string, vars?: Record<string, string | number>) => tr(dict, key, vars);
   const instituteId = await firstInstituteId();

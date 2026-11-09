@@ -20,11 +20,12 @@ export const dynamic = "force-dynamic";
 // KID-403: the whole surface chrome (title, KB copy) speaks the help language
 // — the same resolved value that picks the article set and the direction —
 // not the account's app language.
-export default async function ParentSupportPage({
-  searchParams,
-}: {
-  searchParams: { [key: string]: string | string[] | undefined };
-}) {
+export default async function ParentSupportPage(
+  props: {
+    searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
+  }
+) {
+  const searchParams = await props.searchParams;
   const session = await requireFamilyPage("/child/support");
   const { locale } = await i18nForAccount(session.accountId);
   const language = await helpLanguageForRequest(searchParams.lang, locale);

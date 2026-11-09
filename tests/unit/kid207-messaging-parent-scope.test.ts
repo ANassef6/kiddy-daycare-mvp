@@ -317,7 +317,7 @@ describe("KID-207 write boundary: sendComposerAction accepts only the family-sco
 describe("KID-207 the /portal/messages page renders the family-scoped composer", () => {
   async function renderCompose(searchParams: Record<string, string>): Promise<string> {
     const { default: Page } = await import("@/app/portal/messages/page");
-    return renderToStaticMarkup(await Page({ searchParams }));
+    return renderToStaticMarkup(await Page({ searchParams: Promise.resolve(searchParams) }));
   }
 
   it("with a correct pin the composer lists the child's room and co-room parents only", async () => {

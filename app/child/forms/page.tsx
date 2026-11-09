@@ -5,6 +5,7 @@ import { submitFormAction } from "@/lib/actions";
 import { i18nForAccount } from "@/lib/i18n-session";
 import { tr } from "@/lib/i18n";
 import { recordToolUsage } from "@/lib/tool-usage";
+import Link from "next/link";
 
 export const dynamic = "force-dynamic";
 type Field = { id: string; label: string; type: string; required?: boolean; options?: string[] };
@@ -21,7 +22,7 @@ function formKindLabel(kind: string, t: (key: string) => string): string {
   }
 }
 
-export default async function ParentFormsPage({ searchParams }: { searchParams: { sent?: string; open?: string } }) {
+export default async function ParentFormsPage({ searchParams }: { searchParams: Promise<{ sent?: string; open?: string }> }) {
   const session = await requireFamilyPage("/child/forms");
   const { dict } = await i18nForAccount(session.accountId);
   const t = (key: string, vars?: Record<string, string | number>) => tr(dict, key, vars);
@@ -29,14 +30,15 @@ export default async function ParentFormsPage({ searchParams }: { searchParams: 
   if (!instituteId) return <p className="muted">{t("forms.noInstitute")}</p>;
   await recordToolUsage({ instituteId: String(instituteId ?? "") || null, accountId: session.accountId, toolKey: "forms", source: "child", metadata: null });
   const [forms, mine] = await Promise.all([listForms(instituteId), responsesByAccount(session.accountId)]);
-  const openId = searchParams.open || searchParams.sent;
+  const search = await searchParams;
+  const openId = search.open || search.sent;
 
   return (
     <div>
       <h1 className="title">{t("forms.title")}</h1>
       <div className="subtitle">{t("forms.subtitle")}</div>
 
-      {searchParams.sent && <p className="badge badge-green mb-4" style={{ display: "inline-block" }}>{t("forms.sent")}</p>}
+      {search.sent && <p className="badge badge-green mb-4" style={{ display: "inline-block" }}>{t("forms.sent")}</p>}
 
       {forms.length === 0 && <p className="muted">{t("forms.empty")}</p>}
       {forms.map((f: any) => {
@@ -77,7 +79,7 @@ export default async function ParentFormsPage({ searchParams }: { searchParams: 
                   </div>
                 ))}
                 <button className="btn btn-primary" type="submit">{t("forms.submit")}</button>{" "}
-                <a className="btn btn-ghost" href="/child/forms">{t("common.cancel")}</a>
+                <Link className="btn btn-ghost" href="/child/forms">{t("common.cancel")}</Link>
               </form>
             )}
           </div>

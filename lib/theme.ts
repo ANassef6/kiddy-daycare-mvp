@@ -55,7 +55,7 @@ export async function getBranding(): Promise<Branding> {
   // daycare renders everywhere" leak). An unknown subdomain gets neutral
   // Kiddy defaults — never a tenant, never the first institute.
   try {
-    const h = (await import("next/headers")).headers();
+    const h = await (await import("next/headers")).headers();
     const ctx = splitSubdomainHost(h.get("host"));
     if (ctx.kind === "subdomain") {
       const { instituteIdBySubdomain } = await import("./store");
@@ -77,7 +77,7 @@ export async function getBranding(): Promise<Branding> {
   let sessionResolved = false;
   try {
     const headers = (await import("next/headers")).headers;
-    const session = readSessionFromCookie(headers().get("cookie"));
+    const session = readSessionFromCookie((await headers()).get("cookie"));
     if (session) {
       sessionResolved = true;
       if (isPlatformOperatorRole(session.role)) {
@@ -121,7 +121,7 @@ export async function getBranding(): Promise<Branding> {
 //     title brand must not follow whichever demo daycare is created first.
 export async function brandNameForTitle(): Promise<string> {
   try {
-    const h = (await import("next/headers")).headers();
+    const h = await (await import("next/headers")).headers();
     const ctx = splitSubdomainHost(h.get("host"));
     if (ctx.kind === "subdomain") {
       const { instituteIdBySubdomain } = await import("./store");
@@ -135,7 +135,7 @@ export async function brandNameForTitle(): Promise<string> {
   }
   try {
     const headers = (await import("next/headers")).headers;
-    const session = readSessionFromCookie(headers().get("cookie"));
+    const session = readSessionFromCookie((await headers()).get("cookie"));
     if (session && !isPlatformOperatorRole(session.role)) {
       const iid = await primaryInstituteIdForAccount(session.accountId);
       if (iid) {

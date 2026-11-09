@@ -8,9 +8,9 @@ import Avatar from "@/components/Avatar";
 
 export const dynamic = "force-dynamic";
 
-export default async function ChildDevelopmentPage({ params }: { params: { id: string } }) {
-  const session = requireSession();
-  const child = await getChild(params.id);
+export default async function ChildDevelopmentPage({ params }: { params: Promise<{ id: string }> }) {
+  const session = await requireSession();
+  const child = await getChild((await params).id);
   if (!child) notFound();
   // KID-103: direct URLs to out-of-scope children are hidden.
   const iid = await firstInstituteId();

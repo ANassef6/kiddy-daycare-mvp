@@ -31,14 +31,15 @@ const INVOICE_ERRORS: Record<string, string> = {
   unknown: "Something went wrong updating the invoice. Please try again.",
 };
 
-export default async function DaycareInvoicesPage({
-  params,
-  searchParams,
-}: {
-  params: { id: string };
-  searchParams: { saved?: string; error?: string };
-}) {
-  const session = requireSession();
+export default async function DaycareInvoicesPage(
+  props: {
+    params: Promise<{ id: string }>;
+    searchParams: Promise<{ saved?: string; error?: string }>;
+  }
+) {
+  const searchParams = await props.searchParams;
+  const params = await props.params;
+  const session = await requireSession();
   if (!isPlatformOperatorRole(session.role) || !isPlatformOperatorEmail(session.email)) {
     redirect("/login");
   }

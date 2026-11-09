@@ -48,10 +48,10 @@ import { LANG_COOKIE, getDictionary, localeOf, tr, type Locale } from "./i18n";
 // KID-368 (DEF-004): the login host gate's wording follows the visitor's
 // language — the kiddy_lang cookie wins (same precedence as app/layout.tsx
 // resolveLocale); pre-login there is no session preference to fall back on.
-function loginGateDict(): { lang: Locale; t: (key: string, vars?: Record<string, string | number>) => string } {
+async function loginGateDict(): Promise<{ lang: Locale; t: (key: string, vars?: Record<string, string | number>) => string }> {
   let lang: Locale = "en";
   try {
-    const v = cookies().get(LANG_COOKIE)?.value;
+    const v = (await cookies()).get(LANG_COOKIE)?.value;
     if (v) lang = localeOf(v);
   } catch {
     // no request scope (tests) — stays English
@@ -138,8 +138,8 @@ export async function resolveTenantInstituteId(): Promise<string> {
   let cookie: string | null = null;
   let host: string | null = null;
   try {
-    cookie = headers().get("cookie");
-    host = headers().get("host");
+    cookie = (await headers()).get("cookie");
+    host = (await headers()).get("host");
   } catch {
     cookie = null;
     host = null;
@@ -155,8 +155,8 @@ export async function requireTenantForPage(): Promise<string> {
   let cookie: string | null = null;
   let host: string | null = null;
   try {
-    cookie = headers().get("cookie");
-    host = headers().get("host");
+    cookie = (await headers()).get("cookie");
+    host = (await headers()).get("host");
   } catch {
     cookie = null;
     host = null;
@@ -184,7 +184,7 @@ export async function requireTenantForPage(): Promise<string> {
 export async function redirectToNeutralOnUnknownHost(): Promise<void> {
   let host: string | null = null;
   try {
-    host = headers().get("host");
+    host = (await headers()).get("host");
   } catch {
     host = null;
   }
@@ -215,7 +215,7 @@ export async function loginHostGate(
   const ownUrl = tenancy[0]?.subdomain ? subdomainUrl(String(tenancy[0].subdomain)) : "";
   // KID-368 (DEF-004): localized wording; the daycare's own name and URL are
   // proper nouns interpolated as data.
-  const { t } = loginGateDict();
+  const { t } = await loginGateDict();
   if (ownName && ownUrl) {
     return { error: t("login.wrongTenantHome", { name: ownName, url: ownUrl }) };
   }

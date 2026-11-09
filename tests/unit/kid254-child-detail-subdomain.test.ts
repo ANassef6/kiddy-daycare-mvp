@@ -137,7 +137,7 @@ describe("KID-254: the detail page renders the child under the tenant request sc
     mockHeaders = { host: SUNSHINE_HOST, cookie: parentCookie() };
     const { default: ChildDetailPage } = await import("@/app/child/[id]/page");
     const { renderToStaticMarkup } = await import("react-dom/server");
-    const html = renderToStaticMarkup(await ChildDetailPage({ params: { id: childId } }));
+    const html = renderToStaticMarkup(await ChildDetailPage({ params: Promise.resolve({ id: childId }) }));
     expect(html).toContain("Ella");
     expect(html).toContain("Nguyen");
     // Back link to the list the tap came from.
@@ -147,6 +147,6 @@ describe("KID-254: the detail page renders the child under the tenant request sc
   it("a missing child is a not-found, never another tenant's data", async () => {
     mockHeaders = { host: SUNSHINE_HOST, cookie: parentCookie() };
     const { default: ChildDetailPage } = await import("@/app/child/[id]/page");
-    await expect(ChildDetailPage({ params: { id: "no-such-child" } })).rejects.toThrow("NEXT_NOT_FOUND");
+    await expect(ChildDetailPage({ params: Promise.resolve({ id: "no-such-child" }) })).rejects.toThrow("NEXT_NOT_FOUND");
   });
 });

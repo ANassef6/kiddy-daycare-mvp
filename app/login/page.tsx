@@ -32,8 +32,8 @@ const GUARD_KEYS: Record<string, string> = {
   "operator-entry-invalid": "operatorEntryInvalid",
 };
 
-export default async function LoginPage({ searchParams }: { searchParams?: LoginSearchParams }) {
-  const cookieStore = cookies();
+export default async function LoginPage({ searchParams }: { searchParams?: Promise<LoginSearchParams> }) {
+  const cookieStore = await cookies();
   const cookieLang = cookieStore.get(LANG_COOKIE)?.value;
   const locale: Locale = localeOf(cookieLang);
   const dict = getDictionary(locale);
@@ -44,7 +44,7 @@ export default async function LoginPage({ searchParams }: { searchParams?: Login
   // paint instead of flashing generic Kiddy until the client fetch lands.
   const headerBrand = (await brandNameForTitle()) || dict.app.name;
 
-  const params = searchParams ?? {};
+  const params = (await searchParams) ?? {};
   const confirmed = params.confirmed === "1";
 
   // Build the guard/red notice as content (plain string or the isolated-name

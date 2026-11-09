@@ -14,7 +14,7 @@ import { tr } from "@/lib/i18n";
 export const dynamic = "force-dynamic";
 
 export default async function PlatformLayout({ children }: { children: React.ReactNode }) {
-  const session = requireSession();
+  const session = await requireSession();
   // Per-page guard — there is no middleware in this app (same shape as
   // app/portal/settings/page.tsx, with the platform operator sentinel).
   if (!isPlatformOperatorRole(session.role) || !isPlatformOperatorEmail(session.email)) {

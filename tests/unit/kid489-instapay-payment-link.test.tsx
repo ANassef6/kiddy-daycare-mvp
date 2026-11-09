@@ -163,7 +163,7 @@ describe("KID-491: center settings Instapay link", () => {
     expect(String(after!.instapay_url)).toBe(GOOD_LINK);
     // reload → the settings page renders the saved link back into the field
     const { default: Page } = await import("@/app/portal/settings/page");
-    const html = renderToStaticMarkup(await Page({ searchParams: {} }) as never);
+    const html = renderToStaticMarkup(await Page({ searchParams: Promise.resolve({}) }) as never);
     expect(html).toContain(`value="${GOOD_LINK}"`);
   });
 
@@ -180,7 +180,7 @@ describe("KID-491: center settings Instapay link", () => {
     const after = await queryGet("SELECT instapay_url FROM institute WHERE id = ?", sunshineIid);
     expect(String(after!.instapay_url)).toBe("https://instapay.eg/old");
     const { default: Page } = await import("@/app/portal/settings/page");
-    const html = renderToStaticMarkup(await Page({ searchParams: { error: "instapay" } }) as never);
+    const html = renderToStaticMarkup(await Page({ searchParams: Promise.resolve({ error: "instapay" }) }) as never);
     expect(html).toContain(dictionaries.en.settings.instapayLinkInvalid);
   });
 
@@ -202,7 +202,7 @@ describe("KID-491: the invoice create form prefill, override and persistence", (
     await queryRun("UPDATE institute SET instapay_url = ? WHERE id = ?", GOOD_LINK, sunshineIid);
     sessionCookieFor(sunshineAdminId, "owner", "trois4ever+admin@gmail.com");
     const { default: Page } = await import("@/app/portal/children/[id]/billing/page");
-    const html = renderToStaticMarkup(await Page({ params: { id: sunshineChildId } }) as never);
+    const html = renderToStaticMarkup(await Page({ params: Promise.resolve({ id: sunshineChildId }) }) as never);
     expect(html).toContain(`value="${GOOD_LINK}"`);
   });
 
@@ -261,7 +261,7 @@ describe("KID-491: the parent sees only their own invoices, with a working payme
     });
     sessionCookieFor(parentId, "parent", "parent@example.test");
     const { default: ParentPage } = await import("@/app/child/[id]/page");
-    const html = renderToStaticMarkup(await ParentPage({ params: { id: sunshineChildId }, searchParams: {} }) as never);
+    const html = renderToStaticMarkup(await ParentPage({ params: Promise.resolve({ id: sunshineChildId }), searchParams: Promise.resolve({}) }) as never);
     expect(html).toContain(`href="${GOOD_LINK}"`);
     expect(html).toContain(`target="_blank"`);
     expect(html).toContain(dictionaries.en.child.payWithInstapay);
@@ -276,7 +276,7 @@ describe("KID-491: the parent sees only their own invoices, with a working payme
     });
     sessionCookieFor(parentId, "parent", "parent@example.test");
     const { default: ParentPage } = await import("@/app/child/[id]/page");
-    const html = renderToStaticMarkup(await ParentPage({ params: { id: sunshineChildId }, searchParams: {} }) as never);
+    const html = renderToStaticMarkup(await ParentPage({ params: Promise.resolve({ id: sunshineChildId }), searchParams: Promise.resolve({}) }) as never);
     expect(html).not.toContain(`target="_blank"`);
     expect(html).toContain("Legacy invoice");
     void billing;
@@ -298,7 +298,7 @@ describe("KID-491: the parent sees only their own invoices, with a working payme
     });
     sessionCookieFor(String(outsider.id), "parent", "kid491-outsider@example.test");
     const { default: ParentPage } = await import("@/app/child/[id]/page");
-    await expect(ParentPage({ params: { id: sunshineChildId }, searchParams: {} })).rejects.toThrow(/NEXT_NOT_FOUND/);
+    await expect(ParentPage({ params: Promise.resolve({ id: sunshineChildId }), searchParams: Promise.resolve({}) })).rejects.toThrow(/NEXT_NOT_FOUND/);
   });
 
   it("the portal admin billing table lists the link (center staff can verify)", async () => {
@@ -311,7 +311,7 @@ describe("KID-491: the parent sees only their own invoices, with a working payme
     });
     sessionCookieFor(sunshineAdminId, "owner", "trois4ever+admin@gmail.com");
     const { default: Page } = await import("@/app/portal/children/[id]/billing/page");
-    const html = renderToStaticMarkup(await Page({ params: { id: sunshineChildId } }) as never);
+    const html = renderToStaticMarkup(await Page({ params: Promise.resolve({ id: sunshineChildId }) }) as never);
     expect(html).toContain(`href="${GOOD_LINK}"`);
   });
 });

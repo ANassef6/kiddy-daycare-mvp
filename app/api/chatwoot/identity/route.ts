@@ -12,7 +12,7 @@ const noStore = { "Cache-Control": "no-store" };
 
 export async function GET() {
   try {
-    const session = readSessionFromCookieValue(cookies().get("kiddy_sess")?.value ?? null);
+    const session = readSessionFromCookieValue((await cookies()).get("kiddy_sess")?.value ?? null);
     if (!session?.accountId) return NextResponse.json({ identity: null }, { headers: noStore });
     return NextResponse.json(
       { identity: await chatwootIdentityForAccount(session.accountId) },
