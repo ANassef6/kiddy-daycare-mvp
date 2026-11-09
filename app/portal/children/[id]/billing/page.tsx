@@ -42,6 +42,11 @@ export default async function ChildBillingPage(
   if (iid && !(await isChildInScope(iid, session.accountId, String(child.id)))) {
     notFound();
   }
+  // KID-1328 defense-in-depth: the rendered record itself must belong to the
+  // request tenant — never render another institute's billing data.
+  if (iid && String(child.institute_id ?? "") !== iid) {
+    notFound();
+  }
   const bills = child ? await listChildBilling(child.id) : [];
   // KID-1177: proof links resolve to short-lived signed URLs here; legacy
   // public URLs pass through unchanged.

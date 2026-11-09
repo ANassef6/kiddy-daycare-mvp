@@ -18,6 +18,11 @@ export default async function ChildDevelopmentPage({ params }: { params: Promise
   if (iid && !(await isChildInScope(iid, session.accountId, String(child.id)))) {
     notFound();
   }
+  // KID-1328 defense-in-depth: the rendered record itself must belong to the
+  // request tenant — never render another institute's development data.
+  if (iid && String(child.institute_id ?? "") !== iid) {
+    notFound();
+  }
   try {
     const { ensureCurriculumSeeded } = await import("@/lib/curriculum");
     await ensureCurriculumSeeded();

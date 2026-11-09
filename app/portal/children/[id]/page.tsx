@@ -72,6 +72,12 @@ export default async function PortalChildPage(
   if (iid && !(await isChildInScope(iid, session.accountId, String(child.id)))) {
     notFound();
   }
+  // KID-1328 defense-in-depth: even if a future scope helper regresses, the
+  // rendered record itself must belong to the request tenant — never render
+  // another institute's child.
+  if (iid && String(child.institute_id ?? "") !== iid) {
+    notFound();
+  }
 
   // KID-472 item 4: the daily report is date-navigable. `?date=` (validated —
   // anything malformed falls back to today) selects which day's record the

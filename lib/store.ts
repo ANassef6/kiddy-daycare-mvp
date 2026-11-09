@@ -2028,13 +2028,21 @@ export async function messagingRoomIds(instituteId: string, accountId: string): 
 }
 
 // KID-103: returns true when the child is in one of the account's assigned
-// classrooms. Owners/admins/parents always pass.
+// classrooms. Owners/admins always pass.
+// KID-1328: the child must belong to the requested institute BEFORE the
+// admin/owner bypass — the early `roomIds === null → true` used to fire
+// first, so an owner/admin of another tenant could authorize any child id
+// (portal child pages + every assertChildInScope write guard). The institute
+// match now mirrors isChildVisibleToAccount's kid372 rule; a missing row or
+// a foreign-tenant child always fails closed, and same-tenant roles are
+// unchanged (owner/admin unscoped, staff classroom-scoped).
 export async function isChildInScope(instituteId: string, accountId: string, childId: string): Promise<boolean> {
+  if (!instituteId) return false;
+  const child = await queryGet("SELECT room_id FROM child WHERE id = ? AND institute_id = ?", childId, instituteId);
+  if (!child) return false;
   const roomIds = await scopedRoomIds(instituteId, accountId);
   if (roomIds === null) return true;
   if (roomIds.length === 0) return false;
-  const child = await queryGet("SELECT room_id FROM child WHERE id = ? AND institute_id = ?", childId, instituteId);
-  if (!child) return false;
   return roomIds.includes(String(child.room_id ?? ""));
 }
 
