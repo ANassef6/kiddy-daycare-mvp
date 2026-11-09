@@ -175,7 +175,7 @@ export default async function PlatformDaycaresPage({
             {tr(dict, "platform.instapaySave")}
           </button>
           {instapayUrl ? (
-            <button className="btn" type="submit" name="instapayUrl" value="">
+            <button className="btn" type="submit" name="instapayIntent" value="clear">
               {tr(dict, "platform.instapayClear")}
             </button>
           ) : null}
