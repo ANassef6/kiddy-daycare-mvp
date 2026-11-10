@@ -106,7 +106,17 @@
 
 DO $$
 BEGIN
-  IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'uq_family_member_account_child') THEN
+  -- KID-1500: scoped to the current search_path's first schema (where
+  -- unqualified DDL lands). The unscoped pg_indexes lookup matched the index
+  -- of a *different* schema with the same table (a dedicated Supabase
+  -- project whose public chain already carries it), so a harness replay in
+  -- a scratch schema never raised the guard on a genuinely missing 0017.
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_indexes
+    WHERE indexname = 'uq_family_member_account_child'
+      AND schemaname = (current_schemas(false))[1]
+  ) THEN
     RAISE EXCEPTION
       'KID-146: uq_family_member_account_child is missing. Apply 0017_family_member_unique.sql before 0018_sibling_family_link_backfill.sql.';
   END IF;

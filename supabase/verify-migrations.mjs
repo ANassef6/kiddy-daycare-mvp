@@ -129,8 +129,23 @@ try {
   // table references GoTrue's table, and 0003 grants RLS policies to the auth
   // roles. Created here only so the chain can be applied unmodified — the
   // migrations themselves must not be edited to suit the harness.
-  await db.run("CREATE SCHEMA IF NOT EXISTS auth");
-  await db.run("CREATE TABLE IF NOT EXISTS auth.users (id uuid PRIMARY KEY)");
+  //
+  // KID-1500: on a dedicated Supabase project the real `auth` (owned by
+  // supabase_auth_admin) and `storage` schemas already exist and the
+  // connection role cannot create in them — the unconditional shim DDL timed
+  // out with "permission denied for schema auth" before any check ran. When a
+  // native schema is present, skip its shim and verify against the real
+  // thing; plain-Postgres targets still get the shim as before.
+  const nativeAuth = await db.all(
+    `SELECT 1 FROM information_schema.tables WHERE table_schema = 'auth' AND table_name = 'users' LIMIT 1`
+  );
+  const nativeStorage = await db.all(
+    `SELECT 1 FROM information_schema.tables WHERE table_schema = 'storage' AND table_name = 'objects' LIMIT 1`
+  );
+  if (nativeAuth.length === 0) {
+    await db.run("CREATE SCHEMA IF NOT EXISTS auth");
+    await db.run("CREATE TABLE IF NOT EXISTS auth.users (id uuid PRIMARY KEY)");
+  }
   for (const role of ["anon", "authenticated"]) {
     await db.run(
       `DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = '${role}') THEN CREATE ROLE ${role}; END IF; END $$`
@@ -145,29 +160,32 @@ try {
   // storage.objects exactly as the production storage service leaves it.
   // Without that, a grant-based check would be green while the policies were
   // meaningless, and the point of 0041 is that the two work together.
-  await db.run("CREATE SCHEMA IF NOT EXISTS storage");
-  await db.run(
-    `CREATE TABLE IF NOT EXISTS storage.buckets (
-      id TEXT PRIMARY KEY,
-      name TEXT NOT NULL,
-      public BOOLEAN NOT NULL DEFAULT false,
-      file_size_limit BIGINT,
-      allowed_mime_types TEXT[],
-      created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-      updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
-    )`
-  );
-  await db.run(
-    `CREATE TABLE IF NOT EXISTS storage.objects (
-      id TEXT PRIMARY KEY,
-      bucket_id TEXT NOT NULL,
-      name TEXT NOT NULL,
-      owner TEXT,
-      created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-      updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
-    )`
-  );
-  await db.run("ALTER TABLE storage.objects ENABLE ROW LEVEL SECURITY");
+  // Skipped when a native storage schema is already present (see above).
+  if (nativeStorage.length === 0) {
+    await db.run("CREATE SCHEMA IF NOT EXISTS storage");
+    await db.run(
+      `CREATE TABLE IF NOT EXISTS storage.buckets (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        public BOOLEAN NOT NULL DEFAULT false,
+        file_size_limit BIGINT,
+        allowed_mime_types TEXT[],
+        created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+      )`
+    );
+    await db.run(
+      `CREATE TABLE IF NOT EXISTS storage.objects (
+        id TEXT PRIMARY KEY,
+        bucket_id TEXT NOT NULL,
+        name TEXT NOT NULL,
+        owner TEXT,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+      )`
+    );
+    await db.run("ALTER TABLE storage.objects ENABLE ROW LEVEL SECURITY");
+  }
 
   console.log(`\n== engine: ${db.name} ==`);
   console.log(`\n== applying ${files.length} migrations in filename order ==`);
@@ -784,10 +802,12 @@ try {
     await db.run("RESET ROLE");
     check("anon cannot read back even the leads it may write", contactReadDenied, true);
 
-    // ---------------------------------------------------------------------
-    // 0041 — the storage decision. Same shape as the section above: the
-    // harness shim carries RLS already, so the checks run against grants +
-    // policies exactly as production enforces them.
+    // KID-1177: Same shape as the section above: RLS is enforced either by
+    // the harness shim (KIDDY_VERIFY_KEEP path on plain Postgres) or by the
+    // real catalog on a native Supabase `storage` schema (KID-1500), so the
+    // checks run against grants + policies exactly as production enforces
+    // them. Fixture ids are real UUIDs because the native catalog's
+    // storage.objects is uuid-typed.
     console.log("\n== KID-1177 storage hardening ==");
     const buckets = (await db.all(`SELECT id, public FROM storage.buckets ORDER BY id`)).map(
       (r) => `${r.id}:${r.public}`
@@ -798,10 +818,10 @@ try {
     ]);
 
     await ins("storage.objects", ["id", "bucket_id", "name"], [
-      "obj-public-1", "kiddy-public", "branding/inst-s/logo-1.png",
+      "10a11111-0000-4000-8000-000000000001", "kiddy-public", "branding/inst-s/logo-1.png",
     ]);
     await ins("storage.objects", ["id", "bucket_id", "name"], [
-      "obj-private-1", "kiddy-private", "payments/inst-s/inv-1/proof-1.png",
+      "10a11111-0000-4000-8000-000000000002", "kiddy-private", "payments/inst-s/inv-1/proof-1.png",
     ]);
 
     // As anon, against RLS + the single read policy: the public bucket is
@@ -850,7 +870,7 @@ try {
     try {
       await db.run("SET ROLE anon");
       await db.run(
-        `INSERT INTO storage.objects (id, bucket_id, name) VALUES ('obj-anon-write', 'kiddy-public', 'evil.png')`
+        `INSERT INTO storage.objects (id, bucket_id, name) VALUES ('10a11111-0000-4000-8000-000000000003', 'kiddy-public', 'evil.png')`
       );
       anonWriteDenied = false;
     } catch {
