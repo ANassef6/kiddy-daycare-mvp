@@ -307,10 +307,20 @@ describe("KID-1329 defect 3 — center toggle: Allow parents to check in/out", (
     await seedFixture();
     childId = String((await queryGet("SELECT id FROM child WHERE first_name = 'Ella'"))!.id);
     instituteId = String((await queryGet("SELECT id FROM institute LIMIT 1"))!.id);
+    // KID-1371 determinism: the success-path specs here run the check-in/out
+    // gate (KID-58 hours + the KID-1371 pickup-time boundary rules), which
+    // depends on the center's working week (Mon-Fri 07:00-18:00). Without a
+    // pinned clock the success-path redirect asserts were time-of-day flaky
+    // (the reported KID-1330 env-flake): a 01:00 UTC run refused the
+    // check-in, the action answered {error} and the redirect never threw.
+    // Pin a Wednesday morning so the redirect paths stay deterministic.
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-11-11T11:00:00.000Z"));
   });
 
   afterEach(() => {
     sessionCookie.value = "";
+    vi.useRealTimers();
     vi.restoreAllMocks();
   });
 

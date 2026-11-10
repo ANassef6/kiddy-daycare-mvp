@@ -46,7 +46,7 @@ import {
   getInviteByCode,
   linkFamily,
   linkSiblingsByParentEmail,
-  checkChildInOut,
+  registerCheckInOut,
   upsertDailyReport,
   createNewsfeedPost,
   addComment,
@@ -90,6 +90,7 @@ import {
   getInstitute,
 } from "@/lib/store";
 import type { WorkingWeek } from "@/lib/working-hours";
+import { evaluatePickupTime } from "@/lib/pickup-policy";
 import { supabaseConfigured, getSupabase, isGoTrueAlreadyRegisteredError, isGoTrueServerError } from "@/lib/supabase";
 import {
   storageAdminConfigured,
@@ -1412,7 +1413,30 @@ export async function checkInOutAction(formData: FormData) {
         }
       }
     }
-    await checkChildInOut({ childId, accountId: me.accountId, type });
+    // KID-1371: the full boundary matrix for the pickup loop — same-day only,
+    // no past times, inside the center's working hours on an open day, and
+    // (with the write itself) one entry per child per day. The request may
+    // carry a validated candidate time ("pickupAt" datetime-local on the web,
+    // "at" on mobile); everything else records the server clock, still
+    // subject to the open-day/hours rules.
+    const { getWorkingHours } = await import("@/lib/store");
+    const week = instituteId ? await getWorkingHours(String(instituteId)) : {};
+    const decision = evaluatePickupTime({
+      type,
+      now: new Date(),
+      week,
+      at: formData.get("pickupAt") ?? undefined,
+    });
+    if (!decision.ok) {
+      console.error(`KID-1371 refused pickup-time registration (${decision.code})`, me.email);
+      return { error: decision.error };
+    }
+    const registered = await registerCheckInOut({
+      childId,
+      accountId: me.accountId,
+      type,
+      at: decision.at,
+    });
     // KID-477: attendance is a user-visible mutation on the audit trail.
     await recordAuditEvent({
       instituteId: instituteId ?? null,

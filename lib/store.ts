@@ -1,4 +1,4 @@
-import { queryAll, queryGet, queryRun, uid, type Row } from "./db";
+import { isPostgresMode, queryAll, queryGet, queryRun, uid, type Row } from "./db";
 import { normalizeCurrency } from "./currency";
 import { normalizeSubdomainSlug } from "./subdomain";
 import { hasOverdueInvoice, nextMonthStart, type BillingPlan } from "./billing";
@@ -1096,6 +1096,51 @@ export async function checkChildInOut(data: {
   const id = uid();
   await queryRun("INSERT INTO check_in (id, child_id, account_id, type, is_edit) VALUES (?, ?, ?, ?, ?)", id, data.childId, data.accountId, data.type, data.isEdit ? 1 : 0);
   return (await queryGet("SELECT * FROM check_in WHERE id = ?", id))!;
+}
+
+// KID-1371: the user-facing check-in/pickup-time write. Same rules as
+// checkChildInOut plus two pickup-loop guarantees:
+//   1. the recorded moment is the validated decision's timestamp (`at`,
+//      default "now") — the callers validate it with lib/pickup-policy.ts
+//      BEFORE writing, so a past/cross-day/blob value can never reach here,
+//   2. one entry per child per day: a redundant same-type re-registration
+//      (double tap, mobile retry, deliberate "set it again") collapses into
+//      an UPDATE of today's pending entry instead of stacking a duplicate
+//      row. The UPDATE only fires when this type IS the child's latest
+//      ledger event today — alternating in→out→in stays a fresh arrival row
+//      so real history (arrival at 08:00, pickup at 15:00, canceled pickup
+//      at 15:20 → back in) is never overwritten with the "cancel today's
+//      entry" transition.
+export async function registerCheckInOut(data: {
+  childId: string;
+  accountId: string;
+  type: "in" | "out";
+  at?: Date;
+}): Promise<{ row: Row; wasUpdate: boolean }> {
+  const at = data.at ?? new Date();
+  const iso = at.toISOString();
+  const day = iso.slice(0, 10);
+  const lastToday = await queryGet(
+    isPostgresMode()
+      ? "SELECT id, type FROM check_in WHERE child_id = ? AND recorded_at::date = ? ORDER BY recorded_at DESC, id DESC LIMIT 1"
+      : "SELECT id, type FROM check_in WHERE child_id = ? AND date(recorded_at) = ? ORDER BY recorded_at DESC, id DESC LIMIT 1",
+    data.childId,
+    day
+  );
+  const priorSameType =
+    lastToday && String(lastToday.type) === data.type
+      ? lastToday
+      : undefined;
+  if (priorSameType) {
+    await queryRun("UPDATE check_in SET recorded_at = ?, is_edit = 1 WHERE id = ?", iso, String(priorSameType.id));
+    return {
+      row: { ...(priorSameType as Row), recorded_at: iso, is_edit: 1 },
+      wasUpdate: true,
+    };
+  }
+  const id = uid();
+  await queryRun("INSERT INTO check_in (id, child_id, account_id, type, is_edit, recorded_at) VALUES (?, ?, ?, ?, 0, ?)", id, data.childId, data.accountId, data.type, iso);
+  return { row: (await queryGet("SELECT * FROM check_in WHERE id = ?", id))!, wasUpdate: false };
 }
 
 export async function todayStatus(childId: string): Promise<{ checkedIn?: Row; checkedOut?: Row; lastEvent?: Row }> {
