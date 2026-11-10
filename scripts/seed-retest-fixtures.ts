@@ -20,6 +20,9 @@
  * LOCAL / STAGING ONLY. The seed refuses to run against anything but the
  * local SQLite engine (an explicit `file:` KIDDY_DATABASE_URL) — never the
  * production Supabase, and never without the operator's own staging choice.
+ * KID-1500: the one other allowed target is the isolated `kiddy_staging`
+ * Postgres database, gated by an explicit KIDDY_SEED_STAGING=kiddy_staging
+ * opt-in plus a URL whose database name is exactly kiddy_staging.
  *
  * Repeatable:
  *   - from a clean database it runs plainly;
@@ -29,6 +32,9 @@
  *
  * Usage (repo root):
  *   KIDDY_DATABASE_URL=file:./data/retest-fixture.db npx tsx scripts/seed-retest-fixtures.ts
+ *   # isolated staging Postgres (KID-1500), NOT for production:
+ *   KIDDY_DATABASE_URL=postgres://host/kiddy_staging KIDDY_SEED_STAGING=kiddy_staging \
+ *     npx tsx scripts/seed-retest-fixtures.ts
  */
 
 const EMAIL_DOMAIN = "kiddy-retest.test";
@@ -91,22 +97,50 @@ const TENANTS: TenantSpec[] = [
 
 async function main() {
   const db = await import("../lib/db");
-  await db.ensureSchema();
+  // Guard BEFORE ensureSchema(): the Postgres path of ensureSchema() applies
+  // migrations, so a refused target must be refused before any DDL happens.
   await guardNotProduction();
+  await db.ensureSchema();
 
   await seedFixturesImpl();
   process.exit(0);
 }
 
-/** Refusal rail: local SQLite `file:` URLs only, never a shared/production DB. */
+/**
+ * Refusal rail: local SQLite `file:` URLs by default, never a
+ * shared/production DB.
+ *
+ * KID-1500 staging opt-in: Postgres seeding is allowed against exactly one
+ * target — a database named `kiddy_staging` — and only when the operator
+ * confirms it explicitly with KIDDY_SEED_STAGING=kiddy_staging. Both
+ * conditions must hold, so production (any other database name) stays
+ * unreachable even with the flag set, and the flag alone can never widen the
+ * target beyond the one isolated staging database.
+ */
 async function guardNotProduction() {
-  const url = process.env.KIDDY_DATABASE_URL ?? "";
-  if (!/^file:/.test(url.trim())) {
+  const url = (process.env.KIDDY_DATABASE_URL ?? "").trim();
+  if (/^file:/.test(url)) return; // local SQLite file: URL, unchanged behavior
+  if (process.env.KIDDY_SEED_STAGING === "kiddy_staging") {
+    try {
+      const u = new URL(url);
+      const dbname = decodeURIComponent(u.pathname.replace(/^\//, ""));
+      if ((u.protocol === "postgres:" || u.protocol === "postgresql:") && dbname === "kiddy_staging") {
+        return;
+      }
+    } catch {
+      // fall through to the refusal below (unparseable URL is never a target)
+    }
     throw new Error(
-      "KID-1272 fixture seed: KIDDY_DATABASE_URL must be an explicit local file: SQLite URL " +
-        "(local/staging only — the production Supabase is never a fixture target)."
+      "KID-1500 staging seed: KIDDY_SEED_STAGING=kiddy_staging requires KIDDY_DATABASE_URL " +
+        "to be the kiddy_staging Postgres database (got a different database name or a " +
+        "non-Postgres URL). The production Supabase is never a fixture target."
     );
   }
+  throw new Error(
+    "KID-1272 fixture seed: KIDDY_DATABASE_URL must be an explicit local file: SQLite URL " +
+      "(local/staging only — for the isolated kiddy_staging Postgres target set " +
+      "KIDDY_SEED_STAGING=kiddy_staging; the production Supabase is never a fixture target)."
+  );
 }
 
 // The implementation lives in this same file below (no second module).
