@@ -95,7 +95,7 @@ export default function FeaturesPage() {
                 Book a demo and we&apos;ll walk your center through the daily loop.
               </p>
               <div className="row mt-3">
-                <Link className="btn btn-primary btn-lg" href="/contact">
+                <Link className="btn btn-deep btn-lg" href="/contact">
                   Book a demo
                 </Link>
                 <Link className="btn btn-ghost btn-lg" href="/for-centers">

@@ -55,7 +55,7 @@ export default async function ContactPage(
                   We work with daycares directly. If you&apos;re a parent, ask your
                   daycare&apos;s front desk to get in touch with us.
                 </p>
-                <Link className="btn btn-primary mt-3" href="/for-parents">
+                <Link className="btn btn-deep mt-3" href="/for-parents">
                   Information for parents
                 </Link>
               </div>
@@ -83,7 +83,7 @@ export default async function ContactPage(
                 </li>
               </ul>
               <div className="row mt-3">
-                <a className="btn btn-primary" href={`mailto:${PLATFORM_CONTACT_EMAIL}`}>
+                <a className="btn btn-deep" href={`mailto:${PLATFORM_CONTACT_EMAIL}`}>
                   Email {PLATFORM_CONTACT_EMAIL}
                 </a>
                 <Link className="btn btn-ghost" href="/for-centers">

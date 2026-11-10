@@ -36,7 +36,7 @@ export default function SiteHeader({ active }: SiteHeaderProps) {
           <Link href="/login" className="site-nav-signin">
             {tr(en, "nav.portal")}
           </Link>
-          <Link href="/contact" className="btn btn-primary site-nav-cta">
+          <Link href="/contact" className="btn btn-deep site-nav-cta">
             Book a demo
           </Link>
         </nav>

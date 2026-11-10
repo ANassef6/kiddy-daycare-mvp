@@ -12,6 +12,16 @@
   --color-border: #e2e8f0;
   --color-danger: #ef4444;
   --radius: 12px;
+
+  /* KID-1632 landing rebrand — "the center's day". A cool, quiet canvas and a
+     deep blue-slate ink, both tuned to sit under any tenant's --brand-primary
+     (the white-label tokens stay in charge of all hue). --brand-deep is the
+     AA-safe tone for small brand-colored text on light surfaces. */
+  --ink: #182742;
+  --ink-soft: #43536e;
+  --canvas: #f2f5fa;
+  --hairline: #dbe3ef;
+  --brand-deep: color-mix(in srgb, var(--brand-primary) 72%, #0f172a);
   --space-1: 4px;
   --space-2: 8px;
   --space-3: 12px;
@@ -81,6 +91,14 @@ a {
 
 .btn-primary {
   background: var(--brand-primary);
+  color: #fff;
+}
+
+/* KID-1632: marketing-site variant. White text on a light tenant primary can
+   miss AA at button sizes, so public CTAs deepen the token toward ink; the
+   product surfaces keep the exact --brand-primary white-label color. */
+.btn-deep {
+  background: var(--brand-deep);
   color: #fff;
 }
 
@@ -267,26 +285,6 @@ a {
 
 .small {
   font-size: 13px;
-}
-
-.hero {
-  background: linear-gradient(135deg, var(--brand-primary), var(--brand-accent));
-  color: #fff;
-  padding: var(--space-8) 0;
-  border-radius: 0 0 24px 24px;
-}
-
-.hero h1 {
-  font-size: 40px;
-  max-width: 640px;
-  line-height: 1.1;
-}
-
-.hero p {
-  margin-top: var(--space-3);
-  max-width: 560px;
-  font-size: 18px;
-  opacity: 0.95;
 }
 
 .grid {
@@ -794,7 +792,6 @@ table.data th {
 
 @media (max-width: 720px) {
   .shell { grid-template-columns: 1fr; }
-  .hero h1 { font-size: 30px; }
 }
 
 /* ==========================================================================
@@ -869,21 +866,33 @@ body {
   flex: none;
 }
 
-/* KID-493: the tenant's uploaded brand image tops every page as a responsive
-   banner. Rendered straight from the branding the root layout already
-   resolved; the component renders nothing (no wrapper, no gap, no layout
-   shift) when a daycare has no image set. */
+/* KID-493: the tenant's uploaded brand image tops every page. KID-1632: the
+   banner no longer dominates the fold — it is a contained centered mark
+   (96px desktop / 64px mobile) whose height is fixed before the image loads,
+   so it can never cause layout shift. Width stays intrinsic with object-fit
+   cover handling extreme aspect ratios. */
 .brand-banner {
   width: 100%;
+  display: flex;
+  justify-content: center;
+  padding-block: 10px;
   background: var(--color-surface);
+  border-bottom: 1px solid var(--color-border);
 }
 
 .brand-banner img {
   display: block;
-  width: 100%;
-  height: auto;
-  max-height: 220px;
+  height: 96px;
+  width: auto;
+  max-width: 100%;
   object-fit: cover;
+  border-radius: 10px;
+}
+
+@media (max-width: 720px) {
+  .brand-banner img {
+    height: 64px;
+  }
 }
 
 .site-brand-mark {
@@ -940,41 +949,145 @@ body {
   margin-left: var(--space-2);
 }
 
-/* Hero + sections */
+/* ==========================================================================
+   KID-1632 landing rebrand — "the center's day".
+   The landing shows the product's own world: a quiet cool canvas, one bold
+   type scale, and structures that encode the daycare day (a live day panel,
+   a timeline band, moment-anchored feature rows). Hue stays white-label:
+   everything chromatic mixes with --brand-primary / --brand-accent.
+   ========================================================================== */
+
 .hero {
-  background:
-    radial-gradient(1200px 420px at 15% -10%, color-mix(in srgb, var(--brand-accent) 45%, transparent), transparent 60%),
-    linear-gradient(135deg, var(--brand-primary), color-mix(in srgb, var(--brand-accent) 60%, var(--brand-primary)));
-  color: #fff;
-  padding: var(--space-8) 0 var(--space-6);
-  border-radius: 0 0 24px 24px;
+  background: var(--canvas);
+  color: var(--ink);
+  padding: var(--space-8) 0;
 }
 
-.hero h1 {
-  font-size: clamp(32px, 5vw, 46px);
-  max-width: 680px;
-  line-height: 1.08;
-  margin-top: var(--space-2);
+.hero-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
+  gap: var(--space-8);
+  align-items: center;
+}
+
+.hero-copy h1 {
+  font-size: clamp(36px, 4.6vw, 54px);
+  line-height: 1.04;
+  letter-spacing: -0.02em;
+  font-weight: 800;
+  max-width: 14ch;
 }
 
 .hero-sub {
-  margin-top: var(--space-3);
-  max-width: 560px;
-  font-size: 18px;
-  opacity: 0.95;
+  margin-top: var(--space-4);
+  max-width: 52ch;
+  font-size: 17px;
+  line-height: 1.65;
+  color: var(--ink-soft);
 }
 
-.hero-eyebrow {
-  display: inline-block;
-  font-size: 13px;
+/* The one orchestrated page-load moment: the hero day panel settles in. */
+@keyframes day-row-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.day-panel {
+  background: var(--color-surface);
+  border: 1px solid var(--hairline);
+  border-radius: 14px;
+  padding: var(--space-5);
+  box-shadow: 0 18px 40px -28px rgba(23, 38, 66, 0.35);
+}
+
+.day-panel-head h2 {
+  font-size: 16px;
   font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: #fff;
-  background: rgba(255, 255, 255, 0.16);
-  border: 1px solid rgba(255, 255, 255, 0.28);
-  border-radius: 999px;
-  padding: 4px 12px;
+  letter-spacing: -0.01em;
+}
+
+.day-panel-head p {
+  margin-top: 2px;
+}
+
+.day-list {
+  list-style: none;
+  margin: var(--space-4) 0 0;
+  padding: 0;
+  display: grid;
+}
+
+.day-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-3) 0;
+  border-top: 1px solid var(--hairline);
+  font-size: 14px;
+  animation: day-row-in 0.5s ease both;
+}
+
+.day-row:nth-child(1) { animation-delay: 0.15s; }
+.day-row:nth-child(2) { animation-delay: 0.3s; }
+.day-row:nth-child(3) { animation-delay: 0.45s; }
+
+.day-name {
+  font-weight: 600;
+}
+
+.day-detail {
+  color: var(--ink-soft);
+}
+
+.day-row .status-chip {
+  margin-inline-start: auto;
+  flex: none;
+}
+
+.day-row-report {
+  display: block;
+}
+
+.day-report-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.day-report-head .day-name {
+  margin-inline-end: auto;
+}
+
+.day-report-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.day-report-note {
+  margin: 8px 0 0;
+  color: var(--ink-soft);
+  max-width: 44ch;
+}
+
+/* Status chips reuse the app's vocabulary; the shared chips carry their own
+   AA-safe fixed tones, and the default chip uses --brand-deep so the small
+   size still meets AA on the tinted chip fill. */
+.day-panel .status-chip {
+  color: var(--brand-deep);
+}
+
+.day-panel-foot {
+  margin: var(--space-3) 0 0;
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--hairline);
 }
 
 .btn-lg {
@@ -982,15 +1095,38 @@ body {
   font-size: 15px;
 }
 
-.hero-ghost {
-  background: #fff;
-  color: var(--brand-primary);
-  border: none;
+/* The day as structure: a timeline band that anchors the product to the
+   real rhythm of a center, replacing the old marketing proof strip. */
+.day-band {
+  border-block: 1px solid var(--hairline);
+  background: var(--color-surface);
+  padding: var(--space-5) 0;
 }
 
-.proof-strip {
-  padding: var(--space-5) 0;
-  border-bottom: 1px solid var(--color-border);
+.day-band-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-5);
+}
+
+.day-band-item + .day-band-item {
+  border-inline-start: 1px solid var(--hairline);
+  padding-inline-start: var(--space-5);
+}
+
+.day-band-time {
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--brand-deep);
+  font-variant-numeric: tabular-nums;
+}
+
+.day-band-item p {
+  margin-top: 6px;
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--ink-soft);
+  max-width: 34ch;
 }
 
 .section {
@@ -998,15 +1134,13 @@ body {
 }
 
 .section-alt {
-  background: color-mix(in srgb, var(--brand-primary) 5%, var(--color-bg));
-  border-block: 1px solid var(--color-border);
+  background: var(--canvas);
+  border-block: 1px solid var(--hairline);
 }
 
 .section-head {
   padding: var(--space-8) 0 var(--space-6);
-  background:
-    radial-gradient(900px 300px at 80% -20%, color-mix(in srgb, var(--brand-primary) 14%, transparent), transparent 60%),
-    var(--color-bg);
+  background: var(--canvas);
 }
 
 .section-cta {
@@ -1016,8 +1150,40 @@ body {
 .page-title {
   font-size: clamp(28px, 4vw, 40px);
   line-height: 1.1;
+  letter-spacing: -0.02em;
   margin: var(--space-2) 0 var(--space-3);
-  max-width: 680px;
+  max-width: 24ch;
+}
+
+/* KID-1632: the old all-caps pill eyebrow read as template chrome. A quiet
+   sentence-case label with a short leading rule, shared by the landing and
+   the feature subpages. */
+.hero-eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--brand-deep);
+}
+
+.hero-eyebrow::before {
+  content: "";
+  width: 22px;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--brand-primary);
+}
+
+.section-title {
+  font-size: clamp(26px, 3vw, 34px);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.subtitle {
+  max-width: 60ch;
+  line-height: 1.6;
 }
 
 .center {
@@ -1029,17 +1195,139 @@ body {
   text-align: center;
 }
 
-/* Cards */
-.feature-card h3 {
-  font-size: 17px;
-  margin-top: var(--space-3);
+/* Feature rows: each product capability anchored to the moment of the day
+   when it happens — structure that carries information, not numbered cards. */
+.feature-rows {
+  border-top: 1px solid var(--hairline);
+  margin-top: var(--space-6);
 }
 
-.audience-card {
+.feature-row {
+  display: grid;
+  grid-template-columns: 160px 1fr;
+  gap: var(--space-5);
+  padding: var(--space-5) 0;
+  border-bottom: 1px solid var(--hairline);
+}
+
+.feature-moment {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--brand-deep);
+  padding-top: 4px;
+}
+
+.feature-row h3 {
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.feature-row p {
+  margin-top: 6px;
+  font-size: 15px;
+  line-height: 1.6;
+  color: var(--ink-soft);
+  max-width: 62ch;
+}
+
+/* How a center gets started: a genuine 3-step sequence, wired as an <ol>
+   with a connecting path between the steps. */
+.step-flow {
+  list-style: none;
+  margin: var(--space-6) 0 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-6);
+}
+
+.step-flow-item {
+  position: relative;
+}
+
+.step-flow-item:not(:last-child)::after {
+  content: "";
+  position: absolute;
+  top: 17px;
+  inset-inline-start: 44px;
+  inset-inline-end: -22px;
+  height: 1px;
+  background: var(--hairline);
+}
+
+.step-num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  background: var(--brand-primary);
+  color: #fff;
+  font-weight: 800;
+  font-size: 15px;
+  position: relative;
+  z-index: 1;
+}
+
+.step-flow-item h3 {
+  margin-top: var(--space-3);
+  font-size: 19px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.step-flow-item p {
+  margin-top: 6px;
+  font-size: 15px;
+  line-height: 1.6;
+  color: var(--ink-soft);
+  max-width: 40ch;
+}
+
+/* Audience split: two deliberately different panels — a quiet one for
+   parents, a deep-ink one for the operators deciding to buy. */
+.audience-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-5);
+  align-items: stretch;
+}
+
+.audience-panel {
+  border-radius: 14px;
+  padding: var(--space-6);
   display: flex;
   flex-direction: column;
   align-items: flex-start;
   gap: var(--space-3);
+}
+
+.audience-parents {
+  background: var(--color-surface);
+  border: 1px solid var(--hairline);
+}
+
+.audience-centers {
+  background: var(--ink);
+  color: #f4f7fc;
+}
+
+.audience-panel h2 {
+  font-size: 26px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.audience-panel > p {
+  font-size: 15px;
+  line-height: 1.65;
+  max-width: 46ch;
+}
+
+.audience-centers > p {
+  color: rgba(244, 247, 252, 0.82);
 }
 
 .audience-list {
@@ -1052,16 +1340,53 @@ body {
 
 .audience-list li {
   position: relative;
-  padding-left: 22px;
+  padding-inline-start: 24px;
   font-size: 14px;
 }
 
 .audience-list li::before {
   content: "✓";
   position: absolute;
-  left: 0;
+  inset-inline-start: 0;
   color: var(--brand-accent);
   font-weight: 800;
+}
+
+.audience-centers .audience-list li {
+  color: rgba(244, 247, 252, 0.92);
+}
+
+.cta-band {
+  background: color-mix(in srgb, var(--brand-primary) 7%, var(--color-surface));
+  border: 1px solid color-mix(in srgb, var(--brand-primary) 28%, var(--hairline));
+  border-radius: 14px;
+  padding: var(--space-8) var(--space-6);
+  text-align: center;
+}
+
+.cta-band h2 {
+  font-size: clamp(26px, 3vw, 34px);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.cta-band p {
+  margin: var(--space-3) auto 0;
+  max-width: 56ch;
+  font-size: 15.5px;
+  line-height: 1.6;
+  color: var(--ink-soft);
+}
+
+.cta-band .row {
+  justify-content: center;
+  margin-top: var(--space-5);
+}
+
+/* Cards (shared with the feature subpages) */
+.feature-card h3 {
+  font-size: 17px;
+  margin-top: var(--space-3);
 }
 
 .cta-card {
@@ -1201,8 +1526,52 @@ body {
     width: 100%;
   }
 
+  /* Landing rebrand: single-column stacks below the phone breakpoint. */
   .hero {
-    border-radius: 0 0 16px 16px;
+    padding: var(--space-6) 0;
+  }
+
+  .hero-grid {
+    grid-template-columns: 1fr;
+    gap: var(--space-5);
+  }
+
+  .hero-copy h1 {
+    font-size: clamp(32px, 9vw, 40px);
+  }
+
+  .day-band-grid {
+    grid-template-columns: 1fr;
+    gap: var(--space-4);
+  }
+
+  .day-band-item + .day-band-item {
+    border-inline-start: none;
+    padding-inline-start: 0;
+    border-top: 1px solid var(--hairline);
+    padding-top: var(--space-4);
+  }
+
+  .feature-row {
+    grid-template-columns: 1fr;
+    gap: var(--space-2);
+  }
+
+  .step-flow {
+    grid-template-columns: 1fr;
+    gap: var(--space-5);
+  }
+
+  .step-flow-item:not(:last-child)::after {
+    display: none;
+  }
+
+  .audience-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .cta-band {
+    padding: var(--space-6) var(--space-4);
   }
 }
 
@@ -1284,15 +1653,9 @@ html[dir="rtl"] .site-nav-cta {
   margin-right: var(--space-2);
 }
 
-html[dir="rtl"] .audience-list li {
-  padding-left: 0;
-  padding-right: 22px;
-}
-
-html[dir="rtl"] .audience-list li::before {
-  left: auto;
-  right: 0;
-}
+/* KID-1632: the audience-list marker now uses inset-inline-start, so the old
+   physical RTL mirror rules for it are no longer needed (logical properties
+   already flip). */
 
 /* ==========================================================================
    KID-475 — parent/staff messaging composer

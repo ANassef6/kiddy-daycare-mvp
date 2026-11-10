@@ -57,7 +57,7 @@ export default async function ForCentersPage() {
               clean portal that reflects your own branding.
             </p>
             <div className="row mt-3">
-              <Link className="btn btn-primary btn-lg" href="/contact">
+              <Link className="btn btn-deep btn-lg" href="/contact">
                 Book a demo
               </Link>
               <Link className="btn btn-ghost btn-lg" href="/login">
@@ -87,7 +87,7 @@ export default async function ForCentersPage() {
               keeps the operation calm and parents informed.
             </p>
             <p className="center mt-3">
-              <Link className="btn btn-accent btn-lg" href="/contact">
+              <Link className="btn btn-deep btn-lg" href="/contact">
                 Get a personalized demo
               </Link>
             </p>
