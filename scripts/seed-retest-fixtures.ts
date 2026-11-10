@@ -20,9 +20,15 @@
  * LOCAL / STAGING ONLY. The seed refuses to run against anything but the
  * local SQLite engine (an explicit `file:` KIDDY_DATABASE_URL) — never the
  * production Supabase, and never without the operator's own staging choice.
- * KID-1500: the one other allowed target is the isolated `kiddy_staging`
- * Postgres database, gated by an explicit KIDDY_SEED_STAGING=kiddy_staging
- * opt-in plus a URL whose database name is exactly kiddy_staging.
+ * KID-1500: two more allowed targets, each gated by its own explicit opt-in:
+ *   (a) the isolated `kiddy_staging` Postgres database (database-name mode:
+ *       KIDDY_SEED_STAGING=kiddy_staging plus a URL whose database name is
+ *       exactly kiddy_staging);
+ *   (b) a dedicated staging Supabase project (project mode:
+ *       KIDDY_SEED_STAGING_PROJECT=<ref> plus a URL that points to exactly
+ *       that project ref — db.<ref>.supabase.co, or a pooler host with the
+ *       postgres.<ref> user). The production Supabase project is never a
+ *       target in either mode.
  *
  * Repeatable:
  *   - from a clean database it runs plainly;
@@ -32,9 +38,13 @@
  *
  * Usage (repo root):
  *   KIDDY_DATABASE_URL=file:./data/retest-fixture.db npx tsx scripts/seed-retest-fixtures.ts
- *   # isolated staging Postgres (KID-1500), NOT for production:
+ *   # isolated kiddy_staging Postgres database (KID-1500), NOT for production:
  *   KIDDY_DATABASE_URL=postgres://host/kiddy_staging KIDDY_SEED_STAGING=kiddy_staging \
  *     npx tsx scripts/seed-retest-fixtures.ts
+ *   # dedicated staging Supabase project (KID-1500), NOT for production — its
+ *   # default database is named postgres; isolation is the project ref itself:
+ *   KIDDY_DATABASE_URL=postgres://db.<ref>.supabase.co/postgres \
+ *   KIDDY_SEED_STAGING_PROJECT=<ref> npx tsx scripts/seed-retest-fixtures.ts
  */
 
 const EMAIL_DOMAIN = "kiddy-retest.test";
@@ -110,12 +120,17 @@ async function main() {
  * Refusal rail: local SQLite `file:` URLs by default, never a
  * shared/production DB.
  *
- * KID-1500 staging opt-in: Postgres seeding is allowed against exactly one
- * target — a database named `kiddy_staging` — and only when the operator
- * confirms it explicitly with KIDDY_SEED_STAGING=kiddy_staging. Both
- * conditions must hold, so production (any other database name) stays
- * unreachable even with the flag set, and the flag alone can never widen the
- * target beyond the one isolated staging database.
+ * KID-1500 staging opt-ins, two exclusive modes:
+ *  - `KIDDY_SEED_STAGING=kiddy_staging`: an isolated database named
+ *    `kiddy_staging` (the URL's database name must match exactly).
+ *  - `KIDDY_SEED_STAGING_PROJECT=<ref>`: a dedicated staging Supabase project
+ *    (the URL must be a Supabase connection for exactly that project ref —
+ *    db.<ref>.supabase.co, or a Supabase pooler host with the postgres.<ref>
+ *    user; the default database `postgres` there is fine because isolation is
+ *    carried by the ref itself). A valid Supabase ref is 20 lowercase
+ *    alphanumerics; malformed flags or foreign hosts are refused.
+ * In both modes production stays unreachable even with the flag set, and the
+ * flag alone can never widen the target beyond the confirmed staging project.
  */
 async function guardNotProduction() {
   const url = (process.env.KIDDY_DATABASE_URL ?? "").trim();
@@ -136,11 +151,45 @@ async function guardNotProduction() {
         "non-Postgres URL). The production Supabase is never a fixture target."
     );
   }
+  const stagingProjectRef = (process.env.KIDDY_SEED_STAGING_PROJECT ?? "").trim();
+  if (stagingProjectRef) {
+    if (/^[a-z0-9]{20}$/.test(stagingProjectRef) && isSupabaseProjectUrl(url, stagingProjectRef)) {
+      return;
+    }
+    throw new Error(
+      "KID-1500 staging seed: KIDDY_SEED_STAGING_PROJECT=<ref> requires KIDDY_DATABASE_URL " +
+        "to be a Supabase Postgres connection for exactly that staging project ref " +
+        "(db.<ref>.supabase.co, or a Supabase pooler host with the postgres.<ref> user; " +
+        "a plain/default database URI or the production project ref is refused). " +
+        "The production Supabase is never a fixture target."
+    );
+  }
   throw new Error(
     "KID-1272 fixture seed: KIDDY_DATABASE_URL must be an explicit local file: SQLite URL " +
       "(local/staging only — for the isolated kiddy_staging Postgres target set " +
-      "KIDDY_SEED_STAGING=kiddy_staging; the production Supabase is never a fixture target)."
+      "KIDDY_SEED_STAGING=kiddy_staging, or set KIDDY_SEED_STAGING_PROJECT=<ref> for the " +
+      "dedicated staging Supabase project; the production Supabase is never a fixture target)."
   );
+}
+
+/**
+ * True only when the URL is a Postgres connection to Supabase infrastructure
+ * that embeds precisely the confirmed staging project ref: the direct host
+ * `db.<ref>.supabase.co`, or a Supabase pooler host whose username is
+ * `postgres.<ref>`.
+ */
+function isSupabaseProjectUrl(raw: string, ref: string): boolean {
+  try {
+    const u = new URL(raw);
+    if (u.protocol !== "postgres:" && u.protocol !== "postgresql:") return false;
+    const host = u.hostname.toLowerCase();
+    const user = decodeURIComponent(u.username).toLowerCase();
+    if (host === `db.${ref}.supabase.co`) return true;
+    if (host.endsWith(".pooler.supabase.com") && user === `postgres.${ref}`) return true;
+    return false;
+  } catch {
+    return false;
+  }
 }
 
 // The implementation lives in this same file below (no second module).
