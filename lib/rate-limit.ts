@@ -259,10 +259,19 @@ export function hashIdentity(raw: string): string {
   return crypto.createHash("sha256").update(raw).digest("hex").slice(0, 32);
 }
 
-// The deployment runs behind proxies (Vercel / reverse proxy) that set
-// X-Forwarded-For with the real client as the first entry; a caller-supplied
-// spoofed list would have the real value appended, not prepended. Take the
-// first entry only.
+// KID-1274 proxy-trust invariant: the deployment runs directly on the Vercel
+// edge, which OVERWRITES X-Forwarded-For with the connecting client's IP
+// (vercel.com/docs/headers/request-headers: "we currently overwrite the
+// X-Forwarded-For header and do not forward external IPs… to prevent IP
+// spoofing"; x-real-ip and x-vercel-forwarded-for carry the same value).
+// Empirically re-verified 2026-11-09: 93 requests each carrying a unique
+// spoofed XFF/X-Real-IP pair all hit one shared per-IP bucket (429 after the
+// budget), i.e. the client-supplied header values never keyed the limiter.
+// FIRST entry is therefore the real edge-observed client IP, not attacker
+// input. Deployment invariant: no CDN/reverse proxy may sit in front of
+// Vercel — behind one, x-forwarded-for carries the proxy's IP, which would
+// collapse every user into one bucket. Revisit this helper before any such
+// topology change (KID-1179 residual action 5).
 export function clientIpFrom(headers: { get(name: string): string | null }): string {
   const xff = headers.get("x-forwarded-for");
   if (xff) {
