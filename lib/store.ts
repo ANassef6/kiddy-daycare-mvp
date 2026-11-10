@@ -1133,6 +1133,11 @@ export async function registerCheckInOut(data: {
       : undefined;
   if (priorSameType) {
     await queryRun("UPDATE check_in SET recorded_at = ?, is_edit = 1 WHERE id = ?", iso, String(priorSameType.id));
+    if (data.type === "out") {
+      // The in-place update IS the pickup-time change — the same minute
+      // dedupes on the shared ref, a moved time emits fresh.
+      await notifyTeachersPickupTime(data.childId, at);
+    }
     return {
       row: { ...(priorSameType as Row), recorded_at: iso, is_edit: 1 },
       wasUpdate: true,
@@ -1140,7 +1145,69 @@ export async function registerCheckInOut(data: {
   }
   const id = uid();
   await queryRun("INSERT INTO check_in (id, child_id, account_id, type, is_edit, recorded_at) VALUES (?, ?, ?, ?, 0, ?)", id, data.childId, data.accountId, data.type, iso);
-  return { row: (await queryGet("SELECT * FROM check_in WHERE id = ?", id))!, wasUpdate: false };
+  const row = (await queryGet("SELECT * FROM check_in WHERE id = ?", id))!;
+  if (data.type === "out") await notifyTeachersPickupTime(data.childId, at);
+  return { row, wasUpdate: false };
+}
+
+// KID-1385: a pickup time (the check-in ledger's 'out' event, written by the
+// user-facing loop through registerCheckInOut) must notify the TEACHERS
+// ASSIGNED TO THE CHILD'S CLASSROOM — the KID-215 spec item KID-1372 retests.
+// Durable in-app rows land through the shared KID-474/KID-480 emitNotifications
+// pipeline (so the account's existing notification/push prefs gate every
+// channel; no separate push call is added). Recipient scoping:
+//
+//   - classroom-assigned staff accounts only (account.role staff|carer with a
+//     linked active staff row whose staff_room assignment contains the child's
+//     room) — owners/admins are unscoped managers, not classroom teachers, and
+//     NEVER notified,
+//   - family/pickup links (parent-role accounts) are never recipients,
+//   - dedup rides (account_id, ref): the ref pins child + ledger day + minute
+//     (the picker's granularity), so a change of the time re-emits under a new
+//     ref while a SAME-VALUE retry (double tap, network retry) inserts
+//     nothing — one notification per (child, day, pickup time).
+//
+// The dated minute ref also re-emits on a NEW day: pickup-<childId>-<date>-
+// <HH:MM>. Failures stay best-effort like every other emission site: logged,
+// never thrown into the write path.
+async function notifyTeachersPickupTime(childId: string, at: Date): Promise<void> {
+  try {
+    const child = await queryGet(
+      "SELECT id, institute_id, room_id, first_name, last_name FROM child WHERE id = ?",
+      childId
+    );
+    if (!child) return;
+    const roomId = String(child.room_id ?? "");
+    if (!roomId) return;
+    const teachers = await queryAll(
+      `SELECT DISTINCT a.id FROM account a
+       JOIN staff s ON s.id = a.staff_id
+       JOIN staff_room sr ON sr.staff_id = s.id
+       WHERE s.institute_id = ? AND sr.room_id = ? AND s.active = 1
+         AND a.role IN ('staff', 'carer')`,
+      String(child.institute_id ?? ""),
+      roomId
+    );
+    if (teachers.length === 0) return;
+    const stampIso = at.toISOString();
+    const day = stampIso.slice(0, 10);
+    const minute = stampIso.slice(11, 16);
+    await emitNotifications({
+      instituteId: String(child.institute_id ?? ""),
+      accountIds: teachers.map((t) => String(t.id)),
+      activity: "attendance",
+      kind: "pickup_time",
+      payload: {
+        childId: String(childId),
+        childName: `${child.first_name ?? ""} ${child.last_name ?? ""}`.trim(),
+        pickupTime: minute,
+        pickupDate: day,
+      },
+      ref: `pickup-${String(childId)}-${day}-${minute}`,
+    });
+  } catch (err) {
+    console.error(`KID-1385 pickup-time teacher notification failed (child=${childId}):`, err);
+  }
 }
 
 export async function todayStatus(childId: string): Promise<{ checkedIn?: Row; checkedOut?: Row; lastEvent?: Row }> {
@@ -3579,6 +3646,13 @@ export function notificationViewCopy(
           ? copy.busAutoCheckedInBody()
           : "";
     return { title, body: note };
+  }
+  // KID-1385: pickup-time teacher notifications. The payload stays
+  // locale-independent (child name + registered minute); the view copies
+  // per account locale.
+  if (kind === "pickup_time") {
+    const time = String(payload.pickupTime ?? "");
+    return { title: copy.pickupTimeTitle(childName, time), body: "" };
   }
   // KID-684: invoice-created parent notifications. The payload stays
   // locale-independent; the title names the child and the invoice, the body

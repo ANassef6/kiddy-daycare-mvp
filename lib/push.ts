@@ -82,6 +82,13 @@ export function pushDeepUrl(kind: string, payload: Record<string, unknown>): str
     return childId ? `/child/${childId}` : "/child";
   }
   if (kind === "chatwoot_message") return "/child/support";
+  // KID-1385: pickup-time teacher notifications open the consuming
+  // teacher's portal surface: the child's portal profile (staffHrefFor's
+  // twin) or the attendance board when the id is missing.
+  if (kind === "pickup_time") {
+    const childId = String(payload.childId ?? "");
+    return childId ? `/portal/children/${childId}` : "/portal/attendance";
+  }
   // KID-684: a new invoice opens the parent child surface's invoice section.
   if (kind === "invoice_created") {
     const childId = String(payload.childId ?? "");

@@ -52,6 +52,11 @@ function staffHrefFor(kind: string, parsed: NotificationPayload): string | null 
   }
   if (kind === "chatwoot_message") return "/portal/support-inbox";
   if (kind === "invoice_created") return "/portal/finance";
+  // KID-1385: a pickup-time notification opens the child's portal profile.
+  if (kind === "pickup_time") {
+    const childId = parsed.childId ? String(parsed.childId) : "";
+    return childId ? `/portal/children/${childId}` : "/portal/attendance";
+  }
   if (kind === "test") return "/portal/notifications";
   return null;
 }

@@ -1312,7 +1312,8 @@ export const en = {
     paymentProofMeta: "Reference: {reference}",
     checkedInTitle: "Checked in: {name}",
     checkedOutTitle: "Checked out: {name}",
-    // KID-494: bus transition notification copy.
+    // KID-1385: pickup-time set/changed notification for the classroom's teachers.
+    pickupTimeTitle: "Pickup time set for {name} at {time}",
     busOnTitle: "{name} got on the bus",
     busOffTitle: "{name} got off the bus",
     busAutoCheckedOutBody: "Checked out automatically — on the way home by bus.",
@@ -2612,7 +2613,8 @@ export const ar = {
     paymentProofMeta: "المرجع: {reference}",
     checkedInTitle: "سجّل الحضور: {name}",
     checkedOutTitle: "سجّل الانصراف: {name}",
-    // KID-494: نص إشعار حركة الباص.
+    // KID-1385: إشعار وقت الانصراف لمعلمي الفصل (AR).
+    pickupTimeTitle: "تم تسجيل وقت انصراف {name} الساعة {time}",
     busOnTitle: "استقل {name} باص الروضة",
     busOffTitle: "نزل {name} من الباص",
     busAutoCheckedOutBody: "سُجّل الانصراف تلقائيًا — في طريق العودة إلى المنزل بالباص.",
@@ -2935,6 +2937,8 @@ export type FeedCopy = {
   paymentProofMeta: (reference: string) => string;
   checkedInTitle: (name: string) => string;
   checkedOutTitle: (name: string) => string;
+  // KID-1385: pickup-time set/changed notification title (name + minute).
+  pickupTimeTitle: (name: string, time: string) => string;
   // KID-494: bus on/off notification entries.
   busOnTitle: (name: string) => string;
   busOffTitle: (name: string) => string;
@@ -2986,6 +2990,7 @@ export function feedCopyFor(locale: Locale): FeedCopy {
     paymentProofMeta: (reference) => t("feed.paymentProofMeta", { reference }),
     checkedInTitle: (name) => t("feed.checkedInTitle", { name }),
     checkedOutTitle: (name) => t("feed.checkedOutTitle", { name }),
+    pickupTimeTitle: (name, time) => t("feed.pickupTimeTitle", { name, time }),
     busOnTitle: (name) => t("feed.busOnTitle", { name }),
     busOffTitle: (name) => t("feed.busOffTitle", { name }),
     busAutoCheckedOutBody: () => t("feed.busAutoCheckedOutBody"),
