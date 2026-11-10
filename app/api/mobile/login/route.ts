@@ -7,6 +7,7 @@ import {
   recordAuthSuccess,
   clientIpFrom,
 } from "@/lib/rate-limit";
+import { tenancyLoginGate } from "@/lib/tenancy-gate";
 
 export const dynamic = "force-dynamic";
 
@@ -45,6 +46,16 @@ export async function POST(req: NextRequest) {
     if (!error && data.user) {
       const account = await findAccountByEmail(email);
       if (account) {
+        // KID-1384: billing/tenancy parity with the web login — a disabled
+        // daycare (manual or billing block) is refused BEFORE a token is
+        // minted. The platform operator stays exempt inside the gate.
+        const tenancyGate = await tenancyLoginGate(String(account.id), String(account.role), account.language);
+        if (tenancyGate) {
+          return NextResponse.json(
+            { error: tenancyGate.message },
+            { status: 403 }
+          );
+        }
         const token = createSessionToken({
           accountId: account.id,
           role: account.role,
@@ -72,6 +83,16 @@ export async function POST(req: NextRequest) {
     // KID-1178/F-06: a verified failure feeds the progressive lockout.
     await recordAuthFailure("mobile-login", ip, email);
     return NextResponse.json({ error: "Invalid email or password." }, { status: 401 });
+  }
+  // KID-1384: same tenancy-disabled/billing-block gate the web login applies
+  // (before any session/token is issued). A verified password alone is not a
+  // login for a disabled tenant; the operator role is exempt in the gate.
+  const tenancyGate = await tenancyLoginGate(String(account.id), String(account.role), account.language);
+  if (tenancyGate) {
+    return NextResponse.json(
+      { error: tenancyGate.message },
+      { status: 403 }
+    );
   }
   await recordAuthSuccess(email);
   const token = createSessionToken({

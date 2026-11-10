@@ -75,6 +75,16 @@ export async function DELETE(request: Request) {
       { status: 401, headers: noStore }
     );
   }
+  // KID-1384: unsubscribe shares the subscribe budget — the write churn
+  // (save + remove) counts against the same per-account bucket, so a looping
+  // client cannot hammer the row through DELETE just because POST was safe.
+  const limit = await throttle("pushSubscribe", RATE_LIMIT_RULES.pushSubscribeAccount, String(s.accountId));
+  if (!limit.ok) {
+    return NextResponse.json(
+      { error: { code: "rate_limited", message: "Too many subscription updates. Try again later." } },
+      { status: 429, headers: { ...noStore, "Retry-After": String(limit.retryAfterSec) } }
+    );
+  }
   try {
     const body = (await request.json()) as { endpoint?: unknown };
     if (typeof body?.endpoint === "string" && body.endpoint) {
