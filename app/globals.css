@@ -1009,15 +1009,6 @@ body {
   border-radius: 10px;
 }
 
-/* KID-1826: the tenant brand image now lives inline in the site header
-   lockup, so the full-width banner retires from the public marketing pages.
-   The attribute is set by a synchronous inline script during HTML parsing
-   (app/layout.tsx), so the banner never paints on those routes and no space
-   is ever reserved for it; app/portal/auth surfaces keep the banner. */
-html[data-public-page] .brand-banner {
-  display: none;
-}
-
 @media (max-width: 720px) {
   .brand-banner img {
     height: 64px;

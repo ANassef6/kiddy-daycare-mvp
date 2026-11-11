@@ -1,9 +1,11 @@
 import type { Metadata } from "next";
+import { headers } from "next/headers";
 import "./globals.css";
 import { brandNameForTitle, getBranding } from "@/lib/theme";
 import { ensureSeeded } from "@/lib/bootstrap";
 import { dirFor } from "@/lib/i18n";
 import { resolveRequestLocale } from "@/lib/i18n-session";
+import { PUBLIC_PAGE_HEADER } from "@/middleware";
 import ChatwootWidget from "@/components/ChatwootWidget";
 import BrandBanner from "@/components/BrandBanner";
 
@@ -75,6 +77,14 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   }
 
   const locale = await resolveRequestLocale();
+  // KID-1826: middleware flags the public marketing routes so the layout can
+  // skip the banner render entirely (see the BrandBanner mount below).
+  let isPublicPage = false;
+  try {
+    isPublicPage = (await headers()).get(PUBLIC_PAGE_HEADER) === "1";
+  } catch {
+    // no request scope (tests/scripts): keep the banner behavior unchanged
+  }
 
   return (
     <html lang={locale} dir={dirFor(locale)}>
@@ -91,31 +101,26 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <a className="skip-link" href="#main">
           {locale === "ar" ? "تخطَّ إلى المحتوى" : "Skip to content"}
         </a>
-        {/* KID-1826: the public marketing pages retire the full-width brand
-            banner — the tenant image moves inline into the site header lockup.
-            The route check runs synchronously during HTML parsing, before the
-            banner element below is parsed, so the banner never paints on those
-            routes: no flash, no layout shift, no hydration dependency.
-            App/portal/auth surfaces keep the banner exactly as before. */}
-        <script
-          dangerouslySetInnerHTML={{
-            __html:
-              'try{var p=location.pathname.replace(/\\/+$/,"");if(p==="/"||p==="/features"||p==="/for-parents"||p==="/for-centers"||p==="/contact"){document.documentElement.setAttribute("data-public-page","")}}catch(e){}',
-          }}
-        />
         {/* KID-493: the tenant's brand image tops every page (portal, parent,
             auth, marketing) — before {children}, after the skip link. Null →
             the component renders nothing, so no empty gap and no shift on
-            tenants without an image. */}
-        <BrandBanner
-          src={metaBrand.brandImageUrl}
-          name={metaBrand.name}
-          alt={
-            locale === "ar"
-              ? `صورة العلامة التجارية لـ${metaBrand.name}`
-              : `${metaBrand.name} brand image`
-          }
-        />
+            tenants without an image. KID-1826: on the public marketing routes
+            the banner is not rendered at all (the middleware marks those
+            requests with x-kiddy-public-page) — the tenant image moved inline
+            into the site header lockup there, so the full-width strip is gone
+            server-side: no flash, no CLS, no hydration dependency.
+            App/portal/auth surfaces keep the banner exactly as before. */}
+        {isPublicPage ? null : (
+          <BrandBanner
+            src={metaBrand.brandImageUrl}
+            name={metaBrand.name}
+            alt={
+              locale === "ar"
+                ? `صورة العلامة التجارية لـ${metaBrand.name}`
+                : `${metaBrand.name} brand image`
+            }
+          />
+        )}
         {/* #1: logo URL available as data attribute for client components */}
         <div data-brand={metaBrand.name} data-logo={metaBrand.logoUrl ?? ""} style={{ display: "none" }} />
         {children}
