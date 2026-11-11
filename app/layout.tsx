@@ -1,12 +1,9 @@
 import type { Metadata } from "next";
-import { cookies } from "next/headers";
 import "./globals.css";
 import { brandNameForTitle, getBranding } from "@/lib/theme";
-import { readSessionFromCookieValue } from "@/lib/auth";
 import { ensureSeeded } from "@/lib/bootstrap";
-import { LANG_COOKIE, dirFor } from "@/lib/i18n";
-import { effectiveLocale } from "@/lib/i18n-session";
-import type { Locale } from "@/lib/i18n";
+import { dirFor } from "@/lib/i18n";
+import { resolveRequestLocale } from "@/lib/i18n-session";
 import ChatwootWidget from "@/components/ChatwootWidget";
 import BrandBanner from "@/components/BrandBanner";
 
@@ -38,24 +35,8 @@ export const dynamic = "force-dynamic";
 // canonical preference — the kiddy_lang cookie is accepted only while they
 // agree, so a stale cookie (changed from another device) can no longer flip
 // `dir` against the page dictionaries. Anonymous visitors keep the cookie
-// choice. Deriving both from the same value also keeps dir/lang in lockstep
-// with every page's `i18nForAccount` dictionary.
-async function resolveLocale(): Promise<Locale> {
-  const cookieStore = await cookies();
-  const langCookie = cookieStore.get(LANG_COOKIE)?.value;
-  let accountLanguage: string | null | undefined = null;
-  try {
-    const session = readSessionFromCookieValue(cookieStore.get("kiddy_sess")?.value ?? null);
-    if (session?.accountId) {
-      const { getAccount } = await import("@/lib/auth");
-      const account = await getAccount(session.accountId);
-      accountLanguage = account?.language ?? null;
-    }
-  } catch {
-    // never block render on DB availability; the cookie then decides
-  }
-  return effectiveLocale(langCookie, accountLanguage);
-}
+// choice. KID-1826: the logic now lives in lib/i18n-session so the public
+// marketing pages resolve the exact same locale their <html lang dir> shows.
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   // KID-216: the lazy bootstrap (schema + demo seed + platform operator for the
@@ -93,7 +74,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     // never block render on DB availability
   }
 
-  const locale = await resolveLocale();
+  const locale = await resolveRequestLocale();
 
   return (
     <html lang={locale} dir={dirFor(locale)}>
@@ -110,6 +91,18 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <a className="skip-link" href="#main">
           {locale === "ar" ? "تخطَّ إلى المحتوى" : "Skip to content"}
         </a>
+        {/* KID-1826: the public marketing pages retire the full-width brand
+            banner — the tenant image moves inline into the site header lockup.
+            The route check runs synchronously during HTML parsing, before the
+            banner element below is parsed, so the banner never paints on those
+            routes: no flash, no layout shift, no hydration dependency.
+            App/portal/auth surfaces keep the banner exactly as before. */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html:
+              'try{var p=location.pathname.replace(/\\/+$/,"");if(p==="/"||p==="/features"||p==="/for-parents"||p==="/for-centers"||p==="/contact"){document.documentElement.setAttribute("data-public-page","")}}catch(e){}',
+          }}
+        />
         {/* KID-493: the tenant's brand image tops every page (portal, parent,
             auth, marketing) — before {children}, after the skip link. Null →
             the component renders nothing, so no empty gap and no shift on

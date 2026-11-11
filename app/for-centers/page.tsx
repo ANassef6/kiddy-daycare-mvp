@@ -1,67 +1,36 @@
 import Link from "next/link";
 import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
-import { SITE_BRAND, SITE_MARKET } from "@/lib/site";
+import { SITE_BRAND } from "@/lib/site";
+import { siteContext } from "@/lib/site-i18n";
 
-export const metadata = {
-  title: "For centers — run the day from one place",
-  description: `Attendance, daily care, newsfeed, messaging, and white-label branding — childcare management software for ${SITE_MARKET}.`,
-};
-
-const BENEFITS: { title: string; body: string }[] = [
-  {
-    title: "Rooms, staff & children",
-    body: "Set up rooms, roles, and child records in minutes. Everything the day needs, in one place.",
-  },
-  {
-    title: "Staff check-in & attendance",
-    body: "Staff tap children in and out; you see today's attendance live and can correct a mis-tap.",
-  },
-  {
-    title: "Daily care reporting",
-    body: "Post meals, sleep, mood, and a note per child — families see it the moment it's posted.",
-  },
-  {
-    title: "Newsfeed & media",
-    body: "Share photos and announcements with the families who care. Boost trust and cut last-minute calls.",
-  },
-  {
-    title: "Messaging & notifications",
-    body: "Private parent–staff messages plus in-app notifications for status changes.",
-  },
-  {
-    title: "White-label branding",
-    body: "Your name, your logo, your colors — on every page and app surface. Branding is a config change, not code.",
-  },
-  {
-    title: "Consents & incidents",
-    body: "Send consent requests and log incident reports with parent acknowledgement — built-in and auditable.",
-  },
-  {
-    title: "Simple onboarding",
-    body: "Enroll a child and invite the family in under five minutes. No training marathon required.",
-  },
-];
+// KID-1826: every rendered string is localized (site.centers.*).
+export async function generateMetadata() {
+  const { t } = await siteContext();
+  return {
+    title: t("site.meta.centersTitle"),
+    description: t("site.meta.centersDesc"),
+  };
+}
 
 export default async function ForCentersPage() {
+  const { locale, t, brandImage, brandName } = await siteContext();
+
   return (
     <>
-      <SiteHeader active="/for-centers" />
+      <SiteHeader active="/for-centers" locale={locale} brandImage={brandImage} brandName={brandName} />
       <main id="main">
         <section className="section section-head">
           <div className="container">
-            <p className="hero-eyebrow">For centers</p>
-            <h1 className="page-title">Run the day from one place</h1>
-            <p className="subtitle">
-              Attendance, daily care, the newsfeed, and your families&apos; trust — in a
-              clean portal that reflects your own branding.
-            </p>
+            <p className="hero-eyebrow">{t("site.centers.eyebrow")}</p>
+            <h1 className="page-title">{t("site.centers.title")}</h1>
+            <p className="subtitle">{t("site.centers.subtitle")}</p>
             <div className="row mt-3">
               <Link className="btn btn-deep btn-lg" href="/contact">
-                Book a demo
+                {t("site.centers.ctaBook")}
               </Link>
               <Link className="btn btn-ghost btn-lg" href="/login">
-                Open the staff portal
+                {t("site.centers.ctaPortal")}
               </Link>
             </div>
           </div>
@@ -69,10 +38,10 @@ export default async function ForCentersPage() {
 
         <section className="section">
           <div className="container grid">
-            {BENEFITS.map((b) => (
-              <div className="card feature-card" key={b.title}>
-                <h3 className="mt-2">{b.title}</h3>
-                <p className="muted small mt-1">{b.body}</p>
+            {Array.from({ length: 8 }, (_, i) => i + 1).map((n) => (
+              <div className="card feature-card" key={n}>
+                <h3 className="mt-2">{t(`site.centers.b${n}Title`)}</h3>
+                <p className="muted small mt-1">{t(`site.centers.b${n}Body`)}</p>
               </div>
             ))}
           </div>
@@ -80,21 +49,19 @@ export default async function ForCentersPage() {
 
         <section className="section section-alt">
           <div className="container">
-            <h2 className="title center">Less admin, more time with children</h2>
+            <h2 className="title center">{t("site.centers.closeTitle")}</h2>
             <p className="subtitle center" style={{ maxWidth: 640, marginInline: "auto" }}>
-              A childcare management platform should take work off your plate, not
-              add to it. See how {SITE_BRAND}{" "}
-              keeps the operation calm and parents informed.
+              {t("site.centers.closeBody", { brand: SITE_BRAND })}
             </p>
             <p className="center mt-3">
               <Link className="btn btn-deep btn-lg" href="/contact">
-                Get a personalized demo
+                {t("site.centers.closeCta")}
               </Link>
             </p>
           </div>
         </section>
       </main>
-      <SiteFooter />
+      <SiteFooter locale={locale} />
     </>
   );
 }

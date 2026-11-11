@@ -1,28 +1,62 @@
 import Link from "next/link";
 import { SITE_BRAND } from "@/lib/site";
-import { en, tr } from "@/lib/i18n";
+import { getDictionary, tr, type Locale } from "@/lib/i18n";
+import SiteLangToggle from "@/components/SiteLangToggle";
+import HeaderScrollState from "@/components/HeaderScrollState";
 
 export type SiteHeaderProps = {
   active?: string;
+  // KID-1826: the marketing header renders in the request's site language
+  // (defaults to English so the static chrome test keeps rendering EN).
+  locale?: Locale;
+  // KID-1826 deliverable 1: the tenant's brand image sits inline in the
+  // lockup, after the K mark and the wordmark. Null (apex/anonymous hosts
+  // with no tenant image) renders exactly the [K] Kiddy lockup — no empty
+  // slot, no gap.
+  brandImage?: string | null;
+  brandName?: string;
 };
 
-const NAV: { href: string; label: string }[] = [
-  { href: "/features", label: "Features" },
-  { href: "/for-parents", label: "For parents" },
-  { href: "/for-centers", label: "For centers" },
+const NAV: { href: string; key: string }[] = [
+  { href: "/features", key: "site.nav.features" },
+  { href: "/for-parents", key: "site.nav.forParents" },
+  { href: "/for-centers", key: "site.nav.forCenters" },
 ];
 
-export default function SiteHeader({ active }: SiteHeaderProps) {
+export default function SiteHeader({
+  active,
+  locale = "en",
+  brandImage = null,
+  brandName,
+}: SiteHeaderProps) {
+  const dict = getDictionary(locale);
+  const t = (key: string, vars?: Record<string, string | number>) => tr(dict, key, vars);
+
   return (
     <header className="site-header">
+      <HeaderScrollState />
       <div className="container row" style={{ justifyContent: "space-between" }}>
-        <Link href="/" className="site-brand" aria-label={`${SITE_BRAND} — home`}>
+        <Link href="/" className="site-brand" aria-label={t("site.nav.homeAria", { brand: SITE_BRAND })}>
           <span className="site-brand-mark" aria-hidden="true">
             K
           </span>
           <span>{SITE_BRAND}</span>
+          {brandImage ? (
+            // KID-1826: fixed reserved box (100×32 desktop / 80×24 mobile) so
+            // the space exists before the image loads — CLS stays 0 — with
+            // object-fit contain handling any tenant aspect ratio. Header
+            // imagery is above the fold, so it loads eagerly.
+            <span className="site-brand-img-box">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={brandImage}
+                alt={t("site.brandImageAlt", { name: brandName || SITE_BRAND })}
+                className="site-brand-img"
+              />
+            </span>
+          ) : null}
         </Link>
-        <nav className="site-nav" aria-label="Main navigation">
+        <nav className="site-nav" aria-label={t("site.nav.aria")}>
           {NAV.map((item) => (
             <Link
               key={item.href}
@@ -30,14 +64,19 @@ export default function SiteHeader({ active }: SiteHeaderProps) {
               className={active === item.href ? "active" : undefined}
               aria-current={active === item.href ? "page" : undefined}
             >
-              {item.label}
+              {t(item.key)}
             </Link>
           ))}
+          <SiteLangToggle
+            current={locale}
+            label={t("site.lang.label")}
+            labels={{ en: t("site.lang.en"), ar: t("site.lang.ar") }}
+          />
           <Link href="/login" className="site-nav-signin">
-            {tr(en, "nav.portal")}
+            {t("site.nav.portal")}
           </Link>
           <Link href="/contact" className="btn btn-deep site-nav-cta">
-            Book a demo
+            {t("site.nav.bookDemo")}
           </Link>
         </nav>
       </div>

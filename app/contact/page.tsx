@@ -3,12 +3,16 @@ import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
 import { SITE_BRAND, PLATFORM_CONTACT_EMAIL } from "@/lib/site";
 import ContactForm from "./ContactForm";
+import { siteContext } from "@/lib/site-i18n";
 
-export const metadata = {
-  title: `Book a demo — ${SITE_BRAND} childcare management software`,
-  description:
-    "Book a personalized demo of the white-label childcare management platform, or send us your questions.",
-};
+// KID-1826: every rendered string is localized (site.contact.*).
+export async function generateMetadata() {
+  const { t } = await siteContext();
+  return {
+    title: t("site.meta.contactTitle", { brand: SITE_BRAND }),
+    description: t("site.meta.contactDesc"),
+  };
+}
 
 export default async function ContactPage(
   props: {
@@ -16,29 +20,27 @@ export default async function ContactPage(
   }
 ) {
   const searchParams = await props.searchParams;
+  const { locale, t, brandImage, brandName } = await siteContext();
   const errorMessage =
     searchParams?.error === "name"
-      ? "Please add your name."
+      ? t("site.contact.errName")
       : searchParams?.error === "email"
-        ? "Please add a valid email address."
+        ? t("site.contact.errEmail")
         : searchParams?.error === "long"
-          ? "Your message is too long (max 2,000 characters)."
+          ? t("site.contact.errLong")
           : searchParams?.error === "server"
-            ? "Something went wrong saving your request. Please try again."
+            ? t("site.contact.errServer")
             : null;
 
   return (
     <>
-      <SiteHeader active="/contact" />
+      <SiteHeader active="/contact" locale={locale} brandImage={brandImage} brandName={brandName} />
       <main id="main">
         <section className="section section-head">
           <div className="container">
-            <p className="hero-eyebrow">Contact &amp; demos</p>
-            <h1 className="page-title">See {SITE_BRAND} up close</h1>
-            <p className="subtitle">
-              Book a walkthrough with your daycare&apos;s real setup, or ask us
-              anything about the platform. We work with daycares directly.
-            </p>
+            <p className="hero-eyebrow">{t("site.contact.eyebrow")}</p>
+            <h1 className="page-title">{t("site.contact.title", { brand: SITE_BRAND })}</h1>
+            <p className="subtitle">{t("site.contact.subtitle")}</p>
           </div>
         </section>
 
@@ -46,17 +48,11 @@ export default async function ContactPage(
           <div className="container contact-grid">
             {searchParams?.sent ? (
               <div className="card contact-card" role="status" aria-live="polite">
-                <h2 className="title">Thanks — we&apos;re on it!</h2>
-                <p className="muted">
-                  Your request was received. Someone from the team will be in
-                  touch to book your demo or answer your question.
-                </p>
-                <p className="small mt-3 muted">
-                  We work with daycares directly. If you&apos;re a parent, ask your
-                  daycare&apos;s front desk to get in touch with us.
-                </p>
+                <h2 className="title">{t("site.contact.sentTitle")}</h2>
+                <p className="muted">{t("site.contact.sentBody")}</p>
+                <p className="small mt-3 muted">{t("site.contact.sentNote")}</p>
                 <Link className="btn btn-deep mt-3" href="/for-parents">
-                  Information for parents
+                  {t("site.contact.sentCta")}
                 </Link>
               </div>
             ) : (
@@ -66,35 +62,40 @@ export default async function ContactPage(
                     {errorMessage}
                   </p>
                 ) : null}
-                <ContactForm />
+                <ContactForm locale={locale} />
               </>
             )}
-            <aside className="card contact-side" aria-label="Contact details">
+            <aside className="card contact-side" aria-label={t("site.contact.sideAria")}>
               <h2 className="title" style={{ marginBottom: "var(--space-3)" }}>
-                Other ways to connect
+                {t("site.contact.sideTitle")}
               </h2>
               <ul className="audience-list">
-                <li><strong>Centers:</strong> book a demo below — we onboard each daycare directly.</li>
-                <li><strong>Parents:</strong> your daycare invites you to {SITE_BRAND}; ask the front desk to get in touch with us.</li>
                 <li>
-                  <strong>Prefer email?</strong> Write to{" "}
-                  <a href={`mailto:${PLATFORM_CONTACT_EMAIL}`}>{PLATFORM_CONTACT_EMAIL}</a>{" "}
-                  and we&apos;ll reply within one business day.
+                  <strong>{t("site.contact.sideCentersLabel")}</strong>{" "}
+                  {t("site.contact.sideCentersBody")}
+                </li>
+                <li>
+                  <strong>{t("site.contact.sideParentsLabel")}</strong>{" "}
+                  {t("site.contact.sideParentsBody", { brand: SITE_BRAND })}
+                </li>
+                <li>
+                  <strong>{t("site.contact.sideEmailLabel")}</strong>{" "}
+                  {t("site.contact.sideEmailBody", { email: PLATFORM_CONTACT_EMAIL })}
                 </li>
               </ul>
               <div className="row mt-3">
                 <a className="btn btn-deep" href={`mailto:${PLATFORM_CONTACT_EMAIL}`}>
-                  Email {PLATFORM_CONTACT_EMAIL}
+                  {t("site.contact.sideEmailBtn", { email: PLATFORM_CONTACT_EMAIL })}
                 </a>
                 <Link className="btn btn-ghost" href="/for-centers">
-                  More for centers
+                  {t("site.contact.sideMore")}
                 </Link>
               </div>
             </aside>
           </div>
         </section>
       </main>
-      <SiteFooter />
+      <SiteFooter locale={locale} />
     </>
   );
 }

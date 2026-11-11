@@ -2,138 +2,130 @@ import Link from "next/link";
 import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
 import { SITE_BRAND } from "@/lib/site";
-
-export const metadata = {
-  title: `${SITE_BRAND} — childcare management software for Egyptian daycares`,
-  description:
-    "Check-in, check-out, daily reports, and the newsfeed — in one simple app. Your daycare's day, in one place.",
-};
+import { siteContext } from "@/lib/site-i18n";
 
 // KID-1632 rebrand — "the center's day". The landing shows the product's own
 // world instead of selling at it: a live day panel in the hero, a timeline
 // band anchoring the app to the real rhythm of a center, feature rows tied to
 // the moment of the day when each thing happens, and a genuine numbered
 // sequence only where the content really is one (getting started).
-export default function HomePage() {
+// KID-1826: every rendered string is localized (site.landing.*) and the
+// tenant brand image rides inline in the header lockup.
+export async function generateMetadata() {
+  const { locale, t } = await siteContext();
+  return {
+    title: t("site.meta.homeTitle", { brand: SITE_BRAND }),
+    description: t("site.meta.homeDesc"),
+  };
+}
+
+export default async function HomePage() {
+  const { locale, t, brandImage, brandName } = await siteContext();
+  // Sample-day names: localized per locale so no mixed-language page ships.
+  const amira = locale === "ar" ? "أميرة" : "Amira";
+  const omar = locale === "ar" ? "عمر" : "Omar";
+
   return (
     <>
-      <SiteHeader active="/" />
+      <SiteHeader active="/" locale={locale} brandImage={brandImage} brandName={brandName} />
       <main id="main">
         <section className="hero">
           <div className="container hero-grid">
             <div className="hero-copy">
-              <h1>One app for the whole daycare day.</h1>
-              <p className="hero-sub">
-                Check-in, check-out, daily reports, and the newsfeed — built for
-                Egyptian daycares and the families they serve.
-              </p>
+              <h1>{t("site.landing.heroTitle")}</h1>
+              <p className="hero-sub">{t("site.landing.heroSub")}</p>
               <div className="row mt-4">
                 <Link className="btn btn-deep btn-lg" href="/contact">
-                  Book a daycare demo
+                  {t("site.landing.heroCta")}
                 </Link>
                 <Link className="btn btn-ghost btn-lg" href="/for-parents">
-                  I&apos;m a parent
+                  {t("site.landing.heroParentCta")}
                 </Link>
               </div>
             </div>
 
-            <aside className="day-panel" aria-label="A sample day on Kiddy">
+            <aside className="day-panel" aria-label={t("site.landing.dayPanelAria")}>
               <div className="day-panel-head">
-                <h2>Today at your center</h2>
-                <p className="muted small">One view shared by staff and parents.</p>
+                <h2>{t("site.landing.dayPanelTitle")}</h2>
+                <p className="muted small">{t("site.landing.dayPanelSub")}</p>
               </div>
               <ul className="day-list">
                 <li className="day-row">
-                  <span className="day-name">Amira</span>
-                  <span className="day-detail">Arrived 7:58</span>
-                  <span className="status-chip">Checked in</span>
+                  <span className="day-name">{amira}</span>
+                  <span className="day-detail">{t("site.landing.dayArrived", { time: "7:58" })}</span>
+                  <span className="status-chip">{t("site.landing.dayCheckedIn")}</span>
                 </li>
                 <li className="day-row">
-                  <span className="day-name">Omar</span>
-                  <span className="day-detail">Arrived 8:12</span>
-                  <span className="status-chip">Checked in</span>
+                  <span className="day-name">{omar}</span>
+                  <span className="day-detail">{t("site.landing.dayArrived", { time: "8:12" })}</span>
+                  <span className="status-chip">{t("site.landing.dayCheckedIn")}</span>
                 </li>
                 <li className="day-row day-row-report">
                   <div className="day-report-head">
-                    <span className="day-name">Noon report: Amira</span>
-                    <span className="status-chip status-chip-mood">Cheerful</span>
+                    <span className="day-name">{t("site.landing.dayNoonReport", { name: amira })}</span>
+                    <span className="status-chip status-chip-mood">{t("site.landing.dayCheerful")}</span>
                   </div>
                   <div className="day-report-chips">
-                    <span className="status-chip status-chip-diaper">Lunch: all of it</span>
-                    <span className="status-chip status-chip-sleep">Nap: 1h 20m</span>
+                    <span className="status-chip status-chip-diaper">{t("site.landing.dayLunch")}</span>
+                    <span className="status-chip status-chip-sleep">
+                      {t("site.landing.dayNap", { duration: locale === "ar" ? "١ س ٢٠ د" : "1h 20m" })}
+                    </span>
                   </div>
-                  <p className="day-report-note small">
-                    Slept well after lunch, played in the garden, very cheerful
-                    at pickup.
-                  </p>
+                  <p className="day-report-note small">{t("site.landing.dayNote")}</p>
                 </li>
               </ul>
-              <p className="day-panel-foot muted small">
-                Parents see each of these the moment it happens.
-              </p>
+              <p className="day-panel-foot muted small">{t("site.landing.dayPanelFoot")}</p>
             </aside>
           </div>
         </section>
 
-        <section className="day-band" aria-label="How Kiddy follows the daycare day">
+        <section className="day-band" aria-label={t("site.landing.bandAria")}>
           <div className="container day-band-grid">
             <div className="day-band-item">
-              <span className="day-band-time">07:30</span>
-              <p>Doors open. Staff check children in, and parents see arrival as it happens.</p>
+              <span className="day-band-time">{t("site.landing.band1Time")}</span>
+              <p>{t("site.landing.band1Body")}</p>
             </div>
             <div className="day-band-item">
-              <span className="day-band-time">12:30</span>
-              <p>The daily report goes out: meals, sleep, mood, and a note from the team.</p>
+              <span className="day-band-time">{t("site.landing.band2Time")}</span>
+              <p>{t("site.landing.band2Body")}</p>
             </div>
             <div className="day-band-item">
-              <span className="day-band-time">15:00</span>
-              <p>Home time. Pickups are logged live, and the day lands in the newsfeed.</p>
+              <span className="day-band-time">{t("site.landing.band3Time")}</span>
+              <p>{t("site.landing.band3Body")}</p>
             </div>
           </div>
         </section>
 
         <section className="section">
           <div className="container">
-            <h2 className="section-title center">What runs through the app</h2>
-            <p className="subtitle center">
-              Everything a daycare runs on and a parent wants to know — without
-              the paper trails and phone calls.
-            </p>
+            <h2 className="section-title center">{t("site.landing.whatRunsTitle")}</h2>
+            <p className="subtitle center">{t("site.landing.whatRunsSub")}</p>
             <div className="feature-rows">
               <div className="feature-row">
-                <span className="feature-moment">Morning</span>
+                <span className="feature-moment">{t("site.landing.momentMorning")}</span>
                 <div>
-                  <h3>Check-in &amp; out</h3>
-                  <p>
-                    Staff tap children in and out; parents see live status the
-                    second it happens.
-                  </p>
+                  <h3>{t("site.landing.checkInOutTitle")}</h3>
+                  <p>{t("site.landing.checkInOutBody")}</p>
                 </div>
               </div>
               <div className="feature-row">
-                <span className="feature-moment">Midday</span>
+                <span className="feature-moment">{t("site.landing.momentMidday")}</span>
                 <div>
-                  <h3>Daily reports</h3>
-                  <p>
-                    Meals, sleep, mood, diaper, and a note from the team — every
-                    single day.
-                  </p>
+                  <h3>{t("site.landing.dailyReportsTitle")}</h3>
+                  <p>{t("site.landing.dailyReportsBody")}</p>
                 </div>
               </div>
               <div className="feature-row">
-                <span className="feature-moment">All day</span>
+                <span className="feature-moment">{t("site.landing.momentAllDay")}</span>
                 <div>
-                  <h3>Newsfeed</h3>
-                  <p>
-                    Photos, announcements, and today&apos;s moments from the
-                    classroom.
-                  </p>
+                  <h3>{t("site.landing.newsfeedTitle")}</h3>
+                  <p>{t("site.landing.newsfeedBody")}</p>
                 </div>
               </div>
             </div>
             <p className="center mt-5">
               <Link href="/features" className="btn btn-ghost">
-                Explore all features
+                {t("site.landing.exploreFeatures")}
               </Link>
             </p>
           </div>
@@ -141,31 +133,22 @@ export default function HomePage() {
 
         <section className="section section-alt">
           <div className="container">
-            <h2 className="section-title center">How a center gets started</h2>
+            <h2 className="section-title center">{t("site.landing.startedTitle")}</h2>
             <ol className="step-flow">
               <li className="step-flow-item">
                 <span className="step-num" aria-hidden="true">1</span>
-                <h3>Set up your center</h3>
-                <p>
-                  Rooms, staff, profiles, and each child&apos;s daily rhythm.
-                  Parents are invited by the daycare.
-                </p>
+                <h3>{t("site.landing.step1Title")}</h3>
+                <p>{t("site.landing.step1Body")}</p>
               </li>
               <li className="step-flow-item">
                 <span className="step-num" aria-hidden="true">2</span>
-                <h3>The day runs on it</h3>
-                <p>
-                  Staff check children in and out, and post a daily report
-                  before home time.
-                </p>
+                <h3>{t("site.landing.step2Title")}</h3>
+                <p>{t("site.landing.step2Body")}</p>
               </li>
               <li className="step-flow-item">
                 <span className="step-num" aria-hidden="true">3</span>
-                <h3>Families stay close</h3>
-                <p>
-                  Parents see live status, read the report, and follow the
-                  newsfeed from anywhere.
-                </p>
+                <h3>{t("site.landing.step3Title")}</h3>
+                <p>{t("site.landing.step3Body")}</p>
               </li>
             </ol>
           </div>
@@ -174,36 +157,29 @@ export default function HomePage() {
         <section className="section">
           <div className="container audience-grid">
             <div className="audience-panel audience-parents">
-              <h2>For parents</h2>
-              <p className="muted">
-                Your child&apos;s day, without the guesswork. See exactly when
-                they checked in, what they ate, how they slept, and what they
-                learned. Your daycare invites you to the app.
-              </p>
+              <h2>{t("site.landing.parentsTitle")}</h2>
+              <p className="muted">{t("site.landing.parentsBody")}</p>
               <ul className="audience-list">
-                <li>Live check-in &amp; check-out status</li>
-                <li>Daily reports from the classroom</li>
-                <li>Newsfeed photos &amp; updates</li>
-                <li>Direct messaging with staff</li>
+                <li>{t("site.landing.parentsItem1")}</li>
+                <li>{t("site.landing.parentsItem2")}</li>
+                <li>{t("site.landing.parentsItem3")}</li>
+                <li>{t("site.landing.parentsItem4")}</li>
               </ul>
               <Link className="btn btn-deep" href="/for-parents">
-                Learn more for parents
+                {t("site.landing.parentsCta")}
               </Link>
             </div>
             <div className="audience-panel audience-centers">
-              <h2>For centers</h2>
-              <p>
-                Run the daily operation from one place — attendance, daily care,
-                newsfeed, and staff — and keep every family in the loop.
-              </p>
+              <h2>{t("site.landing.centersTitle")}</h2>
+              <p>{t("site.landing.centersBody")}</p>
               <ul className="audience-list">
-                <li>Rooms, staff &amp; child records in one place</li>
-                <li>Staff check-in/out and attendance</li>
-                <li>Newsfeed, messaging &amp; media gallery</li>
-                <li>Your brand, your colors — white-label</li>
+                <li>{t("site.landing.centersItem1")}</li>
+                <li>{t("site.landing.centersItem2")}</li>
+                <li>{t("site.landing.centersItem3")}</li>
+                <li>{t("site.landing.centersItem4")}</li>
               </ul>
               <Link className="btn btn-deep" href="/for-centers">
-                Learn more for centers
+                {t("site.landing.centersCta")}
               </Link>
             </div>
           </div>
@@ -212,24 +188,21 @@ export default function HomePage() {
         <section id="demo" className="section section-cta">
           <div className="container">
             <div className="cta-band">
-              <h2>See {SITE_BRAND} in action</h2>
-              <p>
-                We work with daycares directly. Book a walkthrough for your
-                center and we&apos;ll set it up with your real data.
-              </p>
+              <h2>{t("site.landing.ctaTitle", { brand: SITE_BRAND })}</h2>
+              <p>{t("site.landing.ctaBody")}</p>
               <div className="row">
                 <Link className="btn btn-deep btn-lg" href="/contact">
-                  Book a demo
+                  {t("site.landing.ctaBook")}
                 </Link>
                 <Link className="btn btn-ghost btn-lg" href="/features">
-                  Explore features
+                  {t("site.landing.ctaExplore")}
                 </Link>
               </div>
             </div>
           </div>
         </section>
       </main>
-      <SiteFooter />
+      <SiteFooter locale={locale} />
     </>
   );
 }

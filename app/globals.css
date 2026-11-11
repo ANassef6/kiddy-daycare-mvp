@@ -837,6 +837,10 @@ body {
 }
 
 /* Marketing site chrome */
+/* KID-1826: the sticky header now carries a scroll-aware state — a slightly
+   more opaque background, a firmer hairline and a soft shadow once the page
+   is scrolled. Only paint properties change (no layout shift) inside a short
+   transition. */
 .site-header {
   position: sticky;
   top: 0;
@@ -844,6 +848,13 @@ body {
   background: color-mix(in srgb, var(--color-bg) 88%, transparent);
   backdrop-filter: blur(8px);
   border-bottom: 1px solid var(--color-border);
+  transition: background 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease;
+}
+
+.site-header[data-scrolled] {
+  background: color-mix(in srgb, var(--color-bg) 97%, transparent);
+  border-bottom-color: var(--hairline);
+  box-shadow: 0 10px 24px -20px rgba(23, 38, 66, 0.45);
 }
 
 /* KID-493: the brand lockup stacks — logo above the complete daycare name
@@ -869,6 +880,98 @@ body {
 .site-header .site-brand,
 .site-footer .site-brand {
   color: var(--brand-deep);
+}
+
+/* KID-1826 deliverable 1: the marketing header lockup is a horizontal row —
+   [K] Kiddy [tenant brand image]. Only the site header takes the row shape;
+   the portal/auth column lockups (.site-brand elsewhere) are untouched. */
+.site-header .site-brand {
+  flex-direction: row;
+  align-items: center;
+  text-align: start;
+}
+
+/* The tenant brand image rides inline after the wordmark. The box is FIXED
+   size (100×32 desktop / 80×24 mobile) and drawn before the image loads, so
+   the space is reserved from first paint — CLS stays 0 regardless of the
+   tenant's aspect ratio; object-fit contain keeps any image undistorted. */
+.site-brand-img-box {
+  display: inline-flex;
+  width: 100px;
+  height: 32px;
+  flex: none;
+  border-radius: 7px;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  overflow: hidden;
+  transition: transform 0.2s ease;
+  animation: brand-img-in 0.35s ease both;
+}
+
+.site-brand-img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+}
+
+/* Gentle brand-image hover (≤1.04, no bounce) on the lockup link. */
+.site-brand:hover .site-brand-img-box,
+.site-brand:focus-visible .site-brand-img-box {
+  transform: scale(1.04);
+}
+
+@keyframes brand-img-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@media (max-width: 720px) {
+  .site-brand-img-box {
+    width: 80px;
+    height: 24px;
+    border-radius: 6px;
+  }
+}
+
+/* KID-1826 deliverable 3: the compact EN/العربية switcher. Buttons keep the
+   app's pill vocabulary; the active side carries the brand fill. */
+.site-lang-toggle {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.site-lang-btn {
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--color-text);
+  font-family: var(--brand-font);
+  font-size: 13px;
+  font-weight: 600;
+  padding: 5px 10px;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+.site-lang-btn:hover {
+  background: color-mix(in srgb, var(--brand-primary) 8%, transparent);
+  border-color: var(--brand-primary);
+}
+
+.site-lang-btn-active {
+  /* KID-1653 lesson: the raw --brand-primary misses 4.5:1 behind white text at
+     13px — the deep tone keeps the brand hue and stays AA-safe for any tenant
+     primary. */
+  background: var(--brand-deep);
+  border-color: var(--brand-deep);
+  color: #fff;
 }
 
 /* Long names wrap inside the available brand box instead of clipping. */
@@ -904,6 +1007,15 @@ body {
   max-width: 100%;
   object-fit: cover;
   border-radius: 10px;
+}
+
+/* KID-1826: the tenant brand image now lives inline in the site header
+   lockup, so the full-width banner retires from the public marketing pages.
+   The attribute is set by a synchronous inline script during HTML parsing
+   (app/layout.tsx), so the banner never paints on those routes and no space
+   is ever reserved for it; app/portal/auth surfaces keep the banner. */
+html[data-public-page] .brand-banner {
+  display: none;
 }
 
 @media (max-width: 720px) {
@@ -966,7 +1078,7 @@ body {
 }
 
 .site-nav-cta {
-  margin-left: var(--space-2);
+  margin-inline-start: var(--space-2);
 }
 
 /* KID-1653: the header CTA is also a `.site-nav a`, and the nav's ink link
@@ -976,6 +1088,18 @@ body {
    pairs with its AA-safe white text, whatever the tenant primary. */
 .site-nav .btn-deep {
   color: #fff;
+}
+
+/* KID-1826 deliverable 2: the marketing CTA lifts gently on hover — a 1px
+   rise plus a soft shadow, transitioned (no jump, no bounce). .btn-deep is
+   marketing-only (verified: no product surface uses it). */
+.btn-deep {
+  transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+}
+
+.btn-deep:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 20px -12px rgba(23, 38, 66, 0.55);
 }
 
 /* ==========================================================================
@@ -1025,6 +1149,40 @@ body {
     opacity: 1;
     transform: none;
   }
+}
+
+/* KID-1826 deliverable 2: the hero entrance — a short staggered fade-up for
+   the headline, sub copy, CTAs and the day panel. One-time on load (CSS
+   animations, no scroll listeners, no library); the global
+   prefers-reduced-motion rule below removes it entirely. */
+@keyframes hero-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.hero-copy h1 {
+  animation: hero-in 0.5s ease both;
+}
+
+.hero-copy .hero-sub {
+  animation: hero-in 0.5s ease both;
+  animation-delay: 0.08s;
+}
+
+.hero-copy .row {
+  animation: hero-in 0.5s ease both;
+  animation-delay: 0.16s;
+}
+
+.hero .day-panel {
+  animation: hero-in 0.55s ease both;
+  animation-delay: 0.12s;
 }
 
 .day-panel {
@@ -1527,7 +1685,7 @@ body {
   }
 
   .site-nav-cta {
-    margin-left: 0;
+    margin-inline-start: 0;
   }
 
   .contact-grid {
@@ -1662,6 +1820,9 @@ html[dir="rtl"] .room-dot {
   margin-left: 8px;
 }
 
+/* KID-1826: .site-nav-cta now uses margin-inline-start, so the old physical
+   RTL mirror rule for it is no longer needed. */
+
 html[dir="rtl"] table.data th,
 html[dir="rtl"] table.data td {
   text-align: right;
@@ -1677,14 +1838,10 @@ html[dir="rtl"] .skip-link:focus {
   right: 0;
 }
 
-html[dir="rtl"] .site-nav-cta {
-  margin-left: 0;
-  margin-right: var(--space-2);
-}
-
 /* KID-1632: the audience-list marker now uses inset-inline-start, so the old
    physical RTL mirror rules for it are no longer needed (logical properties
-   already flip). */
+   already flip). KID-1826: same for .site-nav-cta — it moved to
+   margin-inline-start, so its physical RTL mirror rule is gone too. */
 
 /* ==========================================================================
    KID-475 — parent/staff messaging composer

@@ -2,86 +2,38 @@ import Link from "next/link";
 import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
 import { SITE_BRAND } from "@/lib/site";
+import { siteContext } from "@/lib/site-i18n";
 
-export const metadata = {
-  title: `Features — ${SITE_BRAND} childcare management software`,
-  description:
-    "Check-in/out, daily reports, newsfeed, messaging, photos, consents, and incident reports — one simple platform for daycares and parents.",
-};
+// KID-1826: every rendered string is localized (site.features.*).
+export async function generateMetadata() {
+  const { t } = await siteContext();
+  return {
+    title: t("site.meta.featuresTitle", { brand: SITE_BRAND }),
+    description: t("site.meta.featuresDesc"),
+  };
+}
 
-const FEATURES: { title: string; body: string }[] = [
-  {
-    title: "Check-in & check-out",
-    body: "Staff and parents tap children in and out in seconds. Real timestamps and live status on every child profile.",
-  },
-  {
-    title: "Attendance & schedules",
-    body: "View today's attendance at a glance, plan expected times, and edit a mis-tap with a clear audit trail.",
-  },
-  {
-    title: "Daily reports",
-    body: "Meals, sleep, mood, diaper/toilet, a sick flag, and a note from the team — posted every day, seen instantly.",
-  },
-  {
-    title: "Newsfeed",
-    body: "Classroom announcements, photos, and updates. Parents like and comment; posts can be tagged to a child.",
-  },
-  {
-    title: "Media gallery",
-    body: "A photo and video gallery per child, so families never miss the little moments of the day.",
-  },
-  {
-    title: "Messaging & notifications",
-    body: "Direct, private messages between parents and staff, with in-app notifications for status changes.",
-  },
-  {
-    title: "Child records & health",
-    body: "Allergies, conditions, health notes, pickup information, and emergency contacts — reliable and private.",
-  },
-  {
-    title: "Consents & approvals",
-    body: "Staff send consent requests; parents approve or deny right in the app. No chasing paper.",
-  },
-  {
-    title: "Incident reports",
-    body: "Clear, respectful incident and accident reports with parent acknowledgement — built on trust.",
-  },
-  {
-    title: "Rooms, staff & scheduling",
-    body: "Set up rooms, staff roles, and room access, then run the day from one staff portal.",
-  },
-  {
-    title: "White-label branding",
-    body: "Your daycare's name, logo, and colors across every surface. Swapping branding is a config change, not a code change.",
-  },
-  {
-    title: "Parent onboarding",
-    body: "Invites and account linking make it easy for families to connect in under five minutes.",
-  },
-];
+export default async function FeaturesPage() {
+  const { locale, t, brandImage, brandName } = await siteContext();
 
-export default function FeaturesPage() {
   return (
     <>
-      <SiteHeader active="/features" />
+      <SiteHeader active="/features" locale={locale} brandImage={brandImage} brandName={brandName} />
       <main id="main">
         <section className="section section-head">
           <div className="container">
-            <p className="hero-eyebrow">Feature overview</p>
-            <h1 className="page-title">Everything a childcare day needs</h1>
-            <p className="subtitle">
-              One platform for the daily loop — from check-in to the evening
-              report — for staff, centers, and parents.
-            </p>
+            <p className="hero-eyebrow">{t("site.features.eyebrow")}</p>
+            <h1 className="page-title">{t("site.features.title")}</h1>
+            <p className="subtitle">{t("site.features.subtitle")}</p>
           </div>
         </section>
 
         <section className="section">
           <div className="container grid">
-            {FEATURES.map((f) => (
-              <div className="card feature-card" key={f.title}>
-                <h3 className="mt-2">{f.title}</h3>
-                <p className="muted small mt-1">{f.body}</p>
+            {Array.from({ length: 12 }, (_, i) => i + 1).map((n) => (
+              <div className="card feature-card" key={n}>
+                <h3 className="mt-2">{t(`site.features.f${n}Title`)}</h3>
+                <p className="muted small mt-1">{t(`site.features.f${n}Body`)}</p>
               </div>
             ))}
           </div>
@@ -90,23 +42,23 @@ export default function FeaturesPage() {
         <section className="section section-cta">
           <div className="container">
             <div className="card cta-card">
-              <h2 className="title">See it with your own daycare&apos;s data</h2>
+              <h2 className="title">{t("site.features.ctaTitle")}</h2>
               <p className="subtitle" style={{ marginBottom: 0 }}>
-                Book a demo and we&apos;ll walk your center through the daily loop.
+                {t("site.features.ctaSub")}
               </p>
               <div className="row mt-3">
                 <Link className="btn btn-deep btn-lg" href="/contact">
-                  Book a demo
+                  {t("site.features.ctaBook")}
                 </Link>
                 <Link className="btn btn-ghost btn-lg" href="/for-centers">
-                  For centers
+                  {t("site.features.ctaCenters")}
                 </Link>
               </div>
             </div>
           </div>
         </section>
       </main>
-      <SiteFooter />
+      <SiteFooter locale={locale} />
     </>
   );
 }

@@ -1,17 +1,23 @@
 import { submitContactAction } from "@/lib/actions";
+import { getDictionary, tr, type Locale } from "@/lib/i18n";
 
-export default function ContactForm() {
+// KID-1826: the contact form's labels, placeholders and button copy render in
+// the request's site language — the server component resolves the dictionary
+// itself, so no client boundary or prop plumbing beyond the locale.
+export default function ContactForm({ locale = "en" }: { locale?: Locale }) {
+  const dict = getDictionary(locale);
+  const t = (key: string, vars?: Record<string, string | number>) => tr(dict, key, vars);
+
   return (
     <div className="card contact-card">
-      <h2 className="title">Book a demo</h2>
+      <h2 className="title">{t("site.contact.formTitle")}</h2>
       <p className="subtitle" style={{ marginBottom: 0 }}>
-        Walk through the platform with real daycare data — or just tell us what
-        you need.
+        {t("site.contact.formSub")}
       </p>
       <form className="mt-3" action={submitContactAction}>
         <div className="field">
           <label className="label" htmlFor="contact-name">
-            Your name <span aria-hidden="true">*</span>
+            {t("site.contact.nameLabel")} <span aria-hidden="true">*</span>
           </label>
           <input
             className="input"
@@ -20,12 +26,12 @@ export default function ContactForm() {
             type="text"
             required
             autoComplete="name"
-            placeholder="Jordan Smith"
+            placeholder={t("site.contact.namePlaceholder")}
           />
         </div>
         <div className="field">
           <label className="label" htmlFor="contact-email">
-            Work email <span aria-hidden="true">*</span>
+            {t("site.contact.emailLabel")} <span aria-hidden="true">*</span>
           </label>
           <input
             className="input"
@@ -34,12 +40,13 @@ export default function ContactForm() {
             type="email"
             required
             autoComplete="email"
-            placeholder="you@daycare.eg"
+            placeholder={t("site.contact.emailPlaceholder")}
           />
         </div>
         <div className="field">
           <label className="label" htmlFor="contact-phone">
-            Phone <span className="small muted" aria-hidden="true">(optional)</span>
+            {t("site.contact.phoneLabel")}{" "}
+            <span className="small muted" aria-hidden="true">{t("site.contact.optional")}</span>
           </label>
           <input
             className="input"
@@ -52,37 +59,36 @@ export default function ContactForm() {
         </div>
         <input type="hidden" name="role" value="center" />
         <div className="field">
-          <span className="label">I&apos;m interested in…</span>
+          <span className="label">{t("site.contact.interestLabel")}</span>
           <div className="row">
             <label className="choice">
-              <input type="radio" name="interest" value="demo" defaultChecked /> Book a demo
+              <input type="radio" name="interest" value="demo" defaultChecked /> {t("site.contact.interestDemo")}
             </label>
             <label className="choice">
-              <input type="radio" name="interest" value="question" /> A question
+              <input type="radio" name="interest" value="question" /> {t("site.contact.interestQuestion")}
             </label>
             <label className="choice">
-              <input type="radio" name="interest" value="info" /> More info
+              <input type="radio" name="interest" value="info" /> {t("site.contact.interestInfo")}
             </label>
           </div>
         </div>
         <div className="field">
           <label className="label" htmlFor="contact-message">
-            Message <span className="small muted" aria-hidden="true">(optional)</span>
+            {t("site.contact.messageLabel")}{" "}
+            <span className="small muted" aria-hidden="true">{t("site.contact.optional")}</span>
           </label>
           <textarea
             className="textarea"
             id="contact-message"
             name="message"
             rows={4}
-            placeholder="Tell us about your daycare and what you'd like to see."
+            placeholder={t("site.contact.messagePlaceholder")}
           />
         </div>
         <button className="btn btn-primary btn-block btn-lg" type="submit">
-          Send request
+          {t("site.contact.submit")}
         </button>
-        <p className="muted small mt-2">
-          We&apos;ll reply to the email address you provide. No spam, ever.
-        </p>
+        <p className="muted small mt-2">{t("site.contact.privacyNote")}</p>
       </form>
     </div>
   );
