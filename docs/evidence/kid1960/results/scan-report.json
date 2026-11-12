@@ -1,0 +1,498 @@
+[
+  {
+    "host": "apex",
+    "locale": "en",
+    "page": "/",
+    "url": "http://localhost.local:3111/",
+    "violations": [],
+    "probe": {
+      "subtitle": {
+        "color": "rgb(67, 83, 110)",
+        "size": "14px"
+      },
+      "muted": {
+        "color": "rgb(67, 83, 110)",
+        "size": "13px"
+      },
+      "banner": false,
+      "dir": "ltr",
+      "lang": "en"
+    }
+  },
+  {
+    "host": "apex",
+    "locale": "en",
+    "page": "/features",
+    "url": "http://localhost.local:3111/features",
+    "violations": [],
+    "probe": {
+      "navActive": {
+        "fg": "rgb(255, 255, 255)",
+        "bg": "color(srgb 0.119216 0.237059 0.444706)",
+        "text": "Features",
+        "size": "14px"
+      },
+      "subtitle": {
+        "color": "rgb(67, 83, 110)",
+        "size": "14px"
+      },
+      "muted": {
+        "color": "rgb(67, 83, 110)",
+        "size": "13px"
+      },
+      "banner": false,
+      "dir": "ltr",
+      "lang": "en"
+    }
+  },
+  {
+    "host": "apex",
+    "locale": "en",
+    "page": "/for-parents",
+    "url": "http://localhost.local:3111/for-parents",
+    "violations": [],
+    "probe": {
+      "navActive": {
+        "fg": "rgb(255, 255, 255)",
+        "bg": "color(srgb 0.119216 0.237059 0.444706)",
+        "text": "For parents",
+        "size": "14px"
+      },
+      "subtitle": {
+        "color": "rgb(67, 83, 110)",
+        "size": "14px"
+      },
+      "muted": {
+        "color": "rgb(67, 83, 110)",
+        "size": "16px"
+      },
+      "banner": false,
+      "dir": "ltr",
+      "lang": "en"
+    }
+  },
+  {
+    "host": "apex",
+    "locale": "en",
+    "page": "/for-centers",
+    "url": "http://localhost.local:3111/for-centers",
+    "violations": [],
+    "probe": {
+      "navActive": {
+        "fg": "rgb(255, 255, 255)",
+        "bg": "color(srgb 0.119216 0.237059 0.444706)",
+        "text": "For centers",
+        "size": "14px"
+      },
+      "subtitle": {
+        "color": "rgb(67, 83, 110)",
+        "size": "14px"
+      },
+      "muted": {
+        "color": "rgb(67, 83, 110)",
+        "size": "13px"
+      },
+      "banner": false,
+      "dir": "ltr",
+      "lang": "en"
+    }
+  },
+  {
+    "host": "apex",
+    "locale": "en",
+    "page": "/contact",
+    "url": "http://localhost.local:3111/contact",
+    "violations": [],
+    "probe": {
+      "contactBtn": {
+        "fg": "rgb(255, 255, 255)",
+        "bg": "color(srgb 0.119216 0.237059 0.444706)",
+        "cls": "btn btn-deep btn-block btn-lg",
+        "size": "15px"
+      },
+      "subtitle": {
+        "color": "rgb(67, 83, 110)",
+        "size": "14px"
+      },
+      "muted": {
+        "color": "rgb(67, 83, 110)",
+        "size": "13px"
+      },
+      "banner": false,
+      "dir": "ltr",
+      "lang": "en"
+    }
+  },
+  {
+    "host": "apex",
+    "locale": "ar",
+    "page": "/",
+    "url": "http://localhost.local:3111/",
+    "violations": [],
+    "probe": {
+      "subtitle": {
+        "color": "rgb(67, 83, 110)",
+        "size": "14px"
+      },
+      "muted": {
+        "color": "rgb(67, 83, 110)",
+        "size": "13px"
+      },
+      "banner": false,
+      "dir": "rtl",
+      "lang": "ar"
+    }
+  },
+  {
+    "host": "apex",
+    "locale": "ar",
+    "page": "/features",
+    "url": "http://localhost.local:3111/features",
+    "violations": [],
+    "probe": {
+      "navActive": {
+        "fg": "rgb(255, 255, 255)",
+        "bg": "color(srgb 0.119216 0.237059 0.444706)",
+        "text": "الميزات",
+        "size": "14px"
+      },
+      "subtitle": {
+        "color": "rgb(67, 83, 110)",
+        "size": "14px"
+      },
+      "muted": {
+        "color": "rgb(67, 83, 110)",
+        "size": "13px"
+      },
+      "banner": false,
+      "dir": "rtl",
+      "lang": "ar"
+    }
+  },
+  {
+    "host": "apex",
+    "locale": "ar",
+    "page": "/for-parents",
+    "url": "http://localhost.local:3111/for-parents",
+    "violations": [],
+    "probe": {
+      "navActive": {
+        "fg": "rgb(255, 255, 255)",
+        "bg": "color(srgb 0.119216 0.237059 0.444706)",
+        "text": "للأسر",
+        "size": "14px"
+      },
+      "subtitle": {
+        "color": "rgb(67, 83, 110)",
+        "size": "14px"
+      },
+      "muted": {
+        "color": "rgb(67, 83, 110)",
+        "size": "16px"
+      },
+      "banner": false,
+      "dir": "rtl",
+      "lang": "ar"
+    }
+  },
+  {
+    "host": "apex",
+    "locale": "ar",
+    "page": "/for-centers",
+    "url": "http://localhost.local:3111/for-centers",
+    "violations": [],
+    "probe": {
+      "navActive": {
+        "fg": "rgb(255, 255, 255)",
+        "bg": "color(srgb 0.119216 0.237059 0.444706)",
+        "text": "للحضانات",
+        "size": "14px"
+      },
+      "subtitle": {
+        "color": "rgb(67, 83, 110)",
+        "size": "14px"
+      },
+      "muted": {
+        "color": "rgb(67, 83, 110)",
+        "size": "13px"
+      },
+      "banner": false,
+      "dir": "rtl",
+      "lang": "ar"
+    }
+  },
+  {
+    "host": "apex",
+    "locale": "ar",
+    "page": "/contact",
+    "url": "http://localhost.local:3111/contact",
+    "violations": [],
+    "probe": {
+      "contactBtn": {
+        "fg": "rgb(255, 255, 255)",
+        "bg": "color(srgb 0.119216 0.237059 0.444706)",
+        "cls": "btn btn-deep btn-block btn-lg",
+        "size": "15px"
+      },
+      "subtitle": {
+        "color": "rgb(67, 83, 110)",
+        "size": "14px"
+      },
+      "muted": {
+        "color": "rgb(67, 83, 110)",
+        "size": "13px"
+      },
+      "banner": false,
+      "dir": "rtl",
+      "lang": "ar"
+    }
+  },
+  {
+    "host": "tenant",
+    "locale": "en",
+    "page": "/",
+    "url": "http://sunshine.local.test:3111/",
+    "violations": [],
+    "probe": {
+      "subtitle": {
+        "color": "rgb(67, 83, 110)",
+        "size": "14px"
+      },
+      "muted": {
+        "color": "rgb(67, 83, 110)",
+        "size": "13px"
+      },
+      "banner": false,
+      "dir": "ltr",
+      "lang": "en"
+    }
+  },
+  {
+    "host": "tenant",
+    "locale": "en",
+    "page": "/features",
+    "url": "http://sunshine.local.test:3111/features",
+    "violations": [],
+    "probe": {
+      "navActive": {
+        "fg": "rgb(255, 255, 255)",
+        "bg": "color(srgb 0.174118 0.198627 0.437843)",
+        "text": "Features",
+        "size": "14px"
+      },
+      "subtitle": {
+        "color": "rgb(67, 83, 110)",
+        "size": "14px"
+      },
+      "muted": {
+        "color": "rgb(67, 83, 110)",
+        "size": "13px"
+      },
+      "banner": false,
+      "dir": "ltr",
+      "lang": "en"
+    }
+  },
+  {
+    "host": "tenant",
+    "locale": "en",
+    "page": "/for-parents",
+    "url": "http://sunshine.local.test:3111/for-parents",
+    "violations": [],
+    "probe": {
+      "navActive": {
+        "fg": "rgb(255, 255, 255)",
+        "bg": "color(srgb 0.174118 0.198627 0.437843)",
+        "text": "For parents",
+        "size": "14px"
+      },
+      "subtitle": {
+        "color": "rgb(67, 83, 110)",
+        "size": "14px"
+      },
+      "muted": {
+        "color": "rgb(67, 83, 110)",
+        "size": "16px"
+      },
+      "banner": false,
+      "dir": "ltr",
+      "lang": "en"
+    }
+  },
+  {
+    "host": "tenant",
+    "locale": "en",
+    "page": "/for-centers",
+    "url": "http://sunshine.local.test:3111/for-centers",
+    "violations": [],
+    "probe": {
+      "navActive": {
+        "fg": "rgb(255, 255, 255)",
+        "bg": "color(srgb 0.174118 0.198627 0.437843)",
+        "text": "For centers",
+        "size": "14px"
+      },
+      "subtitle": {
+        "color": "rgb(67, 83, 110)",
+        "size": "14px"
+      },
+      "muted": {
+        "color": "rgb(67, 83, 110)",
+        "size": "13px"
+      },
+      "banner": false,
+      "dir": "ltr",
+      "lang": "en"
+    }
+  },
+  {
+    "host": "tenant",
+    "locale": "en",
+    "page": "/contact",
+    "url": "http://sunshine.local.test:3111/contact",
+    "violations": [],
+    "probe": {
+      "contactBtn": {
+        "fg": "rgb(255, 255, 255)",
+        "bg": "color(srgb 0.174118 0.198627 0.437843)",
+        "cls": "btn btn-deep btn-block btn-lg",
+        "size": "15px"
+      },
+      "subtitle": {
+        "color": "rgb(67, 83, 110)",
+        "size": "14px"
+      },
+      "muted": {
+        "color": "rgb(67, 83, 110)",
+        "size": "13px"
+      },
+      "banner": false,
+      "dir": "ltr",
+      "lang": "en"
+    }
+  },
+  {
+    "host": "tenant",
+    "locale": "ar",
+    "page": "/",
+    "url": "http://sunshine.local.test:3111/",
+    "violations": [],
+    "probe": {
+      "subtitle": {
+        "color": "rgb(67, 83, 110)",
+        "size": "14px"
+      },
+      "muted": {
+        "color": "rgb(67, 83, 110)",
+        "size": "13px"
+      },
+      "banner": false,
+      "dir": "rtl",
+      "lang": "ar"
+    }
+  },
+  {
+    "host": "tenant",
+    "locale": "ar",
+    "page": "/features",
+    "url": "http://sunshine.local.test:3111/features",
+    "violations": [],
+    "probe": {
+      "navActive": {
+        "fg": "rgb(255, 255, 255)",
+        "bg": "color(srgb 0.174118 0.198627 0.437843)",
+        "text": "الميزات",
+        "size": "14px"
+      },
+      "subtitle": {
+        "color": "rgb(67, 83, 110)",
+        "size": "14px"
+      },
+      "muted": {
+        "color": "rgb(67, 83, 110)",
+        "size": "13px"
+      },
+      "banner": false,
+      "dir": "rtl",
+      "lang": "ar"
+    }
+  },
+  {
+    "host": "tenant",
+    "locale": "ar",
+    "page": "/for-parents",
+    "url": "http://sunshine.local.test:3111/for-parents",
+    "violations": [],
+    "probe": {
+      "navActive": {
+        "fg": "rgb(255, 255, 255)",
+        "bg": "color(srgb 0.174118 0.198627 0.437843)",
+        "text": "للأسر",
+        "size": "14px"
+      },
+      "subtitle": {
+        "color": "rgb(67, 83, 110)",
+        "size": "14px"
+      },
+      "muted": {
+        "color": "rgb(67, 83, 110)",
+        "size": "16px"
+      },
+      "banner": false,
+      "dir": "rtl",
+      "lang": "ar"
+    }
+  },
+  {
+    "host": "tenant",
+    "locale": "ar",
+    "page": "/for-centers",
+    "url": "http://sunshine.local.test:3111/for-centers",
+    "violations": [],
+    "probe": {
+      "navActive": {
+        "fg": "rgb(255, 255, 255)",
+        "bg": "color(srgb 0.174118 0.198627 0.437843)",
+        "text": "للحضانات",
+        "size": "14px"
+      },
+      "subtitle": {
+        "color": "rgb(67, 83, 110)",
+        "size": "14px"
+      },
+      "muted": {
+        "color": "rgb(67, 83, 110)",
+        "size": "13px"
+      },
+      "banner": false,
+      "dir": "rtl",
+      "lang": "ar"
+    }
+  },
+  {
+    "host": "tenant",
+    "locale": "ar",
+    "page": "/contact",
+    "url": "http://sunshine.local.test:3111/contact",
+    "violations": [],
+    "probe": {
+      "contactBtn": {
+        "fg": "rgb(255, 255, 255)",
+        "bg": "color(srgb 0.174118 0.198627 0.437843)",
+        "cls": "btn btn-deep btn-block btn-lg",
+        "size": "15px"
+      },
+      "subtitle": {
+        "color": "rgb(67, 83, 110)",
+        "size": "14px"
+      },
+      "muted": {
+        "color": "rgb(67, 83, 110)",
+        "size": "13px"
+      },
+      "banner": false,
+      "dir": "rtl",
+      "lang": "ar"
+    }
+  }
+]
