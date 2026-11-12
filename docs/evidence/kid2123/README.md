@@ -55,7 +55,29 @@ Probe scripts: `kid2123-probe.js` (reveal contract), `kid2123-probe2.js` (overfl
 | 7. Hover lift with `(hover:hover)=true`; press scale 0.97 | ✅ hover on a **revealed** `.audience-panel`: `transform: matrix(1,0,0,1,0,-3)` (= `translateY(-3px)`) at `transition: 0.18s` = `--motion-lift`; `.btn` pressed via real mouse event: `matrix(0.97, 0, 0, 0.97, 0, 0)` + shadow removed |
 | 8. Evidence shows computed opacity/transition-duration before/after on 3+ sections | ✅ `computed-style-probe.json` records per-element computed `opacity`, `transitionDuration`, `transform`, `is-revealed` for all 16 landing targets before scroll, after scroll, and after scroll-back-to-top (three feature-row / heading / paragraph sections shown hidden → revealed) |
 | 9. `tsc` clean, lint 0 errors, build green, tests pass | ✅ `tsc --noEmit` exit 0; `next lint` 0 errors (only pre-existing `<img>` warnings); `next build` ✓ (CSS `76c041f22639740b.css` contains the three `[data-reveal-ready]` rules, zero dead `.reveal-ready` selectors); vitest **109 files / 1209 tests passed** |
-| 10. Preview first; board approval before production master | ⏳ this document + preview deployment; rollback reference unchanged: `dpl_3iQycMmc4jCPbfyMgWZgVXF13Q4w` @ `ac81542` |
+| 10. Preview first; board approval before production master | ⏳ preview verified below; board approval requested — production cut is one `git push origin master`. Rollback reference unchanged: `dpl_3iQycMmc4jCPbfyMgWZgVXF13Q4w` @ `ac81542` |
+
+## Preview (NOT production)
+
+- URL: https://kiddy-nm8uxikhr-kiddy2.vercel.app — deployment `dpl_HMaJkQRjucdQNYVAzsbzNgtjmSA9`,
+  `readyState READY`, `target: preview`, deployed with the Vercel CLI from a clean
+  `git worktree` checkout of commit `9cbde05` (linked to the existing project
+  `prj_LmRn4uWkd9XY4ykXey9SCXG2442M`, so it carries the project's env config; KID-2072's stacked
+  commits were not included — the worktree checked out only this commit's tree).
+- Deployment protection: anonymous GET → `302` SSO redirect; with the standing review bypass
+  `x-vercel-protection-bypass: hMkfx9…` (owned by KID-2072's gate) → `200`. Review access untouched;
+  nothing revoked.
+- Served CSS `/_next/static/css/76c041f22639740b.css` contains the three `[data-reveal-ready]` rules
+  and zero dead `.reveal-ready` class selectors.
+- Full probe suite re-run **against the preview** with identical results: armed on load, 10/16
+  pre-reveal hidden at `opacity: 0` + `translateY(10px)` + `transition-duration 0.45s` uniformly,
+  16/16 revealed after one scroll pass with no re-hide on scroll-up, reduced-motion never arms and
+  shows everything with zero transitions, hover lift on a revealed card `matrix(1,0,0,1,0,-3)` at
+  0.18s, button press `matrix(0.97,0,0,0.97,0,0)`, CLS 0.0000 and zero horizontal overflow in EN+AR
+  at 360/768/1280/1440, and all six public pages end with `stillHidden: 0`
+  (`preview-pages.json`, `preview-probe.json`, `preview-probe2.json`).
+- Screenshots: `screenshots/preview-landing-top.png` (hero at load) and
+  `screenshots/preview-landing-revealed.png` (audience panels + CTA band fully revealed mid-page).
 
 ## Notes / known deviations
 

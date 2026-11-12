@@ -1,0 +1,77 @@
+{
+  "en": {
+    "360": {
+      "overflowPx": 0,
+      "cls": 0,
+      "hero": {
+        "heroRevealTags": 0,
+        "h1Visible": "1"
+      }
+    },
+    "768": {
+      "overflowPx": 0,
+      "cls": 0,
+      "hero": {
+        "heroRevealTags": 0,
+        "h1Visible": "1"
+      }
+    },
+    "1280": {
+      "overflowPx": 0,
+      "cls": 0,
+      "hero": {
+        "heroRevealTags": 0,
+        "h1Visible": "1"
+      }
+    },
+    "1440": {
+      "overflowPx": 0,
+      "cls": 0,
+      "hero": {
+        "heroRevealTags": 0,
+        "h1Visible": "1"
+      }
+    }
+  },
+  "ar": {
+    "360": {
+      "overflowPx": 0,
+      "cls": 0,
+      "hero": {
+        "heroRevealTags": 0,
+        "h1Visible": "1"
+      }
+    },
+    "768": {
+      "overflowPx": 0,
+      "cls": 0,
+      "hero": {
+        "heroRevealTags": 0,
+        "h1Visible": "1"
+      }
+    },
+    "1280": {
+      "overflowPx": 0,
+      "cls": 0,
+      "hero": {
+        "heroRevealTags": 0,
+        "h1Visible": "1"
+      }
+    },
+    "1440": {
+      "overflowPx": 0,
+      "cls": 0,
+      "hero": {
+        "heroRevealTags": 0,
+        "h1Visible": "1"
+      }
+    }
+  },
+  "interactions": {
+    "hoverCapable": true,
+    "cardBefore": "none",
+    "cardAfter": "matrix(1, 0, 0, 1, 0, -3)",
+    "btnRest": "none",
+    "btnPressed": "matrix(0.97, 0, 0, 0.97, 0, 0)"
+  }
+}

@@ -1,0 +1,321 @@
+{
+  "en": {
+    "armed": true,
+    "revealClassCount": 0,
+    "before": {
+      "label": "before-scroll",
+      "total": 16,
+      "inViewport": [
+        {
+          "tag": "DIV",
+          "cls": "day-band-item is-revealed",
+          "opacity": "1",
+          "transitionDuration": "0.45s, 0.45s",
+          "transform": "none",
+          "revealed": true
+        },
+        {
+          "tag": "DIV",
+          "cls": "day-band-item is-revealed",
+          "opacity": "1",
+          "transitionDuration": "0.45s, 0.45s",
+          "transform": "none",
+          "revealed": true
+        },
+        {
+          "tag": "DIV",
+          "cls": "day-band-item is-revealed",
+          "opacity": "1",
+          "transitionDuration": "0.45s, 0.45s",
+          "transform": "none",
+          "revealed": true
+        },
+        {
+          "tag": "H2",
+          "cls": "section-title center is-reveal",
+          "opacity": "1",
+          "transitionDuration": "0.45s, 0.45s",
+          "transform": "none",
+          "revealed": true
+        },
+        {
+          "tag": "P",
+          "cls": "subtitle center is-revealed",
+          "opacity": "1",
+          "transitionDuration": "0.45s, 0.45s",
+          "transform": "none",
+          "revealed": true
+        },
+        {
+          "tag": "DIV",
+          "cls": "feature-row is-revealed",
+          "opacity": "1",
+          "transitionDuration": "0.45s, 0.45s",
+          "transform": "none",
+          "revealed": true
+        }
+      ],
+      "belowFold": [
+        {
+          "tag": "DIV",
+          "cls": "feature-row",
+          "opacity": "0",
+          "transitionDuration": "0.45s, 0.45s",
+          "transform": "matrix(1, 0, 0, 1, 0, 10)",
+          "revealed": false
+        },
+        {
+          "tag": "DIV",
+          "cls": "feature-row",
+          "opacity": "0",
+          "transitionDuration": "0.45s, 0.45s",
+          "transform": "matrix(1, 0, 0, 1, 0, 10)",
+          "revealed": false
+        },
+        {
+          "tag": "P",
+          "cls": "center mt-5",
+          "opacity": "0",
+          "transitionDuration": "0.45s, 0.45s",
+          "transform": "matrix(1, 0, 0, 1, 0, 10)",
+          "revealed": false
+        },
+        {
+          "tag": "H2",
+          "cls": "section-title center",
+          "opacity": "0",
+          "transitionDuration": "0.45s, 0.45s",
+          "transform": "matrix(1, 0, 0, 1, 0, 10)",
+          "revealed": false
+        },
+        {
+          "tag": "LI",
+          "cls": "step-flow-item",
+          "opacity": "0",
+          "transitionDuration": "0.45s, 0.45s",
+          "transform": "matrix(1, 0, 0, 1, 0, 10)",
+          "revealed": false
+        },
+        {
+          "tag": "LI",
+          "cls": "step-flow-item",
+          "opacity": "0",
+          "transitionDuration": "0.45s, 0.45s",
+          "transform": "matrix(1, 0, 0, 1, 0, 10)",
+          "revealed": false
+        },
+        {
+          "tag": "LI",
+          "cls": "step-flow-item",
+          "opacity": "0",
+          "transitionDuration": "0.45s, 0.45s",
+          "transform": "matrix(1, 0, 0, 1, 0, 10)",
+          "revealed": false
+        },
+        {
+          "tag": "DIV",
+          "cls": "audience-panel audience-parent",
+          "opacity": "0",
+          "transitionDuration": "0.45s, 0.45s",
+          "transform": "matrix(1, 0, 0, 1, 0, 10)",
+          "revealed": false
+        },
+        {
+          "tag": "DIV",
+          "cls": "audience-panel audience-center",
+          "opacity": "0",
+          "transitionDuration": "0.45s, 0.45s",
+          "transform": "matrix(1, 0, 0, 1, 0, 10)",
+          "revealed": false
+        },
+        {
+          "tag": "DIV",
+          "cls": "cta-band",
+          "opacity": "0",
+          "transitionDuration": "0.45s, 0.45s",
+          "transform": "matrix(1, 0, 0, 1, 0, 10)",
+          "revealed": false
+        }
+      ]
+    },
+    "after": {
+      "label": "after-scroll",
+      "total": 16,
+      "inViewport": [
+        {
+          "tag": "DIV",
+          "cls": "audience-panel audience-parent",
+          "opacity": "1",
+          "transitionDuration": "0.45s, 0.45s",
+          "transform": "none",
+          "revealed": true
+        },
+        {
+          "tag": "DIV",
+          "cls": "audience-panel audience-center",
+          "opacity": "1",
+          "transitionDuration": "0.45s, 0.45s",
+          "transform": "none",
+          "revealed": true
+        },
+        {
+          "tag": "DIV",
+          "cls": "cta-band is-revealed",
+          "opacity": "1",
+          "transitionDuration": "0.45s, 0.45s",
+          "transform": "none",
+          "revealed": true
+        }
+      ],
+      "belowFold": []
+    },
+    "afterBack": {
+      "label": "after-scroll-back-to-top",
+      "total": 16,
+      "inViewport": [
+        {
+          "tag": "DIV",
+          "cls": "day-band-item is-revealed",
+          "opacity": "1",
+          "transitionDuration": "0.45s, 0.45s",
+          "transform": "none",
+          "revealed": true
+        },
+        {
+          "tag": "DIV",
+          "cls": "day-band-item is-revealed",
+          "opacity": "1",
+          "transitionDuration": "0.45s, 0.45s",
+          "transform": "none",
+          "revealed": true
+        },
+        {
+          "tag": "DIV",
+          "cls": "day-band-item is-revealed",
+          "opacity": "1",
+          "transitionDuration": "0.45s, 0.45s",
+          "transform": "none",
+          "revealed": true
+        },
+        {
+          "tag": "H2",
+          "cls": "section-title center is-reveal",
+          "opacity": "1",
+          "transitionDuration": "0.45s, 0.45s",
+          "transform": "none",
+          "revealed": true
+        },
+        {
+          "tag": "P",
+          "cls": "subtitle center is-revealed",
+          "opacity": "1",
+          "transitionDuration": "0.45s, 0.45s",
+          "transform": "none",
+          "revealed": true
+        },
+        {
+          "tag": "DIV",
+          "cls": "feature-row is-revealed",
+          "opacity": "1",
+          "transitionDuration": "0.45s, 0.45s",
+          "transform": "none",
+          "revealed": true
+        }
+      ],
+      "belowFold": [
+        {
+          "tag": "DIV",
+          "cls": "feature-row is-revealed",
+          "opacity": "1",
+          "transitionDuration": "0.45s, 0.45s",
+          "transform": "none",
+          "revealed": true
+        },
+        {
+          "tag": "DIV",
+          "cls": "feature-row is-revealed",
+          "opacity": "1",
+          "transitionDuration": "0.45s, 0.45s",
+          "transform": "none",
+          "revealed": true
+        },
+        {
+          "tag": "P",
+          "cls": "center mt-5 is-revealed",
+          "opacity": "1",
+          "transitionDuration": "0.45s, 0.45s",
+          "transform": "none",
+          "revealed": true
+        },
+        {
+          "tag": "H2",
+          "cls": "section-title center is-reveal",
+          "opacity": "1",
+          "transitionDuration": "0.45s, 0.45s",
+          "transform": "none",
+          "revealed": true
+        },
+        {
+          "tag": "LI",
+          "cls": "step-flow-item is-revealed",
+          "opacity": "1",
+          "transitionDuration": "0.45s, 0.45s",
+          "transform": "none",
+          "revealed": true
+        },
+        {
+          "tag": "LI",
+          "cls": "step-flow-item is-revealed",
+          "opacity": "1",
+          "transitionDuration": "0.45s, 0.45s",
+          "transform": "none",
+          "revealed": true
+        },
+        {
+          "tag": "LI",
+          "cls": "step-flow-item is-revealed",
+          "opacity": "1",
+          "transitionDuration": "0.45s, 0.45s",
+          "transform": "none",
+          "revealed": true
+        },
+        {
+          "tag": "DIV",
+          "cls": "audience-panel audience-parent",
+          "opacity": "1",
+          "transitionDuration": "0.45s, 0.45s",
+          "transform": "none",
+          "revealed": true
+        },
+        {
+          "tag": "DIV",
+          "cls": "audience-panel audience-center",
+          "opacity": "1",
+          "transitionDuration": "0.45s, 0.45s",
+          "transform": "none",
+          "revealed": true
+        },
+        {
+          "tag": "DIV",
+          "cls": "cta-band is-revealed",
+          "opacity": "1",
+          "transitionDuration": "0.45s, 0.45s",
+          "transform": "none",
+          "revealed": true
+        }
+      ]
+    }
+  },
+  "reducedMotion": {
+    "armed": false,
+    "total": 5,
+    "allVisible": true,
+    "anyTransition": false
+  },
+  "forCenters": {
+    "armed": true,
+    "total": 10,
+    "belowFoldHidden": 0,
+    "belowFoldTotal": 0
+  }
+}
