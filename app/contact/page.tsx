@@ -23,7 +23,7 @@ export default async function ContactPage(
   }
 ) {
   const searchParams = await props.searchParams;
-  const { locale, t, brandImage, brandName } = await siteContext();
+  const { locale, t, brandImage, brandName, nextPath } = await siteContext();
   const errorMessage =
     searchParams?.error === "name"
       ? t("site.contact.errName")
@@ -37,7 +37,7 @@ export default async function ContactPage(
 
   return (
     <>
-      <SiteHeader active="/contact" locale={locale} brandImage={brandImage} brandName={brandName} />
+      <SiteHeader active="/contact" locale={locale} brandImage={brandImage} brandName={brandName} nextPath={nextPath} />
       <main id="main">
         <section className="section section-head">
           <div className="container" data-reveal>

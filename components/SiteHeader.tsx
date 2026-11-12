@@ -15,6 +15,9 @@ export type SiteHeaderProps = {
   // slot, no gap.
   brandImage?: string | null;
   brandName?: string;
+  // KID-2072: the current path + query, handed to the language switcher so
+  // the server switch returns the visitor to exactly where they were.
+  nextPath?: string | null;
 };
 
 const NAV: { href: string; key: string }[] = [
@@ -28,6 +31,7 @@ export default function SiteHeader({
   locale = "en",
   brandImage = null,
   brandName,
+  nextPath = null,
 }: SiteHeaderProps) {
   const dict = getDictionary(locale);
   const t = (key: string, vars?: Record<string, string | number>) => tr(dict, key, vars);
@@ -71,6 +75,7 @@ export default function SiteHeader({
             current={locale}
             label={t("site.lang.label")}
             labels={{ en: t("site.lang.en"), ar: t("site.lang.ar") }}
+            nextPath={nextPath}
           />
           <Link href="/login" className="site-nav-signin">
             {t("site.nav.portal")}

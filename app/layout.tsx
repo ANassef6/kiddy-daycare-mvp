@@ -4,7 +4,7 @@ import "./globals.css";
 import { brandNameForTitle, getBranding } from "@/lib/theme";
 import { ensureSeeded } from "@/lib/bootstrap";
 import { dirFor } from "@/lib/i18n";
-import { resolveRequestLocale } from "@/lib/i18n-session";
+import { resolveRequestLocale, resolveSiteLocale } from "@/lib/i18n-session";
 import { PUBLIC_PAGE_HEADER } from "@/middleware";
 import ChatwootWidget from "@/components/ChatwootWidget";
 import BrandBanner from "@/components/BrandBanner";
@@ -76,7 +76,6 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     // never block render on DB availability
   }
 
-  const locale = await resolveRequestLocale();
   // KID-1826: middleware flags the public marketing routes so the layout can
   // skip the banner render entirely (see the BrandBanner mount below).
   let isPublicPage = false;
@@ -85,6 +84,11 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   } catch {
     // no request scope (tests/scripts): keep the banner behavior unchanged
   }
+  // KID-2072: the five public marketing pages resolve <html lang dir> from
+  // the SITE resolution (site cookie wins, ?lang override honored) — the same
+  // resolution the page content uses, so the document and its copy always
+  // agree. App/portal/auth pages keep the account-canonical resolution.
+  const locale = isPublicPage ? await resolveSiteLocale() : await resolveRequestLocale();
 
   return (
     <html lang={locale} dir={dirFor(locale)}>

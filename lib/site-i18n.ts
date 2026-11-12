@@ -1,6 +1,8 @@
+import { headers } from "next/headers";
 import { getBranding } from "@/lib/theme";
 import { getDictionary, tr, type Locale } from "@/lib/i18n";
-import { resolveRequestLocale } from "@/lib/i18n-session";
+import { resolveSiteLocale } from "@/lib/i18n-session";
+import { PUBLIC_PATH_HEADER } from "@/middleware";
 
 // KID-1826: one request-scoped context for every public marketing page —
 // the site locale (same resolution as <html lang dir>), the localized
@@ -12,10 +14,22 @@ export type SiteContext = {
   t: (key: string, vars?: Record<string, string | number>) => string;
   brandImage: string | null;
   brandName: string;
+  // KID-2072: the current path + query (from middleware) for the language
+  // switcher's return trip; null when there is no request scope.
+  nextPath: string | null;
 };
 
 export async function siteContext(): Promise<SiteContext> {
-  const locale = await resolveRequestLocale();
+  // KID-2072: the public pages resolve the SITE locale (site cookie wins,
+  // ?lang override honored) — the same rule <html lang dir> follows on these
+  // pages since the layout uses resolveSiteLocale there too.
+  const locale = await resolveSiteLocale();
+  let nextPath: string | null = null;
+  try {
+    nextPath = (await headers()).get(PUBLIC_PATH_HEADER);
+  } catch {
+    // no request scope (tests/scripts): the switcher omits `next`
+  }
   let brandImage: string | null = null;
   let brandName = "Kiddy";
   try {
@@ -31,5 +45,6 @@ export async function siteContext(): Promise<SiteContext> {
     t: (key, vars) => tr(dict, key, vars),
     brandImage,
     brandName,
+    nextPath,
   };
 }

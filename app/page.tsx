@@ -24,14 +24,14 @@ export async function generateMetadata() {
 }
 
 export default async function HomePage() {
-  const { locale, t, brandImage, brandName } = await siteContext();
+  const { locale, t, brandImage, brandName, nextPath } = await siteContext();
   // Sample-day names: localized per locale so no mixed-language page ships.
   const amira = locale === "ar" ? "أميرة" : "Amira";
   const omar = locale === "ar" ? "عمر" : "Omar";
 
   return (
     <>
-      <SiteHeader active="/" locale={locale} brandImage={brandImage} brandName={brandName} />
+      <SiteHeader active="/" locale={locale} brandImage={brandImage} brandName={brandName} nextPath={nextPath} />
       <main id="main">
         <section className="hero">
           <div className="container hero-grid">

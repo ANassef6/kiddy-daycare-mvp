@@ -17,11 +17,11 @@ export async function generateMetadata() {
 }
 
 export default async function ForCentersPage() {
-  const { locale, t, brandImage, brandName } = await siteContext();
+  const { locale, t, brandImage, brandName, nextPath } = await siteContext();
 
   return (
     <>
-      <SiteHeader active="/for-centers" locale={locale} brandImage={brandImage} brandName={brandName} />
+      <SiteHeader active="/for-centers" locale={locale} brandImage={brandImage} brandName={brandName} nextPath={nextPath} />
       <main id="main">
         <section className="section section-head">
           <div className="container" data-reveal>

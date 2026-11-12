@@ -1,6 +1,8 @@
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { getAccount } from "@/lib/auth";
-import { LANG_COOKIE, type Dict, type Locale, dirFor, getDictionary, localeOf } from "@/lib/i18n";
+import { DEFAULT_LOCALE, LANG_COOKIE, type Dict, type Locale, dirFor, getDictionary, localeOf } from "@/lib/i18n";
+import { SITE_LANG_COOKIE, lastCookieValue, localeFromParam } from "@/lib/site-lang";
+import { LANG_OVERRIDE_HEADER } from "@/middleware";
 
 export type I18nContext = { locale: Locale; dict: Dict; dir: "ltr" | "rtl" };
 
@@ -56,4 +58,47 @@ export async function i18nForAccount(accountId: string | undefined | null): Prom
     if (account?.language) locale = localeOf(account.language);
   }
   return { locale, dict: getDictionary(locale), dir: dirFor(locale) };
+}
+
+// KID-2072: the public marketing site's own locale resolution. The EN/AR
+// switcher is the visitor's control on those pages, so the site decision is
+// deliberately independent of the signed-in account preference and of the
+// app's kiddy_lang shadowing behavior:
+//   1. the per-request ?lang override (middleware promotes the query param to
+//      a request header) — renders Arabic even when cookies are unavailable;
+//   2. kiddy_site_lang — the site's own cookie, read LAST-duplicate-wins from
+//      the raw Cookie header so a stale same-name duplicate (host-only +
+//      Domain cookies, different paths) can never shadow the most recent
+//      explicit site choice — the failure that made the old client-side
+//      switcher a silent no-op for some visitors;
+//   3. the legacy kiddy_lang device cookie (also last-wins here) so existing
+//      device choices keep working until the visitor uses the site switcher;
+//   4. English.
+// App/portal/auth surfaces keep resolveRequestLocale: account.language stays
+// canonical there (OBS-001), and kiddy_site_lang never decides those pages.
+export async function resolveSiteLocale(): Promise<Locale> {
+  let override: string | null = null;
+  let rawCookie: string | null = null;
+  try {
+    const h = await headers();
+    override = h.get(LANG_OVERRIDE_HEADER);
+    rawCookie = h.get("cookie");
+  } catch {
+    // no request scope (static render/tests): fall through to cookies()
+  }
+  let siteCookie = lastCookieValue(rawCookie, SITE_LANG_COOKIE);
+  let langCookie = lastCookieValue(rawCookie, LANG_COOKIE);
+  try {
+    const cookieStore = await cookies();
+    if (!siteCookie) siteCookie = cookieStore.get(SITE_LANG_COOKIE)?.value ?? null;
+    if (!langCookie) langCookie = cookieStore.get(LANG_COOKIE)?.value ?? null;
+  } catch {
+    // no request scope: the defaults below hold
+  }
+  return (
+    localeFromParam(override) ??
+    localeFromParam(siteCookie) ??
+    localeFromParam(langCookie) ??
+    DEFAULT_LOCALE
+  );
 }
