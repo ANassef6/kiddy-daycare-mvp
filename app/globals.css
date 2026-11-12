@@ -1045,13 +1045,19 @@ body {
   transition: background 0.12s ease, color 0.12s ease;
 }
 
+/* KID-1960 defect 1: white 14px text on the raw --brand-primary pill was
+   3.67:1 (apex #3b82f6) and 4.46:1 (tenant #6366f1) — below the 4.5:1 normal
+   -text floor. The nav pill (and its hover states, same white-on-primary
+   pair) now uses the AA-safe --brand-deep fill like every other marketing
+   white-text CTA: measured 10.8:1 (apex) / 11.6:1 (tenant), >=5.5:1 for any
+   tenant primary by construction. */
 .site-nav a:hover {
-  background: var(--brand-primary);
+  background: var(--brand-deep);
   color: #fff;
 }
 
 .site-nav a.active {
-  background: var(--brand-primary);
+  background: var(--brand-deep);
   color: #fff;
 }
 
@@ -1064,7 +1070,7 @@ body {
 }
 
 .site-nav .site-nav-signin:hover {
-  background: var(--brand-primary);
+  background: var(--brand-deep);
   color: #fff;
 }
 
@@ -1362,6 +1368,19 @@ body {
 .subtitle {
   max-width: 60ch;
   line-height: 1.6;
+}
+
+/* KID-1960 defect 2: the shared --color-muted (#64748b) measures 4.35:1 on
+   the marketing canvas (#f2f5fa) at 14/16px — below the 4.5:1 normal-text
+   floor — while it still clears AA on the lighter product backgrounds
+   (4.55:1 on #f8fafc, 4.76:1 on white), so the token itself stays untouched
+   for product surfaces. Marketing copy inside <main id="main"> (the five
+   public routes only; auth and portal use no #main) now takes --ink-soft
+   (#43536e): measured 7.11:1 on the canvas, 7.77:1 on white — the same tone
+   .hero-sub and .cta-band already use. Direction-agnostic (LTR and RTL). */
+#main .muted,
+#main .subtitle {
+  color: var(--ink-soft);
 }
 
 .center {

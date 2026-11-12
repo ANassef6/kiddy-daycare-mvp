@@ -85,7 +85,7 @@ export default function ContactForm({ locale = "en" }: { locale?: Locale }) {
             placeholder={t("site.contact.messagePlaceholder")}
           />
         </div>
-        <button className="btn btn-primary btn-block btn-lg" type="submit">
+        <button className="btn btn-deep btn-block btn-lg" type="submit">
           {t("site.contact.submit")}
         </button>
         <p className="muted small mt-2">{t("site.contact.privacyNote")}</p>
