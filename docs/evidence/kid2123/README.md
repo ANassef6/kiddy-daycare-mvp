@@ -55,7 +55,7 @@ Probe scripts: `kid2123-probe.js` (reveal contract), `kid2123-probe2.js` (overfl
 | 7. Hover lift with `(hover:hover)=true`; press scale 0.97 | ✅ hover on a **revealed** `.audience-panel`: `transform: matrix(1,0,0,1,0,-3)` (= `translateY(-3px)`) at `transition: 0.18s` = `--motion-lift`; `.btn` pressed via real mouse event: `matrix(0.97, 0, 0, 0.97, 0, 0)` + shadow removed |
 | 8. Evidence shows computed opacity/transition-duration before/after on 3+ sections | ✅ `computed-style-probe.json` records per-element computed `opacity`, `transitionDuration`, `transform`, `is-revealed` for all 16 landing targets before scroll, after scroll, and after scroll-back-to-top (three feature-row / heading / paragraph sections shown hidden → revealed) |
 | 9. `tsc` clean, lint 0 errors, build green, tests pass | ✅ `tsc --noEmit` exit 0; `next lint` 0 errors (only pre-existing `<img>` warnings); `next build` ✓ (CSS `76c041f22639740b.css` contains the three `[data-reveal-ready]` rules, zero dead `.reveal-ready` selectors); vitest **109 files / 1209 tests passed** |
-| 10. Preview first; board approval before production master | ⏳ preview verified below; board approval requested — production cut is one `git push origin master`. Rollback reference unchanged: `dpl_3iQycMmc4jCPbfyMgWZgVXF13Q4w` @ `ac81542` |
+| 10. Preview first; board approval before production master | ✅ preview verified below; board approval `ad153cb0-611c-4285-890a-321b88f8bc7a` **approved** by user `lyE62Zgr6bR5WJmxlgQNzJmI3uSGkAVJ` at 2026-11-12T15:59:11Z; cut executed (below). Rollback reference: `dpl_3iQycMmc4jCPbfyMgWZgVXF13Q4w` @ `ac81542` |
 
 ## Preview (NOT production)
 
@@ -78,6 +78,41 @@ Probe scripts: `kid2123-probe.js` (reveal contract), `kid2123-probe2.js` (overfl
   (`preview-pages.json`, `preview-probe.json`, `preview-probe2.json`).
 - Screenshots: `screenshots/preview-landing-top.png` (hero at load) and
   `screenshots/preview-landing-revealed.png` (audience panels + CTA band fully revealed mid-page).
+
+## Production cut (board-approved 2026-11-12)
+
+- Gate: board approval `ad153cb0-611c-4285-890a-321b88f8bc7a` (request_board_approval for the KID-2123
+  cut) **approved** 2026-11-12T15:59:11Z. The approved payload stated the cut = push `9cbde05` +
+  `7fa6762`, `app/globals.css` + evidence docs only, no other code changes ride along.
+- Push: `git push origin master` → `28d4d7f..7fa6762` (fast-forward; the pushed delta verified as
+  exactly the two approved commits, diff = `app/globals.css` + `docs/evidence/kid2123/*` only).
+- Production deployment: `dpl_8uH8hmiP8W3jhFZitKcNovwjDW7N` (`kiddy-kagre34en-kiddy2.vercel.app`),
+  `target: production`, built by Vercel from the master push @ `7fa6762`, QUEUED → READY at
+  ~16:03 UTC. Serves `kiddyapp.net`, `*.kiddyapp.net`, `kiddy-one.vercel.app`.
+  Rollback remains: `dpl_3iQycMmc4jCPbfyMgWZgVXF13Q4w` @ `ac81542`.
+- Post-cut smoke (fresh responses, browser UA): `/`, `/features`, `/for-parents`, `/for-centers`,
+  `/contact`, `sunshine.kiddyapp.net/` all **200**. Served CSS is the new build
+  `/_next/static/css/76c041f22639740b.css` — same hash the preview served: carries the three
+  `[data-reveal-ready]` rules (armed hidden / revealed + transition / reduced-motion `!important`)
+  and the `:is([data-reveal-ready],:root)`-prefixed hover-lift rules, with **zero** dead
+  `.reveal-ready` selectors.
+- **Post-cut QA on live `kiddyapp.net`** (full probe suite re-run against production, raw outputs
+  `prod-probe.json` / `prod-pages.json` / `prod-probe2.json`):
+  - armed on load (`data-reveal-ready` set, `reveal-ready` class count 0);
+  - 10/16 landing targets below fold pre-scroll at `opacity: 0`, `transform:
+    matrix(1,0,0,1,0,10)` (translateY 10px), `transition-duration 0.45s, 0.45s` uniformly; the 6
+    in-viewport targets revealed at `opacity: 1`;
+  - after one scroll pass 16/16 at `opacity: 1`; scroll back to top → 0 hidden (no re-hide);
+  - all six public pages `stillHidden: 0` (`/` 16, `/features` 14, `/for-parents` 8, `/for-centers`
+    10, `/contact` 3, `/privacy` 0);
+  - reduced motion: never arms, all visible, zero transitions; `/for-centers` armed with 10/10
+    targets revealed, 0 hidden;
+  - hero untouched at every width (`heroRevealTags: 0`, h1 `opacity: 1`); CLS 0.0000 and zero
+    horizontal overflow EN+AR at 360/768/1280/1440;
+  - hover-capable context: revealed `.audience-panel` hover `none` → `matrix(1,0,0,1,0,-3)` at
+    `--motion-lift`; `.btn` press `matrix(0.97,0,0,0.97,0,0)`.
+  Identical to the preview verification. tsc/lint/build/tests were run pre-push on this exact tree
+  (green; see criterion 9) — the push contained no code beyond the verified `globals.css` change.
 
 ## Notes / known deviations
 
