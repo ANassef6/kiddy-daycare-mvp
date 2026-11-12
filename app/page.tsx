@@ -1,6 +1,7 @@
 import Link from "next/link";
 import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
+import SiteReveal from "@/components/SiteReveal";
 import { SITE_BRAND } from "@/lib/site";
 import { siteContext } from "@/lib/site-i18n";
 
@@ -11,6 +12,9 @@ import { siteContext } from "@/lib/site-i18n";
 // sequence only where the content really is one (getting started).
 // KID-1826: every rendered string is localized (site.landing.*) and the
 // tenant brand image rides inline in the header lockup.
+// KID-2077: sections below the hero carry data-reveal / data-reveal-stagger
+// (driven by <SiteReveal />) so each one fades/rises once on first scroll
+// entry; the hero itself keeps its load-time animation and is not re-revealed.
 export async function generateMetadata() {
   const { locale, t } = await siteContext();
   return {
@@ -80,7 +84,7 @@ export default async function HomePage() {
         </section>
 
         <section className="day-band" aria-label={t("site.landing.bandAria")}>
-          <div className="container day-band-grid">
+          <div className="container day-band-grid" data-reveal-stagger>
             <div className="day-band-item">
               <span className="day-band-time">{t("site.landing.band1Time")}</span>
               <p>{t("site.landing.band1Body")}</p>
@@ -98,9 +102,9 @@ export default async function HomePage() {
 
         <section className="section">
           <div className="container">
-            <h2 className="section-title center">{t("site.landing.whatRunsTitle")}</h2>
-            <p className="subtitle center">{t("site.landing.whatRunsSub")}</p>
-            <div className="feature-rows">
+            <h2 className="section-title center" data-reveal>{t("site.landing.whatRunsTitle")}</h2>
+            <p className="subtitle center" data-reveal>{t("site.landing.whatRunsSub")}</p>
+            <div className="feature-rows" data-reveal-stagger>
               <div className="feature-row">
                 <span className="feature-moment">{t("site.landing.momentMorning")}</span>
                 <div>
@@ -123,7 +127,7 @@ export default async function HomePage() {
                 </div>
               </div>
             </div>
-            <p className="center mt-5">
+            <p className="center mt-5" data-reveal>
               <Link href="/features" className="btn btn-ghost">
                 {t("site.landing.exploreFeatures")}
               </Link>
@@ -133,8 +137,8 @@ export default async function HomePage() {
 
         <section className="section section-alt">
           <div className="container">
-            <h2 className="section-title center">{t("site.landing.startedTitle")}</h2>
-            <ol className="step-flow">
+            <h2 className="section-title center" data-reveal>{t("site.landing.startedTitle")}</h2>
+            <ol className="step-flow" data-reveal-stagger>
               <li className="step-flow-item">
                 <span className="step-num" aria-hidden="true">1</span>
                 <h3>{t("site.landing.step1Title")}</h3>
@@ -155,7 +159,7 @@ export default async function HomePage() {
         </section>
 
         <section className="section">
-          <div className="container audience-grid">
+          <div className="container audience-grid" data-reveal-stagger>
             <div className="audience-panel audience-parents">
               <h2>{t("site.landing.parentsTitle")}</h2>
               <p className="muted">{t("site.landing.parentsBody")}</p>
@@ -187,7 +191,7 @@ export default async function HomePage() {
 
         <section id="demo" className="section section-cta">
           <div className="container">
-            <div className="cta-band">
+            <div className="cta-band" data-reveal>
               <h2>{t("site.landing.ctaTitle", { brand: SITE_BRAND })}</h2>
               <p>{t("site.landing.ctaBody")}</p>
               <div className="row">
@@ -203,6 +207,7 @@ export default async function HomePage() {
         </section>
       </main>
       <SiteFooter locale={locale} />
+      <SiteReveal />
     </>
   );
 }

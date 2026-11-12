@@ -35,6 +35,15 @@
   --space-5: 24px;
   --space-6: 32px;
   --space-8: 48px;
+
+  /* KID-2077 shared motion tokens — one set of durations/easings for every
+     new marketing-site interaction (scroll reveal, card lift, button press),
+     so the whole public site moves at the same pace. Vertical-only movement,
+     so RTL mirrors nothing and no horizontal overflow is possible. */
+  --motion-press: 90ms;
+  --motion-lift: 180ms;
+  --motion-reveal: 450ms;
+  --ease-out-soft: cubic-bezier(0.22, 0.61, 0.36, 1);
 }
 
 * {
@@ -1178,7 +1187,11 @@ body {
 }
 
 .hero .day-panel {
-  animation: hero-in 0.55s ease both;
+  /* KID-2077: `backwards` instead of `both` — the panel's final keyframe
+     (opacity 1, transform none) is exactly its base style, so the render is
+     byte-identical, but a finished animation no longer keeps overriding the
+     transform property, which would have blocked the KID-2077 hover lift. */
+  animation: hero-in 0.55s ease backwards;
   animation-delay: 0.12s;
 }
 
@@ -1769,6 +1782,102 @@ body {
 
   .cta-band {
     padding: var(--space-6) var(--space-4);
+  }
+}
+
+/* ==========================================================================
+   KID-2077 — landing page motion: scroll reveal, card hover lift, button
+   press. Shared tokens live in :root (--motion-* / --ease-out-soft). All
+   movement is vertical (fade + short rise), so EN/AR RTL behave identically
+   and no horizontal overflow is possible. components/SiteReveal.tsx arms the
+   hidden state only after hydration and only when the user allows motion;
+   server HTML is always fully visible (no-JS, crawlers, reduced motion).
+   ========================================================================== */
+
+/* Scroll reveal: armed sections start slightly translucent and 10px low, then
+   ease to rest once SiteReveal marks them .is-revealed on first viewport
+   entry. Played once per page load — the observer unobserves after reveal. */
+.reveal-ready [data-reveal] {
+  opacity: 0;
+  transform: translateY(10px);
+  transition:
+    opacity var(--motion-reveal) var(--ease-out-soft),
+    transform var(--motion-reveal) var(--ease-out-soft);
+}
+
+.reveal-ready [data-reveal].is-revealed {
+  opacity: 1;
+  transform: none;
+}
+
+/* Safety net: even if the armed state somehow exists (e.g. the OS setting
+   changes mid-session), reduced motion shows every section immediately. */
+@media (prefers-reduced-motion: reduce) {
+  .reveal-ready [data-reveal] {
+    opacity: 1 !important;
+    transform: none !important;
+    transition: none !important;
+  }
+}
+
+/* KID-2077 card hover lift on the real interactive marketing panels. Scoped
+   to the marketing-only classes (verified: none of these appear on portal,
+   child, auth or platform surfaces, where the plain .card must stay still).
+   Hover lift only on pointer devices that can hover; keyboard users get the
+   same feedback through :focus-visible; reduced-motion users get neither. */
+@media (hover: hover) and (prefers-reduced-motion: no-preference) {
+  .feature-card,
+  .audience-panel,
+  .day-panel,
+  .cta-card,
+  .cta-band,
+  .contact-card,
+  .contact-side {
+    transition:
+      transform var(--motion-lift) var(--ease-out-soft),
+      box-shadow var(--motion-lift) var(--ease-out-soft);
+  }
+
+  .feature-card:hover,
+  .audience-panel:hover,
+  .day-panel:hover,
+  .cta-card:hover,
+  .cta-band:hover,
+  .contact-card:hover,
+  .contact-side:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 18px 34px -22px rgba(23, 38, 66, 0.45);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .feature-card:focus-visible,
+  .audience-panel:focus-visible,
+  .day-panel:focus-visible,
+  .cta-card:focus-visible,
+  .cta-band:focus-visible,
+  .contact-card:focus-visible,
+  .contact-side:focus-visible {
+    transform: translateY(-3px);
+    box-shadow: 0 18px 34px -22px rgba(23, 38, 66, 0.45);
+  }
+}
+
+/* KID-2077 button press feedback on every .btn variant: a short, small press
+   (scale 0.97 + shadow drop) with no layout shift and no text reflow. Placed
+   after the KID-1826 .btn-deep block so, at equal specificity, this later
+   rule also carries the deep variant's background transition forward. */
+@media (prefers-reduced-motion: no-preference) {
+  .btn {
+    transition:
+      transform var(--motion-press) ease,
+      box-shadow var(--motion-press) ease,
+      background var(--motion-press) ease;
+  }
+
+  .btn:active {
+    transform: scale(0.97);
+    box-shadow: none;
   }
 }
 

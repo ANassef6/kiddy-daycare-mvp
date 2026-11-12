@@ -1,9 +1,12 @@
 import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
+import SiteReveal from "@/components/SiteReveal";
 import { SITE_BRAND } from "@/lib/site";
 import { siteContext } from "@/lib/site-i18n";
 
 // KID-1826: every rendered string is localized (site.parents.*).
+// KID-2077: data-reveal / data-reveal-stagger drive the once-per-load scroll
+// reveal (<SiteReveal />); the benefit cards also lift on hover/:focus-visible.
 export async function generateMetadata() {
   const { t } = await siteContext();
   return {
@@ -20,7 +23,7 @@ export default async function ForParentsPage() {
       <SiteHeader active="/for-parents" locale={locale} brandImage={brandImage} brandName={brandName} />
       <main id="main">
         <section className="section section-head">
-          <div className="container">
+          <div className="container" data-reveal>
             <p className="hero-eyebrow">{t("site.parents.eyebrow")}</p>
             <h1 className="page-title">{t("site.parents.title")}</h1>
             <p className="subtitle">{t("site.parents.subtitle")}</p>
@@ -31,7 +34,7 @@ export default async function ForParentsPage() {
         </section>
 
         <section className="section">
-          <div className="container grid">
+          <div className="container grid" data-reveal-stagger>
             {Array.from({ length: 6 }, (_, i) => i + 1).map((n) => (
               <div className="card feature-card" key={n}>
                 <h3 className="mt-2">{t(`site.parents.b${n}Title`)}</h3>
@@ -42,7 +45,7 @@ export default async function ForParentsPage() {
         </section>
 
         <section className="section section-alt">
-          <div className="container">
+          <div className="container" data-reveal>
             <h2 className="title center">{t("site.parents.closeTitle")}</h2>
             <p className="subtitle center" style={{ maxWidth: 640, marginInline: "auto" }}>
               {t("site.parents.closeBody")}
@@ -54,6 +57,7 @@ export default async function ForParentsPage() {
         </section>
       </main>
       <SiteFooter locale={locale} />
+      <SiteReveal />
     </>
   );
 }

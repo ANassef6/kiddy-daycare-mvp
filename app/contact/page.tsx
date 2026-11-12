@@ -1,11 +1,14 @@
 import Link from "next/link";
 import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
+import SiteReveal from "@/components/SiteReveal";
 import { SITE_BRAND, PLATFORM_CONTACT_EMAIL } from "@/lib/site";
 import ContactForm from "./ContactForm";
 import { siteContext } from "@/lib/site-i18n";
 
 // KID-1826: every rendered string is localized (site.contact.*).
+// KID-2077: data-reveal / data-reveal-stagger drive the once-per-load scroll
+// reveal (<SiteReveal />); the contact cards also lift on hover/:focus-visible.
 export async function generateMetadata() {
   const { t } = await siteContext();
   return {
@@ -37,7 +40,7 @@ export default async function ContactPage(
       <SiteHeader active="/contact" locale={locale} brandImage={brandImage} brandName={brandName} />
       <main id="main">
         <section className="section section-head">
-          <div className="container">
+          <div className="container" data-reveal>
             <p className="hero-eyebrow">{t("site.contact.eyebrow")}</p>
             <h1 className="page-title">{t("site.contact.title", { brand: SITE_BRAND })}</h1>
             <p className="subtitle">{t("site.contact.subtitle")}</p>
@@ -45,7 +48,7 @@ export default async function ContactPage(
         </section>
 
         <section className="section">
-          <div className="container contact-grid">
+          <div className="container contact-grid" data-reveal-stagger>
             {searchParams?.sent ? (
               <div className="card contact-card" role="status" aria-live="polite">
                 <h2 className="title">{t("site.contact.sentTitle")}</h2>
@@ -96,6 +99,7 @@ export default async function ContactPage(
         </section>
       </main>
       <SiteFooter locale={locale} />
+      <SiteReveal />
     </>
   );
 }
