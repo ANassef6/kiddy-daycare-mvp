@@ -57,3 +57,5 @@ The shared worktree holds KID-2072's uncommitted `nextPath` switcher changes in 
 ## Production gate
 
 **No direct production deploy.** Production cut only after board approval of this preview. Rollback references: current production `dpl_D4MEdrFVX2ZoDzZMxfDVhvPHtQkC` @ `c5e73c8`; prior `dpl_FcMZdoFG6wRv2fByZ1umH7Q4fwUx` @ `051aaf4`.
+
+**Deploy mechanics:** this project's Vercel production deploys are driven by GitHub pushes to `master` (deployment `dpl_D4MEdrFVX2ZoDzZMxfDVhvPHtQkC` carries `githubDeployment: 1`, `githubCommitRef: master`). The three KID-2077 commits (`ea914ae`, `5a4572f`, `014d5b6`) are therefore committed locally only — the branch is ahead of `origin/master` by 3 and MUST NOT be pushed until the board approves. The approved production cut is then just `git push origin master` (plus the bypass revocation above).
