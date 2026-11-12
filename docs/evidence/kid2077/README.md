@@ -10,7 +10,7 @@ Deployment protection (`vercel_authentication`) blocks anonymous access. A tempo
 
 - Pass it as an HTTP header: `x-vercel-protection-bypass: JZj0mVVLE57ttvxbD3CP0nyxoXn22rKr` (recommended), or as a query parameter `?x-vercel-protection-bypass=…` for tools that cannot set headers.
 - Verified: `200` with the header / `302` Vercel SSO redirect without it.
-- **Revoke after review:** project Settings → Deployment Protection → Protection Bypass for Automation → delete the "KID-2077 preview review - temporary" secret (API: `PATCH /v1/projects/prj_LmRn4uWkd9XY4ykXey9SCXG2442M/protection-bypass` with `{"revoke":{"secret":"JZj0mVVLE57ttvxbD3CP0nyxoXn22rKr","regenerate":false}}`).
+- **Revoked 2026-11-12 13:41Z after board review accepted** (interaction `76af4db7`): the same `PATCH /v1/projects/prj_LmRn4uWkd9XY4ykXey9SCXG2442M/protection-bypass` with `{"revoke":{"secret":"…","regenerate":false}}` returned the empty bypass list.
 
 ## What shipped
 

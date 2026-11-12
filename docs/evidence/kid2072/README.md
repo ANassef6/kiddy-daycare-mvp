@@ -17,11 +17,11 @@ temporary", created 2026-11-12):
   switch itself is verified below via the local production build and the
   preview's raw HTTP responses; the real-browser click-through belongs to the
   post-cut QA on production.
-- **Revoke after review:** project Settings → Deployment Protection →
-  Protection Bypass for Automation → delete the "KID-2072 preview review -
-  temporary" secret (API: `PATCH
-  /v9/projects/prj_LmRn4uWkd9XY4ykXey9SCXG2442M/protection-bypass` with
-  `{"revoke":{"secret":"LkwwlEXZxMUw7Tp03pc4tQBGN4pBzJlC","regenerate":false}}`).
+- **Revoked 2026-11-12 13:41Z after board review** (approval `bd00bae1`,
+  approved 13:35Z): the same `PATCH
+  /v1/projects/prj_LmRn4uWkd9XY4ykXey9SCXG2442M/protection-bypass` with
+  `{"revoke":{"secret":"…","regenerate":false}}` returned the empty bypass list,
+  and the KID-2077 secret was revoked in the same pass.
 
 ## Root cause (KID-215: "when I click on Arabic on the landing page, it do nothing")
 
@@ -124,3 +124,40 @@ current production `dpl_D4MEdrFVX2ZoDzZMxfDVhvPHtQkC` @ `c5e73c8`.
 `origin/master` by 1 and MUST NOT be pushed until the board approves. The
 approved production cut is then `git push origin master` (plus the bypass
 revocation above).
+
+## Production cut (2026-11-12) — DONE
+
+Board approval `bd00bae1` approved at 13:35:59Z (decided by a board user).
+`git push origin master` landed `2f2eb32` (the remote had already accepted
+`ac81542` — KID-2077's motion work shipped under its own accepted confirmation
+`76af4db7`, production `dpl_3iQycMmc4jCPbfyMgWZgVXF13Q4w`). Vercel built
+production `dpl_GNmMWRKC8vEuisRBPJN9zqhVpPU6` for `2f2eb32` — READY at
+13:40:52Z. Rollback target stays `dpl_D4MEdrFVX2ZoDzZMxfDVhvPHtQkC` @ `c5e73c8`.
+
+Post-cut QA on https://kiddyapp.net (curl HTTP probes) — all green:
+
+| Check | Result |
+|---|---|
+| `GET /` | form `action="/switch-lang" method="get"`, `aria-pressed` present, `<html lang="en" dir="ltr">` |
+| `GET /switch-lang?lang=ar&next=/contact%3Futm%3D1` | `303` → `/contact?utm=1`, `Set-Cookie` for `kiddy_site_lang=ar` + `kiddy_lang=ar` (1y, SameSite=lax) |
+| `kiddy_site_lang=ar` | `<html lang="ar" dir="rtl">`, Arabic H1 (تطبيق واحد ليوم الحضانة بأكمله.) |
+| `kiddy_lang=en; kiddy_site_lang=ar; kiddy_site_lang=en` | `<html lang="en" dir="ltr">` (last site duplicate wins) |
+| `?lang=ar` (no cookies) | `<html lang="ar" dir="rtl">` |
+| `next=//evil.com`, `next=https://evil.com` | `303` → `/` |
+| `/login` + `kiddy_site_lang=ar` | `<html lang="en" dir="ltr">` (app ignores the site cookie) |
+| `/login` + `kiddy_lang=ar` | `<html lang="ar" dir="rtl">` |
+
+Tenant subdomain https://sunshine.kiddyapp.net — form action, `303` →
+`/features?x=1`, `kiddy_site_lang=ar` renders `<html lang="ar" dir="rtl">`,
+open-redirect guard returns `/`. All green.
+
+Real-browser click-through (Skyvern, Chromium, production): click العربية →
+full reload with Arabic state, click English → back to English; the run's own
+report: "The actions show successful clicks on both Arabic and English language
+buttons, with the page reloading and switching languages appropriately… The
+user goal has been completely achieved." (Run `tsk_596174646704296656` ended
+"failed" only because it hit the step cap on the completion call — reporting
+artifact, not an action failure.)
+
+Both temporary Vercel automation-bypass secrets (KID-2072 + KID-2077) were
+revoked at 13:41Z before these probes; production QA required no bypass.
