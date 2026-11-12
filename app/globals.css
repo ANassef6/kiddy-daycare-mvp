@@ -1796,8 +1796,12 @@ body {
 
 /* Scroll reveal: armed sections start slightly translucent and 10px low, then
    ease to rest once SiteReveal marks them .is-revealed on first viewport
-   entry. Played once per page load — the observer unobserves after reveal. */
-.reveal-ready [data-reveal] {
+   entry. Played once per page load — the observer unobserves after reveal.
+   KID-2123: the armed state is the `data-reveal-ready` attribute that
+   SiteReveal sets on <html> — the previous `.reveal-ready` class selector
+   matched nothing (the component only sets the attribute), so reveal targets
+   were never hidden and the animation was a no-op. */
+[data-reveal-ready] [data-reveal] {
   opacity: 0;
   transform: translateY(10px);
   transition:
@@ -1805,15 +1809,22 @@ body {
     transform var(--motion-reveal) var(--ease-out-soft);
 }
 
-.reveal-ready [data-reveal].is-revealed {
+[data-reveal-ready] [data-reveal].is-revealed {
   opacity: 1;
   transform: none;
+  /* Keep the reveal transition on the revealed state itself: some targets
+     (the KID-2077 lift cards) carry their own lower-specificity 180ms
+     lift/press transition, which would otherwise win at the reveal moment
+     and snap the animation instead of playing it over --motion-reveal. */
+  transition:
+    opacity var(--motion-reveal) var(--ease-out-soft),
+    transform var(--motion-reveal) var(--ease-out-soft);
 }
 
 /* Safety net: even if the armed state somehow exists (e.g. the OS setting
    changes mid-session), reduced motion shows every section immediately. */
 @media (prefers-reduced-motion: reduce) {
-  .reveal-ready [data-reveal] {
+  [data-reveal-ready] [data-reveal] {
     opacity: 1 !important;
     transform: none !important;
     transition: none !important;
@@ -1824,8 +1835,17 @@ body {
    to the marketing-only classes (verified: none of these appear on portal,
    child, auth or platform surfaces, where the plain .card must stay still).
    Hover lift only on pointer devices that can hover; keyboard users get the
-   same feedback through :focus-visible; reduced-motion users get neither. */
+   same feedback through :focus-visible; reduced-motion users get neither.
+   KID-2123: the selectors are prefixed with :is([data-reveal-ready], :root)
+   — the extra (0,1,0) keeps them ahead of the revealed-state reveal rule
+   (same specificity, later in file wins), which otherwise pins revealed
+   targets at transform:none and kills the lift. :root in the :is() keeps
+   the lift working for no-JS visitors where the attribute is never set. */
 @media (hover: hover) and (prefers-reduced-motion: no-preference) {
+  /* Base transition stays unprefixed and low-specificity: the armed hidden
+     rule and the revealed rule must win over it so the reveal plays at
+     --motion-reveal. The hover state carries its own higher-specificity
+     transition for the 180ms lift. */
   .feature-card,
   .audience-panel,
   .day-panel,
@@ -1838,26 +1858,31 @@ body {
       box-shadow var(--motion-lift) var(--ease-out-soft);
   }
 
-  .feature-card:hover,
-  .audience-panel:hover,
-  .day-panel:hover,
-  .cta-card:hover,
-  .cta-band:hover,
-  .contact-card:hover,
-  .contact-side:hover {
+  :is([data-reveal-ready], :root) .feature-card:hover,
+  :is([data-reveal-ready], :root) .audience-panel:hover,
+  :is([data-reveal-ready], :root) .day-panel:hover,
+  :is([data-reveal-ready], :root) .cta-card:hover,
+  :is([data-reveal-ready], :root) .cta-band:hover,
+  :is([data-reveal-ready], :root) .contact-card:hover,
+  :is([data-reveal-ready], :root) .contact-side:hover {
     transform: translateY(-3px);
     box-shadow: 0 18px 34px -22px rgba(23, 38, 66, 0.45);
+    /* 180ms while hovered; the un-hover settle falls back to the slower
+       reveal transition on the revealed state (a gentle settle, by design). */
+    transition:
+      transform var(--motion-lift) var(--ease-out-soft),
+      box-shadow var(--motion-lift) var(--ease-out-soft);
   }
 }
 
 @media (prefers-reduced-motion: no-preference) {
-  .feature-card:focus-visible,
-  .audience-panel:focus-visible,
-  .day-panel:focus-visible,
-  .cta-card:focus-visible,
-  .cta-band:focus-visible,
-  .contact-card:focus-visible,
-  .contact-side:focus-visible {
+  :is([data-reveal-ready], :root) .feature-card:focus-visible,
+  :is([data-reveal-ready], :root) .audience-panel:focus-visible,
+  :is([data-reveal-ready], :root) .day-panel:focus-visible,
+  :is([data-reveal-ready], :root) .cta-card:focus-visible,
+  :is([data-reveal-ready], :root) .cta-band:focus-visible,
+  :is([data-reveal-ready], :root) .contact-card:focus-visible,
+  :is([data-reveal-ready], :root) .contact-side:focus-visible {
     transform: translateY(-3px);
     box-shadow: 0 18px 34px -22px rgba(23, 38, 66, 0.45);
   }
