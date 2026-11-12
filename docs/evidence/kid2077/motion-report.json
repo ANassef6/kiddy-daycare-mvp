@@ -1,0 +1,2032 @@
+{
+  "summary": {
+    "generatedAt": "2026-11-12T11:37:11.326Z",
+    "previewUrl": "https://kiddy-lcsfl3vmc-kiddy2.vercel.app",
+    "deployment": "dpl_12Yi6Ltk38jLHriASc4NPim43P5b",
+    "commit": "ea914ae",
+    "combos": 60,
+    "allRevealTargetsRevealed": true,
+    "anyHiddenAfterPass": false,
+    "noReTrigger": true,
+    "heroNeverReRevealed": true,
+    "horizontalOverflowAny": false,
+    "maxCls": 0,
+    "hoverLiftVerified": true,
+    "pressVerified": true,
+    "reducedMotionClean": true,
+    "consoleErrors": [
+      {
+        "locale": "en",
+        "width": 360,
+        "page": "https://kiddy-lcsfl3vmc-kiddy2.vercel.app/",
+        "text": "Failed to load resource: the server responded with a status of 404 ()"
+      }
+    ],
+    "badResponses": [],
+    "heroProbeCombos": 8,
+    "summaryPredicateNote": "heroNeverReRevealed recomputed over the home combos that carry the hero probe; the inline predicate also counted reduced-motion rows, which skip the probe (all home probes measured 0 reveal targets inside .hero).",
+    "faviconNote": "The single console 404 is the pre-existing missing favicon request (no favicon route in the app, production kiddyapp.net behaves identically); no app asset 4xx/5xx anywhere."
+  },
+  "results": [
+    {
+      "page": "/",
+      "name": "home",
+      "locale": "en",
+      "width": 360,
+      "status": 200,
+      "lang": "en",
+      "dir": "ltr",
+      "armed": true,
+      "revealTargets": 16,
+      "staggerGroups": 4,
+      "revealTargetsInHero": 0,
+      "innerW": 360,
+      "scrollW": 360,
+      "bodyScrollW": 360,
+      "horizontalOverflow": false,
+      "reveal": {
+        "revealed": 16,
+        "total": 16,
+        "hiddenOpacity": 0,
+        "delaysCleared": true
+      },
+      "stillRevealed": true,
+      "hover": {
+        "before": "none",
+        "after": "matrix(1, 0, 0, 1, 0, -3)",
+        "shadowOnHover": true,
+        "lifted": true
+      },
+      "press": {
+        "before": "none",
+        "active": "matrix(0.97, 0, 0, 0.97, 0, 0)",
+        "transition": "0.12s, 0.12s",
+        "pressed": true
+      },
+      "cls": {
+        "value": 0,
+        "shifts": []
+      },
+      "screenshot": "home_en_360.png"
+    },
+    {
+      "page": "/",
+      "name": "home",
+      "locale": "en",
+      "width": 768,
+      "status": 200,
+      "lang": "en",
+      "dir": "ltr",
+      "armed": true,
+      "revealTargets": 16,
+      "staggerGroups": 4,
+      "revealTargetsInHero": 0,
+      "innerW": 768,
+      "scrollW": 768,
+      "bodyScrollW": 768,
+      "horizontalOverflow": false,
+      "reveal": {
+        "revealed": 16,
+        "total": 16,
+        "hiddenOpacity": 0,
+        "delaysCleared": true
+      },
+      "stillRevealed": true,
+      "hover": {
+        "before": "none",
+        "after": "matrix(1, 0, 0, 1, 0, -3)",
+        "shadowOnHover": true,
+        "lifted": true
+      },
+      "press": {
+        "before": "none",
+        "active": "matrix(0.97, 0, 0, 0.97, 0, 0)",
+        "transition": "0.12s, 0.12s",
+        "pressed": true
+      },
+      "cls": {
+        "value": 0,
+        "shifts": []
+      },
+      "screenshot": "home_en_768.png"
+    },
+    {
+      "page": "/",
+      "name": "home",
+      "locale": "en",
+      "width": 1280,
+      "status": 200,
+      "lang": "en",
+      "dir": "ltr",
+      "armed": true,
+      "revealTargets": 16,
+      "staggerGroups": 4,
+      "revealTargetsInHero": 0,
+      "innerW": 1280,
+      "scrollW": 1280,
+      "bodyScrollW": 1280,
+      "horizontalOverflow": false,
+      "reveal": {
+        "revealed": 16,
+        "total": 16,
+        "hiddenOpacity": 0,
+        "delaysCleared": true
+      },
+      "stillRevealed": true,
+      "hover": {
+        "before": "none",
+        "after": "matrix(1, 0, 0, 1, 0, -3)",
+        "shadowOnHover": true,
+        "lifted": true
+      },
+      "press": {
+        "before": "none",
+        "active": "matrix(0.97, 0, 0, 0.97, 0, 0)",
+        "transition": "0.12s, 0.12s",
+        "pressed": true
+      },
+      "cls": {
+        "value": 0,
+        "shifts": []
+      },
+      "screenshot": "home_en_1280.png"
+    },
+    {
+      "page": "/",
+      "name": "home",
+      "locale": "en",
+      "width": 1440,
+      "status": 200,
+      "lang": "en",
+      "dir": "ltr",
+      "armed": true,
+      "revealTargets": 16,
+      "staggerGroups": 4,
+      "revealTargetsInHero": 0,
+      "innerW": 1440,
+      "scrollW": 1440,
+      "bodyScrollW": 1440,
+      "horizontalOverflow": false,
+      "reveal": {
+        "revealed": 16,
+        "total": 16,
+        "hiddenOpacity": 0,
+        "delaysCleared": true
+      },
+      "stillRevealed": true,
+      "hover": {
+        "before": "none",
+        "after": "matrix(1, 0, 0, 1, 0, -3)",
+        "shadowOnHover": true,
+        "lifted": true
+      },
+      "press": {
+        "before": "none",
+        "active": "matrix(0.97, 0, 0, 0.97, 0, 0)",
+        "transition": "0.12s, 0.12s",
+        "pressed": true
+      },
+      "cls": {
+        "value": 0,
+        "shifts": []
+      },
+      "screenshot": "home_en_1440.png"
+    },
+    {
+      "page": "/",
+      "name": "home",
+      "locale": "ar",
+      "width": 360,
+      "status": 200,
+      "lang": "ar",
+      "dir": "rtl",
+      "armed": true,
+      "revealTargets": 16,
+      "staggerGroups": 4,
+      "revealTargetsInHero": 0,
+      "innerW": 360,
+      "scrollW": 360,
+      "bodyScrollW": 360,
+      "horizontalOverflow": false,
+      "reveal": {
+        "revealed": 16,
+        "total": 16,
+        "hiddenOpacity": 0,
+        "delaysCleared": true
+      },
+      "stillRevealed": true,
+      "hover": {
+        "before": "none",
+        "after": "matrix(1, 0, 0, 1, 0, -3)",
+        "shadowOnHover": true,
+        "lifted": true
+      },
+      "press": {
+        "before": "none",
+        "active": "matrix(0.97, 0, 0, 0.97, 0, 0)",
+        "transition": "0.12s, 0.12s",
+        "pressed": true
+      },
+      "cls": {
+        "value": 0,
+        "shifts": []
+      },
+      "screenshot": "home_ar_360.png"
+    },
+    {
+      "page": "/",
+      "name": "home",
+      "locale": "ar",
+      "width": 768,
+      "status": 200,
+      "lang": "ar",
+      "dir": "rtl",
+      "armed": true,
+      "revealTargets": 16,
+      "staggerGroups": 4,
+      "revealTargetsInHero": 0,
+      "innerW": 768,
+      "scrollW": 768,
+      "bodyScrollW": 768,
+      "horizontalOverflow": false,
+      "reveal": {
+        "revealed": 16,
+        "total": 16,
+        "hiddenOpacity": 0,
+        "delaysCleared": true
+      },
+      "stillRevealed": true,
+      "hover": {
+        "before": "none",
+        "after": "matrix(1, 0, 0, 1, 0, -3)",
+        "shadowOnHover": true,
+        "lifted": true
+      },
+      "press": {
+        "before": "none",
+        "active": "matrix(0.97, 0, 0, 0.97, 0, 0)",
+        "transition": "0.12s, 0.12s",
+        "pressed": true
+      },
+      "cls": {
+        "value": 0,
+        "shifts": []
+      },
+      "screenshot": "home_ar_768.png"
+    },
+    {
+      "page": "/",
+      "name": "home",
+      "locale": "ar",
+      "width": 1280,
+      "status": 200,
+      "lang": "ar",
+      "dir": "rtl",
+      "armed": true,
+      "revealTargets": 16,
+      "staggerGroups": 4,
+      "revealTargetsInHero": 0,
+      "innerW": 1280,
+      "scrollW": 1280,
+      "bodyScrollW": 1280,
+      "horizontalOverflow": false,
+      "reveal": {
+        "revealed": 16,
+        "total": 16,
+        "hiddenOpacity": 0,
+        "delaysCleared": true
+      },
+      "stillRevealed": true,
+      "hover": {
+        "before": "none",
+        "after": "matrix(1, 0, 0, 1, 0, -3)",
+        "shadowOnHover": true,
+        "lifted": true
+      },
+      "press": {
+        "before": "none",
+        "active": "matrix(0.97, 0, 0, 0.97, 0, 0)",
+        "transition": "0.12s, 0.12s",
+        "pressed": true
+      },
+      "cls": {
+        "value": 0,
+        "shifts": []
+      },
+      "screenshot": "home_ar_1280.png"
+    },
+    {
+      "page": "/",
+      "name": "home",
+      "locale": "ar",
+      "width": 1440,
+      "status": 200,
+      "lang": "ar",
+      "dir": "rtl",
+      "armed": true,
+      "revealTargets": 16,
+      "staggerGroups": 4,
+      "revealTargetsInHero": 0,
+      "innerW": 1440,
+      "scrollW": 1440,
+      "bodyScrollW": 1440,
+      "horizontalOverflow": false,
+      "reveal": {
+        "revealed": 16,
+        "total": 16,
+        "hiddenOpacity": 0,
+        "delaysCleared": true
+      },
+      "stillRevealed": true,
+      "hover": {
+        "before": "none",
+        "after": "matrix(1, 0, 0, 1, 0, -3)",
+        "shadowOnHover": true,
+        "lifted": true
+      },
+      "press": {
+        "before": "none",
+        "active": "matrix(0.97, 0, 0, 0.97, 0, 0)",
+        "transition": "0.12s, 0.12s",
+        "pressed": true
+      },
+      "cls": {
+        "value": 0,
+        "shifts": []
+      },
+      "screenshot": "home_ar_1440.png"
+    },
+    {
+      "page": "/features",
+      "name": "features",
+      "locale": "en",
+      "width": 360,
+      "status": 200,
+      "lang": "en",
+      "dir": "ltr",
+      "armed": true,
+      "revealTargets": 14,
+      "staggerGroups": 1,
+      "revealTargetsInHero": null,
+      "innerW": 360,
+      "scrollW": 360,
+      "bodyScrollW": 360,
+      "horizontalOverflow": false,
+      "reveal": {
+        "revealed": 14,
+        "total": 14,
+        "hiddenOpacity": 0,
+        "delaysCleared": true
+      },
+      "stillRevealed": true,
+      "hover": {
+        "before": "none",
+        "after": "matrix(1, 0, 0, 1, 0, -3)",
+        "shadowOnHover": true,
+        "lifted": true
+      },
+      "press": {
+        "before": "none",
+        "active": "matrix(0.97, 0, 0, 0.97, 0, 0)",
+        "transition": "0.12s, 0.12s",
+        "pressed": true
+      },
+      "cls": {
+        "value": 0,
+        "shifts": []
+      },
+      "screenshot": "features_en_360.png"
+    },
+    {
+      "page": "/features",
+      "name": "features",
+      "locale": "en",
+      "width": 768,
+      "status": 200,
+      "lang": "en",
+      "dir": "ltr",
+      "armed": true,
+      "revealTargets": 14,
+      "staggerGroups": 1,
+      "revealTargetsInHero": null,
+      "innerW": 768,
+      "scrollW": 768,
+      "bodyScrollW": 768,
+      "horizontalOverflow": false,
+      "reveal": {
+        "revealed": 14,
+        "total": 14,
+        "hiddenOpacity": 0,
+        "delaysCleared": true
+      },
+      "stillRevealed": true,
+      "hover": {
+        "before": "none",
+        "after": "matrix(1, 0, 0, 1, 0, -3)",
+        "shadowOnHover": true,
+        "lifted": true
+      },
+      "press": {
+        "before": "none",
+        "active": "matrix(0.97, 0, 0, 0.97, 0, 0)",
+        "transition": "0.12s, 0.12s",
+        "pressed": true
+      },
+      "cls": {
+        "value": 0,
+        "shifts": []
+      },
+      "screenshot": "features_en_768.png"
+    },
+    {
+      "page": "/features",
+      "name": "features",
+      "locale": "en",
+      "width": 1280,
+      "status": 200,
+      "lang": "en",
+      "dir": "ltr",
+      "armed": true,
+      "revealTargets": 14,
+      "staggerGroups": 1,
+      "revealTargetsInHero": null,
+      "innerW": 1280,
+      "scrollW": 1280,
+      "bodyScrollW": 1280,
+      "horizontalOverflow": false,
+      "reveal": {
+        "revealed": 14,
+        "total": 14,
+        "hiddenOpacity": 0,
+        "delaysCleared": true
+      },
+      "stillRevealed": true,
+      "hover": {
+        "before": "none",
+        "after": "matrix(1, 0, 0, 1, 0, -3)",
+        "shadowOnHover": true,
+        "lifted": true
+      },
+      "press": {
+        "before": "none",
+        "active": "matrix(0.97, 0, 0, 0.97, 0, 0)",
+        "transition": "0.12s, 0.12s",
+        "pressed": true
+      },
+      "cls": {
+        "value": 0,
+        "shifts": []
+      },
+      "screenshot": "features_en_1280.png"
+    },
+    {
+      "page": "/features",
+      "name": "features",
+      "locale": "en",
+      "width": 1440,
+      "status": 200,
+      "lang": "en",
+      "dir": "ltr",
+      "armed": true,
+      "revealTargets": 14,
+      "staggerGroups": 1,
+      "revealTargetsInHero": null,
+      "innerW": 1440,
+      "scrollW": 1440,
+      "bodyScrollW": 1440,
+      "horizontalOverflow": false,
+      "reveal": {
+        "revealed": 14,
+        "total": 14,
+        "hiddenOpacity": 0,
+        "delaysCleared": true
+      },
+      "stillRevealed": true,
+      "hover": {
+        "before": "none",
+        "after": "matrix(1, 0, 0, 1, 0, -3)",
+        "shadowOnHover": true,
+        "lifted": true
+      },
+      "press": {
+        "before": "none",
+        "active": "matrix(0.97, 0, 0, 0.97, 0, 0)",
+        "transition": "0.12s, 0.12s",
+        "pressed": true
+      },
+      "cls": {
+        "value": 0,
+        "shifts": []
+      },
+      "screenshot": "features_en_1440.png"
+    },
+    {
+      "page": "/features",
+      "name": "features",
+      "locale": "ar",
+      "width": 360,
+      "status": 200,
+      "lang": "ar",
+      "dir": "rtl",
+      "armed": true,
+      "revealTargets": 14,
+      "staggerGroups": 1,
+      "revealTargetsInHero": null,
+      "innerW": 360,
+      "scrollW": 360,
+      "bodyScrollW": 360,
+      "horizontalOverflow": false,
+      "reveal": {
+        "revealed": 14,
+        "total": 14,
+        "hiddenOpacity": 0,
+        "delaysCleared": true
+      },
+      "stillRevealed": true,
+      "hover": {
+        "before": "none",
+        "after": "matrix(1, 0, 0, 1, 0, -3)",
+        "shadowOnHover": true,
+        "lifted": true
+      },
+      "press": {
+        "before": "none",
+        "active": "matrix(0.97, 0, 0, 0.97, 0, 0)",
+        "transition": "0.12s, 0.12s",
+        "pressed": true
+      },
+      "cls": {
+        "value": 0,
+        "shifts": []
+      },
+      "screenshot": "features_ar_360.png"
+    },
+    {
+      "page": "/features",
+      "name": "features",
+      "locale": "ar",
+      "width": 768,
+      "status": 200,
+      "lang": "ar",
+      "dir": "rtl",
+      "armed": true,
+      "revealTargets": 14,
+      "staggerGroups": 1,
+      "revealTargetsInHero": null,
+      "innerW": 768,
+      "scrollW": 768,
+      "bodyScrollW": 768,
+      "horizontalOverflow": false,
+      "reveal": {
+        "revealed": 14,
+        "total": 14,
+        "hiddenOpacity": 0,
+        "delaysCleared": true
+      },
+      "stillRevealed": true,
+      "hover": {
+        "before": "none",
+        "after": "matrix(1, 0, 0, 1, 0, -3)",
+        "shadowOnHover": true,
+        "lifted": true
+      },
+      "press": {
+        "before": "none",
+        "active": "matrix(0.97, 0, 0, 0.97, 0, 0)",
+        "transition": "0.12s, 0.12s",
+        "pressed": true
+      },
+      "cls": {
+        "value": 0,
+        "shifts": []
+      },
+      "screenshot": "features_ar_768.png"
+    },
+    {
+      "page": "/features",
+      "name": "features",
+      "locale": "ar",
+      "width": 1280,
+      "status": 200,
+      "lang": "ar",
+      "dir": "rtl",
+      "armed": true,
+      "revealTargets": 14,
+      "staggerGroups": 1,
+      "revealTargetsInHero": null,
+      "innerW": 1280,
+      "scrollW": 1280,
+      "bodyScrollW": 1280,
+      "horizontalOverflow": false,
+      "reveal": {
+        "revealed": 14,
+        "total": 14,
+        "hiddenOpacity": 0,
+        "delaysCleared": true
+      },
+      "stillRevealed": true,
+      "hover": {
+        "before": "none",
+        "after": "matrix(1, 0, 0, 1, 0, -3)",
+        "shadowOnHover": true,
+        "lifted": true
+      },
+      "press": {
+        "before": "none",
+        "active": "matrix(0.97, 0, 0, 0.97, 0, 0)",
+        "transition": "0.12s, 0.12s",
+        "pressed": true
+      },
+      "cls": {
+        "value": 0,
+        "shifts": []
+      },
+      "screenshot": "features_ar_1280.png"
+    },
+    {
+      "page": "/features",
+      "name": "features",
+      "locale": "ar",
+      "width": 1440,
+      "status": 200,
+      "lang": "ar",
+      "dir": "rtl",
+      "armed": true,
+      "revealTargets": 14,
+      "staggerGroups": 1,
+      "revealTargetsInHero": null,
+      "innerW": 1440,
+      "scrollW": 1440,
+      "bodyScrollW": 1440,
+      "horizontalOverflow": false,
+      "reveal": {
+        "revealed": 14,
+        "total": 14,
+        "hiddenOpacity": 0,
+        "delaysCleared": true
+      },
+      "stillRevealed": true,
+      "hover": {
+        "before": "none",
+        "after": "matrix(1, 0, 0, 1, 0, -3)",
+        "shadowOnHover": true,
+        "lifted": true
+      },
+      "press": {
+        "before": "none",
+        "active": "matrix(0.97, 0, 0, 0.97, 0, 0)",
+        "transition": "0.12s, 0.12s",
+        "pressed": true
+      },
+      "cls": {
+        "value": 0,
+        "shifts": []
+      },
+      "screenshot": "features_ar_1440.png"
+    },
+    {
+      "page": "/for-parents",
+      "name": "for-parents",
+      "locale": "en",
+      "width": 360,
+      "status": 200,
+      "lang": "en",
+      "dir": "ltr",
+      "armed": true,
+      "revealTargets": 8,
+      "staggerGroups": 1,
+      "revealTargetsInHero": null,
+      "innerW": 360,
+      "scrollW": 360,
+      "bodyScrollW": 360,
+      "horizontalOverflow": false,
+      "reveal": {
+        "revealed": 8,
+        "total": 8,
+        "hiddenOpacity": 0,
+        "delaysCleared": true
+      },
+      "stillRevealed": true,
+      "hover": {
+        "before": "none",
+        "after": "matrix(1, 0, 0, 1, 0, -3)",
+        "shadowOnHover": true,
+        "lifted": true
+      },
+      "press": {
+        "before": "none",
+        "active": "matrix(0.97, 0, 0, 0.97, 0, 0)",
+        "transition": "0.12s, 0.12s",
+        "pressed": true
+      },
+      "cls": {
+        "value": 0,
+        "shifts": []
+      },
+      "screenshot": "for-parents_en_360.png"
+    },
+    {
+      "page": "/for-parents",
+      "name": "for-parents",
+      "locale": "en",
+      "width": 768,
+      "status": 200,
+      "lang": "en",
+      "dir": "ltr",
+      "armed": true,
+      "revealTargets": 8,
+      "staggerGroups": 1,
+      "revealTargetsInHero": null,
+      "innerW": 768,
+      "scrollW": 768,
+      "bodyScrollW": 768,
+      "horizontalOverflow": false,
+      "reveal": {
+        "revealed": 8,
+        "total": 8,
+        "hiddenOpacity": 0,
+        "delaysCleared": true
+      },
+      "stillRevealed": true,
+      "hover": {
+        "before": "none",
+        "after": "matrix(1, 0, 0, 1, 0, -3)",
+        "shadowOnHover": true,
+        "lifted": true
+      },
+      "press": {
+        "before": "none",
+        "active": "matrix(0.97, 0, 0, 0.97, 0, 0)",
+        "transition": "0.12s, 0.12s",
+        "pressed": true
+      },
+      "cls": {
+        "value": 0,
+        "shifts": []
+      },
+      "screenshot": "for-parents_en_768.png"
+    },
+    {
+      "page": "/for-parents",
+      "name": "for-parents",
+      "locale": "en",
+      "width": 1280,
+      "status": 200,
+      "lang": "en",
+      "dir": "ltr",
+      "armed": true,
+      "revealTargets": 8,
+      "staggerGroups": 1,
+      "revealTargetsInHero": null,
+      "innerW": 1280,
+      "scrollW": 1280,
+      "bodyScrollW": 1280,
+      "horizontalOverflow": false,
+      "reveal": {
+        "revealed": 8,
+        "total": 8,
+        "hiddenOpacity": 0,
+        "delaysCleared": true
+      },
+      "stillRevealed": true,
+      "hover": {
+        "before": "none",
+        "after": "matrix(1, 0, 0, 1, 0, -3)",
+        "shadowOnHover": true,
+        "lifted": true
+      },
+      "press": {
+        "before": "none",
+        "active": "matrix(0.97, 0, 0, 0.97, 0, 0)",
+        "transition": "0.12s, 0.12s",
+        "pressed": true
+      },
+      "cls": {
+        "value": 0,
+        "shifts": []
+      },
+      "screenshot": "for-parents_en_1280.png"
+    },
+    {
+      "page": "/for-parents",
+      "name": "for-parents",
+      "locale": "en",
+      "width": 1440,
+      "status": 200,
+      "lang": "en",
+      "dir": "ltr",
+      "armed": true,
+      "revealTargets": 8,
+      "staggerGroups": 1,
+      "revealTargetsInHero": null,
+      "innerW": 1440,
+      "scrollW": 1440,
+      "bodyScrollW": 1440,
+      "horizontalOverflow": false,
+      "reveal": {
+        "revealed": 8,
+        "total": 8,
+        "hiddenOpacity": 0,
+        "delaysCleared": true
+      },
+      "stillRevealed": true,
+      "hover": {
+        "before": "none",
+        "after": "matrix(1, 0, 0, 1, 0, -3)",
+        "shadowOnHover": true,
+        "lifted": true
+      },
+      "press": {
+        "before": "none",
+        "active": "matrix(0.97, 0, 0, 0.97, 0, 0)",
+        "transition": "0.12s, 0.12s",
+        "pressed": true
+      },
+      "cls": {
+        "value": 0,
+        "shifts": []
+      },
+      "screenshot": "for-parents_en_1440.png"
+    },
+    {
+      "page": "/for-parents",
+      "name": "for-parents",
+      "locale": "ar",
+      "width": 360,
+      "status": 200,
+      "lang": "ar",
+      "dir": "rtl",
+      "armed": true,
+      "revealTargets": 8,
+      "staggerGroups": 1,
+      "revealTargetsInHero": null,
+      "innerW": 360,
+      "scrollW": 360,
+      "bodyScrollW": 360,
+      "horizontalOverflow": false,
+      "reveal": {
+        "revealed": 8,
+        "total": 8,
+        "hiddenOpacity": 0,
+        "delaysCleared": true
+      },
+      "stillRevealed": true,
+      "hover": {
+        "before": "none",
+        "after": "matrix(1, 0, 0, 1, 0, -3)",
+        "shadowOnHover": true,
+        "lifted": true
+      },
+      "press": {
+        "before": "none",
+        "active": "matrix(0.97, 0, 0, 0.97, 0, 0)",
+        "transition": "0.12s, 0.12s",
+        "pressed": true
+      },
+      "cls": {
+        "value": 0,
+        "shifts": []
+      },
+      "screenshot": "for-parents_ar_360.png"
+    },
+    {
+      "page": "/for-parents",
+      "name": "for-parents",
+      "locale": "ar",
+      "width": 768,
+      "status": 200,
+      "lang": "ar",
+      "dir": "rtl",
+      "armed": true,
+      "revealTargets": 8,
+      "staggerGroups": 1,
+      "revealTargetsInHero": null,
+      "innerW": 768,
+      "scrollW": 768,
+      "bodyScrollW": 768,
+      "horizontalOverflow": false,
+      "reveal": {
+        "revealed": 8,
+        "total": 8,
+        "hiddenOpacity": 0,
+        "delaysCleared": true
+      },
+      "stillRevealed": true,
+      "hover": {
+        "before": "none",
+        "after": "matrix(1, 0, 0, 1, 0, -3)",
+        "shadowOnHover": true,
+        "lifted": true
+      },
+      "press": {
+        "before": "none",
+        "active": "matrix(0.97, 0, 0, 0.97, 0, 0)",
+        "transition": "0.12s, 0.12s",
+        "pressed": true
+      },
+      "cls": {
+        "value": 0,
+        "shifts": []
+      },
+      "screenshot": "for-parents_ar_768.png"
+    },
+    {
+      "page": "/for-parents",
+      "name": "for-parents",
+      "locale": "ar",
+      "width": 1280,
+      "status": 200,
+      "lang": "ar",
+      "dir": "rtl",
+      "armed": true,
+      "revealTargets": 8,
+      "staggerGroups": 1,
+      "revealTargetsInHero": null,
+      "innerW": 1280,
+      "scrollW": 1280,
+      "bodyScrollW": 1280,
+      "horizontalOverflow": false,
+      "reveal": {
+        "revealed": 8,
+        "total": 8,
+        "hiddenOpacity": 0,
+        "delaysCleared": true
+      },
+      "stillRevealed": true,
+      "hover": {
+        "before": "none",
+        "after": "matrix(1, 0, 0, 1, 0, -3)",
+        "shadowOnHover": true,
+        "lifted": true
+      },
+      "press": {
+        "before": "none",
+        "active": "matrix(0.97, 0, 0, 0.97, 0, 0)",
+        "transition": "0.12s, 0.12s",
+        "pressed": true
+      },
+      "cls": {
+        "value": 0,
+        "shifts": []
+      },
+      "screenshot": "for-parents_ar_1280.png"
+    },
+    {
+      "page": "/for-parents",
+      "name": "for-parents",
+      "locale": "ar",
+      "width": 1440,
+      "status": 200,
+      "lang": "ar",
+      "dir": "rtl",
+      "armed": true,
+      "revealTargets": 8,
+      "staggerGroups": 1,
+      "revealTargetsInHero": null,
+      "innerW": 1440,
+      "scrollW": 1440,
+      "bodyScrollW": 1440,
+      "horizontalOverflow": false,
+      "reveal": {
+        "revealed": 8,
+        "total": 8,
+        "hiddenOpacity": 0,
+        "delaysCleared": true
+      },
+      "stillRevealed": true,
+      "hover": {
+        "before": "none",
+        "after": "matrix(1, 0, 0, 1, 0, -3)",
+        "shadowOnHover": true,
+        "lifted": true
+      },
+      "press": {
+        "before": "none",
+        "active": "matrix(0.97, 0, 0, 0.97, 0, 0)",
+        "transition": "0.12s, 0.12s",
+        "pressed": true
+      },
+      "cls": {
+        "value": 0,
+        "shifts": []
+      },
+      "screenshot": "for-parents_ar_1440.png"
+    },
+    {
+      "page": "/for-centers",
+      "name": "for-centers",
+      "locale": "en",
+      "width": 360,
+      "status": 200,
+      "lang": "en",
+      "dir": "ltr",
+      "armed": true,
+      "revealTargets": 10,
+      "staggerGroups": 1,
+      "revealTargetsInHero": null,
+      "innerW": 360,
+      "scrollW": 360,
+      "bodyScrollW": 360,
+      "horizontalOverflow": false,
+      "reveal": {
+        "revealed": 10,
+        "total": 10,
+        "hiddenOpacity": 0,
+        "delaysCleared": true
+      },
+      "stillRevealed": true,
+      "hover": {
+        "before": "none",
+        "after": "matrix(1, 0, 0, 1, 0, -3)",
+        "shadowOnHover": true,
+        "lifted": true
+      },
+      "press": {
+        "before": "none",
+        "active": "matrix(0.97, 0, 0, 0.97, 0, 0)",
+        "transition": "0.12s, 0.12s",
+        "pressed": true
+      },
+      "cls": {
+        "value": 0,
+        "shifts": []
+      },
+      "screenshot": "for-centers_en_360.png"
+    },
+    {
+      "page": "/for-centers",
+      "name": "for-centers",
+      "locale": "en",
+      "width": 768,
+      "status": 200,
+      "lang": "en",
+      "dir": "ltr",
+      "armed": true,
+      "revealTargets": 10,
+      "staggerGroups": 1,
+      "revealTargetsInHero": null,
+      "innerW": 768,
+      "scrollW": 768,
+      "bodyScrollW": 768,
+      "horizontalOverflow": false,
+      "reveal": {
+        "revealed": 10,
+        "total": 10,
+        "hiddenOpacity": 0,
+        "delaysCleared": true
+      },
+      "stillRevealed": true,
+      "hover": {
+        "before": "none",
+        "after": "matrix(1, 0, 0, 1, 0, -3)",
+        "shadowOnHover": true,
+        "lifted": true
+      },
+      "press": {
+        "before": "none",
+        "active": "matrix(0.97, 0, 0, 0.97, 0, 0)",
+        "transition": "0.12s, 0.12s",
+        "pressed": true
+      },
+      "cls": {
+        "value": 0,
+        "shifts": []
+      },
+      "screenshot": "for-centers_en_768.png"
+    },
+    {
+      "page": "/for-centers",
+      "name": "for-centers",
+      "locale": "en",
+      "width": 1280,
+      "status": 200,
+      "lang": "en",
+      "dir": "ltr",
+      "armed": true,
+      "revealTargets": 10,
+      "staggerGroups": 1,
+      "revealTargetsInHero": null,
+      "innerW": 1280,
+      "scrollW": 1280,
+      "bodyScrollW": 1280,
+      "horizontalOverflow": false,
+      "reveal": {
+        "revealed": 10,
+        "total": 10,
+        "hiddenOpacity": 0,
+        "delaysCleared": true
+      },
+      "stillRevealed": true,
+      "hover": {
+        "before": "none",
+        "after": "matrix(1, 0, 0, 1, 0, -3)",
+        "shadowOnHover": true,
+        "lifted": true
+      },
+      "press": {
+        "before": "none",
+        "active": "matrix(0.97, 0, 0, 0.97, 0, 0)",
+        "transition": "0.12s, 0.12s",
+        "pressed": true
+      },
+      "cls": {
+        "value": 0,
+        "shifts": []
+      },
+      "screenshot": "for-centers_en_1280.png"
+    },
+    {
+      "page": "/for-centers",
+      "name": "for-centers",
+      "locale": "en",
+      "width": 1440,
+      "status": 200,
+      "lang": "en",
+      "dir": "ltr",
+      "armed": true,
+      "revealTargets": 10,
+      "staggerGroups": 1,
+      "revealTargetsInHero": null,
+      "innerW": 1440,
+      "scrollW": 1440,
+      "bodyScrollW": 1440,
+      "horizontalOverflow": false,
+      "reveal": {
+        "revealed": 10,
+        "total": 10,
+        "hiddenOpacity": 0,
+        "delaysCleared": true
+      },
+      "stillRevealed": true,
+      "hover": {
+        "before": "none",
+        "after": "matrix(1, 0, 0, 1, 0, -3)",
+        "shadowOnHover": true,
+        "lifted": true
+      },
+      "press": {
+        "before": "none",
+        "active": "matrix(0.97, 0, 0, 0.97, 0, 0)",
+        "transition": "0.12s, 0.12s",
+        "pressed": true
+      },
+      "cls": {
+        "value": 0,
+        "shifts": []
+      },
+      "screenshot": "for-centers_en_1440.png"
+    },
+    {
+      "page": "/for-centers",
+      "name": "for-centers",
+      "locale": "ar",
+      "width": 360,
+      "status": 200,
+      "lang": "ar",
+      "dir": "rtl",
+      "armed": true,
+      "revealTargets": 10,
+      "staggerGroups": 1,
+      "revealTargetsInHero": null,
+      "innerW": 360,
+      "scrollW": 360,
+      "bodyScrollW": 360,
+      "horizontalOverflow": false,
+      "reveal": {
+        "revealed": 10,
+        "total": 10,
+        "hiddenOpacity": 0,
+        "delaysCleared": true
+      },
+      "stillRevealed": true,
+      "hover": {
+        "before": "none",
+        "after": "matrix(1, 0, 0, 1, 0, -3)",
+        "shadowOnHover": true,
+        "lifted": true
+      },
+      "press": {
+        "before": "none",
+        "active": "matrix(0.97, 0, 0, 0.97, 0, 0)",
+        "transition": "0.12s, 0.12s",
+        "pressed": true
+      },
+      "cls": {
+        "value": 0,
+        "shifts": []
+      },
+      "screenshot": "for-centers_ar_360.png"
+    },
+    {
+      "page": "/for-centers",
+      "name": "for-centers",
+      "locale": "ar",
+      "width": 768,
+      "status": 200,
+      "lang": "ar",
+      "dir": "rtl",
+      "armed": true,
+      "revealTargets": 10,
+      "staggerGroups": 1,
+      "revealTargetsInHero": null,
+      "innerW": 768,
+      "scrollW": 768,
+      "bodyScrollW": 768,
+      "horizontalOverflow": false,
+      "reveal": {
+        "revealed": 10,
+        "total": 10,
+        "hiddenOpacity": 0,
+        "delaysCleared": true
+      },
+      "stillRevealed": true,
+      "hover": {
+        "before": "none",
+        "after": "matrix(1, 0, 0, 1, 0, -3)",
+        "shadowOnHover": true,
+        "lifted": true
+      },
+      "press": {
+        "before": "none",
+        "active": "matrix(0.97, 0, 0, 0.97, 0, 0)",
+        "transition": "0.12s, 0.12s",
+        "pressed": true
+      },
+      "cls": {
+        "value": 0,
+        "shifts": []
+      },
+      "screenshot": "for-centers_ar_768.png"
+    },
+    {
+      "page": "/for-centers",
+      "name": "for-centers",
+      "locale": "ar",
+      "width": 1280,
+      "status": 200,
+      "lang": "ar",
+      "dir": "rtl",
+      "armed": true,
+      "revealTargets": 10,
+      "staggerGroups": 1,
+      "revealTargetsInHero": null,
+      "innerW": 1280,
+      "scrollW": 1280,
+      "bodyScrollW": 1280,
+      "horizontalOverflow": false,
+      "reveal": {
+        "revealed": 10,
+        "total": 10,
+        "hiddenOpacity": 0,
+        "delaysCleared": true
+      },
+      "stillRevealed": true,
+      "hover": {
+        "before": "none",
+        "after": "matrix(1, 0, 0, 1, 0, -3)",
+        "shadowOnHover": true,
+        "lifted": true
+      },
+      "press": {
+        "before": "none",
+        "active": "matrix(0.97, 0, 0, 0.97, 0, 0)",
+        "transition": "0.12s, 0.12s",
+        "pressed": true
+      },
+      "cls": {
+        "value": 0,
+        "shifts": []
+      },
+      "screenshot": "for-centers_ar_1280.png"
+    },
+    {
+      "page": "/for-centers",
+      "name": "for-centers",
+      "locale": "ar",
+      "width": 1440,
+      "status": 200,
+      "lang": "ar",
+      "dir": "rtl",
+      "armed": true,
+      "revealTargets": 10,
+      "staggerGroups": 1,
+      "revealTargetsInHero": null,
+      "innerW": 1440,
+      "scrollW": 1440,
+      "bodyScrollW": 1440,
+      "horizontalOverflow": false,
+      "reveal": {
+        "revealed": 10,
+        "total": 10,
+        "hiddenOpacity": 0,
+        "delaysCleared": true
+      },
+      "stillRevealed": true,
+      "hover": {
+        "before": "none",
+        "after": "matrix(1, 0, 0, 1, 0, -3)",
+        "shadowOnHover": true,
+        "lifted": true
+      },
+      "press": {
+        "before": "none",
+        "active": "matrix(0.97, 0, 0, 0.97, 0, 0)",
+        "transition": "0.12s, 0.12s",
+        "pressed": true
+      },
+      "cls": {
+        "value": 0,
+        "shifts": []
+      },
+      "screenshot": "for-centers_ar_1440.png"
+    },
+    {
+      "page": "/contact",
+      "name": "contact",
+      "locale": "en",
+      "width": 360,
+      "status": 200,
+      "lang": "en",
+      "dir": "ltr",
+      "armed": true,
+      "revealTargets": 3,
+      "staggerGroups": 1,
+      "revealTargetsInHero": null,
+      "innerW": 360,
+      "scrollW": 360,
+      "bodyScrollW": 360,
+      "horizontalOverflow": false,
+      "reveal": {
+        "revealed": 3,
+        "total": 3,
+        "hiddenOpacity": 0,
+        "delaysCleared": true
+      },
+      "stillRevealed": true,
+      "hover": {
+        "before": "none",
+        "after": "matrix(1, 0, 0, 1, 0, -3)",
+        "shadowOnHover": true,
+        "lifted": true
+      },
+      "press": {
+        "before": "none",
+        "active": "matrix(0.97, 0, 0, 0.97, 0, 0)",
+        "transition": "0.12s, 0.12s",
+        "pressed": true
+      },
+      "cls": {
+        "value": 0,
+        "shifts": []
+      },
+      "screenshot": "contact_en_360.png"
+    },
+    {
+      "page": "/contact",
+      "name": "contact",
+      "locale": "en",
+      "width": 768,
+      "status": 200,
+      "lang": "en",
+      "dir": "ltr",
+      "armed": true,
+      "revealTargets": 3,
+      "staggerGroups": 1,
+      "revealTargetsInHero": null,
+      "innerW": 768,
+      "scrollW": 768,
+      "bodyScrollW": 768,
+      "horizontalOverflow": false,
+      "reveal": {
+        "revealed": 3,
+        "total": 3,
+        "hiddenOpacity": 0,
+        "delaysCleared": true
+      },
+      "stillRevealed": true,
+      "hover": {
+        "before": "none",
+        "after": "matrix(1, 0, 0, 1, 0, -3)",
+        "shadowOnHover": true,
+        "lifted": true
+      },
+      "press": {
+        "before": "none",
+        "active": "matrix(0.97, 0, 0, 0.97, 0, 0)",
+        "transition": "0.12s, 0.12s",
+        "pressed": true
+      },
+      "cls": {
+        "value": 0,
+        "shifts": []
+      },
+      "screenshot": "contact_en_768.png"
+    },
+    {
+      "page": "/contact",
+      "name": "contact",
+      "locale": "en",
+      "width": 1280,
+      "status": 200,
+      "lang": "en",
+      "dir": "ltr",
+      "armed": true,
+      "revealTargets": 3,
+      "staggerGroups": 1,
+      "revealTargetsInHero": null,
+      "innerW": 1280,
+      "scrollW": 1280,
+      "bodyScrollW": 1280,
+      "horizontalOverflow": false,
+      "reveal": {
+        "revealed": 3,
+        "total": 3,
+        "hiddenOpacity": 0,
+        "delaysCleared": true
+      },
+      "stillRevealed": true,
+      "hover": {
+        "before": "none",
+        "after": "matrix(1, 0, 0, 1, 0, -3)",
+        "shadowOnHover": true,
+        "lifted": true
+      },
+      "press": {
+        "before": "none",
+        "active": "matrix(0.97, 0, 0, 0.97, 0, 0)",
+        "transition": "0.12s, 0.12s",
+        "pressed": true
+      },
+      "cls": {
+        "value": 0,
+        "shifts": []
+      },
+      "screenshot": "contact_en_1280.png"
+    },
+    {
+      "page": "/contact",
+      "name": "contact",
+      "locale": "en",
+      "width": 1440,
+      "status": 200,
+      "lang": "en",
+      "dir": "ltr",
+      "armed": true,
+      "revealTargets": 3,
+      "staggerGroups": 1,
+      "revealTargetsInHero": null,
+      "innerW": 1440,
+      "scrollW": 1440,
+      "bodyScrollW": 1440,
+      "horizontalOverflow": false,
+      "reveal": {
+        "revealed": 3,
+        "total": 3,
+        "hiddenOpacity": 0,
+        "delaysCleared": true
+      },
+      "stillRevealed": true,
+      "hover": {
+        "before": "none",
+        "after": "matrix(1, 0, 0, 1, 0, -3)",
+        "shadowOnHover": true,
+        "lifted": true
+      },
+      "press": {
+        "before": "none",
+        "active": "matrix(0.97, 0, 0, 0.97, 0, 0)",
+        "transition": "0.12s, 0.12s",
+        "pressed": true
+      },
+      "cls": {
+        "value": 0,
+        "shifts": []
+      },
+      "screenshot": "contact_en_1440.png"
+    },
+    {
+      "page": "/contact",
+      "name": "contact",
+      "locale": "ar",
+      "width": 360,
+      "status": 200,
+      "lang": "ar",
+      "dir": "rtl",
+      "armed": true,
+      "revealTargets": 3,
+      "staggerGroups": 1,
+      "revealTargetsInHero": null,
+      "innerW": 360,
+      "scrollW": 360,
+      "bodyScrollW": 360,
+      "horizontalOverflow": false,
+      "reveal": {
+        "revealed": 3,
+        "total": 3,
+        "hiddenOpacity": 0,
+        "delaysCleared": true
+      },
+      "stillRevealed": true,
+      "hover": {
+        "before": "none",
+        "after": "matrix(1, 0, 0, 1, 0, -3)",
+        "shadowOnHover": true,
+        "lifted": true
+      },
+      "press": {
+        "before": "none",
+        "active": "matrix(0.97, 0, 0, 0.97, 0, 0)",
+        "transition": "0.12s, 0.12s",
+        "pressed": true
+      },
+      "cls": {
+        "value": 0,
+        "shifts": []
+      },
+      "screenshot": "contact_ar_360.png"
+    },
+    {
+      "page": "/contact",
+      "name": "contact",
+      "locale": "ar",
+      "width": 768,
+      "status": 200,
+      "lang": "ar",
+      "dir": "rtl",
+      "armed": true,
+      "revealTargets": 3,
+      "staggerGroups": 1,
+      "revealTargetsInHero": null,
+      "innerW": 768,
+      "scrollW": 768,
+      "bodyScrollW": 768,
+      "horizontalOverflow": false,
+      "reveal": {
+        "revealed": 3,
+        "total": 3,
+        "hiddenOpacity": 0,
+        "delaysCleared": true
+      },
+      "stillRevealed": true,
+      "hover": {
+        "before": "none",
+        "after": "matrix(1, 0, 0, 1, 0, -3)",
+        "shadowOnHover": true,
+        "lifted": true
+      },
+      "press": {
+        "before": "none",
+        "active": "matrix(0.97, 0, 0, 0.97, 0, 0)",
+        "transition": "0.12s, 0.12s",
+        "pressed": true
+      },
+      "cls": {
+        "value": 0,
+        "shifts": []
+      },
+      "screenshot": "contact_ar_768.png"
+    },
+    {
+      "page": "/contact",
+      "name": "contact",
+      "locale": "ar",
+      "width": 1280,
+      "status": 200,
+      "lang": "ar",
+      "dir": "rtl",
+      "armed": true,
+      "revealTargets": 3,
+      "staggerGroups": 1,
+      "revealTargetsInHero": null,
+      "innerW": 1280,
+      "scrollW": 1280,
+      "bodyScrollW": 1280,
+      "horizontalOverflow": false,
+      "reveal": {
+        "revealed": 3,
+        "total": 3,
+        "hiddenOpacity": 0,
+        "delaysCleared": true
+      },
+      "stillRevealed": true,
+      "hover": {
+        "before": "none",
+        "after": "matrix(1, 0, 0, 1, 0, -3)",
+        "shadowOnHover": true,
+        "lifted": true
+      },
+      "press": {
+        "before": "none",
+        "active": "matrix(0.97, 0, 0, 0.97, 0, 0)",
+        "transition": "0.12s, 0.12s",
+        "pressed": true
+      },
+      "cls": {
+        "value": 0,
+        "shifts": []
+      },
+      "screenshot": "contact_ar_1280.png"
+    },
+    {
+      "page": "/contact",
+      "name": "contact",
+      "locale": "ar",
+      "width": 1440,
+      "status": 200,
+      "lang": "ar",
+      "dir": "rtl",
+      "armed": true,
+      "revealTargets": 3,
+      "staggerGroups": 1,
+      "revealTargetsInHero": null,
+      "innerW": 1440,
+      "scrollW": 1440,
+      "bodyScrollW": 1440,
+      "horizontalOverflow": false,
+      "reveal": {
+        "revealed": 3,
+        "total": 3,
+        "hiddenOpacity": 0,
+        "delaysCleared": true
+      },
+      "stillRevealed": true,
+      "hover": {
+        "before": "none",
+        "after": "matrix(1, 0, 0, 1, 0, -3)",
+        "shadowOnHover": true,
+        "lifted": true
+      },
+      "press": {
+        "before": "none",
+        "active": "matrix(0.97, 0, 0, 0.97, 0, 0)",
+        "transition": "0.12s, 0.12s",
+        "pressed": true
+      },
+      "cls": {
+        "value": 0,
+        "shifts": []
+      },
+      "screenshot": "contact_ar_1440.png"
+    },
+    {
+      "page": "/",
+      "name": "home",
+      "locale": "en",
+      "width": 360,
+      "reducedMotion": true,
+      "lang": "en",
+      "dir": "ltr",
+      "armed": false,
+      "revealTargets": 5,
+      "allVisible": true,
+      "anyTransition": false,
+      "btnTransition": "0s",
+      "scrollW": 360,
+      "innerW": 360,
+      "horizontalOverflow": false,
+      "cls": 0
+    },
+    {
+      "page": "/",
+      "name": "home",
+      "locale": "en",
+      "width": 1280,
+      "reducedMotion": true,
+      "lang": "en",
+      "dir": "ltr",
+      "armed": false,
+      "revealTargets": 5,
+      "allVisible": true,
+      "anyTransition": false,
+      "btnTransition": "0s",
+      "scrollW": 1280,
+      "innerW": 1280,
+      "horizontalOverflow": false,
+      "cls": 0
+    },
+    {
+      "page": "/",
+      "name": "home",
+      "locale": "ar",
+      "width": 360,
+      "reducedMotion": true,
+      "lang": "ar",
+      "dir": "rtl",
+      "armed": false,
+      "revealTargets": 5,
+      "allVisible": true,
+      "anyTransition": false,
+      "btnTransition": "0s",
+      "scrollW": 360,
+      "innerW": 360,
+      "horizontalOverflow": false,
+      "cls": 0
+    },
+    {
+      "page": "/",
+      "name": "home",
+      "locale": "ar",
+      "width": 1280,
+      "reducedMotion": true,
+      "lang": "ar",
+      "dir": "rtl",
+      "armed": false,
+      "revealTargets": 5,
+      "allVisible": true,
+      "anyTransition": false,
+      "btnTransition": "0s",
+      "scrollW": 1280,
+      "innerW": 1280,
+      "horizontalOverflow": false,
+      "cls": 0
+    },
+    {
+      "page": "/features",
+      "name": "features",
+      "locale": "en",
+      "width": 360,
+      "reducedMotion": true,
+      "lang": "en",
+      "dir": "ltr",
+      "armed": false,
+      "revealTargets": 2,
+      "allVisible": true,
+      "anyTransition": false,
+      "btnTransition": "0s",
+      "scrollW": 360,
+      "innerW": 360,
+      "horizontalOverflow": false,
+      "cls": 0
+    },
+    {
+      "page": "/features",
+      "name": "features",
+      "locale": "en",
+      "width": 1280,
+      "reducedMotion": true,
+      "lang": "en",
+      "dir": "ltr",
+      "armed": false,
+      "revealTargets": 2,
+      "allVisible": true,
+      "anyTransition": false,
+      "btnTransition": "0s",
+      "scrollW": 1280,
+      "innerW": 1280,
+      "horizontalOverflow": false,
+      "cls": 0
+    },
+    {
+      "page": "/features",
+      "name": "features",
+      "locale": "ar",
+      "width": 360,
+      "reducedMotion": true,
+      "lang": "ar",
+      "dir": "rtl",
+      "armed": false,
+      "revealTargets": 2,
+      "allVisible": true,
+      "anyTransition": false,
+      "btnTransition": "0s",
+      "scrollW": 360,
+      "innerW": 360,
+      "horizontalOverflow": false,
+      "cls": 0
+    },
+    {
+      "page": "/features",
+      "name": "features",
+      "locale": "ar",
+      "width": 1280,
+      "reducedMotion": true,
+      "lang": "ar",
+      "dir": "rtl",
+      "armed": false,
+      "revealTargets": 2,
+      "allVisible": true,
+      "anyTransition": false,
+      "btnTransition": "0s",
+      "scrollW": 1280,
+      "innerW": 1280,
+      "horizontalOverflow": false,
+      "cls": 0
+    },
+    {
+      "page": "/for-parents",
+      "name": "for-parents",
+      "locale": "en",
+      "width": 360,
+      "reducedMotion": true,
+      "lang": "en",
+      "dir": "ltr",
+      "armed": false,
+      "revealTargets": 2,
+      "allVisible": true,
+      "anyTransition": false,
+      "btnTransition": "0s",
+      "scrollW": 360,
+      "innerW": 360,
+      "horizontalOverflow": false,
+      "cls": 0
+    },
+    {
+      "page": "/for-parents",
+      "name": "for-parents",
+      "locale": "en",
+      "width": 1280,
+      "reducedMotion": true,
+      "lang": "en",
+      "dir": "ltr",
+      "armed": false,
+      "revealTargets": 2,
+      "allVisible": true,
+      "anyTransition": false,
+      "btnTransition": "0s",
+      "scrollW": 1280,
+      "innerW": 1280,
+      "horizontalOverflow": false,
+      "cls": 0
+    },
+    {
+      "page": "/for-parents",
+      "name": "for-parents",
+      "locale": "ar",
+      "width": 360,
+      "reducedMotion": true,
+      "lang": "ar",
+      "dir": "rtl",
+      "armed": false,
+      "revealTargets": 2,
+      "allVisible": true,
+      "anyTransition": false,
+      "btnTransition": "0s",
+      "scrollW": 360,
+      "innerW": 360,
+      "horizontalOverflow": false,
+      "cls": 0
+    },
+    {
+      "page": "/for-parents",
+      "name": "for-parents",
+      "locale": "ar",
+      "width": 1280,
+      "reducedMotion": true,
+      "lang": "ar",
+      "dir": "rtl",
+      "armed": false,
+      "revealTargets": 2,
+      "allVisible": true,
+      "anyTransition": false,
+      "btnTransition": "0s",
+      "scrollW": 1280,
+      "innerW": 1280,
+      "horizontalOverflow": false,
+      "cls": 0
+    },
+    {
+      "page": "/for-centers",
+      "name": "for-centers",
+      "locale": "en",
+      "width": 360,
+      "reducedMotion": true,
+      "lang": "en",
+      "dir": "ltr",
+      "armed": false,
+      "revealTargets": 2,
+      "allVisible": true,
+      "anyTransition": false,
+      "btnTransition": "0s",
+      "scrollW": 360,
+      "innerW": 360,
+      "horizontalOverflow": false,
+      "cls": 0
+    },
+    {
+      "page": "/for-centers",
+      "name": "for-centers",
+      "locale": "en",
+      "width": 1280,
+      "reducedMotion": true,
+      "lang": "en",
+      "dir": "ltr",
+      "armed": false,
+      "revealTargets": 2,
+      "allVisible": true,
+      "anyTransition": false,
+      "btnTransition": "0s",
+      "scrollW": 1280,
+      "innerW": 1280,
+      "horizontalOverflow": false,
+      "cls": 0
+    },
+    {
+      "page": "/for-centers",
+      "name": "for-centers",
+      "locale": "ar",
+      "width": 360,
+      "reducedMotion": true,
+      "lang": "ar",
+      "dir": "rtl",
+      "armed": false,
+      "revealTargets": 2,
+      "allVisible": true,
+      "anyTransition": false,
+      "btnTransition": "0s",
+      "scrollW": 360,
+      "innerW": 360,
+      "horizontalOverflow": false,
+      "cls": 0
+    },
+    {
+      "page": "/for-centers",
+      "name": "for-centers",
+      "locale": "ar",
+      "width": 1280,
+      "reducedMotion": true,
+      "lang": "ar",
+      "dir": "rtl",
+      "armed": false,
+      "revealTargets": 2,
+      "allVisible": true,
+      "anyTransition": false,
+      "btnTransition": "0s",
+      "scrollW": 1280,
+      "innerW": 1280,
+      "horizontalOverflow": false,
+      "cls": 0
+    },
+    {
+      "page": "/contact",
+      "name": "contact",
+      "locale": "en",
+      "width": 360,
+      "reducedMotion": true,
+      "lang": "en",
+      "dir": "ltr",
+      "armed": false,
+      "revealTargets": 1,
+      "allVisible": true,
+      "anyTransition": false,
+      "btnTransition": "0s",
+      "scrollW": 360,
+      "innerW": 360,
+      "horizontalOverflow": false,
+      "cls": 0
+    },
+    {
+      "page": "/contact",
+      "name": "contact",
+      "locale": "en",
+      "width": 1280,
+      "reducedMotion": true,
+      "lang": "en",
+      "dir": "ltr",
+      "armed": false,
+      "revealTargets": 1,
+      "allVisible": true,
+      "anyTransition": false,
+      "btnTransition": "0s",
+      "scrollW": 1280,
+      "innerW": 1280,
+      "horizontalOverflow": false,
+      "cls": 0
+    },
+    {
+      "page": "/contact",
+      "name": "contact",
+      "locale": "ar",
+      "width": 360,
+      "reducedMotion": true,
+      "lang": "ar",
+      "dir": "rtl",
+      "armed": false,
+      "revealTargets": 1,
+      "allVisible": true,
+      "anyTransition": false,
+      "btnTransition": "0s",
+      "scrollW": 360,
+      "innerW": 360,
+      "horizontalOverflow": false,
+      "cls": 0
+    },
+    {
+      "page": "/contact",
+      "name": "contact",
+      "locale": "ar",
+      "width": 1280,
+      "reducedMotion": true,
+      "lang": "ar",
+      "dir": "rtl",
+      "armed": false,
+      "revealTargets": 1,
+      "allVisible": true,
+      "anyTransition": false,
+      "btnTransition": "0s",
+      "scrollW": 1280,
+      "innerW": 1280,
+      "horizontalOverflow": false,
+      "cls": 0
+    }
+  ]
+}
