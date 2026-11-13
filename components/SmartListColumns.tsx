@@ -8,10 +8,12 @@ export default function SmartListColumns({
   cols,
   qs,
   builderName,
+  labels = { addColumnOption: "+ Add column…", columns: ALL },
 }: {
   cols: string[];
   qs: string;
   builderName: string;
+  labels?: { addColumnOption: string; columns: Record<string, string> };
 }) {
   const urlWith = (colsNext: string[]) =>
     `/portal/tags?${qs.replace(/cols=[^&]+|cols=&/i, `cols=${encodeURIComponent(colsNext.join(","))}`)}&list=${encodeURIComponent(builderName)}`;
@@ -26,8 +28,8 @@ export default function SmartListColumns({
         window.location.href = urlWith(Array.from(new Set([...cols, v])));
       }}
     >
-      <option value="">+ Add column…</option>
-      {Object.entries(ALL).map(([key, label]) =>
+      <option value="">{labels.addColumnOption}</option>
+      {Object.entries(labels.columns).map(([key, label]) =>
         cols.includes(key) ? null : (
           <option key={key} value={key}>
             {label}

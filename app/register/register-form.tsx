@@ -2,14 +2,43 @@
 
 import { Suspense, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import type { Locale } from "@/lib/i18n";
 import { registerAction } from "@/lib/actions";
 import AuthBrand from "@/components/AuthBrand";
+import AuthLangToggle from "@/components/AuthLangToggle";
 
 // KID-437: the form stays client-side (useSearchParams + the registration
 // action); the brand header is the shared AuthBrand, per-origin like /login —
 // the server page (page.tsx) resolves the tenant's own name for the first
 // paint, and the client fetch keeps it live (KID-368 acceptance).
-export default function RegisterForm({ brandName }: { brandName: string }) {
+// KID-2400: every label comes from the server page's dict resolution
+// (register.* + profile/common/login groups), and the pre-sign-in EN/AR
+// toggle mirrors /login (locale travels from the kiddy_lang cookie).
+export type RegisterLabels = {
+  title: string;
+  subtitle: string;
+  inviteCodeLabel: string;
+  inviteCodePlaceholder: string;
+  fullNameLabel: string;
+  emailLabel: string;
+  passwordLabel: string;
+  pinLabel: string;
+  submitBtn: string;
+  signInLink: string;
+  langLabel: string;
+  langEn: string;
+  langAr: string;
+};
+
+export default function RegisterForm({
+  brandName,
+  locale,
+  labels,
+}: {
+  brandName: string;
+  locale: Locale;
+  labels: RegisterLabels;
+}) {
   const [error, setError] = useState<string | null>(null);
   const searchParams = useSearchParams();
   const presetCode = searchParams.get("code") ?? "";
@@ -22,11 +51,9 @@ export default function RegisterForm({ brandName }: { brandName: string }) {
   return (
     <div className="container" style={{ maxWidth: 420, paddingTop: 80 }}>
       <AuthBrand brandName={brandName} />
-      <h1 className="title mt-4">Activate your parent account</h1>
-      <p className="subtitle">
-        Parents are invited by their daycare — you can&apos;t sign up on your own.
-        Enter the invite code your daycare gave you to set up your password.
-      </p>
+      <AuthLangToggle locale={locale} label={labels.langLabel} en={labels.langEn} ar={labels.langAr} />
+      <h1 className="title mt-4">{labels.title}</h1>
+      <p className="subtitle">{labels.subtitle}</p>
       <form
         className="card"
         action={async (fd) => {
@@ -36,28 +63,34 @@ export default function RegisterForm({ brandName }: { brandName: string }) {
       >
         {error && <p style={{ color: "#dc2626", marginBottom: 12 }}>{error}</p>}
         <div className="field">
-          <label className="label">Invite code (from your daycare)</label>
-          <input className="input" name="inviteCode" placeholder="e.g. SUNSHINE-1234" required defaultValue={presetCode} />
+          <label className="label">{labels.inviteCodeLabel}</label>
+          <input
+            className="input"
+            name="inviteCode"
+            placeholder={labels.inviteCodePlaceholder}
+            required
+            defaultValue={presetCode}
+          />
         </div>
         <div className="field">
-          <label className="label">Full name</label>
+          <label className="label">{labels.fullNameLabel}</label>
           <input className="input" name="fullName" required defaultValue={presetName} />
         </div>
         <div className="field">
-          <label className="label">Email</label>
+          <label className="label">{labels.emailLabel}</label>
           <input className="input" name="email" type="email" required defaultValue={presetEmail} />
         </div>
         <div className="field">
-          <label className="label">Password</label>
+          <label className="label">{labels.passwordLabel}</label>
           <input className="input" name="password" type="password" required />
         </div>
         <div className="field">
-          <label className="label">PIN (optional — quick sign-in)</label>
+          <label className="label">{labels.pinLabel}</label>
           <input className="input" name="pin" type="password" inputMode="numeric" maxLength={6} />
         </div>
-        <button className="btn btn-primary btn-block" type="submit">Activate account</button>
+        <button className="btn btn-primary btn-block" type="submit">{labels.submitBtn}</button>
       </form>
-      <p className="small mt-3"><a href="/login">Already have an account? Sign in</a></p>
+      <p className="small mt-3"><a href="/login">{labels.signInLink}</a></p>
     </div>
   );
 }

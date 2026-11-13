@@ -1,10 +1,12 @@
 import Link from "next/link";
 import { requireSession } from "@/lib/require";
 import { listInstituteBilling, getInstitute } from "@/lib/store";
-import { firstInstituteId, cap } from "@/lib/helpers";
+import { firstInstituteId } from "@/lib/helpers";
 import { updateBillingStatusAction } from "@/lib/actions";
 import { DEFAULT_CURRENCY, normalizeCurrency } from "@/lib/currency";
 import { recordToolUsage } from "@/lib/tool-usage";
+import { i18nForAccount } from "@/lib/i18n-session";
+import { tr } from "@/lib/i18n";
 
 export const dynamic = "force-dynamic";
 
@@ -33,8 +35,9 @@ export default async function PortalFinancePage(
 ) {
   const searchParams = await props.searchParams;
   const session = await requireSession();
+  const { dict } = await i18nForAccount(session.accountId);
   const instituteId = await firstInstituteId();
-  if (!instituteId) return <p className="muted">No institute configured.</p>;
+  if (!instituteId) return <p className="muted">{tr(dict, "finance.noInstitute")}</p>;
   await recordToolUsage({ instituteId: String(instituteId ?? "") || null, accountId: session.accountId, toolKey: "finance", source: "portal", metadata: null });
   // KID-489 item 1 (KID-490): display fallbacks follow the center's default
   // currency; each invoice row still shows its own stored currency first.
@@ -55,14 +58,23 @@ export default async function PortalFinancePage(
     return "outstanding";
   };
 
+  const TAB_LABEL: Record<string, string> = {
+    invoices: tr(dict, "finance.tabInvoices"),
+    payers: tr(dict, "finance.tabPayers"),
+    payouts: tr(dict, "finance.tabPayouts"),
+    payments: tr(dict, "finance.tabPayments"),
+    deposits: tr(dict, "finance.tabDeposits"),
+    schedules: tr(dict, "finance.tabSchedules"),
+    reports: tr(dict, "finance.tabReports"),
+  };
   const STATUS_LABEL: Record<string, string> = {
-    paid: "Paid",
-    outstanding: "Outstanding",
-    due: "Due",
-    "past-due": "Past Due",
-    cancelled: "Cancelled",
-    "partially-paid": "Partially Paid",
-    "in-process": "Payment in process",
+    paid: tr(dict, "finance.statusPaid"),
+    outstanding: tr(dict, "finance.statusOutstanding"),
+    due: tr(dict, "finance.statusDue"),
+    "past-due": tr(dict, "finance.statusPastDue"),
+    cancelled: tr(dict, "finance.statusCancelled"),
+    "partially-paid": tr(dict, "finance.statusPartiallyPaid"),
+    "in-process": tr(dict, "finance.statusInProcess"),
   };
   const STATUS_TONE: Record<string, string> = {
     paid: "badge-green",
@@ -98,14 +110,14 @@ export default async function PortalFinancePage(
   const payerTotals = new Map<string, number>();
   for (const r of bills) {
     const raw = r.payer;
-    const name = String(raw || `${r.first_name ?? ""} ${r.last_name ?? ""}`.trim() || "Unknown");
+    const name = String(raw || `${r.first_name ?? ""} ${r.last_name ?? ""}`.trim() || tr(dict, "profile.unknown"));
     payerTotals.set(name, (payerTotals.get(name) ?? 0) + amountValue(r));
   }
 
   return (
     <div>
-      <h1 className="title">Finance</h1>
-      <p className="subtitle">Billing, payers, and payouts for the whole center. Amounts shown in {centerCurrency} (each invoice keeps its own stored currency).</p>
+      <h1 className="title">{tr(dict, "nav.finance")}</h1>
+      <p className="subtitle">{tr(dict, "finance.subtitle", { currency: centerCurrency })}</p>
 
       <div className="row" style={{ gap: 6, flexWrap: "wrap", marginBottom: 16, borderBottom: "2px solid var(--color-border)" }}>
         {TAB_IDS.map((t) => (
@@ -115,7 +127,7 @@ export default async function PortalFinancePage(
             className={`btn ${tab === t ? "btn-primary" : "btn-ghost"} small`}
             style={{ textDecoration: "none", borderRadius: 0, borderBottom: tab === t ? "3px solid var(--brand-primary)" : "3px solid transparent" }}
           >
-            {cap(t)}
+            {TAB_LABEL[t]}
           </Link>
         ))}
       </div>
@@ -150,7 +162,7 @@ export default async function PortalFinancePage(
         })}
       </div>
       <div className="small muted mt-2">
-        Outstanding balance: <strong>{money(outstandingTotal, centerCurrency)}</strong> · All invoices: <strong>{money(allTotal, centerCurrency)}</strong>. “Due” and “Payment in process” have no live records yet — mapped from pending/approved where applicable.
+        {tr(dict, "finance.totalsSummary", { outstanding: money(outstandingTotal, centerCurrency), all: money(allTotal, centerCurrency) })}
       </div>
 
       {tab === "invoices" && (
@@ -159,29 +171,29 @@ export default async function PortalFinancePage(
             <div className="row" style={{ gap: 8, flexWrap: "wrap" }}>
               <form method="get" className="row" style={{ gap: 8 }}>
                 <input type="hidden" name="tab" value="invoices" />
-                <input className="input" name="q" defaultValue={searchParams?.q ?? ""} placeholder="Search invoice, child, payer…" style={{ minWidth: 220 }} />
+                <input className="input" name="q" defaultValue={searchParams?.q ?? ""} placeholder={tr(dict, "finance.searchPlaceholder")} style={{ minWidth: 220 }} />
                 <select className="select" name="status" defaultValue={statusFilter} style={{ maxWidth: 150 }}>
-                  <option value="">All statuses</option>
+                  <option value="">{tr(dict, "finance.allStatuses")}</option>
                   {STATUS_KEYS.map((k) => <option key={k} value={k}>{STATUS_LABEL[k]}</option>)}
                 </select>
-                <button className="btn btn-ghost small" type="submit">Apply</button>
+                <button className="btn btn-ghost small" type="submit">{tr(dict, "finance.apply")}</button>
               </form>
             </div>
             <div className="row" style={{ gap: 8 }}>
-              <Link className="btn btn-ghost small" href={`/api/export?type=billing&status=${statusFilter}`}>Export</Link>
-              <Link className="btn btn-primary small" href="/portal/children">Bulk invoice</Link>
+              <Link className="btn btn-ghost small" href={`/api/export?type=billing&status=${statusFilter}`}>{tr(dict, "finance.export")}</Link>
+              <Link className="btn btn-primary small" href="/portal/children">{tr(dict, "finance.bulkInvoice")}</Link>
             </div>
           </div>
 
           <table className="data mt-3">
             <thead>
               <tr>
-                <th>Trans. Ref</th><th>Child</th><th>Payer</th><th>Due date</th><th>Inv. period</th>
-                <th>Status</th><th>Discounts</th><th>Fundings</th><th>Gross</th><th>Total</th><th>Payments</th><th>Actions</th>
+                <th>{tr(dict, "finance.colRef")}</th><th>{tr(dict, "common.child")}</th><th>{tr(dict, "finance.colPayer")}</th><th>{tr(dict, "accountBilling.colDue")}</th><th>{tr(dict, "finance.colPeriod")}</th>
+                <th>{tr(dict, "common.status")}</th><th>{tr(dict, "finance.colDiscounts")}</th><th>{tr(dict, "finance.colFundings")}</th><th>{tr(dict, "finance.colGross")}</th><th>{tr(dict, "finance.colTotal")}</th><th>{tr(dict, "finance.colPayments")}</th><th>{tr(dict, "common.actions")}</th>
               </tr>
             </thead>
             <tbody>
-              {rows.length === 0 && <tr><td colSpan={12} className="muted small">No invoices match.</td></tr>}
+              {rows.length === 0 && <tr><td colSpan={12} className="muted small">{tr(dict, "finance.empty")}</td></tr>}
               {rows.map((b: any) => (
                 <tr key={b.id}>
                   <td className="small">{b.reference ?? String(b.id).slice(0, 8)}</td>
@@ -200,12 +212,12 @@ export default async function PortalFinancePage(
                       <input type="hidden" name="billingId" value={String(b.id)} />
                       <input type="hidden" name="childId" value={String(b.child_id)} />
                       <select className="select small" name="status" defaultValue={String(b.status ?? "pending")} style={{ maxWidth: 110 }}>
-                        <option value="pending">Pending</option>
-                        <option value="paid">Paid</option>
-                        <option value="overdue">Overdue</option>
-                        <option value="cancelled">Cancelled</option>
+                        <option value="pending">{tr(dict, "finance.rowPending")}</option>
+                        <option value="paid">{tr(dict, "finance.rowPaid")}</option>
+                        <option value="overdue">{tr(dict, "finance.rowOverdue")}</option>
+                        <option value="cancelled">{tr(dict, "finance.rowCancelled")}</option>
                       </select>
-                      <button className="btn btn-ghost small" type="submit">Set</button>
+                      <button className="btn btn-ghost small" type="submit">{tr(dict, "finance.set")}</button>
                     </form>
                   </td>
                 </tr>
@@ -217,10 +229,10 @@ export default async function PortalFinancePage(
 
       {tab === "payers" && (
         <div className="card mt-4">
-          <h3 className="subtitle">Payers</h3>
-          {payerTotals.size === 0 && <p className="muted small">No payers yet.</p>}
+          <h3 className="subtitle">{tr(dict, "finance.tabPayers")}</h3>
+          {payerTotals.size === 0 && <p className="muted small">{tr(dict, "finance.emptyPayers")}</p>}
           <table className="data">
-            <thead><tr><th>Payer</th><th>Outstanding invoices</th><th>Total billed</th></tr></thead>
+            <thead><tr><th>{tr(dict, "finance.colPayer")}</th><th>{tr(dict, "finance.colOutstandingInvoices")}</th><th>{tr(dict, "finance.colTotalBilled")}</th></tr></thead>
             <tbody>
               {Array.from(payerTotals.entries()).map(([name, total]) => (
                 <tr key={name}>
@@ -236,24 +248,24 @@ export default async function PortalFinancePage(
 
       {["payouts", "payments", "deposits", "schedules"].includes(tab) && (
         <div className="card mt-4">
-          <h3 className="subtitle">{cap(tab)}</h3>
+          <h3 className="subtitle">{TAB_LABEL[tab]}</h3>
           <p className="muted small">
-            {cap(tab)} records are not part of the current billing data model yet. This tab is on screen per the design; it will light up once payouts, payment logs, and deposit schedules land in the billing module.
+            {tr(dict, "finance.pendingTabNote", { tab: TAB_LABEL[tab] })}
           </p>
         </div>
       )}
 
       {tab === "reports" && (
         <div className="card mt-4">
-          <h3 className="subtitle">Finance reports</h3>
+          <h3 className="subtitle">{tr(dict, "finance.reportsTitle")}</h3>
           <div className="grid">
             <a className="card" href="/portal/report-center" style={{ textDecoration: "none", color: "inherit" }}>
-              <div style={{ fontWeight: 700 }}>Report center</div>
-              <div className="muted small mt-1">Billing and attendance exports live here.</div>
+              <div style={{ fontWeight: 700 }}>{tr(dict, "nav.reportCenter")}</div>
+              <div className="muted small mt-1">{tr(dict, "finance.reportCenterHint")}</div>
             </a>
             <a className="card" href="/api/export?type=billing" style={{ textDecoration: "none", color: "inherit" }}>
-              <div style={{ fontWeight: 700 }}>Billing CSV</div>
-              <div className="muted small mt-1">Download every invoice as a spreadsheet.</div>
+              <div style={{ fontWeight: 700 }}>{tr(dict, "finance.billingCsv")}</div>
+              <div className="muted small mt-1">{tr(dict, "finance.billingCsvHint")}</div>
             </a>
           </div>
         </div>

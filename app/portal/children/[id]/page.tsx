@@ -600,7 +600,7 @@ function contactsTab(child: any, contacts: any[], dict: any, activation?: Map<st
         <form action={addContactAction}>
           <input type="hidden" name="childId" value={child.id as string} />
           <div className="field"><label className="label">{t("profile.fullName")}</label><input className="input" name="fullName" required /></div>
-          <div className="field"><label className="label">{t("profile.relationship")}</label><RelationshipSelect name="relationship" /></div>
+          <div className="field"><label className="label">{t("profile.relationship")}</label><RelationshipSelect name="relationship" labels={{ parent: t("profile.relParent"), family: t("profile.relFamily"), pickup: t("profile.relPickup"), no_access: t("profile.relNoAccess") }} /></div>
           <div className="field"><label className="label">{t("common.phone")}</label><input className="input" name="phone" /></div>
           <div className="field"><label className="label">{t("common.email")}</label><input className="input" name="email" /></div>
           <label className="row small" style={{ alignItems: "center", gap: 8 }}><input type="checkbox" name="isPickup" /> {t("profile.authorizedPickup")}</label>

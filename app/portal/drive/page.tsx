@@ -1,15 +1,18 @@
 import { requireSession } from "@/lib/require";
 import { listDriveFiles, listChildren } from "@/lib/store";
-import { firstInstituteId, cap } from "@/lib/helpers";
+import { firstInstituteId } from "@/lib/helpers";
 import { addDriveFileAction } from "@/lib/actions";
 import { recordToolUsage } from "@/lib/tool-usage";
+import { i18nForAccount } from "@/lib/i18n-session";
+import { tr, type Dict } from "@/lib/i18n";
 
 export const dynamic = "force-dynamic";
 
 export default async function PortalDrivePage() {
   const session = await requireSession();
+  const { dict } = await i18nForAccount(session.accountId);
   const instituteId = await firstInstituteId();
-  if (!instituteId) return <p className="muted">No institute configured.</p>;
+  if (!instituteId) return <p className="muted">{tr(dict, "learning.noInstitute")}</p>;
   await recordToolUsage({ instituteId: String(instituteId ?? "") || null, accountId: session.accountId, toolKey: "drive", source: "portal", metadata: null });
   // KID-103: drive lists and share-with dropdown are scoped to assigned classrooms.
   const [files, children] = await Promise.all([
@@ -19,50 +22,56 @@ export default async function PortalDrivePage() {
 
   return (
     <div>
-      <h1 className="title">Parent drive</h1>
-      <div className="subtitle">Share files with a family (a child) or with all families.</div>
+      <h1 className="title">{tr(dict, "drive.title")}</h1>
+      <div className="subtitle">{tr(dict, "driveAdmin.subtitle")}</div>
 
       <div className="card mb-4">
-        <h3 className="subtitle">Share a file</h3>
+        <h3 className="subtitle">{tr(dict, "driveAdmin.shareFileHeading")}</h3>
         <form action={addDriveFileAction} encType="multipart/form-data">
           <div className="row">
-            <div className="col field"><label className="label">File name (optional — defaults to upload name)</label><input className="input" name="filename" placeholder="e.g. Handbook 2026.pdf" /></div>
-            <div className="col field"><label className="label">Choose from your device</label><input className="input" type="file" name="file" required /></div>
+            <div className="col field"><label className="label">{tr(dict, "driveAdmin.fileNameLabel")}</label><input className="input" name="filename" placeholder={tr(dict, "driveAdmin.fileNamePlaceholder")} /></div>
+            <div className="col field"><label className="label">{tr(dict, "driveAdmin.chooseFromDevice")}</label><input className="input" type="file" name="file" required /></div>
             <div className="col field">
-              <label className="label">Type</label>
-              <select className="select" name="kind"><option value="file">File</option><option value="pdf">PDF</option><option value="photo">Photo</option><option value="video">Video</option></select>
+              <label className="label">{tr(dict, "driveAdmin.typeLabel")}</label>
+              <select className="select" name="kind"><option value="file">{tr(dict, "drive.kindFile")}</option><option value="pdf">{tr(dict, "drive.kindPdf")}</option><option value="photo">{tr(dict, "drive.kindPhoto")}</option><option value="video">{tr(dict, "drive.kindVideo")}</option></select>
             </div>
           </div>
           <div className="row">
             <div className="col field">
-              <label className="label">Share with</label>
+              <label className="label">{tr(dict, "driveAdmin.shareWith")}</label>
               <select className="select" name="childId">
-                <option value="">All families</option>
+                <option value="">{tr(dict, "driveAdmin.allFamilies")}</option>
                 {children.map((c: any) => <option key={c.id} value={c.id}>{c.first_name} {c.last_name}</option>)}
               </select>
             </div>
           </div>
-          <div className="field"><label className="label">Description</label><input className="input" name="description" /></div>
-          <button className="btn btn-primary" type="submit">Share file</button>
+          <div className="field"><label className="label">{tr(dict, "common.description")}</label><input className="input" name="description" /></div>
+          <button className="btn btn-primary" type="submit">{tr(dict, "driveAdmin.shareFileBtn")}</button>
         </form>
       </div>
 
       <div className="card">
-        <h3 className="subtitle">Shared files</h3>
-        {files.length === 0 && <p className="muted small">Nothing shared yet.</p>}
+        <h3 className="subtitle">{tr(dict, "driveAdmin.sharedFiles")}</h3>
+        {files.length === 0 && <p className="muted small">{tr(dict, "drive.empty")}</p>}
         {files.map((f: any) => (
           <div className="list-item" key={f.id}>
             <div>
               <div style={{ fontWeight: 600 }}><a href={f.url} target="_blank" rel="noreferrer">{f.filename}</a></div>
               <div className="muted small">
-                {cap(f.kind)}{f.size_bytes ? ` · ${(f.size_bytes / 1024).toFixed(0)} KB` : ""} ·{" "}
-                {f.first_name ? `${f.first_name} ${f.last_name}` : "all families"}{f.description ? ` — ${f.description}` : ""} · by {f.uploaded_by ?? "—"}
+                {kindLabel(dict, f.kind)}{f.size_bytes ? ` · ${tr(dict, "driveAdmin.kb", { kb: (f.size_bytes / 1024).toFixed(0) })}` : ""} ·{" "}
+                {f.first_name ? `${f.first_name} ${f.last_name}` : tr(dict, "driveAdmin.sharedWithAll")}{f.description ? ` — ${f.description}` : ""} · {tr(dict, "driveAdmin.by", { name: f.uploaded_by ?? "—" })}
               </div>
             </div>
-            <a className="btn btn-ghost small" href={f.url} target="_blank" rel="noreferrer">Open</a>
+            <a className="btn btn-ghost small" href={f.url} target="_blank" rel="noreferrer">{tr(dict, "drive.open")}</a>
           </div>
         ))}
       </div>
     </div>
   );
+}
+
+function kindLabel(dict: Dict, kind: unknown) {
+  const v = String(kind ?? "file");
+  const key = v === "pdf" ? "drive.kindPdf" : v === "photo" ? "drive.kindPhoto" : v === "video" ? "drive.kindVideo" : "drive.kindFile";
+  return tr(dict, key);
 }

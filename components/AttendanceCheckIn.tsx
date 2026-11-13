@@ -6,7 +6,15 @@ import { checkInOutAction } from "@/lib/actions";
 // Per-row check-in/out control for the attendance page. Runs the same server
 // action the parent app uses so the "not open yet" guard surfaces the error
 // inline instead of silently failing.
-export function AttendanceCheckIn({ childId, lastEvent }: { childId: string; lastEvent?: string }) {
+export function AttendanceCheckIn({
+  childId,
+  lastEvent,
+  labels = { checkIn: "Check in", checkOut: "Check out", saving: "Saving…" },
+}: {
+  childId: string;
+  lastEvent?: string;
+  labels: { checkIn: string; checkOut: string; saving: string };
+}) {
   const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const checkedIn = lastEvent === "in";
@@ -30,7 +38,7 @@ export function AttendanceCheckIn({ childId, lastEvent }: { childId: string; las
           type="submit"
           disabled={pending}
         >
-          {pending ? "Saving…" : checkedIn ? "Check out" : "Check in"}
+          {pending ? labels.saving : checkedIn ? labels.checkOut : labels.checkIn}
         </button>
       </form>
       {error && (

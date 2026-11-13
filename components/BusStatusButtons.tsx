@@ -11,9 +11,15 @@ import { busStatusAction } from "@/lib/actions";
 export function BusStatusButtons({
   childId,
   busEvent,
+  labels = {
+    onBus: "On bus",
+    onBusAuto: "On bus (auto)",
+    offBus: "Off bus",
+  },
 }: {
   childId: string;
   busEvent: { type: string; auto: boolean } | undefined;
+  labels: { onBus: string; onBusAuto: string; offBus: string };
 }) {
   const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -40,7 +46,7 @@ export function BusStatusButtons({
           type="submit"
           disabled={pending}
         >
-          {on && busEvent?.auto ? "On bus (auto)" : "On bus"}
+          {on && busEvent?.auto ? labels.onBusAuto : labels.onBus}
         </button>
       </form>
       <form action={submit}>
@@ -51,7 +57,7 @@ export function BusStatusButtons({
           type="submit"
           disabled={pending}
         >
-          Off bus
+          {labels.offBus}
         </button>
       </form>
       {error && (

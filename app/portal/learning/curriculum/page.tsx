@@ -1,10 +1,13 @@
 import { requireSession } from "@/lib/require";
 import { curriculumTree, ensureCurriculumSeeded } from "@/lib/curriculum";
+import { i18nForAccount } from "@/lib/i18n-session";
+import { tr } from "@/lib/i18n";
 
 export const dynamic = "force-dynamic";
 
 export default async function PortalCurriculumPage() {
-  await requireSession();
+  const session = await requireSession();
+  const { dict } = await i18nForAccount(session.accountId);
   // KID-47 fix: seeding must never 500 the page on the live DB.
   try {
     await ensureCurriculumSeeded();
@@ -18,20 +21,18 @@ export default async function PortalCurriculumPage() {
 
   return (
     <div>
-      <h1 className="title">Curriculum</h1>
+      <h1 className="title">{tr(dict, "curriculum.title")}</h1>
       <div className="subtitle">
-        Learning areas, points, and milestones that drive observations. Egyptian kindergarten
-        framework (Nursery/KG1/KG2) — replace <code>data/curriculum-eg-kg.json</code> with the
-        founder&apos;s real curriculum to swap the content without code changes.
+        {tr(dict, "curriculum.subtitle", { file: "data/curriculum-eg-kg.json" })}
       </div>
 
-      {areas.length === 0 && <p className="muted">No curriculum areas seeded yet.</p>}
+      {areas.length === 0 && <p className="muted">{tr(dict, "curriculum.empty")}</p>}
 
       {areas.map((area: any) => (
         <div className="card mb-4" key={area.id}>
           <div className="row" style={{ justifyContent: "space-between", alignItems: "center" }}>
             <h3 className="subtitle" style={{ marginBottom: 0 }}>{area.name}</h3>
-            <span className="badge badge-gray">{area.learning_points?.length ?? 0} learning points</span>
+            <span className="badge badge-gray">{tr(dict, "curriculum.learningPoints", { count: area.learning_points?.length ?? 0 })}</span>
           </div>
           {area.learning_points?.map((lp: any) => (
             <div key={lp.id} className="mt-3">

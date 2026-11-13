@@ -15,14 +15,33 @@ import type { Dict } from "@/lib/i18n";
 
 export const dynamic = "force-dynamic";
 
-const STATUS_OPTIONS = [
-  { value: "", label: "All active" },
-  { value: "active", label: "Active" },
-  { value: "on_hold", label: "On hold" },
-  { value: "pending", label: "Pending" },
-  { value: "withdrawn", label: "Withdrawn" },
-  { value: "all", label: "All" },
-];
+const STATUS_OPTIONS = ["", "active", "on_hold", "pending", "withdrawn", "all"] as const;
+
+function statusOptionLabel(value: string, dict: Dict): string {
+  switch (value) {
+    case "":
+      return tr(dict, "childrenAdd.filterAllActive");
+    case "active":
+      return tr(dict, "profile.active");
+    case "on_hold":
+      return tr(dict, "profile.onHold");
+    case "pending":
+      return tr(dict, "profile.pending");
+    case "withdrawn":
+      return tr(dict, "profile.withdrawn");
+    default:
+      return tr(dict, "common.all");
+  }
+}
+
+// KID-2400: child card status badges render through the profile.* keys
+// (on_hold has no dedicated key spelling in the raw value).
+const CHILD_STATUS_KEYS: Record<string, string> = {
+  active: "profile.active",
+  on_hold: "profile.onHold",
+  pending: "profile.pending",
+  withdrawn: "profile.withdrawn",
+};
 
 function statusTone(status?: string | null): "green" | "gray" | "red" | undefined {
   if (status === "active") return "green";
@@ -56,6 +75,14 @@ export default async function PortalChildrenPage(
   const session = await requireSession();
   const instituteId = await resolveTenantInstituteId();
   const { dict } = await i18nForAccount(session.accountId);
+  // KID-2400: localized relationship option labels shared by every
+  // RelationshipSelect on this page.
+  const relationshipLabels = {
+    parent: tr(dict, "profile.relParent"),
+    family: tr(dict, "profile.relFamily"),
+    pickup: tr(dict, "profile.relPickup"),
+    no_access: tr(dict, "profile.relNoAccess"),
+  };
   await recordToolUsage({ instituteId: String(instituteId ?? "") || null, accountId: session.accountId, toolKey: "children", source: "portal", metadata: null });
   const statusFilter = searchParams.status ?? "";
   // KID-103: children list and room choices are scoped to assigned classrooms.
@@ -142,14 +169,17 @@ export default async function PortalChildrenPage(
         >
           {inviteStatus === "sent" && (
             <p className="small" style={{ margin: 0 }}>
-              Activation email sent{inviteEmail ? <> to <strong>{inviteEmail}</strong></> : null}. It should arrive within 2 minutes (check spam too).
+              {tr(dict, "childrenAdd.inviteSentBanner", {
+                emailPart: inviteEmail ? tr(dict, "childrenAdd.inviteToPart", { email: inviteEmail }) : "",
+              })}
             </p>
           )}
           {inviteStatus === "pending" && (
             <div className="small">
               <p style={{ margin: "0 0 8px" }}>
-                Invite saved{inviteEmail ? <> for <strong>{inviteEmail}</strong></> : null}, but no mail provider is configured so no email was sent.
-                Forward the activation link manually:
+                {tr(dict, "childrenAdd.inviteSavedNoProvider", {
+                  emailPart: inviteEmail ? tr(dict, "childrenAdd.inviteToPart", { email: inviteEmail }) : "",
+                })}
               </p>
               {inviteActivationUrl && (
                 <p style={{ margin: "0 0 8px", overflowWrap: "anywhere" }}>
@@ -161,37 +191,39 @@ export default async function PortalChildrenPage(
           )}
           {inviteStatus !== "sent" && inviteStatus !== "pending" && (
             <p className="small" style={{ margin: 0 }}>
-              Invite not sent ({inviteStatus}
-              {inviteCode ? <> — code <strong>{inviteCode}</strong></> : null}
-              {inviteDetail ? <>: {inviteDetail}</> : null}). Fix the details and try again.
+              {tr(dict, "childrenAdd.inviteNotSent", {
+                status: inviteStatus,
+                codePart: inviteCode ? ` — code ${inviteCode}` : "",
+                detailPart: inviteDetail ? `: ${inviteDetail}` : "",
+              })}
             </p>
           )}
         </div>
       )}
       <div className="row" style={{ alignItems: "center", justifyContent: "space-between" }}>
-        <h1 className="title" style={{ marginBottom: 0 }}>Children</h1>
-        <span className="small muted">{children.length} enrolled</span>
+        <h1 className="title" style={{ marginBottom: 0 }}>{tr(dict, "common.children")}</h1>
+        <span className="small muted">{tr(dict, "childrenAdd.enrolledCount", { count: children.length })}</span>
       </div>
 
       <div className="row mt-3" style={{ gap: 8, flexWrap: "wrap", alignItems: "center" }}>
-        <span className="small muted">Status:</span>
+        <span className="small muted">{tr(dict, "childrenAdd.statusColon")}</span>
         {STATUS_OPTIONS.map((s) => {
-          const active = statusFilter === s.value;
+          const active = statusFilter === s;
           return (
             <Link
-              key={s.value}
-              href={`/portal/children${s.value ? `?status=${s.value}` : ""}`}
+              key={s}
+              href={`/portal/children${s ? `?status=${s}` : ""}`}
               className={`status-chip ${active ? "status-chip-mood" : ""}`}
               style={{ textDecoration: "none" }}
             >
-              {s.label}
+              {statusOptionLabel(s, dict)}
             </Link>
           );
         })}
       </div>
 
       {children.length === 0 ? (
-        <p className="muted small mt-4">No children match this filter.</p>
+        <p className="muted small mt-4">{tr(dict, "childrenAdd.noChildrenMatch")}</p>
       ) : (
         <div className="grid mt-4">
           {children.map((c: any) => (
@@ -205,52 +237,52 @@ export default async function PortalChildrenPage(
                 <Avatar src={avatarSrcs.get(String(c.photo_url ?? "")) ?? c.photo_url} name={`${c.first_name} ${c.last_name}`} size={48} />
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <strong style={{ display: "block" }}>{c.first_name} {c.last_name}</strong>
-                  <span className="small muted">{c.room_name ?? "No room"}</span>
+                  <span className="small muted">{c.room_name ?? tr(dict, "child.noRoom")}</span>
                 </div>
               </div>
               <div className="row" style={{ justifyContent: "space-between", alignItems: "center" }}>
                 <span className={`badge ${statusTone(c.status) ? `badge-${statusTone(c.status)}` : ""}`}>
-                  {c.status ? String(c.status).replace("_", " ") : "Active"}
+                  {tr(dict, (c.status && CHILD_STATUS_KEYS[String(c.status)]) || "profile.active")}
                 </span>
                 <span className="small muted">{c.dob ?? "—"}</span>
               </div>
-              {c.allergies && <p className="small muted mt-2">Allergies: {c.allergies}</p>}
+              {c.allergies && <p className="small muted mt-2">{tr(dict, "childrenAdd.allergiesLabel", { allergies: String(c.allergies) })}</p>}
             </Link>
           ))}
         </div>
       )}
 
       <details className="card mt-5">
-        <summary style={{ cursor: "pointer", fontWeight: 700 }}>+ Add a child</summary>
+        <summary style={{ cursor: "pointer", fontWeight: 700 }}>{tr(dict, "childrenAdd.addChildSummary")}</summary>
         <form className="mt-3" action={addChildAction}>
           <div className="row">
-            <div className="col field"><label className="label">First name</label><input className="input" name="firstName" required /></div>
-            <div className="col field"><label className="label">Last name</label><input className="input" name="lastName" required /></div>
+            <div className="col field"><label className="label">{tr(dict, "profile.firstName")}</label><input className="input" name="firstName" required /></div>
+            <div className="col field"><label className="label">{tr(dict, "profile.lastName")}</label><input className="input" name="lastName" required /></div>
           </div>
           <div className="row">
-            <div className="col field"><label className="label">Date of birth</label><input className="input" name="dob" type="date" /></div>
+            <div className="col field"><label className="label">{tr(dict, "profile.dateOfBirth")}</label><input className="input" name="dob" type="date" /></div>
             <div className="col field">
-              <label className="label">Room</label>
+              <label className="label">{tr(dict, "common.room")}</label>
               <select className="select" name="roomId">
-                <option value="">— select —</option>
+                <option value="">{tr(dict, "childrenAdd.selectOption")}</option>
                 {rooms.map((r) => <option key={r.id} value={String(r.id)}>{String(r.name)}</option>)}
               </select>
             </div>
-            <div className="col field"><label className="label">Allergies</label><input className="input" name="allergies" /></div>
+            <div className="col field"><label className="label">{tr(dict, "common.allergies")}</label><input className="input" name="allergies" /></div>
           </div>
 
-          <h3 className="subtitle mt-4">Parent / guardian <span style={{ color: "#b91c1c" }}>*</span></h3>
-          <p className="small muted">A child must have at least one parent/guardian attached.</p>
+          <h3 className="subtitle mt-4">{tr(dict, "childrenAdd.guardianHeading")} <span style={{ color: "#b91c1c" }}>*</span></h3>
+          <p className="small muted">{tr(dict, "childrenAdd.guardianRequiredHint")}</p>
           <div className="row">
-            <div className="col field"><label className="label">Full name</label><input className="input" name="guardianName" required placeholder="e.g. Sam Carter" /></div>
-            <div className="col field"><label className="label">Relationship</label><RelationshipSelect name="guardianRelationship" /></div>
+            <div className="col field"><label className="label">{tr(dict, "profile.fullName")}</label><input className="input" name="guardianName" required placeholder={tr(dict, "childrenAdd.fullNamePlaceholder")} /></div>
+            <div className="col field"><label className="label">{tr(dict, "profile.relationship")}</label><RelationshipSelect name="guardianRelationship" labels={relationshipLabels} /></div>
           </div>
           <div className="row">
-            <div className="col field"><label className="label">Phone</label><input className="input" name="guardianPhone" /></div>
+            <div className="col field"><label className="label">{tr(dict, "common.phone")}</label><input className="input" name="guardianPhone" /></div>
           </div>
           <AddChildParentLoginFields
             labels={{
-              emailLabel: "Email",
+              emailLabel: tr(dict, "common.email"),
               passwordLabel: tr(dict, "children.createParentLoginPassword"),
               passwordPlaceholder: tr(dict, "children.changePasswordMinLengthHint"),
               generateBtn: tr(dict, "children.createParentLoginGenerate"),
@@ -264,19 +296,19 @@ export default async function PortalChildrenPage(
             <p className="small muted mt-2">{tr(dict, "children.addChildLoginHint")}</p>
           </details>
           <label className="row small" style={{ alignItems: "center", gap: 8 }}>
-            <input type="checkbox" name="guardianIsPickup" defaultChecked /> Authorized pickup
+            <input type="checkbox" name="guardianIsPickup" defaultChecked /> {tr(dict, "profile.authorizedPickup")}
           </label>
           <label className="row small mt-2" style={{ alignItems: "center", gap: 8 }}>
-            <input type="checkbox" name="guardianIsEmergency" defaultChecked /> Emergency contact
+            <input type="checkbox" name="guardianIsEmergency" defaultChecked /> {tr(dict, "profile.emergencyContact")}
           </label>
           {guardianError && (
             <p className="small" style={{ color: "#b91c1c", marginTop: 8 }}>
-              A parent/guardian (name, relationship, and a phone or email) is required before a child can be added.
+              {tr(dict, "childrenAdd.guardianError")}
             </p>
           )}
           {relationshipError && (
             <p className="small" style={{ color: "#b91c1c", marginTop: 8 }}>
-              Relationship must be one of: Parent, Family, Pickup, No access.
+              {tr(dict, "profile.contactRelationshipInvalid")}
             </p>
           )}
           {addChildLoginError && (
@@ -284,25 +316,25 @@ export default async function PortalChildrenPage(
               {addChildLoginError}
             </p>
           )}
-          <button className="btn btn-primary" type="submit">Add child</button>
+          <button className="btn btn-primary" type="submit">{tr(dict, "childrenAdd.addChildBtn")}</button>
         </form>
       </details>
 
-      <h2 className="title mt-5" id="invite-parent">Invite a parent</h2>
+      <h2 className="title mt-5" id="invite-parent">{tr(dict, "childrenAdd.inviteParentTitle")}</h2>
       <form className="card" action={inviteParentAction}>
         <div className="row">
           <div className="col field">
-            <label className="label">Child</label>
+            <label className="label">{tr(dict, "common.child")}</label>
             <select className="select" name="childId" required defaultValue="">
-              <option value="" disabled>— select a child —</option>
+              <option value="" disabled>{tr(dict, "children.createParentLoginChildPlaceholder")}</option>
               {children.map((c: any) => <option key={c.id} value={String(c.id)}>{c.first_name} {c.last_name}</option>)}
             </select>
           </div>
-          <div className="col field"><label className="label">Parent email</label><input className="input" name="email" type="email" required defaultValue={prefillEmail} /></div>
-          <div className="col field"><label className="label">Relationship</label><RelationshipSelect name="relationship" /></div>
-          <div className="col field"><label className="label">Invite code</label><input className="input" name="code" required placeholder="e.g. SUNSHINE-1234" /></div>
+          <div className="col field"><label className="label">{tr(dict, "children.createParentLoginEmail")}</label><input className="input" name="email" type="email" required defaultValue={prefillEmail} /></div>
+          <div className="col field"><label className="label">{tr(dict, "profile.relationship")}</label><RelationshipSelect name="relationship" labels={relationshipLabels} /></div>
+          <div className="col field"><label className="label">{tr(dict, "childrenAdd.inviteCodeLabel")}</label><input className="input" name="code" required placeholder={tr(dict, "childrenAdd.inviteCodePlaceholder")} /></div>
         </div>
-        <button className="btn btn-accent" type="submit">Send invite</button>
+        <button className="btn btn-accent" type="submit">{tr(dict, "childrenAdd.sendInviteBtn")}</button>
       </form>
 
       {/* KID-495: admin-created parent login beside the invite flow — a
@@ -322,7 +354,7 @@ export default async function PortalChildrenPage(
           submitBtn: tr(dict, "children.createParentLoginSubmit"),
         }}
         kids={children.map((c: any) => ({ id: String(c.id), first_name: String(c.first_name), last_name: String(c.last_name) }))}
-        relationship={<RelationshipSelect name="relationship" />}
+        relationship={<RelationshipSelect name="relationship" labels={relationshipLabels} />}
       />
     </div>
   );

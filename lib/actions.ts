@@ -342,7 +342,7 @@ export async function registerAction(formData: FormData) {
   // Parents cannot create accounts on their own — the daycare invites them.
   // A valid, still-pending invite code is required to activate an account.
   if (!inviteCode) {
-    return { error: "Your daycare must invite you first. Ask them for an invite code." };
+    return { error: await gateMessage("auth.notInvited", null) };
   }
   // KID-121: the invite lookup touches the database, which can be unreachable
   // (missing/unreachable Postgres, read-only SQLite fallback on serverless).
@@ -355,16 +355,13 @@ export async function registerAction(formData: FormData) {
       `KID-121 register: invite lookup failed for code ${inviteCode}:`,
       err instanceof Error ? err.message : err
     );
-    return {
-      error:
-        "We couldn't verify that invite code right now. Try again in a moment, or ask your daycare for a new one.",
-    };
+    return { error: await gateMessage("act.inviteVerifyFailed", null) };
   }
   if (!invite) {
-    return { error: "That invite code wasn't found. Check the code your daycare sent you." };
+    return { error: await gateMessage("auth.inviteNotFound", null) };
   }
   if (String(invite.status ?? "pending") !== "pending") {
-    return { error: "That invite code has already been used. Ask your daycare for a new one." };
+    return { error: await gateMessage("auth.inviteUsed", null) };
   }
 
   // KID-121: every DB access below can throw when the database is unreachable.
@@ -392,14 +389,14 @@ export async function registerAction(formData: FormData) {
       const linkedChild = await queryGet("SELECT institute_id FROM child WHERE id = ?", inviteChildId);
       if (!linkedChild || String(linkedChild.institute_id ?? "") !== String(invite.institute_id ?? "")) {
         console.warn(`KID-733 register: invite ${inviteCode} points at a child outside its center (or a deleted child); activation refused.`);
-        return { error: "This invite is not attached to a valid child. Ask your daycare to send a new invite." };
+        return { error: await gateMessage("act.inviteInvalidChild", null) };
       }
     } else {
       console.warn(`KID-733 register: legacy invite ${inviteCode} has no child link; activation refused.`);
-      return { error: "This invite is not attached to a child. Ask your daycare to send a new invite." };
+      return { error: await gateMessage("act.inviteNoChild", null) };
     }
     if (await findAccountByEmail(email)) {
-      return { error: "An account with that email already exists." };
+      return { error: await gateMessage("auth.emailExists", null) };
     }
 
     // Create a real GoTrue user for every self-service registration, then record
@@ -459,10 +456,7 @@ export async function registerAction(formData: FormData) {
               needsConfirmResend = true;
             } else {
               console.warn(`KID-123 register: GoTrue user exists for ${email} but password sign-in failed; directing to sign-in.`);
-              return {
-                error:
-                  "An account with this email already exists. Try signing in instead, or reset your password.",
-              };
+              return { error: await gateMessage("act.emailExistsSignIn", null) };
             }
           } else {
             authUserId = signInData.user.id;
@@ -575,10 +569,7 @@ export async function registerAction(formData: FormData) {
     return { error: activationStepError(step) };
   }
   if (!account) {
-    return {
-      error:
-        "We couldn't activate your account right now. Try again in a moment, or ask your daycare for help.",
-    };
+    return { error: await gateMessage("act.activateFailed", null) };
   }
 
   // Best-effort Chatwoot contact so the support team sees this account's
@@ -607,11 +598,11 @@ export async function registerAction(formData: FormData) {
 }
 
 export async function resendConfirmationAction() {
-  if (!supabaseConfigured()) return { error: "Email confirmation is not enabled in this environment." };
+  if (!supabaseConfigured()) return { error: await gateMessage("act.confirmNotEnabled", null) };
   const cookie = (await cookies()).get(SESSION_COOKIE)?.value;
   const session = cookie ? (verifyToken(decodeURIComponent(cookie)) as SessionCookie) : null;
   const email = session?.email ?? "";
-  if (!email) return { error: "No signed-in account to confirm." };
+  if (!email) return { error: await gateMessage("act.confirmNoAccount", null) };
   // KID-1178/F-06: each resend is one more confirm mail through GoTrue.
   if (!(await throttle("confirmResend", RATE_LIMIT_RULES.confirmResendAccount, email)).ok) {
     return { error: await throttledMessage() };
@@ -662,7 +653,7 @@ export async function confirmEmailAction(email: string, accessToken: string) {
 // in which case the UI tells the user to ask their daycare for a new invite.
 export async function requestPasswordResetAction(formData: FormData) {
   const email = String(formData.get("email") ?? "").trim().toLowerCase();
-  if (!email) return { error: "Enter your email address." };
+  if (!email) return { error: await gateMessage("act.enterEmail", null) };
   // KID-1178/F-06: password reset triggers the recovery mail, so both the
   // caller IP and the target address carry budgets. The refusal is the same
   // rate-limit message for both scopes (never confirms an email exists).
@@ -689,8 +680,7 @@ export async function requestPasswordResetAction(formData: FormData) {
     // Supabase rejects non-routable addresses (e.g. the seeded *.test demo
     // accounts) with a generic error. Point the user at the interim path.
     return {
-      error:
-        "We couldn't send a reset link to that address. If you're a parent or staff member, ask your daycare admin to re-invite you or set a new password.",
+      error: await gateMessage("act.resetLinkFailed", null),
     };
   }
   console.log(`KID-111 passwordReset: reset email sent to ${email}`);
@@ -709,9 +699,9 @@ export async function linkInviteAction(formData: FormData) {
   const code = String(formData.get("inviteCode") ?? "").trim();
   const email = String(formData.get("email") ?? "").trim();
   const account = await findAccountByEmail(email);
-  if (!account) return { error: "Account not found. Sign in first." };
+  if (!account) return { error: await gateMessage("act.accountNotFound", null) };
   const invite = await getInviteByCode(code);
-  if (!invite) return { error: "Invite code not found." };
+  if (!invite) return { error: await gateMessage("act.inviteCodeNotFound", account.language) };
   if (invite.child_id) {
     const { isContactRelationship } = await import("@/lib/contact-relationship");
     const inviteRole = isContactRelationship((invite as Record<string, unknown>).role)
@@ -722,7 +712,7 @@ export async function linkInviteAction(formData: FormData) {
     await syncChatwootContactForAccount(String(account.id));
     return { ok: true };
   }
-  return { error: "Invite has no linked child." };
+  return { error: await gateMessage("act.inviteNoLinkedChild", account.language) };
 }
 
 // ---- Daily-loop actions (check-in/out, reports, newsfeed, messaging, consents, incidents) ----
@@ -1332,7 +1322,7 @@ async function resolveNewsfeedRecipients(
 
   if (channel === "center") {
     if (!isAdmin) {
-      throw new Error("Only center admins can post to everyone.");
+      throw new Error(await gateMessage("act.messageEveryoneAdmins", null));
     }
     return (await listChildren(instituteId)).map((c) => String(c.id));
   }
@@ -1401,7 +1391,7 @@ export async function checkInOutAction(formData: FormData) {
       const access = (await familyAccessForAccount(me.accountId)) ?? "parent";
       if (access !== "pickup" && !(await parentCheckInOutAllowed(String(instituteId)))) {
         console.error(`KID-1329 refused parent check-in/out: the center has the toggle off`, me.email);
-        return { error: "The daycare has turned off parent check-in/out. Please contact the center staff." };
+        return { error: await gateMessage("act.parentCheckInDisabled", null) };
       }
     }
     // KID-58: no one can check in before the center opens.
@@ -2424,11 +2414,11 @@ export async function inviteParentAction(formData: FormData) {
 export async function resendParentInviteAction(formData: FormData) {
   await ensureSchema();
   const me = await authAccount();
-  if (!isAdminRole(me.role)) return { error: "Only admins can resend invites." };
+  if (!isAdminRole(me.role)) return { error: await gateMessage("act.onlyAdminsResendInvites", null) };
   const inviteId = String(formData.get("inviteId") ?? "").trim();
   const invite = inviteId ? await getInviteById(inviteId) : undefined;
-  if (!invite) return { error: "Invite not found." };
-  if (String(invite.status ?? "pending") !== "pending") return { error: "That invite was already used." };
+  if (!invite) return { error: await gateMessage("act.inviteRowNotFound", null) };
+  if (String(invite.status ?? "pending") !== "pending") return { error: await gateMessage("act.inviteAlreadyUsed", null) };
   const email = String(invite.email ?? "").trim().toLowerCase();
   // KID-111 + KID-113: share the resend rate limit and audit log so invite
   // resends and account resends have one trail and one budget.
@@ -2514,14 +2504,14 @@ export async function resendParentInviteAction(formData: FormData) {
 export async function sendInviteForContactAction(formData: FormData) {
   await ensureSchema();
   const me = await authAccount();
-  if (!isAdminRole(me.role)) return { error: "Only admins can send invites." };
+  if (!isAdminRole(me.role)) return { error: await gateMessage("act.onlyAdminsSendInvites", null) };
   // KID-1178/F-06: admin invite-mail budget (resendParentInviteAction's
   // resends already ride the KID-111 decideRateLimit trail).
   if (!(await throttle("invite", RATE_LIMIT_RULES.inviteAccount, me.accountId)).ok) {
     throttledRedirect();
   }
   const childId = String(formData.get("childId") ?? "").trim();
-  if (!childId) return { error: "Missing child." };
+  if (!childId) return { error: await gateMessage("act.missingChild", null) };
   await assertChildInScope(childId, me);
   const email = String(formData.get("email") ?? "").trim().toLowerCase();
   // Normalize (never reject): stored contact relationships predate the
@@ -2639,7 +2629,7 @@ export async function saveWorkingHoursAction(formData: FormData) {
   const me = await requireAdmin();
   await ensureSchema();
   const instituteId = await firstInstituteId();
-  if (!instituteId) return { ok: false, error: "No center configured." };
+  if (!instituteId) return { ok: false, error: await gateMessage("act.noCenterConfigured", null) };
   const week: WorkingWeek = {};
   for (let day = 0; day <= 6; day++) {
     if (formData.get(`closed_${day}`) === "on") continue;
@@ -4307,7 +4297,7 @@ export async function createSmartListAction(formData: FormData) {
 export async function resendActivationAction(formData: FormData) {
   const me = await authAccount();
   if (!isAdminRole(me.role)) {
-    return { error: "Only admins can resend activation emails." };
+    return { error: await gateMessage("act.onlyAdminsResendActivation", null) };
   }
   await ensureSchema();
   const {
@@ -4322,7 +4312,7 @@ export async function resendActivationAction(formData: FormData) {
 
   const email = normalizeEmail(formData.get("email"));
   if (!isValidEmail(email)) {
-    return { error: "Enter a valid email address." };
+    return { error: await gateMessage("act.invalidEmail", null) };
   }
   const account = await findAccountByEmail(email);
   if (!account) {
@@ -4333,7 +4323,7 @@ export async function resendActivationAction(formData: FormData) {
       status: "no_account",
       detail: "No login account for this email yet.",
     });
-    return { error: "No login account found for that email yet. Create the login first, then resend." };
+    return { error: await gateMessage("act.noLoginAccountYet", null) };
   }
   if (!isUnactivatedAccount(account)) {
     await logResendAttempt({
@@ -4343,7 +4333,7 @@ export async function resendActivationAction(formData: FormData) {
       status: "already_active",
       detail: "Account already activated.",
     });
-    return { error: "That account is already activated." };
+    return { error: await gateMessage("act.alreadyActivated", null) };
   }
 
   const [recentForEmail, recentForAdmin] = await Promise.all([
@@ -4370,7 +4360,7 @@ export async function resendActivationAction(formData: FormData) {
       status: "failed",
       detail: "Email provider not configured.",
     });
-    return { error: "Email delivery isn't configured yet. Ask the daycare admin to share an invite code instead." };
+    return { error: await gateMessage("act.emailDeliveryNotConfigured", null) };
   }
 
   try {
@@ -4431,7 +4421,7 @@ export async function resendActivationAction(formData: FormData) {
       status: "failed",
       detail: recovery.error.message,
     });
-    return { error: "We couldn't send the activation email right now. Try again in a few minutes." };
+    return { error: await gateMessage("act.activationSendFailed", null) };
   } catch (err) {
     console.error(`KID-113 resend: unexpected failure for ${email}:`, err);
     await logResendAttempt({
@@ -4441,7 +4431,7 @@ export async function resendActivationAction(formData: FormData) {
       status: "failed",
       detail: err instanceof Error ? err.message : String(err),
     });
-    return { error: "We couldn't send the activation email right now. Try again in a few minutes." };
+    return { error: await gateMessage("act.activationSendFailed", null) };
   }
 }
 // KID-258 A1 (KID-264): submit an "Enhancements request" from the owner-only

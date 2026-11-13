@@ -3,18 +3,41 @@
 import { useTransition, useState } from "react";
 import { logStaffStatusAction } from "@/lib/actions";
 
-const STAFF_STATUS_OPTIONS: { value: string; label: string }[] = [
-  { value: "", label: "Set status…" },
-  { value: "checkin", label: "Checked in" },
-  { value: "sick", label: "Sick" },
-  { value: "vacation", label: "Vacation" },
-  { value: "absent", label: "Absent" },
-  { value: "child_sick", label: "Child sick" },
-];
+export type StaffStatusFormLabels = {
+  placeholder: string;
+  options: Record<string, string>;
+  notesPlaceholder: string;
+  update: string;
+  saving: string;
+};
+
+const DEFAULT_LABELS: StaffStatusFormLabels = {
+  placeholder: "Set status…",
+  options: {
+    checkin: "Checked in",
+    sick: "Sick",
+    vacation: "Vacation",
+    absent: "Absent",
+    child_sick: "Child sick",
+  },
+  notesPlaceholder: "Notes (optional)",
+  update: "Update",
+  saving: "Saving…",
+};
+
+const STATUS_VALUES = ["checkin", "sick", "vacation", "absent", "child_sick"];
 
 // Staff presence card control. Uses the staff check-in flow path so the
 // before-opening guard returns a clear error here too.
-export function StaffStatusForm({ staffId, current }: { staffId: string; current?: string }) {
+export function StaffStatusForm({
+  staffId,
+  current,
+  labels = DEFAULT_LABELS,
+}: {
+  staffId: string;
+  current?: string;
+  labels?: StaffStatusFormLabels;
+}) {
   const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
   return (
@@ -35,15 +58,16 @@ export function StaffStatusForm({ staffId, current }: { staffId: string; current
       >
         <input type="hidden" name="staffId" value={staffId} />
         <select className="select" name="kind" defaultValue={current ?? ""} style={{ maxWidth: 160 }}>
-          {STAFF_STATUS_OPTIONS.map((o) => (
-            <option key={o.value} value={o.value}>
-              {o.label}
+          <option value="">{labels.placeholder}</option>
+          {STATUS_VALUES.map((v) => (
+            <option key={v} value={v}>
+              {labels.options[v] ?? v}
             </option>
           ))}
         </select>
-        <input className="input" name="note" placeholder="Notes (optional)" style={{ maxWidth: 220 }} />
+        <input className="input" name="note" placeholder={labels.notesPlaceholder} style={{ maxWidth: 220 }} />
         <button className="btn btn-primary small" type="submit" disabled={pending}>
-          {pending ? "Saving…" : "Update"}
+          {pending ? labels.saving : labels.update}
         </button>
       </form>
       {error && (

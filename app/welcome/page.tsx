@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { requireSession } from "@/lib/require";
+import { i18nForAccount } from "@/lib/i18n-session";
+import { tr } from "@/lib/i18n";
 import { redirect } from "next/navigation";
 import ResendConfirmButton from "@/components/resend-confirm";
 
@@ -11,32 +13,41 @@ export default async function WelcomePage() {
     redirect(session.role === "parent" ? "/child" : "/portal/dashboard");
   }
   const home = session.role === "parent" ? "/child" : "/portal/dashboard";
+  // KID-2400: the copy follows the signed-in account's language preference
+  // (account.language is canonical for signed-in sessions, OBS-001).
+  const { dict } = await i18nForAccount(session.accountId);
+  const t = (key: string, vars?: Record<string, string | number>) => tr(dict, `welcome.${key}`, vars);
+  const labels = {
+    resendBtn: tr(dict, "resendConfirm.resendBtn"),
+    sentMessage: tr(dict, "resendConfirm.sentMessage"),
+    fallbackError: tr(dict, "resendConfirm.fallbackError"),
+    sending: tr(dict, "messages.sending"),
+  };
 
   return (
     <div className="container" style={{ maxWidth: 520, paddingTop: 80 }}>
       <span className="brand">Kiddy</span>
       <div className="card mt-4">
-        <h1 className="title">Confirm your email</h1>
+        <h1 className="title">{t("title")}</h1>
         <p className="subtitle">
-          Almost there! We sent a confirmation link to <strong>{session.email}</strong>.
-          Click it to enable password sign-in to your account.
+          {t("subtitle")} <strong>{session.email}</strong>
+          {t("subtitleEmailTail")}
         </p>
         <div className="card" style={{ background: "var(--color-surface-alt, #f9fafb)", marginTop: 16 }}>
           <p className="small muted" style={{ margin: 0 }}>
-            <strong>Your session is already active</strong> — you can start using the app now. Confirming the email
-            only unlocks Supabase password sign-in. If the confirmation email didn&apos;t arrive, the provider may be
-            rate-limiting sends right now; you can resend it or just keep using the app.
+            <strong>{t("sessionActiveTitle")}</strong>
+            {t("sessionActiveBody")}
           </p>
         </div>
         <div className="row mt-4" style={{ gap: 8, flexWrap: "wrap" }}>
-          <ResendConfirmButton />
+          <ResendConfirmButton labels={labels} />
           <Link className="btn btn-primary" href={home}>
-            Continue to the app →
+            {t("continueBtn")}
           </Link>
         </div>
       </div>
       <p className="small mt-3">
-        <a href="/api/logout">Not {session.email}? Sign out</a>
+        <a href="/api/logout">{t("signOutLink", { email: session.email })}</a>
       </p>
     </div>
   );

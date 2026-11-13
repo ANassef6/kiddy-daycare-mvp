@@ -1,168 +1,31 @@
-"use client";
+import { cookies } from "next/headers";
+import { LANG_COOKIE, getDictionary, localeOf, tr } from "@/lib/i18n";
+import ResetPasswordForm from "./reset-form";
 
-import { useEffect, useState } from "react";
-import Link from "next/link";
-import { createClient, type SupabaseClient } from "@supabase/supabase-js";
-import { syncAppPasswordAfterResetAction } from "@/lib/actions";
+export const dynamic = "force-dynamic";
 
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
-const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
-
-type Status = "checking" | "ready" | "no-token" | "done" | "error";
-
-export default function ResetPasswordPage() {
-  const [status, setStatus] = useState<Status>("checking");
-  const [message, setMessage] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-    async function init() {
-      if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
-        if (!cancelled) {
-          setStatus("error");
-          setMessage("Password reset isn't configured in this environment.");
-        }
-        return;
-      }
-      const supabase: SupabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-        auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: true },
-      });
-
-      const hash = typeof window !== "undefined" ? window.location.hash : "";
-      const params = new URLSearchParams(hash.startsWith("#") ? hash.slice(1) : hash);
-      const accessToken = params.get("access_token");
-      const refreshToken = params.get("refresh_token") ?? "";
-      const query = typeof window !== "undefined" ? new URLSearchParams(window.location.search) : new URLSearchParams();
-      const code = query.get("code");
-
-      try {
-        if (accessToken) {
-          const { error: sessionError } = await supabase.auth.setSession({
-            access_token: accessToken,
-            refresh_token: refreshToken,
-          });
-          if (sessionError) throw sessionError;
-        } else if (code) {
-          const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
-          if (exchangeError) throw exchangeError;
-        } else {
-          if (!cancelled) setStatus("no-token");
-          return;
-        }
-        if (!cancelled) setStatus("ready");
-      } catch (e) {
-        if (!cancelled) {
-          setStatus("error");
-          setMessage(e instanceof Error ? e.message : "That reset link is no longer valid.");
-        }
-      }
-    }
-    init();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  async function onSubmit(fd: FormData) {
-    setError(null);
-    const password = String(fd.get("password") ?? "");
-    const confirm = String(fd.get("confirm") ?? "");
-    if (password.length < 6) {
-      setError("Use at least 6 characters.");
-      return;
-    }
-    if (password !== confirm) {
-      setError("The passwords don't match.");
-      return;
-    }
-    const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-      auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: true },
-    });
-    const hash = window.location.hash.startsWith("#") ? window.location.hash.slice(1) : window.location.hash;
-    const params = new URLSearchParams(hash);
-    const accessToken = params.get("access_token");
-    const refreshToken = params.get("refresh_token") ?? "";
-    if (accessToken) {
-      await supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken });
-    }
-    const { error: updateError, data: updateData } = await supabase.auth.updateUser({ password });
-    if (updateError) {
-      setError(updateError.message);
-      return;
-    }
-    // KID-495: sign-in falls back to the app-side hash when GoTrue is
-    // unavailable, so the reset must reach account.password_hash too. The
-    // reset-issued access token is the proof: the server re-verifies it
-    // against GoTrue and only updates the hash for the same email.
-    const email = updateData.user?.email ?? "";
-    let proofToken = accessToken ?? "";
-    if (!proofToken) {
-      const { data: sessionData } = await supabase.auth.getSession();
-      proofToken = sessionData.session?.access_token ?? "";
-    }
-    if (email && proofToken) {
-      try {
-        const syncOk = await syncAppPasswordAfterResetAction(email, password, proofToken);
-        if (!syncOk.ok) {
-          console.error("KID-495 reset-password: app-side hash sync failed:", syncOk.reason);
-        }
-      } catch (err) {
-        console.error("KID-495 reset-password: app-side hash sync threw:", err instanceof Error ? err.message : err);
-      }
-    }
-    setStatus("done");
-  }
-
-  return (
-    <div className="container" style={{ maxWidth: 420, paddingTop: 80 }}>
-      <span className="brand">Kiddy</span>
-      <h1 className="title mt-4">Set a new password</h1>
-
-      {status === "checking" && <p className="subtitle">Checking your reset link…</p>}
-
-      {status === "ready" && (
-        <form className="card" action={onSubmit}>
-          {error && <p style={{ color: "#dc2626", marginBottom: 12 }}>{error}</p>}
-          <div className="field">
-            <label className="label">New password</label>
-            <input className="input" name="password" type="password" required autoComplete="new-password" minLength={6} />
-          </div>
-          <div className="field">
-            <label className="label">Confirm new password</label>
-            <input className="input" name="confirm" type="password" required autoComplete="new-password" minLength={6} />
-          </div>
-          <button className="btn btn-primary btn-block" type="submit">Update password</button>
-        </form>
-      )}
-
-      {status === "done" && (
-        <div className="card">
-          <p className="muted small">Your password has been updated.</p>
-          <Link className="btn btn-primary mt-3" href="/login">Sign in</Link>
-        </div>
-      )}
-
-      {status === "no-token" && (
-        <div className="card">
-          <p className="muted small">
-            This page completes a password-reset link. Open the link from your
-            email, or request a new one.
-          </p>
-          <Link className="btn btn-primary mt-3" href="/forgot-password">Request a reset link</Link>
-        </div>
-      )}
-
-      {status === "error" && (
-        <div className="card">
-          <p className="muted small">{message}</p>
-          <Link className="btn btn-primary mt-3" href="/forgot-password">Request a new link</Link>
-        </div>
-      )}
-
-      <p className="small mt-3">
-        <Link href="/login">Back to sign in</Link>
-      </p>
-    </div>
-  );
+// KID-2400: the reset flow was an English-only client island. The server
+// wrapper now resolves the kiddy_lang cookie locale (same precedence as
+// /login — pre-auth, no session) and hands the strings to the client form.
+export default async function ResetPasswordPage() {
+  const cookieLang = (await cookies()).get(LANG_COOKIE)?.value;
+  const dict = getDictionary(localeOf(cookieLang));
+  const labels = {
+    title: tr(dict, "resetPassword.title"),
+    checking: tr(dict, "resetPassword.checking"),
+    notConfigured: tr(dict, "resetPassword.notConfigured"),
+    invalidLink: tr(dict, "resetPassword.invalidLink"),
+    tooShort: tr(dict, "resetPassword.tooShort"),
+    mismatch: tr(dict, "resetPassword.mismatch"),
+    newPassword: tr(dict, "account.newPassword"),
+    confirmPassword: tr(dict, "account.confirmPassword"),
+    updateBtn: tr(dict, "resetPassword.updateBtn"),
+    done: tr(dict, "resetPassword.done"),
+    signIn: tr(dict, "login.signIn"),
+    noToken: tr(dict, "resetPassword.noToken"),
+    requestLink: tr(dict, "resetPassword.requestLink"),
+    requestNewLink: tr(dict, "resetPassword.requestNewLink"),
+    backToSignin: tr(dict, "forgot.backToSignin"),
+  };
+  return <ResetPasswordForm labels={labels} />;
 }
