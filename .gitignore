@@ -13,3 +13,6 @@ data/*
 
 # scripted probes (may contain env)
 .probe-*.mjs
+
+# graphify generated artifacts
+graphify-out/
