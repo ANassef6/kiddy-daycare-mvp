@@ -38,6 +38,14 @@ const chatwootBase = (process.env.CHATWOOT_BASE_URL || "http://192.168.1.60:3000
 const chatwootAccount = "1";
 const agentsInboxId = 2; // "Agents" inbox; inbox 1 (KiddyAPP widget) is never relayed
 const relayUserId = 1; // human operator (Nassef)
+
+// Mika-only allowlist (user direction 2026-11-13, KID-215/KID-2389): the relay
+// serves exactly this conversation/agent pair. Both sides of the pair must
+// match, so a future custom-attribute mapping can never re-enable itself
+// without an explicit change here. Filtering only: Chatwoot conversations and
+// messages are never touched or deleted.
+const allowedConversationIds = new Set(["18"]);
+const allowedAgentIds = new Set(["ba4b55ba-748d-4909-a589-75c27f1061f0"]);
 const maxMessagesPerConversation = Number(process.env.AGENTS_RELAY_MAX_PER_CONVO || 10);
 const maxBacklogBatch = Number(process.env.AGENTS_RELAY_MAX_BATCH || 40);
 
@@ -122,6 +130,10 @@ if (DRY) cwTokenPromise = Promise.resolve("dry-run-placeholder"); // no real tok
 
 // -------------------------------------------------------- state document ----
 
+function isAllowedMapping(conversationId, agentId) {
+  return allowedConversationIds.has(String(conversationId)) && allowedAgentIds.has(String(agentId));
+}
+
 function newLedgerEntry() {
   return {
     conversationId: null,
@@ -200,13 +212,20 @@ async function saveState(state, revisionId) {
 async function listAgentsInboxConversations() {
   const data = await cwFetch(`/api/v1/accounts/${chatwootAccount}/conversations?include_custom_attributes=true`);
   const rows = (data && data.data && data.data.payload) || [];
-  return rows
-    .filter((c) => Number(c.inbox_id) === agentsInboxId && c.custom_attributes?.paperclip_agent_id)
-    .map((c) => ({
+  const mapped = [];
+  const filtered = [];
+  for (const c of rows) {
+    if (Number(c.inbox_id) !== agentsInboxId || !c.custom_attributes?.paperclip_agent_id) continue;
+    const conv = {
       conversationId: String(c.id),
       agentId: String(c.custom_attributes.paperclip_agent_id),
       agentName: String(c.custom_attributes.agent_name || c.custom_attributes.paperclip_agent_id),
-    }));
+    };
+    if (isAllowedMapping(conv.conversationId, conv.agentId)) mapped.push(conv);
+    else filtered.push(`${conv.conversationId}:${conv.agentName}`);
+  }
+  if (filtered.length) log("mapping_filtered_allowlist", { skipped: filtered });
+  return mapped;
 }
 
 async function listConversationMessages(conversationId) {
@@ -392,6 +411,11 @@ async function pumpDirectionB(state) {
   const summary = { mirrored: [], closed: [], open: [] };
   const stillOpen = {};
   for (const [taskId, entry] of Object.entries(state.ledger)) {
+    if (!isAllowedMapping(entry.conversationId, entry.paperclipAgentId)) {
+      // Legacy non-allowlisted entry: inert (no mirroring, not kept open).
+      log("ledger_entry_filtered_allowlist", { taskId, conversationId: entry.conversationId });
+      continue;
+    }
     try {
       const issue = await ppFetch(`/issues/${taskId}`);
       const terminal = issue.status === "done" || issue.status === "cancelled";

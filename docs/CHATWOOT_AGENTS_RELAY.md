@@ -24,24 +24,25 @@ requirements. Documented in KID-502; the relay runner is
 | Account / inbox | account `1`, inbox `2` ("Agents", API channel) — name "KiddyAPP" is inbox 1, never relayed |
 | Human sender filter | messages from the Chatwoot operator accounts listed in `AGENTS_RELAY_FORWARD_USER_IDS` (user `1`, `message_type == 1 && private == false`) |
 | Mapping | conversation `custom_attributes.paperclip_agent_id` (+ `agent_name`) |
+| **Allowlist (Mika only)** | conversation `18` ↔ agent `ba4b55ba-748d-4909-a589-75c27f1061f0` (Mika) — the only mapping the pump processes; every other mapped conversation is skipped in both directions (filtering only: conversations/messages are never deleted). Both sides must match, so a new Chatwoot mapping cannot re-enable itself without an explicit change to `allowedConversationIds` / `allowedAgentIds` in the script. |
 | Company secret | `chatwoot` — fetched at runtime via `POST /api/agents/me/secrets/chatwoot/value`; never logged, never stored; `AGENTS_RELAY_CHATWOOT_TOKEN` can override for manual runs |
 
-Mapping table (as provisioned):
+Mapping table (as provisioned; only the allowlisted row is active — 2026-11-13 user direction: Mika only):
 
-| Conversation | Agent | Paperclip agent id |
-| --- | --- | --- |
-| 14 | QA | `a2407e39-7588-441b-a4fc-5e6e3cfa299d` |
-| 15 | Ledger | `7610ac95-a59c-475e-81c4-e84a8e909c27` |
-| 16 | Wren | `ee275408-fb30-4963-b469-d61e9ba0c216` |
-| 17 | Pentester | `d7d49327-a771-4d44-8948-2868aecfe68d` |
-| 18 | Mika | `ba4b55ba-748d-4909-a589-75c27f1061f0` |
-| 19 | Cody | `6344d5e7-6c24-4623-9297-0632d8ed48db` |
-| 20 | Noor | `13b3940e-145c-4530-9eed-4444f43294c4` |
+| Conversation | Agent | Paperclip agent id | Relayed |
+| --- | --- | --- | --- |
+| 14 | QA | `a2407e39-7588-441b-a4fc-5e6e3cfa299d` | no (filtered) |
+| 15 | Ledger | `7610ac95-a59c-475e-81c4-e84a8e909c27` | no (filtered) |
+| 16 | Wren | `ee275408-fb30-4963-b469-d61e9ba0c216` | no (filtered) |
+| 17 | Pentester | `d7d49327-a771-4d44-8948-2868aecfe68d` | no (filtered) |
+| 18 | Mika | `ba4b55ba-748d-4909-a589-75c27f1061f0` | **yes** |
+| 19 | Cody | `6344d5e7-6c24-4623-9297-0632d8ed48db` | no (filtered) |
+| 20 | Noor | `13b3940e-145c-4530-9eed-4444f43294c4` | no (filtered) |
 
 ## How a tick runs
 
 The Paperclip routine **"Chatwoot Agents-inbox relay tick"** (routine id
-`1c9b6485-f815-4501-a7b6-af683e015a2b`; one `schedule` trigger, `*/5 * * * *`
+`1c9b6485-f815-4501-a7b6-af683e015a2b`; one `schedule` trigger, `*/30 * * * *`
 UTC, `always` gate; `coalesce_if_active`, `skip_missed`; run issues are
 children of [KID-502](/KID/issues/KID-502)) creates an execution issue assigned
 to Cody. The run:
@@ -50,7 +51,7 @@ to Cody. The run:
    (cursors + open/closed relay-task ledger). Missing or malformed → the run
    rebuilds it and anchors every mapped conversation's cursor at the newest
    message id already present, so pre-relay history never bursts.
-2. **Direction A** — for each mapped conversation, fetches messages newer than
+2. **Direction A** — for each allowlisted mapped conversation, fetches messages newer than
    the cursor and turns every human-operator message into a standalone
    Paperclip task assigned to the mapped agent (the tasks are NOT children of
    the anchor: the delegation-cycle guard rejects anchor-chain children whose
@@ -58,11 +59,13 @@ to Cody. The run:
    quotes the message in its body and carries the relay tag
    `cw-relay:cw-msg:<conversationId>:<messageId>` as the creation
    `idempotencyKey` (collisions resolve by tag lookup, no duplicates).
-   Private notes, activity/system items, other senders, other inboxes, and
-   unmapped conversations are skipped. The cursor advances to the newest
+   Private notes, activity/system items, other senders, other inboxes,
+   unmapped conversations, and mapped-but-non-allowlisted conversations are
+   skipped. The cursor advances to the newest
    scanned id once candidates are picked; a failed create is retried by the
    dedupe backstops (seen ids + tag search) on the next tick.
-3. **Direction B** — for every `open` ledger task, fetches comments newer than
+3. **Direction B** — for every `open` ledger task whose conversation/agent pair
+   matches the allowlist, fetches comments newer than
    `lastMirroredCommentId` and mirrors comments authored by the assigned agent
    into the mapped conversation as Chatwoot **incoming** messages tagged with
    `echo_id: cw-relay:<taskId>:<commentId>`. Dedupe is triple-layered: the
@@ -83,7 +86,11 @@ with credentials.
 
 ## Operating notes
 
-- Add a future agent: create the Chatwoot thread in inbox 2 with the contact
+- Add a future agent: first add its conversation id and agent id to
+  `allowedConversationIds` / `allowedAgentIds` in
+  [`scripts/agents-relay/relay.mjs`](../scripts/agents-relay/relay.mjs) (the
+  allowlist is the gate — without it the mapping is silently filtered out in
+  both directions). Then create the Chatwoot thread in inbox 2 with the contact
   identifier `paperclip-agent-<agentId>` and conversation custom attributes
   `{ "paperclip_agent_id": "<agentId>", "agent_name": "<name>" }`. The next
   tick picks it up automatically (new cursor, no history replay).
