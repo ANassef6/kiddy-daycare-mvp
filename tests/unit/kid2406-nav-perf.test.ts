@@ -81,11 +81,13 @@ describe("KID-2406: marketing HTML is CDN-cacheable", () => {
     expect(rewrites[PUBLIC_PATH_HEADER]).toBe("/contact?sent=1");
   });
 
-  it("does not cache the first explicit language write (Set-Cookie response)", () => {
+  it("keeps the first explicit ?lang=ar request cacheable (no Set-Cookie)", () => {
+    // A Set-Cookie on the HTML response makes Next force private/no-store, so
+    // the canonical Arabic URL would never populate the shared cache. The
+    // switcher persists the preference through /switch-lang instead.
     const res = middleware(request("http://kiddy.test/?lang=ar"));
-    const setCookie = res.headers.getSetCookie?.() ?? [res.headers.get("set-cookie") ?? ""];
-    expect(setCookie.join(" | ")).toContain("kiddy_site_lang=ar");
-    expect(res.headers.get("cache-control")).toBeNull();
+    expect(res.headers.get("set-cookie")).toBeNull();
+    expect(res.headers.get("cache-control")).toBe(MARKETING_CACHE_CONTROL);
   });
 
   it("does not cache or rewrite non-marketing routes", () => {
@@ -143,9 +145,21 @@ describe("KID-2406: a stored Arabic preference normalizes the URL", () => {
       })
     );
     expect(res.status).toBe(200);
-    // The explicit choice wins for this response; the cookie is rewritten.
+    // The explicit choice wins for this response; no cookie write on the
+    // cacheable HTML (see above).
     expect(rewrittenHeaders(res)[LANG_OVERRIDE_HEADER]).toBe("ar");
-    expect(res.headers.get("set-cookie")).toContain("kiddy_site_lang=ar");
+    expect(res.headers.get("set-cookie")).toBeNull();
+  });
+
+  it("lets an explicit ?lang=en override a stored Arabic preference", () => {
+    const res = middleware(
+      request("http://kiddy.test/features?lang=en", {
+        headers: { cookie: "kiddy_site_lang=ar" },
+      })
+    );
+    expect(res.status).toBe(200);
+    expect(rewrittenHeaders(res)[LANG_OVERRIDE_HEADER]).toBe("en");
+    expect(res.headers.get("location")).toBeNull();
   });
 });
 

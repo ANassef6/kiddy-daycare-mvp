@@ -238,7 +238,7 @@ function headerRewrites(res: ReturnType<typeof middleware>): Record<string, stri
 }
 
 describe("KID-2072: middleware promotes ?lang and carries the switcher's return path", () => {
-  it("?lang=ar becomes the override header, best-effort cookies, and the return path strips ?lang", () => {
+  it("?lang=ar becomes the override header and the return path strips ?lang", () => {
     const res = middleware(publicRequest("http://kiddy.test/contact?lang=ar&utm=1"));
     const rewrites = headerRewrites(res);
     expect(rewrites[PUBLIC_PAGE_HEADER]).toBe("1");
@@ -246,9 +246,10 @@ describe("KID-2072: middleware promotes ?lang and carries the switcher's return 
     // ?lang is stripped from the return path so a pinned query cannot fight a
     // later switch on cookie-less browsers; other query params survive
     expect(rewrites[PUBLIC_PATH_HEADER]).toBe("/contact?utm=1");
-    const setCookie = res.headers.get("set-cookie") ?? "";
-    expect(setCookie).toContain("kiddy_site_lang=ar");
-    expect(setCookie).toContain("kiddy_lang=ar");
+    // KID-2406: no Set-Cookie on the HTML response — it would force
+    // private/no-store and make the canonical Arabic URL uncacheable. The
+    // /switch-lang endpoint still persists the choice.
+    expect(res.headers.get("set-cookie")).toBeNull();
   });
 
   it("no ?lang: no override, no cookie writes, the return path keeps the query", () => {
