@@ -9,10 +9,12 @@
 //      daycare login message names the address, and the site footer does NOT
 //      carry a raw-email mailto link (KID-240 removed it; the /contact page
 //      is the single public surface that shows the address).
-//   3. Each new inquiry is notified best-effort to that inbox through the
-//      EXISTING shared mail path (lib/contact-notify.ts, the GoTrue
-//      service-role channel from lib/invite-email.ts) with the same
-//      record-and-continue degradation.
+//   3. Each new inquiry is notified best-effort through the EXISTING shared
+//      mail path (lib/contact-notify.ts, the GoTrue service-role channel from
+//      lib/invite-email.ts) with the same record-and-continue degradation.
+//      KID-2407 retargeted delivery to the separate, never-displayed
+//      PLATFORM_CONTACT_NOTIFY_EMAIL; the displayed address above is
+//      unchanged.
 //   4. Every attempt's outcome is recorded on the contact_request row
 //      (email_sent_at / email_error, migration 0025) while the visitor still
 //      sees the success state.
@@ -29,6 +31,9 @@ import { seedFixture } from "../helpers";
 // one place (lib/site.ts); this constant is assertion data.
 const DEFAULT_CONTACT_EMAIL = "info@kiddyapp.net";
 
+// KID-2407: delivery-only target. Never displayed; assertion data only.
+const DEFAULT_NOTIFY_EMAIL = "bluen.dev@gmail.com";
+
 const SITE = path.join(__dirname, "..", "..");
 
 // lib/actions reads the session cookie through next/headers, which has no
@@ -42,6 +47,7 @@ vi.mock("next/headers", () => ({
 
 beforeEach(async () => {
   delete process.env.PLATFORM_CONTACT_EMAIL;
+  delete process.env.PLATFORM_CONTACT_NOTIFY_EMAIL;
   await seedFixture();
 });
 
@@ -209,7 +215,7 @@ describe("submitContactAction records the inbox notification attempt", () => {
       });
       const outcome = await notifyPlatformInbox(row as Row);
       expect(outcome.status).toBe("sent");
-      expect(invite).toHaveBeenCalledWith(DEFAULT_CONTACT_EMAIL);
+      expect(invite).toHaveBeenCalledWith(DEFAULT_NOTIFY_EMAIL);
 
       await recordContactMailAttempt(String(row.id), { ok: true });
       const [after] = await storedRequests();
@@ -259,7 +265,7 @@ describe("submitContactAction records the inbox notification attempt", () => {
 });
 
 describe("buildContactNotificationEmail", () => {
-  it("targets the contact inbox and carries the inquiry content", async () => {
+  it("targets the delivery-only notify address and carries the inquiry content", async () => {
     const { buildContactNotificationEmail } = await import("@/lib/contact-notify");
     const mail = buildContactNotificationEmail({
       id: "req-1",
@@ -269,7 +275,7 @@ describe("buildContactNotificationEmail", () => {
       interest: "demo",
       message: "We have 40 children.",
     });
-    expect(mail.to).toBe(DEFAULT_CONTACT_EMAIL);
+    expect(mail.to).toBe(DEFAULT_NOTIFY_EMAIL);
     expect(mail.subject).toContain("Nour Nassef");
     expect(mail.text).toContain("nour@daycare.example");
     expect(mail.text).toContain("+20 12 345 6789");
