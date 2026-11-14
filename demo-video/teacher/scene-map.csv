@@ -1,0 +1,29 @@
+scene,title,tool,route,auth,en_duration,ar_duration
+01-login,Sign in,Authentication,/login,no,11.1,8.6
+02-dashboard,Dashboard,Home dashboard,/portal/dashboard,yes,10.7,8.6
+03-children,Children,Child list,/portal/children,yes,9.5,8.6
+04-child-daily-report,Daily report,Child profile / daily report,/portal/children/[id]?tab=daily,yes,12.3,8.6
+05-child-about,Child details,Child profile / about,/portal/children/[id]?tab=about,yes,9.9,8.6
+06-child-family,Family and pickup,Child profile / family,/portal/children/[id]?tab=family,yes,9.5,10.0
+07-child-media,Child media,Child profile / media,/portal/children/[id]?tab=media,yes,9.9,7.7
+08-child-documents,Child documents,Child profile / documents,/portal/children/[id]?tab=documents,yes,7.4,6.8
+09-child-schedules,Child schedule,Child profile / schedules,/portal/children/[id]?tab=schedules,yes,8.2,6.8
+10-child-learning,Child learning history,Child profile / learning history,/portal/children/[id]?tab=learning,yes,7.4,8.2
+11-child-incidents,Child incidents,Child profile / incidents,/portal/children/[id]?tab=incidents,yes,8.2,8.2
+12-attendance,Attendance and bus,Attendance,/portal/attendance,yes,13.1,10.4
+13-consents,Consents,Consents,/portal/consents,yes,10.7,9.5
+14-incidents,Incident reports,Incidents,/portal/incidents,yes,9.9,8.2
+15-newsfeed,Newsfeed,Newsfeed,/portal/newsfeed,yes,10.7,9.5
+16-messages,Messages,Messages,/portal/messages,yes,9.9,9.5
+17-calendar,Calendar,Calendar,/portal/calendar,yes,8.2,6.8
+18-events,Events,Events,/portal/events,yes,9.1,7.3
+19-drive,Parent drive,Parent drive,/portal/drive,yes,9.9,9.1
+20-learning,Development observations,Learning,/portal/learning,yes,10.3,8.6
+21-activities,Activities,Learning / activities,/portal/learning/activities,yes,10.7,6.8
+22-homework,Homework,Learning / homework,/portal/learning/homework,yes,9.1,6.4
+23-staff-profile,My staff profile,Staff / own profile,/portal/staff,yes,9.5,6.8
+24-staff-schedule,My schedule,Staff / schedule,/portal/staff/schedule,yes,7.8,6.8
+25-working-hours,Working hours,Staff / working hours,/portal/staff/hours,yes,6.2,6.0
+26-notifications,Notifications,Notifications,/portal/notifications,yes,8.2,7.7
+27-account,Account settings,Account,/portal/account,yes,7.8,6.4
+28-wrap,Close,Summary,/portal/dashboard,yes,7.8,7.3

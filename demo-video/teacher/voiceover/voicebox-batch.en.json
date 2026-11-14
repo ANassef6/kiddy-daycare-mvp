@@ -1,0 +1,232 @@
+{
+  "schema": "kiddy.demo-video.voicebox-batch.v1",
+  "language": "en",
+  "direction": "ltr",
+  "note": "Synthesize each line locally in Voicebox with the board's own cloned voice. Never upload or store the voice sample with this repo.",
+  "lines": [
+    {
+      "id": "01-login",
+      "text": "This is the teacher view of Kiddy. Sign in with the daycare account your manager gave you, and the app opens on your own dashboard.",
+      "language": "en",
+      "scene": "01-login",
+      "out": "voiceover/wav/en/01-login.wav",
+      "targetDurationSec": 11.1
+    },
+    {
+      "id": "02-dashboard",
+      "text": "The dashboard is your morning start. It shows the children in your classrooms, who is checked in now, open consents, and the latest reports.",
+      "language": "en",
+      "scene": "02-dashboard",
+      "out": "voiceover/wav/en/02-dashboard.wav",
+      "targetDurationSec": 10.7
+    },
+    {
+      "id": "03-children",
+      "text": "Children lists every child in the classrooms assigned to you. Search by name, filter by status, or open a child profile.",
+      "language": "en",
+      "scene": "03-children",
+      "out": "voiceover/wav/en/03-children.wav",
+      "targetDurationSec": 9.5
+    },
+    {
+      "id": "04-child-daily-report",
+      "text": "The daily report is the heart of the child profile. Pick the date, record the meal, mood, sleep, toilet, and a note, then save it for the family.",
+      "language": "en",
+      "scene": "04-child-daily-report",
+      "out": "voiceover/wav/en/04-child-daily-report.wav",
+      "targetDurationSec": 12.3
+    },
+    {
+      "id": "05-child-about",
+      "text": "About shows the child's room, date of birth, allergies, and care notes, so you have the important facts before the day starts.",
+      "language": "en",
+      "scene": "05-child-about",
+      "out": "voiceover/wav/en/05-child-about.wav",
+      "targetDurationSec": 9.9
+    },
+    {
+      "id": "06-child-family",
+      "text": "Family holds the parents and pickup contacts, with phone, email, and pickup permission. Your manager controls who can collect the child.",
+      "language": "en",
+      "scene": "06-child-family",
+      "out": "voiceover/wav/en/06-child-family.wav",
+      "targetDurationSec": 9.5
+    },
+    {
+      "id": "07-child-media",
+      "text": "Media keeps the photos and videos you share with the family. Upload from your device, and parents see it in their app.",
+      "language": "en",
+      "scene": "07-child-media",
+      "out": "voiceover/wav/en/07-child-media.wav",
+      "targetDurationSec": 9.9
+    },
+    {
+      "id": "08-child-documents",
+      "text": "Documents shows the consent requests sent for this child, with the parent's answer and the date.",
+      "language": "en",
+      "scene": "08-child-documents",
+      "out": "voiceover/wav/en/08-child-documents.wav",
+      "targetDurationSec": 7.4
+    },
+    {
+      "id": "09-child-schedules",
+      "text": "Schedules shows the child's weekly plan, so you know which days they attend and which activities are planned.",
+      "language": "en",
+      "scene": "09-child-schedules",
+      "out": "voiceover/wav/en/09-child-schedules.wav",
+      "targetDurationSec": 8.2
+    },
+    {
+      "id": "10-child-learning",
+      "text": "Learning history collects your observations and assessments for this child, in one timeline you can revisit.",
+      "language": "en",
+      "scene": "10-child-learning",
+      "out": "voiceover/wav/en/10-child-learning.wav",
+      "targetDurationSec": 7.4
+    },
+    {
+      "id": "11-child-incidents",
+      "text": "Incidents shows every incident linked to this child, with what happened, who reported it, and the parent's acknowledgement.",
+      "language": "en",
+      "scene": "11-child-incidents",
+      "out": "voiceover/wav/en/11-child-incidents.wav",
+      "targetDurationSec": 8.2
+    },
+    {
+      "id": "12-attendance",
+      "text": "Attendance is your classroom register. Choose the day, filter by room, search for a child, then check them in or out. The bus buttons show who is on the bus.",
+      "language": "en",
+      "scene": "12-attendance",
+      "out": "voiceover/wav/en/12-attendance.wav",
+      "targetDurationSec": 13.1
+    },
+    {
+      "id": "13-consents",
+      "text": "Send a consent request to one child or the whole classroom. The list shows who approved, who denied, and who has not answered yet.",
+      "language": "en",
+      "scene": "13-consents",
+      "out": "voiceover/wav/en/13-consents.wav",
+      "targetDurationSec": 10.7
+    },
+    {
+      "id": "14-incidents",
+      "text": "The Incidents page lists reports for your classrooms. Open one to read the details and see whether the parent has acknowledged it.",
+      "language": "en",
+      "scene": "14-incidents",
+      "out": "voiceover/wav/en/14-incidents.wav",
+      "targetDurationSec": 9.9
+    },
+    {
+      "id": "15-newsfeed",
+      "text": "The newsfeed is how you talk to families. Write a post, choose a child, a classroom, or all families, add a photo, and publish.",
+      "language": "en",
+      "scene": "15-newsfeed",
+      "out": "voiceover/wav/en/15-newsfeed.wav",
+      "targetDurationSec": 10.7
+    },
+    {
+      "id": "16-messages",
+      "text": "Messages is your private inbox. Start a thread with a parent or a classroom, attach a file, and keep every reply together.",
+      "language": "en",
+      "scene": "16-messages",
+      "out": "voiceover/wav/en/16-messages.wav",
+      "targetDurationSec": 9.9
+    },
+    {
+      "id": "17-calendar",
+      "text": "Calendar shows the center's events and field trips for the month, with the media shared for each one.",
+      "language": "en",
+      "scene": "17-calendar",
+      "out": "voiceover/wav/en/17-calendar.wav",
+      "targetDurationSec": 8.2
+    },
+    {
+      "id": "18-events",
+      "text": "Create an event from the Events page. Add the title, date, time, place, and the families who should see it.",
+      "language": "en",
+      "scene": "18-events",
+      "out": "voiceover/wav/en/18-events.wav",
+      "targetDurationSec": 9.1
+    },
+    {
+      "id": "19-drive",
+      "text": "Parent drive shares a file with one family or with all families. Upload it once, and it appears in the parent app.",
+      "language": "en",
+      "scene": "19-drive",
+      "out": "voiceover/wav/en/19-drive.wav",
+      "targetDurationSec": 9.9
+    },
+    {
+      "id": "20-learning",
+      "text": "Learning is where you record development. Choose a child, pick a curriculum area, write what you observed, and add it to their history.",
+      "language": "en",
+      "scene": "20-learning",
+      "out": "voiceover/wav/en/20-learning.wav",
+      "targetDurationSec": 10.3
+    },
+    {
+      "id": "21-activities",
+      "text": "Activities covers the fun part of the day. Create an activity with a time, a place, and an audience, and parents get the update.",
+      "language": "en",
+      "scene": "21-activities",
+      "out": "voiceover/wav/en/21-activities.wav",
+      "targetDurationSec": 10.7
+    },
+    {
+      "id": "22-homework",
+      "text": "Homework lets you assign a task to one child or the whole classroom, with a due date and clear instructions.",
+      "language": "en",
+      "scene": "22-homework",
+      "out": "voiceover/wav/en/22-homework.wav",
+      "targetDurationSec": 9.1
+    },
+    {
+      "id": "23-staff-profile",
+      "text": "Your staff profile shows your role, your rooms, and your contact details. Your manager keeps the team list up to date.",
+      "language": "en",
+      "scene": "23-staff-profile",
+      "out": "voiceover/wav/en/23-staff-profile.wav",
+      "targetDurationSec": 9.5
+    },
+    {
+      "id": "24-staff-schedule",
+      "text": "Staff schedule shows your weekly shifts, so you always know when you are expected in your classroom.",
+      "language": "en",
+      "scene": "24-staff-schedule",
+      "out": "voiceover/wav/en/24-staff-schedule.wav",
+      "targetDurationSec": 7.8
+    },
+    {
+      "id": "25-working-hours",
+      "text": "Working hours shows the center opening times and the rooms you can access.",
+      "language": "en",
+      "scene": "25-working-hours",
+      "out": "voiceover/wav/en/25-working-hours.wav",
+      "targetDurationSec": 6.2
+    },
+    {
+      "id": "26-notifications",
+      "text": "Notifications collects messages, reports, and activity. Open an item to jump straight to the child or the conversation.",
+      "language": "en",
+      "scene": "26-notifications",
+      "out": "voiceover/wav/en/26-notifications.wav",
+      "targetDurationSec": 8.2
+    },
+    {
+      "id": "27-account",
+      "text": "In Account settings you can change your photo, your password, your app language, and your push notifications.",
+      "language": "en",
+      "scene": "27-account",
+      "out": "voiceover/wav/en/27-account.wav",
+      "targetDurationSec": 7.8
+    },
+    {
+      "id": "28-wrap",
+      "text": "That is the teacher workspace: every child, every daily record, and every message home, in one place.",
+      "language": "en",
+      "scene": "28-wrap",
+      "out": "voiceover/wav/en/28-wrap.wav",
+      "targetDurationSec": 7.8
+    }
+  ]
+}

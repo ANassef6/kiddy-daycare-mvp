@@ -1,0 +1,29 @@
+id,text,scene,duration,tool,route,language
+01-login,دي شاشة المدرس في Kiddy. سجّل دخول بحساب الروضة اللي المدير ادّاه لك، والتطبيق هيفتح على لوحتك.,01-login,8.6,Authentication,/login,ar-EG
+02-dashboard,لوحة التحكم هي بداية يومك. بتوريك الأطفال اللي في فصولك، مين حاضر دلوقتي، الموافقات المفتوحة، وآخر التقارير.,02-dashboard,8.6,Home dashboard,/portal/dashboard,ar-EG
+03-children,صفحة الأطفال بتعرض كل طفل في الفصول المسندة لك. دوّر بالاسم، فلتر بالحالة، أو افتح ملف الطفل.,03-children,8.6,Child list,/portal/children,ar-EG
+04-child-daily-report,التقرير اليومي هو قلب ملف الطفل. اختار التاريخ، سجّل الأكل، المود، النوم، الحمام، وملاحظة، وبعدين احفظه للأهل.,04-child-daily-report,8.6,Child profile / daily report,/portal/children/[id]?tab=daily,ar-EG
+05-child-about,تبويب عن الطفل بيعرض فصله، تاريخ ميلاده، الحساسية، وملاحظات الرعاية، عشان تعرف المهم قبل ما اليوم يبدأ.,05-child-about,8.6,Child profile / about,/portal/children/[id]?tab=about,ar-EG
+06-child-family,تبويب الاستلام والعائلة فيه الأهل وجهات الاستلام، مع التليفون والإيميل وصلاحية الاستلام. المدير هو اللي بيتحكم في مين يستلم الطفل.,06-child-family,10.0,Child profile / family,/portal/children/[id]?tab=family,ar-EG
+07-child-media,الوسائط بتحفظ الصور والفيديوهات اللي بتشاركها مع الأهل. ارفع من جهازك، والأهل هيشوفوها في التطبيق.,07-child-media,7.7,Child profile / media,/portal/children/[id]?tab=media,ar-EG
+08-child-documents,المستندات والموافقات بتعرض طلبات الموافقة اللي اتبعتت للطفل ده، مع رد الأهل والتاريخ.,08-child-documents,6.8,Child profile / documents,/portal/children/[id]?tab=documents,ar-EG
+09-child-schedules,الجداول بتعرض جدول الطفل الأسبوعي، عشان تعرف هو بييجي إمتى والأنشطة المخططة إيه.,09-child-schedules,6.8,Child profile / schedules,/portal/children/[id]?tab=schedules,ar-EG
+10-child-learning,سجل التعلّم بيجمع ملاحظاتك وتقييماتك للطفل ده في خط زمني واحد ترجع له وقت ما تحتاج.,10-child-learning,8.2,Child profile / learning history,/portal/children/[id]?tab=learning,ar-EG
+11-child-incidents,الحوادث والإصابات بتعرض كل حادثة مرتبطة بالطفل، مع اللي حصل، مين بلّغ، وهل الأهل اعترفوا بالحادثة.,11-child-incidents,8.2,Child profile / incidents,/portal/children/[id]?tab=incidents,ar-EG
+12-attendance,الحضور هو دفتر فصلك. اختار اليوم، فلتر بالفصل، دوّر على الطفل، وبعدين سجّل حضوره أو خروجه. أزرار الأتوبيس بتوريك مين راكب.,12-attendance,10.4,Attendance,/portal/attendance,ar-EG
+13-consents,ابعت طلب موافقة لطفل واحد أو للفصل كله. قائمة الموافقات بتوريك مين وافق، مين رفض، ومين لسه ما ردش.,13-consents,9.5,Consents,/portal/consents,ar-EG
+14-incidents,صفحة الحوادث بتعرض التقارير الخاصة بفصولك. افتح تقرير عشان تقرا التفاصيل وتشوف الأهل اعترفوا ولا لسه.,14-incidents,8.2,Incidents,/portal/incidents,ar-EG
+15-newsfeed,صفحة الأخبار هي طريقة كلامك مع الأهل. اكتب بوست، اختار طفل أو فصل أو كل الأهل، ضيف صورة، وانشر.,15-newsfeed,9.5,Newsfeed,/portal/newsfeed,ar-EG
+16-messages,الرسائل هي صندوقك الخاص. ابدأ محادثة مع ولي أمر أو فصل، ارفق ملف، وخلي كل الردود في مكان واحد.,16-messages,9.5,Messages,/portal/messages,ar-EG
+17-calendar,التقويم بيعرض فعاليات الروضة والرحلات الشهر ده، مع الوسائط اللي اتشاركت لكل فعالية.,17-calendar,6.8,Calendar,/portal/calendar,ar-EG
+18-events,اعمل فعالية من صفحة الفعاليات. ضيف العنوان، التاريخ، الوقت، المكان، والأهل اللي المفروض يشوفوها.,18-events,7.3,Events,/portal/events,ar-EG
+19-drive,الملفات المشتركة بتشارك ملف مع أسرة واحدة أو مع كل الأسر. ارفعه مرة واحدة، وهيظهر في تطبيق الأهل.,19-drive,9.1,Parent drive,/portal/drive,ar-EG
+20-learning,التطوّر هو مكان تسجيل تطور الطفل. اختار طفل، اختار مجال من المنهج، اكتب اللي شوفته، وضيفه لسجله.,20-learning,8.6,Learning,/portal/learning,ar-EG
+21-activities,الأنشطة للجزء الممتع من اليوم. اعمل نشاط بوقت ومكان وجمهور، والأهل هيوصلهم التحديث.,21-activities,6.8,Learning / activities,/portal/learning/activities,ar-EG
+22-homework,الواجبات بتخليك تسند مهمة لطفل أو للفصل كله، بموعد تسليم وتعليمات واضحة.,22-homework,6.4,Learning / homework,/portal/learning/homework,ar-EG
+23-staff-profile,ملف الموظف بيعرض دورك، فصولك، وبيانات التواصل. المدير هو اللي بيحدّث قائمة الفريق.,23-staff-profile,6.8,Staff / own profile,/portal/staff,ar-EG
+24-staff-schedule,جدول الموظفين بيعرض شيفتاتك الأسبوعية، عشان تعرف دايماً إمتى المفروض تكون في فصلك.,24-staff-schedule,6.8,Staff / schedule,/portal/staff/schedule,ar-EG
+25-working-hours,ساعات العمل بتعرض مواعيد فتح الروضة والفصول اللي تقدر تدخلها.,25-working-hours,6.0,Staff / working hours,/portal/staff/hours,ar-EG
+26-notifications,الإشعارات بتجمع الرسائل والتقارير والأنشطة. افتح أي عنصر عشان تروح على طول للطفل أو المحادثة.,26-notifications,7.7,Notifications,/portal/notifications,ar-EG
+27-account,في إعدادات الحساب تقدر تغيّر صورتك، كلمة السر، لغة التطبيق، وإشعارات الموبايل.,27-account,6.4,Account,/portal/account,ar-EG
+28-wrap,دي مساحة المدرس: كل طفل، كل تقرير يومي، وكل رسالة للأهل، في مكان واحد.,28-wrap,7.3,Summary,/portal/dashboard,ar-EG

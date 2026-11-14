@@ -1,0 +1,29 @@
+id,text,scene,duration,tool,route,language
+01-login,"This is the teacher view of Kiddy. Sign in with the daycare account your manager gave you, and the app opens on your own dashboard.",01-login,11.1,Authentication,/login,en
+02-dashboard,"The dashboard is your morning start. It shows the children in your classrooms, who is checked in now, open consents, and the latest reports.",02-dashboard,10.7,Home dashboard,/portal/dashboard,en
+03-children,"Children lists every child in the classrooms assigned to you. Search by name, filter by status, or open a child profile.",03-children,9.5,Child list,/portal/children,en
+04-child-daily-report,"The daily report is the heart of the child profile. Pick the date, record the meal, mood, sleep, toilet, and a note, then save it for the family.",04-child-daily-report,12.3,Child profile / daily report,/portal/children/[id]?tab=daily,en
+05-child-about,"About shows the child's room, date of birth, allergies, and care notes, so you have the important facts before the day starts.",05-child-about,9.9,Child profile / about,/portal/children/[id]?tab=about,en
+06-child-family,"Family holds the parents and pickup contacts, with phone, email, and pickup permission. Your manager controls who can collect the child.",06-child-family,9.5,Child profile / family,/portal/children/[id]?tab=family,en
+07-child-media,"Media keeps the photos and videos you share with the family. Upload from your device, and parents see it in their app.",07-child-media,9.9,Child profile / media,/portal/children/[id]?tab=media,en
+08-child-documents,"Documents shows the consent requests sent for this child, with the parent's answer and the date.",08-child-documents,7.4,Child profile / documents,/portal/children/[id]?tab=documents,en
+09-child-schedules,"Schedules shows the child's weekly plan, so you know which days they attend and which activities are planned.",09-child-schedules,8.2,Child profile / schedules,/portal/children/[id]?tab=schedules,en
+10-child-learning,"Learning history collects your observations and assessments for this child, in one timeline you can revisit.",10-child-learning,7.4,Child profile / learning history,/portal/children/[id]?tab=learning,en
+11-child-incidents,"Incidents shows every incident linked to this child, with what happened, who reported it, and the parent's acknowledgement.",11-child-incidents,8.2,Child profile / incidents,/portal/children/[id]?tab=incidents,en
+12-attendance,"Attendance is your classroom register. Choose the day, filter by room, search for a child, then check them in or out. The bus buttons show who is on the bus.",12-attendance,13.1,Attendance,/portal/attendance,en
+13-consents,"Send a consent request to one child or the whole classroom. The list shows who approved, who denied, and who has not answered yet.",13-consents,10.7,Consents,/portal/consents,en
+14-incidents,The Incidents page lists reports for your classrooms. Open one to read the details and see whether the parent has acknowledged it.,14-incidents,9.9,Incidents,/portal/incidents,en
+15-newsfeed,"The newsfeed is how you talk to families. Write a post, choose a child, a classroom, or all families, add a photo, and publish.",15-newsfeed,10.7,Newsfeed,/portal/newsfeed,en
+16-messages,"Messages is your private inbox. Start a thread with a parent or a classroom, attach a file, and keep every reply together.",16-messages,9.9,Messages,/portal/messages,en
+17-calendar,"Calendar shows the center's events and field trips for the month, with the media shared for each one.",17-calendar,8.2,Calendar,/portal/calendar,en
+18-events,"Create an event from the Events page. Add the title, date, time, place, and the families who should see it.",18-events,9.1,Events,/portal/events,en
+19-drive,"Parent drive shares a file with one family or with all families. Upload it once, and it appears in the parent app.",19-drive,9.9,Parent drive,/portal/drive,en
+20-learning,"Learning is where you record development. Choose a child, pick a curriculum area, write what you observed, and add it to their history.",20-learning,10.3,Learning,/portal/learning,en
+21-activities,"Activities covers the fun part of the day. Create an activity with a time, a place, and an audience, and parents get the update.",21-activities,10.7,Learning / activities,/portal/learning/activities,en
+22-homework,"Homework lets you assign a task to one child or the whole classroom, with a due date and clear instructions.",22-homework,9.1,Learning / homework,/portal/learning/homework,en
+23-staff-profile,"Your staff profile shows your role, your rooms, and your contact details. Your manager keeps the team list up to date.",23-staff-profile,9.5,Staff / own profile,/portal/staff,en
+24-staff-schedule,"Staff schedule shows your weekly shifts, so you always know when you are expected in your classroom.",24-staff-schedule,7.8,Staff / schedule,/portal/staff/schedule,en
+25-working-hours,Working hours shows the center opening times and the rooms you can access.,25-working-hours,6.2,Staff / working hours,/portal/staff/hours,en
+26-notifications,"Notifications collects messages, reports, and activity. Open an item to jump straight to the child or the conversation.",26-notifications,8.2,Notifications,/portal/notifications,en
+27-account,"In Account settings you can change your photo, your password, your app language, and your push notifications.",27-account,7.8,Account,/portal/account,en
+28-wrap,"That is the teacher workspace: every child, every daily record, and every message home, in one place.",28-wrap,7.8,Summary,/portal/dashboard,en

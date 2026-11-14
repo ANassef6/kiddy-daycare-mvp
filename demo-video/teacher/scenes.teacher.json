@@ -1,0 +1,1037 @@
+{
+  "schema": "kiddy.demo-video.scenes.v1",
+  "role": "teacher",
+  "tenant": "sunshine",
+  "baseUrl": "https://sunshine.kiddyapp.net",
+  "format": {
+    "width": 1920,
+    "height": 1080,
+    "fps": 30
+  },
+  "voiceover": {
+    "en": {
+      "locale": "en",
+      "dir": "ltr",
+      "wordsPerSecond": 2.45
+    },
+    "ar": {
+      "locale": "ar-EG",
+      "dir": "rtl",
+      "wordsPerSecond": 2.2
+    }
+  },
+  "capture": {
+    "storageState": ".auth/teacher.json",
+    "reducedMotion": true,
+    "minHoldSec": 1.2,
+    "settleMs": 900
+  },
+  "excluded": [
+    {
+      "route": "/portal/settings",
+      "reason": "Admin-only center settings. The page redirects non-admin roles; not a teacher tool."
+    },
+    {
+      "route": "/portal/staff (team list)",
+      "reason": "Admin-only team list. A teacher is redirected to their own staff profile, which the video does show."
+    },
+    {
+      "route": "/portal/rooms, /portal/supplies, /portal/report-center, /portal/tags, /portal/forms, /portal/surveys, /portal/performance, /portal/finance",
+      "reason": "Admin Tools menu. Hidden from the teacher sidebar and not part of the teacher walkthrough."
+    },
+    {
+      "route": "/portal/children/[id] (Invoices tab) and Manage billing",
+      "reason": "The tab renders for teacher accounts but is financial admin data. Excluded from the pilot and reported to the PM/QA for a role-gate decision."
+    }
+  ],
+  "scenes": [
+    {
+      "id": "01-login",
+      "title": "Sign in",
+      "tool": "Authentication",
+      "route": "/login",
+      "auth": false,
+      "actions": [
+        {
+          "op": "goto",
+          "path": "/login"
+        },
+        {
+          "op": "waitFor",
+          "selector": "form"
+        },
+        {
+          "op": "wait",
+          "ms": 600
+        },
+        {
+          "op": "hover",
+          "selector": "input[type=email]"
+        },
+        {
+          "op": "hover",
+          "selector": "button[type=submit]"
+        }
+      ],
+      "vo": {
+        "en": "This is the teacher view of Kiddy. Sign in with the daycare account your manager gave you, and the app opens on your own dashboard.",
+        "ar": "دي شاشة المدرس في Kiddy. سجّل دخول بحساب الروضة اللي المدير ادّاه لك، والتطبيق هيفتح على لوحتك."
+      }
+    },
+    {
+      "id": "02-dashboard",
+      "title": "Dashboard",
+      "tool": "Home dashboard",
+      "route": "/portal/dashboard",
+      "auth": true,
+      "actions": [
+        {
+          "op": "goto",
+          "path": "/portal/dashboard"
+        },
+        {
+          "op": "waitFor",
+          "selector": "main h1"
+        },
+        {
+          "op": "wait",
+          "ms": 500
+        },
+        {
+          "op": "scroll",
+          "y": 650
+        },
+        {
+          "op": "scroll",
+          "y": 0
+        }
+      ],
+      "vo": {
+        "en": "The dashboard is your morning start. It shows the children in your classrooms, who is checked in now, open consents, and the latest reports.",
+        "ar": "لوحة التحكم هي بداية يومك. بتوريك الأطفال اللي في فصولك، مين حاضر دلوقتي، الموافقات المفتوحة، وآخر التقارير."
+      }
+    },
+    {
+      "id": "03-children",
+      "title": "Children",
+      "tool": "Child list",
+      "route": "/portal/children",
+      "auth": true,
+      "actions": [
+        {
+          "op": "goto",
+          "path": "/portal/children"
+        },
+        {
+          "op": "waitFor",
+          "selector": "main h1"
+        },
+        {
+          "op": "wait",
+          "ms": 500
+        },
+        {
+          "op": "scroll",
+          "y": 500
+        },
+        {
+          "op": "scroll",
+          "y": 0
+        },
+        {
+          "op": "hover",
+          "selector": "a[href^='/portal/children/']"
+        }
+      ],
+      "vo": {
+        "en": "Children lists every child in the classrooms assigned to you. Search by name, filter by status, or open a child profile.",
+        "ar": "صفحة الأطفال بتعرض كل طفل في الفصول المسندة لك. دوّر بالاسم، فلتر بالحالة، أو افتح ملف الطفل."
+      }
+    },
+    {
+      "id": "04-child-daily-report",
+      "title": "Daily report",
+      "tool": "Child profile / daily report",
+      "route": "/portal/children/[id]?tab=daily",
+      "auth": true,
+      "actions": [
+        {
+          "op": "goto",
+          "path": "/portal/children"
+        },
+        {
+          "op": "waitFor",
+          "selector": "a[href^='/portal/children/']"
+        },
+        {
+          "op": "clickFirstHref",
+          "prefix": "/portal/children/"
+        },
+        {
+          "op": "waitFor",
+          "selector": "[role=tab]"
+        },
+        {
+          "op": "wait",
+          "ms": 500
+        },
+        {
+          "op": "tab",
+          "index": 0
+        },
+        {
+          "op": "scroll",
+          "y": 700
+        },
+        {
+          "op": "scroll",
+          "y": 250
+        }
+      ],
+      "vo": {
+        "en": "The daily report is the heart of the child profile. Pick the date, record the meal, mood, sleep, toilet, and a note, then save it for the family.",
+        "ar": "التقرير اليومي هو قلب ملف الطفل. اختار التاريخ، سجّل الأكل، المود، النوم، الحمام، وملاحظة، وبعدين احفظه للأهل."
+      }
+    },
+    {
+      "id": "05-child-about",
+      "title": "Child details",
+      "tool": "Child profile / about",
+      "route": "/portal/children/[id]?tab=about",
+      "auth": true,
+      "actions": [
+        {
+          "op": "goto",
+          "path": "/portal/children"
+        },
+        {
+          "op": "waitFor",
+          "selector": "a[href^='/portal/children/']"
+        },
+        {
+          "op": "clickFirstHref",
+          "prefix": "/portal/children/"
+        },
+        {
+          "op": "waitFor",
+          "selector": "[role=tab]"
+        },
+        {
+          "op": "wait",
+          "ms": 400
+        },
+        {
+          "op": "tab",
+          "index": 1
+        },
+        {
+          "op": "scroll",
+          "y": 450
+        }
+      ],
+      "vo": {
+        "en": "About shows the child's room, date of birth, allergies, and care notes, so you have the important facts before the day starts.",
+        "ar": "تبويب عن الطفل بيعرض فصله، تاريخ ميلاده، الحساسية، وملاحظات الرعاية، عشان تعرف المهم قبل ما اليوم يبدأ."
+      }
+    },
+    {
+      "id": "06-child-family",
+      "title": "Family and pickup",
+      "tool": "Child profile / family",
+      "route": "/portal/children/[id]?tab=family",
+      "auth": true,
+      "actions": [
+        {
+          "op": "goto",
+          "path": "/portal/children"
+        },
+        {
+          "op": "waitFor",
+          "selector": "a[href^='/portal/children/']"
+        },
+        {
+          "op": "clickFirstHref",
+          "prefix": "/portal/children/"
+        },
+        {
+          "op": "waitFor",
+          "selector": "[role=tab]"
+        },
+        {
+          "op": "wait",
+          "ms": 400
+        },
+        {
+          "op": "tab",
+          "index": 2
+        },
+        {
+          "op": "scroll",
+          "y": 500
+        }
+      ],
+      "vo": {
+        "en": "Family holds the parents and pickup contacts, with phone, email, and pickup permission. Your manager controls who can collect the child.",
+        "ar": "تبويب الاستلام والعائلة فيه الأهل وجهات الاستلام، مع التليفون والإيميل وصلاحية الاستلام. المدير هو اللي بيتحكم في مين يستلم الطفل."
+      }
+    },
+    {
+      "id": "07-child-media",
+      "title": "Child media",
+      "tool": "Child profile / media",
+      "route": "/portal/children/[id]?tab=media",
+      "auth": true,
+      "actions": [
+        {
+          "op": "goto",
+          "path": "/portal/children"
+        },
+        {
+          "op": "waitFor",
+          "selector": "a[href^='/portal/children/']"
+        },
+        {
+          "op": "clickFirstHref",
+          "prefix": "/portal/children/"
+        },
+        {
+          "op": "waitFor",
+          "selector": "[role=tab]"
+        },
+        {
+          "op": "wait",
+          "ms": 400
+        },
+        {
+          "op": "tab",
+          "index": 3
+        },
+        {
+          "op": "scroll",
+          "y": 450
+        }
+      ],
+      "vo": {
+        "en": "Media keeps the photos and videos you share with the family. Upload from your device, and parents see it in their app.",
+        "ar": "الوسائط بتحفظ الصور والفيديوهات اللي بتشاركها مع الأهل. ارفع من جهازك، والأهل هيشوفوها في التطبيق."
+      }
+    },
+    {
+      "id": "08-child-documents",
+      "title": "Child documents",
+      "tool": "Child profile / documents",
+      "route": "/portal/children/[id]?tab=documents",
+      "auth": true,
+      "actions": [
+        {
+          "op": "goto",
+          "path": "/portal/children"
+        },
+        {
+          "op": "waitFor",
+          "selector": "a[href^='/portal/children/']"
+        },
+        {
+          "op": "clickFirstHref",
+          "prefix": "/portal/children/"
+        },
+        {
+          "op": "waitFor",
+          "selector": "[role=tab]"
+        },
+        {
+          "op": "wait",
+          "ms": 400
+        },
+        {
+          "op": "tab",
+          "index": 4
+        },
+        {
+          "op": "scroll",
+          "y": 450
+        }
+      ],
+      "vo": {
+        "en": "Documents shows the consent requests sent for this child, with the parent's answer and the date.",
+        "ar": "المستندات والموافقات بتعرض طلبات الموافقة اللي اتبعتت للطفل ده، مع رد الأهل والتاريخ."
+      }
+    },
+    {
+      "id": "09-child-schedules",
+      "title": "Child schedule",
+      "tool": "Child profile / schedules",
+      "route": "/portal/children/[id]?tab=schedules",
+      "auth": true,
+      "actions": [
+        {
+          "op": "goto",
+          "path": "/portal/children"
+        },
+        {
+          "op": "waitFor",
+          "selector": "a[href^='/portal/children/']"
+        },
+        {
+          "op": "clickFirstHref",
+          "prefix": "/portal/children/"
+        },
+        {
+          "op": "waitFor",
+          "selector": "[role=tab]"
+        },
+        {
+          "op": "wait",
+          "ms": 400
+        },
+        {
+          "op": "tab",
+          "index": 5
+        },
+        {
+          "op": "scroll",
+          "y": 450
+        }
+      ],
+      "vo": {
+        "en": "Schedules shows the child's weekly plan, so you know which days they attend and which activities are planned.",
+        "ar": "الجداول بتعرض جدول الطفل الأسبوعي، عشان تعرف هو بييجي إمتى والأنشطة المخططة إيه."
+      }
+    },
+    {
+      "id": "10-child-learning",
+      "title": "Child learning history",
+      "tool": "Child profile / learning history",
+      "route": "/portal/children/[id]?tab=learning",
+      "auth": true,
+      "actions": [
+        {
+          "op": "goto",
+          "path": "/portal/children"
+        },
+        {
+          "op": "waitFor",
+          "selector": "a[href^='/portal/children/']"
+        },
+        {
+          "op": "clickFirstHref",
+          "prefix": "/portal/children/"
+        },
+        {
+          "op": "waitFor",
+          "selector": "[role=tab]"
+        },
+        {
+          "op": "wait",
+          "ms": 400
+        },
+        {
+          "op": "tab",
+          "index": 7
+        },
+        {
+          "op": "scroll",
+          "y": 500
+        }
+      ],
+      "vo": {
+        "en": "Learning history collects your observations and assessments for this child, in one timeline you can revisit.",
+        "ar": "سجل التعلّم بيجمع ملاحظاتك وتقييماتك للطفل ده في خط زمني واحد ترجع له وقت ما تحتاج."
+      }
+    },
+    {
+      "id": "11-child-incidents",
+      "title": "Child incidents",
+      "tool": "Child profile / incidents",
+      "route": "/portal/children/[id]?tab=incidents",
+      "auth": true,
+      "actions": [
+        {
+          "op": "goto",
+          "path": "/portal/children"
+        },
+        {
+          "op": "waitFor",
+          "selector": "a[href^='/portal/children/']"
+        },
+        {
+          "op": "clickFirstHref",
+          "prefix": "/portal/children/"
+        },
+        {
+          "op": "waitFor",
+          "selector": "[role=tab]"
+        },
+        {
+          "op": "wait",
+          "ms": 400
+        },
+        {
+          "op": "tab",
+          "index": 8
+        },
+        {
+          "op": "scroll",
+          "y": 450
+        }
+      ],
+      "vo": {
+        "en": "Incidents shows every incident linked to this child, with what happened, who reported it, and the parent's acknowledgement.",
+        "ar": "الحوادث والإصابات بتعرض كل حادثة مرتبطة بالطفل، مع اللي حصل، مين بلّغ، وهل الأهل اعترفوا بالحادثة."
+      }
+    },
+    {
+      "id": "12-attendance",
+      "title": "Attendance and bus",
+      "tool": "Attendance",
+      "route": "/portal/attendance",
+      "auth": true,
+      "actions": [
+        {
+          "op": "goto",
+          "path": "/portal/attendance"
+        },
+        {
+          "op": "waitFor",
+          "selector": "main h1"
+        },
+        {
+          "op": "wait",
+          "ms": 500
+        },
+        {
+          "op": "scroll",
+          "y": 550
+        },
+        {
+          "op": "scroll",
+          "y": 200
+        }
+      ],
+      "vo": {
+        "en": "Attendance is your classroom register. Choose the day, filter by room, search for a child, then check them in or out. The bus buttons show who is on the bus.",
+        "ar": "الحضور هو دفتر فصلك. اختار اليوم، فلتر بالفصل، دوّر على الطفل، وبعدين سجّل حضوره أو خروجه. أزرار الأتوبيس بتوريك مين راكب."
+      }
+    },
+    {
+      "id": "13-consents",
+      "title": "Consents",
+      "tool": "Consents",
+      "route": "/portal/consents",
+      "auth": true,
+      "actions": [
+        {
+          "op": "goto",
+          "path": "/portal/consents"
+        },
+        {
+          "op": "waitFor",
+          "selector": "main h1"
+        },
+        {
+          "op": "wait",
+          "ms": 500
+        },
+        {
+          "op": "scroll",
+          "y": 450
+        },
+        {
+          "op": "scroll",
+          "y": 0
+        }
+      ],
+      "vo": {
+        "en": "Send a consent request to one child or the whole classroom. The list shows who approved, who denied, and who has not answered yet.",
+        "ar": "ابعت طلب موافقة لطفل واحد أو للفصل كله. قائمة الموافقات بتوريك مين وافق، مين رفض، ومين لسه ما ردش."
+      }
+    },
+    {
+      "id": "14-incidents",
+      "title": "Incident reports",
+      "tool": "Incidents",
+      "route": "/portal/incidents",
+      "auth": true,
+      "actions": [
+        {
+          "op": "goto",
+          "path": "/portal/incidents"
+        },
+        {
+          "op": "waitFor",
+          "selector": "main h1"
+        },
+        {
+          "op": "wait",
+          "ms": 500
+        },
+        {
+          "op": "scroll",
+          "y": 450
+        }
+      ],
+      "vo": {
+        "en": "The Incidents page lists reports for your classrooms. Open one to read the details and see whether the parent has acknowledged it.",
+        "ar": "صفحة الحوادث بتعرض التقارير الخاصة بفصولك. افتح تقرير عشان تقرا التفاصيل وتشوف الأهل اعترفوا ولا لسه."
+      }
+    },
+    {
+      "id": "15-newsfeed",
+      "title": "Newsfeed",
+      "tool": "Newsfeed",
+      "route": "/portal/newsfeed",
+      "auth": true,
+      "actions": [
+        {
+          "op": "goto",
+          "path": "/portal/newsfeed"
+        },
+        {
+          "op": "waitFor",
+          "selector": "main h1"
+        },
+        {
+          "op": "wait",
+          "ms": 500
+        },
+        {
+          "op": "focus",
+          "selector": "textarea"
+        },
+        {
+          "op": "scroll",
+          "y": 500
+        },
+        {
+          "op": "scroll",
+          "y": 0
+        }
+      ],
+      "vo": {
+        "en": "The newsfeed is how you talk to families. Write a post, choose a child, a classroom, or all families, add a photo, and publish.",
+        "ar": "صفحة الأخبار هي طريقة كلامك مع الأهل. اكتب بوست، اختار طفل أو فصل أو كل الأهل، ضيف صورة، وانشر."
+      }
+    },
+    {
+      "id": "16-messages",
+      "title": "Messages",
+      "tool": "Messages",
+      "route": "/portal/messages",
+      "auth": true,
+      "actions": [
+        {
+          "op": "goto",
+          "path": "/portal/messages"
+        },
+        {
+          "op": "waitFor",
+          "selector": "main h1"
+        },
+        {
+          "op": "wait",
+          "ms": 500
+        },
+        {
+          "op": "scroll",
+          "y": 500
+        },
+        {
+          "op": "scroll",
+          "y": 0
+        }
+      ],
+      "vo": {
+        "en": "Messages is your private inbox. Start a thread with a parent or a classroom, attach a file, and keep every reply together.",
+        "ar": "الرسائل هي صندوقك الخاص. ابدأ محادثة مع ولي أمر أو فصل، ارفق ملف، وخلي كل الردود في مكان واحد."
+      }
+    },
+    {
+      "id": "17-calendar",
+      "title": "Calendar",
+      "tool": "Calendar",
+      "route": "/portal/calendar",
+      "auth": true,
+      "actions": [
+        {
+          "op": "goto",
+          "path": "/portal/calendar"
+        },
+        {
+          "op": "waitFor",
+          "selector": "main h1"
+        },
+        {
+          "op": "wait",
+          "ms": 500
+        },
+        {
+          "op": "scroll",
+          "y": 450
+        },
+        {
+          "op": "scroll",
+          "y": 0
+        }
+      ],
+      "vo": {
+        "en": "Calendar shows the center's events and field trips for the month, with the media shared for each one.",
+        "ar": "التقويم بيعرض فعاليات الروضة والرحلات الشهر ده، مع الوسائط اللي اتشاركت لكل فعالية."
+      }
+    },
+    {
+      "id": "18-events",
+      "title": "Events",
+      "tool": "Events",
+      "route": "/portal/events",
+      "auth": true,
+      "actions": [
+        {
+          "op": "goto",
+          "path": "/portal/events"
+        },
+        {
+          "op": "waitFor",
+          "selector": "main h1"
+        },
+        {
+          "op": "wait",
+          "ms": 500
+        },
+        {
+          "op": "focus",
+          "selector": "input[name=title]"
+        },
+        {
+          "op": "scroll",
+          "y": 450
+        }
+      ],
+      "vo": {
+        "en": "Create an event from the Events page. Add the title, date, time, place, and the families who should see it.",
+        "ar": "اعمل فعالية من صفحة الفعاليات. ضيف العنوان، التاريخ، الوقت، المكان، والأهل اللي المفروض يشوفوها."
+      }
+    },
+    {
+      "id": "19-drive",
+      "title": "Parent drive",
+      "tool": "Parent drive",
+      "route": "/portal/drive",
+      "auth": true,
+      "actions": [
+        {
+          "op": "goto",
+          "path": "/portal/drive"
+        },
+        {
+          "op": "waitFor",
+          "selector": "main h1"
+        },
+        {
+          "op": "wait",
+          "ms": 500
+        },
+        {
+          "op": "scroll",
+          "y": 450
+        },
+        {
+          "op": "scroll",
+          "y": 0
+        }
+      ],
+      "vo": {
+        "en": "Parent drive shares a file with one family or with all families. Upload it once, and it appears in the parent app.",
+        "ar": "الملفات المشتركة بتشارك ملف مع أسرة واحدة أو مع كل الأسر. ارفعه مرة واحدة، وهيظهر في تطبيق الأهل."
+      }
+    },
+    {
+      "id": "20-learning",
+      "title": "Development observations",
+      "tool": "Learning",
+      "route": "/portal/learning",
+      "auth": true,
+      "actions": [
+        {
+          "op": "goto",
+          "path": "/portal/learning"
+        },
+        {
+          "op": "waitFor",
+          "selector": "main h1"
+        },
+        {
+          "op": "wait",
+          "ms": 500
+        },
+        {
+          "op": "scroll",
+          "y": 500
+        },
+        {
+          "op": "scroll",
+          "y": 0
+        }
+      ],
+      "vo": {
+        "en": "Learning is where you record development. Choose a child, pick a curriculum area, write what you observed, and add it to their history.",
+        "ar": "التطوّر هو مكان تسجيل تطور الطفل. اختار طفل، اختار مجال من المنهج، اكتب اللي شوفته، وضيفه لسجله."
+      }
+    },
+    {
+      "id": "21-activities",
+      "title": "Activities",
+      "tool": "Learning / activities",
+      "route": "/portal/learning/activities",
+      "auth": true,
+      "actions": [
+        {
+          "op": "goto",
+          "path": "/portal/learning/activities"
+        },
+        {
+          "op": "waitFor",
+          "selector": "main h1"
+        },
+        {
+          "op": "wait",
+          "ms": 500
+        },
+        {
+          "op": "focus",
+          "selector": "input[name=title]"
+        },
+        {
+          "op": "scroll",
+          "y": 500
+        }
+      ],
+      "vo": {
+        "en": "Activities covers the fun part of the day. Create an activity with a time, a place, and an audience, and parents get the update.",
+        "ar": "الأنشطة للجزء الممتع من اليوم. اعمل نشاط بوقت ومكان وجمهور، والأهل هيوصلهم التحديث."
+      }
+    },
+    {
+      "id": "22-homework",
+      "title": "Homework",
+      "tool": "Learning / homework",
+      "route": "/portal/learning/homework",
+      "auth": true,
+      "actions": [
+        {
+          "op": "goto",
+          "path": "/portal/learning/homework"
+        },
+        {
+          "op": "waitFor",
+          "selector": "main h1"
+        },
+        {
+          "op": "wait",
+          "ms": 500
+        },
+        {
+          "op": "focus",
+          "selector": "input[name=title]"
+        },
+        {
+          "op": "scroll",
+          "y": 450
+        }
+      ],
+      "vo": {
+        "en": "Homework lets you assign a task to one child or the whole classroom, with a due date and clear instructions.",
+        "ar": "الواجبات بتخليك تسند مهمة لطفل أو للفصل كله، بموعد تسليم وتعليمات واضحة."
+      }
+    },
+    {
+      "id": "23-staff-profile",
+      "title": "My staff profile",
+      "tool": "Staff / own profile",
+      "route": "/portal/staff",
+      "auth": true,
+      "actions": [
+        {
+          "op": "goto",
+          "path": "/portal/staff"
+        },
+        {
+          "op": "waitFor",
+          "selector": "main h1"
+        },
+        {
+          "op": "wait",
+          "ms": 500
+        },
+        {
+          "op": "scroll",
+          "y": 450
+        },
+        {
+          "op": "scroll",
+          "y": 0
+        }
+      ],
+      "vo": {
+        "en": "Your staff profile shows your role, your rooms, and your contact details. Your manager keeps the team list up to date.",
+        "ar": "ملف الموظف بيعرض دورك، فصولك، وبيانات التواصل. المدير هو اللي بيحدّث قائمة الفريق."
+      }
+    },
+    {
+      "id": "24-staff-schedule",
+      "title": "My schedule",
+      "tool": "Staff / schedule",
+      "route": "/portal/staff/schedule",
+      "auth": true,
+      "actions": [
+        {
+          "op": "goto",
+          "path": "/portal/staff/schedule"
+        },
+        {
+          "op": "waitFor",
+          "selector": "main h1"
+        },
+        {
+          "op": "wait",
+          "ms": 500
+        },
+        {
+          "op": "scroll",
+          "y": 450
+        },
+        {
+          "op": "scroll",
+          "y": 0
+        }
+      ],
+      "vo": {
+        "en": "Staff schedule shows your weekly shifts, so you always know when you are expected in your classroom.",
+        "ar": "جدول الموظفين بيعرض شيفتاتك الأسبوعية، عشان تعرف دايماً إمتى المفروض تكون في فصلك."
+      }
+    },
+    {
+      "id": "25-working-hours",
+      "title": "Working hours",
+      "tool": "Staff / working hours",
+      "route": "/portal/staff/hours",
+      "auth": true,
+      "actions": [
+        {
+          "op": "goto",
+          "path": "/portal/staff/hours"
+        },
+        {
+          "op": "waitFor",
+          "selector": "main h1"
+        },
+        {
+          "op": "wait",
+          "ms": 500
+        },
+        {
+          "op": "scroll",
+          "y": 400
+        }
+      ],
+      "vo": {
+        "en": "Working hours shows the center opening times and the rooms you can access.",
+        "ar": "ساعات العمل بتعرض مواعيد فتح الروضة والفصول اللي تقدر تدخلها."
+      }
+    },
+    {
+      "id": "26-notifications",
+      "title": "Notifications",
+      "tool": "Notifications",
+      "route": "/portal/notifications",
+      "auth": true,
+      "actions": [
+        {
+          "op": "goto",
+          "path": "/portal/notifications"
+        },
+        {
+          "op": "waitFor",
+          "selector": "main h1"
+        },
+        {
+          "op": "wait",
+          "ms": 500
+        },
+        {
+          "op": "scroll",
+          "y": 450
+        }
+      ],
+      "vo": {
+        "en": "Notifications collects messages, reports, and activity. Open an item to jump straight to the child or the conversation.",
+        "ar": "الإشعارات بتجمع الرسائل والتقارير والأنشطة. افتح أي عنصر عشان تروح على طول للطفل أو المحادثة."
+      }
+    },
+    {
+      "id": "27-account",
+      "title": "Account settings",
+      "tool": "Account",
+      "route": "/portal/account",
+      "auth": true,
+      "actions": [
+        {
+          "op": "goto",
+          "path": "/portal/account"
+        },
+        {
+          "op": "waitFor",
+          "selector": "main h1"
+        },
+        {
+          "op": "wait",
+          "ms": 500
+        },
+        {
+          "op": "scroll",
+          "y": 600
+        },
+        {
+          "op": "scroll",
+          "y": 0
+        }
+      ],
+      "vo": {
+        "en": "In Account settings you can change your photo, your password, your app language, and your push notifications.",
+        "ar": "في إعدادات الحساب تقدر تغيّر صورتك، كلمة السر، لغة التطبيق، وإشعارات الموبايل."
+      }
+    },
+    {
+      "id": "28-wrap",
+      "title": "Close",
+      "tool": "Summary",
+      "route": "/portal/dashboard",
+      "auth": true,
+      "actions": [
+        {
+          "op": "goto",
+          "path": "/portal/dashboard"
+        },
+        {
+          "op": "waitFor",
+          "selector": "main h1"
+        },
+        {
+          "op": "wait",
+          "ms": 600
+        },
+        {
+          "op": "scroll",
+          "y": 350
+        },
+        {
+          "op": "scroll",
+          "y": 0
+        }
+      ],
+      "vo": {
+        "en": "That is the teacher workspace: every child, every daily record, and every message home, in one place.",
+        "ar": "دي مساحة المدرس: كل طفل، كل تقرير يومي، وكل رسالة للأهل، في مكان واحد."
+      }
+    }
+  ]
+}

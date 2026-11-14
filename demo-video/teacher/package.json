@@ -1,0 +1,25 @@
+{
+  "name": "kiddy-demo-video-teacher",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Deterministic teacher demo video: scene map, Playwright capture, voiceover assembly, captions.",
+  "scripts": {
+    "setup": "npm install --include=dev && node capture/setup.mjs",
+    "manifest": "node capture/build-manifest.mjs",
+    "scripts:render": "node capture/print-scripts.mjs",
+    "wavs:en": "python3 capture/gen-wavs.py --lang en",
+    "wavs:ar": "python3 capture/gen-wavs.py --lang ar",
+    "auth": "node capture/auth.mjs",
+    "record:en": "node capture/record.mjs --lang en",
+    "record:ar": "node capture/record.mjs --lang ar",
+    "assemble:en": "node capture/assemble.mjs --lang en",
+    "assemble:ar": "node capture/assemble.mjs --lang ar",
+    "check": "node capture/check.mjs"
+  },
+  "devDependencies": {
+    "ffmpeg-static": "^5.3.0",
+    "ffprobe-static": "^3.1.0",
+    "playwright": "^1.65.0"
+  }
+}

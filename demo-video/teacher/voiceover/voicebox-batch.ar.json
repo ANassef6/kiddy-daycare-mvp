@@ -1,0 +1,232 @@
+{
+  "schema": "kiddy.demo-video.voicebox-batch.v1",
+  "language": "ar-EG",
+  "direction": "rtl",
+  "note": "Synthesize each line locally in Voicebox with the board's own cloned voice. Never upload or store the voice sample with this repo.",
+  "lines": [
+    {
+      "id": "01-login",
+      "text": "دي شاشة المدرس في Kiddy. سجّل دخول بحساب الروضة اللي المدير ادّاه لك، والتطبيق هيفتح على لوحتك.",
+      "language": "ar-EG",
+      "scene": "01-login",
+      "out": "voiceover/wav/ar/01-login.wav",
+      "targetDurationSec": 8.6
+    },
+    {
+      "id": "02-dashboard",
+      "text": "لوحة التحكم هي بداية يومك. بتوريك الأطفال اللي في فصولك، مين حاضر دلوقتي، الموافقات المفتوحة، وآخر التقارير.",
+      "language": "ar-EG",
+      "scene": "02-dashboard",
+      "out": "voiceover/wav/ar/02-dashboard.wav",
+      "targetDurationSec": 8.6
+    },
+    {
+      "id": "03-children",
+      "text": "صفحة الأطفال بتعرض كل طفل في الفصول المسندة لك. دوّر بالاسم، فلتر بالحالة، أو افتح ملف الطفل.",
+      "language": "ar-EG",
+      "scene": "03-children",
+      "out": "voiceover/wav/ar/03-children.wav",
+      "targetDurationSec": 8.6
+    },
+    {
+      "id": "04-child-daily-report",
+      "text": "التقرير اليومي هو قلب ملف الطفل. اختار التاريخ، سجّل الأكل، المود، النوم، الحمام، وملاحظة، وبعدين احفظه للأهل.",
+      "language": "ar-EG",
+      "scene": "04-child-daily-report",
+      "out": "voiceover/wav/ar/04-child-daily-report.wav",
+      "targetDurationSec": 8.6
+    },
+    {
+      "id": "05-child-about",
+      "text": "تبويب عن الطفل بيعرض فصله، تاريخ ميلاده، الحساسية، وملاحظات الرعاية، عشان تعرف المهم قبل ما اليوم يبدأ.",
+      "language": "ar-EG",
+      "scene": "05-child-about",
+      "out": "voiceover/wav/ar/05-child-about.wav",
+      "targetDurationSec": 8.6
+    },
+    {
+      "id": "06-child-family",
+      "text": "تبويب الاستلام والعائلة فيه الأهل وجهات الاستلام، مع التليفون والإيميل وصلاحية الاستلام. المدير هو اللي بيتحكم في مين يستلم الطفل.",
+      "language": "ar-EG",
+      "scene": "06-child-family",
+      "out": "voiceover/wav/ar/06-child-family.wav",
+      "targetDurationSec": 10
+    },
+    {
+      "id": "07-child-media",
+      "text": "الوسائط بتحفظ الصور والفيديوهات اللي بتشاركها مع الأهل. ارفع من جهازك، والأهل هيشوفوها في التطبيق.",
+      "language": "ar-EG",
+      "scene": "07-child-media",
+      "out": "voiceover/wav/ar/07-child-media.wav",
+      "targetDurationSec": 7.7
+    },
+    {
+      "id": "08-child-documents",
+      "text": "المستندات والموافقات بتعرض طلبات الموافقة اللي اتبعتت للطفل ده، مع رد الأهل والتاريخ.",
+      "language": "ar-EG",
+      "scene": "08-child-documents",
+      "out": "voiceover/wav/ar/08-child-documents.wav",
+      "targetDurationSec": 6.8
+    },
+    {
+      "id": "09-child-schedules",
+      "text": "الجداول بتعرض جدول الطفل الأسبوعي، عشان تعرف هو بييجي إمتى والأنشطة المخططة إيه.",
+      "language": "ar-EG",
+      "scene": "09-child-schedules",
+      "out": "voiceover/wav/ar/09-child-schedules.wav",
+      "targetDurationSec": 6.8
+    },
+    {
+      "id": "10-child-learning",
+      "text": "سجل التعلّم بيجمع ملاحظاتك وتقييماتك للطفل ده في خط زمني واحد ترجع له وقت ما تحتاج.",
+      "language": "ar-EG",
+      "scene": "10-child-learning",
+      "out": "voiceover/wav/ar/10-child-learning.wav",
+      "targetDurationSec": 8.2
+    },
+    {
+      "id": "11-child-incidents",
+      "text": "الحوادث والإصابات بتعرض كل حادثة مرتبطة بالطفل، مع اللي حصل، مين بلّغ، وهل الأهل اعترفوا بالحادثة.",
+      "language": "ar-EG",
+      "scene": "11-child-incidents",
+      "out": "voiceover/wav/ar/11-child-incidents.wav",
+      "targetDurationSec": 8.2
+    },
+    {
+      "id": "12-attendance",
+      "text": "الحضور هو دفتر فصلك. اختار اليوم، فلتر بالفصل، دوّر على الطفل، وبعدين سجّل حضوره أو خروجه. أزرار الأتوبيس بتوريك مين راكب.",
+      "language": "ar-EG",
+      "scene": "12-attendance",
+      "out": "voiceover/wav/ar/12-attendance.wav",
+      "targetDurationSec": 10.4
+    },
+    {
+      "id": "13-consents",
+      "text": "ابعت طلب موافقة لطفل واحد أو للفصل كله. قائمة الموافقات بتوريك مين وافق، مين رفض، ومين لسه ما ردش.",
+      "language": "ar-EG",
+      "scene": "13-consents",
+      "out": "voiceover/wav/ar/13-consents.wav",
+      "targetDurationSec": 9.5
+    },
+    {
+      "id": "14-incidents",
+      "text": "صفحة الحوادث بتعرض التقارير الخاصة بفصولك. افتح تقرير عشان تقرا التفاصيل وتشوف الأهل اعترفوا ولا لسه.",
+      "language": "ar-EG",
+      "scene": "14-incidents",
+      "out": "voiceover/wav/ar/14-incidents.wav",
+      "targetDurationSec": 8.2
+    },
+    {
+      "id": "15-newsfeed",
+      "text": "صفحة الأخبار هي طريقة كلامك مع الأهل. اكتب بوست، اختار طفل أو فصل أو كل الأهل، ضيف صورة، وانشر.",
+      "language": "ar-EG",
+      "scene": "15-newsfeed",
+      "out": "voiceover/wav/ar/15-newsfeed.wav",
+      "targetDurationSec": 9.5
+    },
+    {
+      "id": "16-messages",
+      "text": "الرسائل هي صندوقك الخاص. ابدأ محادثة مع ولي أمر أو فصل، ارفق ملف، وخلي كل الردود في مكان واحد.",
+      "language": "ar-EG",
+      "scene": "16-messages",
+      "out": "voiceover/wav/ar/16-messages.wav",
+      "targetDurationSec": 9.5
+    },
+    {
+      "id": "17-calendar",
+      "text": "التقويم بيعرض فعاليات الروضة والرحلات الشهر ده، مع الوسائط اللي اتشاركت لكل فعالية.",
+      "language": "ar-EG",
+      "scene": "17-calendar",
+      "out": "voiceover/wav/ar/17-calendar.wav",
+      "targetDurationSec": 6.8
+    },
+    {
+      "id": "18-events",
+      "text": "اعمل فعالية من صفحة الفعاليات. ضيف العنوان، التاريخ، الوقت، المكان، والأهل اللي المفروض يشوفوها.",
+      "language": "ar-EG",
+      "scene": "18-events",
+      "out": "voiceover/wav/ar/18-events.wav",
+      "targetDurationSec": 7.3
+    },
+    {
+      "id": "19-drive",
+      "text": "الملفات المشتركة بتشارك ملف مع أسرة واحدة أو مع كل الأسر. ارفعه مرة واحدة، وهيظهر في تطبيق الأهل.",
+      "language": "ar-EG",
+      "scene": "19-drive",
+      "out": "voiceover/wav/ar/19-drive.wav",
+      "targetDurationSec": 9.1
+    },
+    {
+      "id": "20-learning",
+      "text": "التطوّر هو مكان تسجيل تطور الطفل. اختار طفل، اختار مجال من المنهج، اكتب اللي شوفته، وضيفه لسجله.",
+      "language": "ar-EG",
+      "scene": "20-learning",
+      "out": "voiceover/wav/ar/20-learning.wav",
+      "targetDurationSec": 8.6
+    },
+    {
+      "id": "21-activities",
+      "text": "الأنشطة للجزء الممتع من اليوم. اعمل نشاط بوقت ومكان وجمهور، والأهل هيوصلهم التحديث.",
+      "language": "ar-EG",
+      "scene": "21-activities",
+      "out": "voiceover/wav/ar/21-activities.wav",
+      "targetDurationSec": 6.8
+    },
+    {
+      "id": "22-homework",
+      "text": "الواجبات بتخليك تسند مهمة لطفل أو للفصل كله، بموعد تسليم وتعليمات واضحة.",
+      "language": "ar-EG",
+      "scene": "22-homework",
+      "out": "voiceover/wav/ar/22-homework.wav",
+      "targetDurationSec": 6.4
+    },
+    {
+      "id": "23-staff-profile",
+      "text": "ملف الموظف بيعرض دورك، فصولك، وبيانات التواصل. المدير هو اللي بيحدّث قائمة الفريق.",
+      "language": "ar-EG",
+      "scene": "23-staff-profile",
+      "out": "voiceover/wav/ar/23-staff-profile.wav",
+      "targetDurationSec": 6.8
+    },
+    {
+      "id": "24-staff-schedule",
+      "text": "جدول الموظفين بيعرض شيفتاتك الأسبوعية، عشان تعرف دايماً إمتى المفروض تكون في فصلك.",
+      "language": "ar-EG",
+      "scene": "24-staff-schedule",
+      "out": "voiceover/wav/ar/24-staff-schedule.wav",
+      "targetDurationSec": 6.8
+    },
+    {
+      "id": "25-working-hours",
+      "text": "ساعات العمل بتعرض مواعيد فتح الروضة والفصول اللي تقدر تدخلها.",
+      "language": "ar-EG",
+      "scene": "25-working-hours",
+      "out": "voiceover/wav/ar/25-working-hours.wav",
+      "targetDurationSec": 6
+    },
+    {
+      "id": "26-notifications",
+      "text": "الإشعارات بتجمع الرسائل والتقارير والأنشطة. افتح أي عنصر عشان تروح على طول للطفل أو المحادثة.",
+      "language": "ar-EG",
+      "scene": "26-notifications",
+      "out": "voiceover/wav/ar/26-notifications.wav",
+      "targetDurationSec": 7.7
+    },
+    {
+      "id": "27-account",
+      "text": "في إعدادات الحساب تقدر تغيّر صورتك، كلمة السر، لغة التطبيق، وإشعارات الموبايل.",
+      "language": "ar-EG",
+      "scene": "27-account",
+      "out": "voiceover/wav/ar/27-account.wav",
+      "targetDurationSec": 6.4
+    },
+    {
+      "id": "28-wrap",
+      "text": "دي مساحة المدرس: كل طفل، كل تقرير يومي، وكل رسالة للأهل، في مكان واحد.",
+      "language": "ar-EG",
+      "scene": "28-wrap",
+      "out": "voiceover/wav/ar/28-wrap.wav",
+      "targetDurationSec": 7.3
+    }
+  ]
+}
