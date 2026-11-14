@@ -2686,12 +2686,13 @@ export async function submitContactAction(formData: FormData) {
     console.error("submitContactAction failed:", err);
     redirect("/contact?error=server");
   }
-  // KID-238: best-effort notification of the new inquiry to the platform
-  // contact inbox through the existing shared mail path. Record + continue:
-  // the visitor's submission must never block or fail on delivery, and the
-  // outcome lands on the row (email_sent_at / email_error) either way. The
-  // inner guard is belt-and-braces so a contract regression in the notifier
-  // can never turn a saved request into a fake server error.
+  // KID-238 / KID-2407: best-effort notification of the new inquiry to the
+  // platform team through the existing shared mail path (the hidden
+  // delivery address, never the displayed public contact address).
+  // Record + continue: the visitor's submission must never block or fail on
+  // delivery, and the outcome lands on the row (email_sent_at / email_error)
+  // either way. The inner guard is belt-and-braces so a contract regression in
+  // the notifier can never turn a saved request into a fake server error.
   try {
     const { notifyPlatformInbox } = await import("@/lib/contact-notify");
     const { recordContactMailAttempt } = await import("@/lib/store");
@@ -2701,7 +2702,7 @@ export async function submitContactAction(formData: FormData) {
       error: outcome.status === "sent" ? undefined : outcome.detail,
     });
   } catch (err) {
-    console.error(`KID-238: contact notification failed for request ${String(saved?.id)}:`, err);
+    console.error(`KID-2407: contact notification failed for request ${String(saved?.id)}:`, err);
   }
   redirect("/contact?sent=1");
 }
