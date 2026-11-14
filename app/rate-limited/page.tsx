@@ -35,7 +35,7 @@ export default async function RateLimitedPage() {
         <h1>{t("security.rateLimited")}</h1>
         <p className="subtitle">
           {locale === "ar"
-            ? "وصلتَ إلى حد إرسال الطلبات المسموح به لحظيًا لحماية المركز من الإساءة. حاول مرة أخرى بعد قليل."
+            ? "وصلت إلى الحد المؤقت المسموح به لإرسال الطلبات، لحماية المنصة من إساءة الاستخدام. حاول مرة أخرى بعد قليل."
             : "You've reached a temporary request limit that protects the platform from abuse. Try again in a little while."}
         </p>
         <Link className="btn" href={backPath}>
