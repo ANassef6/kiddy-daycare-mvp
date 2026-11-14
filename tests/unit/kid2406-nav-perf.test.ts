@@ -18,6 +18,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { NextRequest } from "next/server";
 import {
+  EDGE_CACHE_CONTROL,
   LANG_OVERRIDE_HEADER,
   MARKETING_CACHE_CONTROL,
   PUBLIC_PAGE_HEADER,
@@ -59,6 +60,10 @@ describe("KID-2406: marketing HTML is CDN-cacheable", () => {
     const res = middleware(request("http://kiddy.test/features"));
     expect(res.status).toBe(200);
     expect(res.headers.get("cache-control")).toBe(MARKETING_CACHE_CONTROL);
+    // Next overwrites Cache-Control for a dynamic render; the CDN-specific
+    // headers are what Vercel (and Cloudflare) actually honour.
+    expect(res.headers.get("cdn-cache-control")).toBe(EDGE_CACHE_CONTROL);
+    expect(res.headers.get("vercel-cdn-cache-control")).toBe(EDGE_CACHE_CONTROL);
     expect(res.headers.get("set-cookie")).toBeNull();
     const rewrites = rewrittenHeaders(res);
     expect(rewrites[PUBLIC_PAGE_HEADER]).toBe("1");
@@ -74,6 +79,8 @@ describe("KID-2406: marketing HTML is CDN-cacheable", () => {
     );
     expect(res.status).toBe(200);
     expect(res.headers.get("cache-control")).toBe(MARKETING_CACHE_CONTROL);
+    expect(res.headers.get("cdn-cache-control")).toBe(EDGE_CACHE_CONTROL);
+    expect(res.headers.get("vercel-cdn-cache-control")).toBe(EDGE_CACHE_CONTROL);
     expect(res.headers.get("set-cookie")).toBeNull();
     const rewrites = rewrittenHeaders(res);
     expect(rewrites[LANG_OVERRIDE_HEADER]).toBe("ar");
@@ -88,6 +95,7 @@ describe("KID-2406: marketing HTML is CDN-cacheable", () => {
     const res = middleware(request("http://kiddy.test/?lang=ar"));
     expect(res.headers.get("set-cookie")).toBeNull();
     expect(res.headers.get("cache-control")).toBe(MARKETING_CACHE_CONTROL);
+    expect(res.headers.get("cdn-cache-control")).toBe(EDGE_CACHE_CONTROL);
   });
 
   it("does not cache or rewrite non-marketing routes", () => {

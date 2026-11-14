@@ -54,8 +54,16 @@ export const PUBLIC_PATH_HEADER = "x-kiddy-public-path";
 // changes; a deploy purges the CDN cache automatically, and the 5-minute
 // window bounds any other staleness. Browsers are asked to revalidate
 // (max-age=0) so a deployment reaches them immediately.
-export const MARKETING_CACHE_CONTROL =
-  "public, max-age=0, s-maxage=300, stale-while-revalidate=86400";
+export const MARKETING_CACHE_CONTROL = "public, max-age=0, must-revalidate";
+
+// Next.js derives the browser/edge Cache-Control from the route's rendering
+// mode and overwrites what middleware sets for a dynamic page (`headers()` /
+// `cookies()` make it dynamic), which is exactly the private, no-store default
+// we saw on the first preview. Vercel documents CDN-specific headers as taking
+// precedence over that private value; Cloudflare also honours CDN-Cache-Control
+// (it fronts kiddyapp.net). Vercel-CDN-Cache-Control is used by Vercel and is
+// not forwarded to the browser.
+export const EDGE_CACHE_CONTROL = "public, s-maxage=300, stale-while-revalidate=86400";
 
 function cookieLocale(request: NextRequest): "en" | "ar" | null {
   // LAST duplicate wins, same shadow-proof rule resolveSiteLocale uses.
@@ -106,6 +114,8 @@ export function middleware(request: NextRequest) {
     // host branding (never session branding) and the locale comes from the
     // URL override above. It is therefore safe to share in the CDN cache.
     response.headers.set("Cache-Control", MARKETING_CACHE_CONTROL);
+    response.headers.set("CDN-Cache-Control", EDGE_CACHE_CONTROL);
+    response.headers.set("Vercel-CDN-Cache-Control", EDGE_CACHE_CONTROL);
   }
   return response;
 }
