@@ -76,7 +76,8 @@ describe("KID-306: Chatwoot widget is env-gated", () => {
       }).props;
       expect(props.id).toBe("kiddy-chatwoot-widget");
       expect(props.src).toBe("https://chat.example/packs/js/sdk.js");
-      expect(props.strategy).toBe("afterInteractive");
+      // KID-2406: deferred until the browser is idle — never render-critical.
+      expect(props.strategy).toBe("lazyOnload");
       expect(typeof props.onLoad).toBe("function");
     });
   });

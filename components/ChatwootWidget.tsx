@@ -15,7 +15,7 @@
 // conversation to the same Chatwoot contact the server pre-creates at account
 // creation, so support sees the Kiddy name/email/role/daycare/children.
 
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import Script from "next/script";
 
@@ -170,13 +170,16 @@ export function runChatwootSdk(
   win.chatwootSDK?.run(options);
 }
 
-/** The load-once script element, separated so tests can inspect its props. */
+/** The load-once script element, separated so tests can inspect its props.
+ *  KID-2406: lazyOnload defers the third-party SDK until the browser is idle
+ *  after the page load, so it no longer competes with the landing page's
+ *  critical JS for bandwidth and the main thread. */
 export function ChatwootScript({ onLoad }: { onLoad: () => void }) {
   return (
     <Script
       id="kiddy-chatwoot-widget"
       src={`${BASE_URL}/packs/js/sdk.js`}
-      strategy="afterInteractive"
+      strategy="lazyOnload"
       onLoad={onLoad}
     />
   );
@@ -185,6 +188,8 @@ export function ChatwootScript({ onLoad }: { onLoad: () => void }) {
 export default function ChatwootWidget() {
   const pathname = usePathname();
   const identityRef = useRef<ChatwootIdentity | null>(null);
+  // KID-2406: nothing is fetched until the deferred SDK actually loads.
+  const [sdkLoaded, setSdkLoaded] = useState(false);
 
   const applyIdentity = useCallback(() => {
     if (typeof window === "undefined") return;
@@ -197,8 +202,11 @@ export default function ChatwootWidget() {
   // changes apply without a hard reload (the SDK itself only runs once).
   // KID-475: the same navigation points also (re-)apply the launcher-bubble
   // visibility for the current route.
+  // KID-2406: gated on sdkLoaded — the identity request and bubble work start
+  // only once the lazy SDK is live, so a visitor who never opens the widget
+  // pays for neither the SDK nor an identity fetch during page load.
   useEffect(() => {
-    if (!BASE_URL || !WEBSITE_TOKEN) return;
+    if (!BASE_URL || !WEBSITE_TOKEN || !sdkLoaded) return;
     let cancelled = false;
     const loadIdentity = async () => {
       try {
@@ -217,7 +225,7 @@ export default function ChatwootWidget() {
     return () => {
       cancelled = true;
     };
-  }, [pathname, applyIdentity]);
+  }, [pathname, sdkLoaded, applyIdentity]);
 
   if (!BASE_URL || !WEBSITE_TOKEN) return null;
 
@@ -227,11 +235,11 @@ export default function ChatwootWidget() {
   const run = () => {
     if (typeof window === "undefined") return;
     runChatwootSdk(window, { websiteToken: WEBSITE_TOKEN, baseUrl: BASE_URL });
-    // The identity fetch may have finished before the SDK loaded.
-    applyIdentity();
-    // ...and the initial route may already be a messaging surface, so start
-    // the schedule right after the SDK is live (its DOM is still building).
+    // The initial route may already be a messaging surface, so start the
+    // schedule right after the SDK is live (its DOM is still building).
     scheduleChatwootBubbleVisibility(pathname);
+    // Flips the gated effect above: identity + navigation plumbing begin now.
+    setSdkLoaded(true);
   };
 
   return <ChatwootScript onLoad={run} />;

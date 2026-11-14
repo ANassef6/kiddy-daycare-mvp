@@ -280,7 +280,8 @@ describe("KID-2072: GET /switch-lang handles the switch on the server", () => {
   it("sets both language cookies and redirects (303) back to the preserved path + query", async () => {
     const res = await call("http://kiddy.test/switch-lang?lang=ar&next=%2Fcontact%3Fa%3D1%26b%3D2");
     expect(res.status).toBe(303);
-    expect(res.headers.get("location")).toBe("/contact?a=1&b=2");
+    // KID-2406: the Arabic variant lives at a distinct, CDN-cacheable URL.
+    expect(res.headers.get("location")).toBe("/contact?a=1&b=2&lang=ar");
     const setCookie = res.headers.getSetCookie?.() ?? [res.headers.get("set-cookie") ?? ""];
     const all = setCookie.join(" | ");
     expect(all).toContain("kiddy_site_lang=ar");
@@ -308,7 +309,8 @@ describe("KID-2072: GET /switch-lang handles the switch on the server", () => {
         `http://kiddy.test/switch-lang?lang=ar&next=${encodeURIComponent(next)}`
       );
       expect(res.status).toBe(303);
-      expect(res.headers.get("location")).toBe("/");
+      // Still same-origin only; KID-2406 adds the cacheable language marker.
+      expect(res.headers.get("location")).toBe("/?lang=ar");
     }
   });
 
@@ -331,7 +333,7 @@ describe("KID-2072: GET /switch-lang handles the switch on the server", () => {
   it("no next at all: safe default back to /", async () => {
     const res = await call("http://kiddy.test/switch-lang?lang=ar");
     expect(res.status).toBe(303);
-    expect(res.headers.get("location")).toBe("/");
+    expect(res.headers.get("location")).toBe("/?lang=ar");
     expect(res.headers.get("set-cookie")).toContain("kiddy_site_lang=ar");
   });
 });

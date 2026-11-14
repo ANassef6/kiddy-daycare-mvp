@@ -17,7 +17,7 @@
 // open redirect.
 import { NextResponse, type NextRequest } from "next/server";
 import { LANG_COOKIE } from "@/lib/i18n";
-import { SITE_LANG_COOKIE, localeFromParam, safeNextPath } from "@/lib/site-lang";
+import { SITE_LANG_COOKIE, localeFromParam, safeNextPath, withLang } from "@/lib/site-lang";
 
 const COOKIE_OPTIONS = { path: "/", maxAge: 31536000, sameSite: "lax" as const };
 
@@ -31,7 +31,10 @@ export function GET(request: NextRequest) {
     // No/unknown lang: a plain bounce back — the existing preference stands.
     return new NextResponse(null, { status: 303, headers: { Location: next } });
   }
-  const response = new NextResponse(null, { status: 303, headers: { Location: next } });
+  // KID-2406: land directly on the cacheable Arabic URL instead of bouncing
+  // through the middleware redirect on the next request.
+  const target = lang === "ar" ? withLang(next, "ar") : next;
+  const response = new NextResponse(null, { status: 303, headers: { Location: target } });
   response.cookies.set(SITE_LANG_COOKIE, lang, COOKIE_OPTIONS);
   response.cookies.set(LANG_COOKIE, lang, COOKIE_OPTIONS);
   return response;

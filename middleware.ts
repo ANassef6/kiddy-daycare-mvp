@@ -20,9 +20,20 @@
 //   - Set-Cookie for the ?lang value (kiddy_site_lang + the legacy
 //     kiddy_lang, same value) — best-effort persistence for app surfaces
 //     that still read kiddy_lang.
+//
+// KID-2406: the marketing pages are now CDN-cacheable. A CDN cache key is the
+// URL (cookies are deliberately excluded by Vercel), so the locale must be in
+// the URL: Arabic rides ?lang=ar, English stays on the clean path, and a
+// visitor whose cookie says Arabic is redirected (307) from the clean URL to
+// the Arabic URL once per navigation. The response that actually renders HTML
+// is marked cacheable for a short edge TTL; a first explicit ?lang request
+// still writes the language cookie, and per the CDN rules a Set-Cookie
+// response is simply not stored — the next request carries the cookie and
+// takes the cacheable path. Internal links call withLang() so Arabic visitors
+// do not pay that redirect on every click.
 import { NextResponse, type NextRequest } from "next/server";
 import { LANG_COOKIE } from "@/lib/i18n";
-import { SITE_LANG_COOKIE, localeFromParam } from "@/lib/site-lang";
+import { SITE_LANG_COOKIE, lastCookieValue, localeFromParam } from "@/lib/site-lang";
 
 export const PUBLIC_MARKETING_PATHS = [
   "/",
@@ -38,11 +49,27 @@ export const PUBLIC_PAGE_HEADER = "x-kiddy-public-page";
 export const LANG_OVERRIDE_HEADER = "x-kiddy-lang-override";
 export const PUBLIC_PATH_HEADER = "x-kiddy-public-path";
 
+// KID-2406: short edge TTL, long stale-while-revalidate. Marketing copy rarely
+// changes; a deploy purges the CDN cache automatically, and the 5-minute
+// window bounds any other staleness. Browsers are asked to revalidate
+// (max-age=0) so a deployment reaches them immediately.
+export const MARKETING_CACHE_CONTROL =
+  "public, max-age=0, s-maxage=300, stale-while-revalidate=86400";
+
 const LANG_COOKIE_OPTIONS = {
   path: "/",
   maxAge: 31536000,
   sameSite: "lax" as const,
 };
+
+function cookieLocale(request: NextRequest): "en" | "ar" | null {
+  // LAST duplicate wins, same shadow-proof rule resolveSiteLocale uses.
+  const raw = request.headers.get("cookie");
+  return (
+    localeFromParam(lastCookieValue(raw, SITE_LANG_COOKIE)) ??
+    localeFromParam(lastCookieValue(raw, LANG_COOKIE))
+  );
+}
 
 export function middleware(request: NextRequest) {
   const path = request.nextUrl.pathname.replace(/\/+$/, "") || "/";
@@ -50,11 +77,22 @@ export function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
+  const searchParams = request.nextUrl.searchParams;
+  const requestedLang = localeFromParam(searchParams.get("lang"));
+  const isRead = request.method === "GET" || request.method === "HEAD";
+
+  // KID-2406: normalize the Arabic URL so the CDN caches one variant per
+  // language. An explicit valid ?lang always wins; otherwise the stored site
+  // language decides. 307 keeps the method (GET/HEAD here) and the query.
+  if (isRead && requestedLang !== "ar" && cookieLocale(request) === "ar") {
+    const url = request.nextUrl.clone();
+    url.searchParams.set("lang", "ar");
+    return NextResponse.redirect(url, 307);
+  }
+
   const headers = new Headers(request.headers);
   headers.set(PUBLIC_PAGE_HEADER, "1");
 
-  const searchParams = request.nextUrl.searchParams;
-  const lang = localeFromParam(searchParams.get("lang"));
   if (searchParams.has("lang")) {
     searchParams.delete("lang");
   }
@@ -63,16 +101,26 @@ export function middleware(request: NextRequest) {
     PUBLIC_PATH_HEADER,
     search ? `${request.nextUrl.pathname}?${search}` : request.nextUrl.pathname
   );
-  if (lang) {
-    headers.set(LANG_OVERRIDE_HEADER, lang);
+  if (requestedLang) {
+    headers.set(LANG_OVERRIDE_HEADER, requestedLang);
   }
 
   const response = NextResponse.next({ request: { headers } });
-  if (lang) {
+
+  const storedLang = cookieLocale(request);
+  const langMatchesCookie = requestedLang !== null && requestedLang === storedLang;
+  if (isRead && (!requestedLang || langMatchesCookie)) {
+    // No cookie write below: this response is safe to share in the CDN cache
+    // for this host + URL (the layout renders host branding, never session
+    // branding, on the public pages).
+    response.headers.set("Cache-Control", MARKETING_CACHE_CONTROL);
+  }
+  if (requestedLang && !langMatchesCookie) {
     // Best-effort persistence; the override header already covers this
-    // request even when the browser refuses the cookies.
-    response.cookies.set(SITE_LANG_COOKIE, lang, LANG_COOKIE_OPTIONS);
-    response.cookies.set(LANG_COOKIE, lang, LANG_COOKIE_OPTIONS);
+    // request even when the browser refuses the cookies. The Set-Cookie
+    // response is intentionally not CDN-cacheable.
+    response.cookies.set(SITE_LANG_COOKIE, requestedLang, LANG_COOKIE_OPTIONS);
+    response.cookies.set(LANG_COOKIE, requestedLang, LANG_COOKIE_OPTIONS);
   }
   return response;
 }

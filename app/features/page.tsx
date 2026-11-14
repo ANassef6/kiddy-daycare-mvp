@@ -4,6 +4,7 @@ import SiteFooter from "@/components/SiteFooter";
 import SiteReveal from "@/components/SiteReveal";
 import { SITE_BRAND } from "@/lib/site";
 import { siteContext } from "@/lib/site-i18n";
+import { withLang } from "@/lib/site-lang";
 
 // KID-1826: every rendered string is localized (site.features.*).
 // KID-2077: data-reveal / data-reveal-stagger drive the once-per-load scroll
@@ -50,10 +51,10 @@ export default async function FeaturesPage() {
                 {t("site.features.ctaSub")}
               </p>
               <div className="row mt-3">
-                <Link className="btn btn-deep btn-lg" href="/contact">
+                <Link className="btn btn-deep btn-lg" href={withLang("/contact", locale)}>
                   {t("site.features.ctaBook")}
                 </Link>
-                <Link className="btn btn-ghost btn-lg" href="/for-centers">
+                <Link className="btn btn-ghost btn-lg" href={withLang("/for-centers", locale)}>
                   {t("site.features.ctaCenters")}
                 </Link>
               </div>
