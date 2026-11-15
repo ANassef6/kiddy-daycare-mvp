@@ -3,21 +3,31 @@ import { listForms, formResponses } from "@/lib/store";
 import { firstInstituteId, safeJson } from "@/lib/helpers";
 import { createFormAction } from "@/lib/actions";
 import { recordToolUsage } from "@/lib/tool-usage";
+import { i18nForAccount } from "@/lib/i18n-session";
+import { tr } from "@/lib/i18n";
 
 export const dynamic = "force-dynamic";
 
-export default async function PortalSurveysPage({ searchParams }: { searchParams: Promise<{ view?: string }> }) {
+export default async function PortalSurveysPage({ searchParams }: { searchParams: Promise<{ view?: string; error?: string }> }) {
   const session = await requireSession();
+  const { dict } = await i18nForAccount(session.accountId);
+  const params = await searchParams;
+  const formError = params.error === "formTitle" ? tr(dict, "forms.errorTitleRequired") : "";
   const instituteId = await firstInstituteId();
   if (!instituteId) return <p className="muted">No institute configured.</p>;
   await recordToolUsage({ instituteId: String(instituteId ?? "") || null, accountId: session.accountId, toolKey: "surveys", source: "portal", metadata: null });
   const surveys = await listForms(instituteId, "survey");
-  const viewId = (await searchParams).view;
+  const viewId = params.view;
   const active = surveys.find((f: any) => f.id === viewId);
   const responses = active ? await formResponses(active.id) : [];
 
   return (
     <div>
+      {formError && (
+        <div className="card mb-3" role="alert" style={{ borderLeft: "4px solid #b45309" }}>
+          <strong>{formError}</strong>
+        </div>
+      )}
       <h1 className="title">Surveys</h1>
       <p className="subtitle">
         Create surveys and read their responses right here — no need to visit the Smart form tab.

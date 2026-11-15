@@ -65,6 +65,8 @@ export default async function PortalChildPage(
   const session = await requireSession();
   const { locale, dict } = await i18nForAccount(session.accountId);
   const t = (key: string, vars?: Record<string, string | number>) => tr(dict, key, vars);
+  // KID-2413 bug 7: the incident form refuses an empty description server-side.
+  const incidentDescriptionError = searchParams.error === "incidentDescription";
   const child = await getChild(params.id);
   if (!child) notFound();
   // KID-103: direct URLs to out-of-scope children are hidden.
@@ -189,7 +191,7 @@ export default async function PortalChildPage(
     {
       id: "incident",
       label: t("profile.incidentsAndAccidents"),
-      node: incidentsTab(child, incidents, dict, locale),
+      node: incidentsTab(child, incidents, dict, locale, incidentDescriptionError),
     },
   ];
 
@@ -728,7 +730,7 @@ function learningTab(child: any, areas: any[], observations: any[], byName: stri
   );
 }
 
-function incidentsTab(child: any, incidents: any[], dict: any, locale: Locale) {
+function incidentsTab(child: any, incidents: any[], dict: any, locale: Locale, incidentDescriptionError: boolean) {
   const t = (key: string, vars?: Record<string, string | number>) => tr(dict, key, vars);
   return (
     <div className="grid">
@@ -753,6 +755,11 @@ function incidentsTab(child: any, incidents: any[], dict: any, locale: Locale) {
       </div>
       <div className="card">
         <h3 className="subtitle">{t("profile.logIncidentTitle")}</h3>
+        {incidentDescriptionError && (
+          <div className="mb-3" role="alert" style={{ borderLeft: "4px solid #b45309", paddingInlineStart: 10 }}>
+            <strong>{t("profile.incidentDescriptionRequired")}</strong>
+          </div>
+        )}
         <form action={createIncidentAction}>
           <input type="hidden" name="childId" value={child.id as string} />
           <div className="field"><label className="label">{t("profile.type")}</label>

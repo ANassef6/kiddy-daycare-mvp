@@ -4,6 +4,8 @@ import { listForms, formResponses, formResponseStatusCounts, formResponsesForIns
 import { firstInstituteId, cap } from "@/lib/helpers";
 import { createFormAction, generateFormShareLinkAction, setFormResponseStatusAction } from "@/lib/actions";
 import { recordToolUsage } from "@/lib/tool-usage";
+import { i18nForAccount } from "@/lib/i18n-session";
+import { tr } from "@/lib/i18n";
 
 export const dynamic = "force-dynamic";
 
@@ -13,11 +15,13 @@ function stripHtml(v: unknown): string {
 
 export default async function PortalFormsPage(
   props: {
-    searchParams: Promise<{ view?: string; q?: string; status?: string; type?: string; form?: string }>;
+    searchParams: Promise<{ view?: string; q?: string; status?: string; type?: string; form?: string; error?: string }>;
   }
 ) {
   const searchParams = await props.searchParams;
   const session = await requireSession();
+  const { dict } = await i18nForAccount(session.accountId);
+  const formError = searchParams.error === "formTitle" ? tr(dict, "forms.errorTitleRequired") : "";
   const instituteId = await firstInstituteId();
   if (!instituteId) return <p className="muted">No institute configured.</p>;
   await recordToolUsage({ instituteId: String(instituteId ?? "") || null, accountId: session.accountId, toolKey: "forms", source: "portal", metadata: null });
@@ -206,6 +210,11 @@ export default async function PortalFormsPage(
 
   return (
     <div>
+      {formError && (
+        <div className="card mb-3" role="alert" style={{ borderLeft: "4px solid #b45309" }}>
+          <strong>{formError}</strong>
+        </div>
+      )}
       <div className="row" style={{ justifyContent: "space-between", alignItems: "center" }}>
         <div>
           <h1 className="title" style={{ marginBottom: 0 }}>Forms, lists &amp; surveys</h1>

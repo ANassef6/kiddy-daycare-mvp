@@ -368,6 +368,7 @@ export const en = {
     kindForm: "Form",
     kindSurvey: "Survey",
     kindList: "List / sign-up",
+    errorTitleRequired: "Enter a title before saving. Nothing was created.",
   },
   // KID-368 (DEF-004): /child/consents strings. Consent status badges carry
   // the exact DB enum (pending | approved | denied) — the page bakes each
@@ -688,6 +689,7 @@ export const en = {
     noActivity: "No recent activity.",
   },
   profile: {
+    incidentDescriptionRequired: "Describe the incident before logging it. Nothing was created.",
     backToChildren: "Children",
     room: "Room: {room}",
     dob: "DOB {date}",
@@ -2011,6 +2013,7 @@ export const ar = {
     kindForm: "نموذج",
     kindSurvey: "استبيان",
     kindList: "قائمة / تسجيل",
+    errorTitleRequired: "أدخل عنوانًا قبل الحفظ. لم يتم إنشاء أي شيء.",
   },
   consents: {
     title: "الموافقات والأذونات",
@@ -2319,6 +2322,7 @@ export const ar = {
     noActivity: "لا يوجد نشاط حديث.",
   },
   profile: {
+    incidentDescriptionRequired: "صِف الحادث قبل تسجيله. لم يتم إنشاء أي شيء.",
     backToChildren: "الأطفال",
     room: "الفصل: {room}",
     dob: "تاريخ الميلاد {date}",

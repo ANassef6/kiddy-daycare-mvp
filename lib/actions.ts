@@ -1653,12 +1653,23 @@ export async function createIncidentAction(formData: FormData) {
   const instituteId = await firstInstituteId();
   const childId = String(formData.get("childId") ?? "");
   if (childId) await assertChildInScope(childId, me);
+  // KID-2413 bug 7: an empty description used to create a blank incident
+  // (HTML5 `required` is not validation). Reject before writing and surface
+  // the localized message on the child page.
+  const description = String(formData.get("description") ?? "").trim();
+  if (!description) {
+    redirect(
+      childId
+        ? `/portal/children/${childId}?error=incidentDescription`
+        : "/portal/children?error=incidentDescription"
+    );
+  }
   const incident = await createIncident({
     instituteId,
     childId,
     accountId: me.accountId,
     type: String(formData.get("type") ?? "incident"),
-    description: String(formData.get("description") ?? ""),
+    description,
   });
   // KID-477: reported incidents are on the trail (type only — the
   // description stays inside the incident record).
@@ -2798,8 +2809,18 @@ export async function addEventMediaAction(formData: FormData) {
 export async function createFormAction(formData: FormData) {
   const me = await authAccount();
   const instituteId = await requireInstitute();
-  const title = String(formData.get("title") ?? "");
+  const title = String(formData.get("title") ?? "").trim();
   const kind = String(formData.get("kind") ?? "form");
+  // KID-52 #10: allow callers (e.g. the Surveys tab) to create forms/surveys
+  // without leaving their page — a relative returnTo wins over /portal/forms.
+  const rawReturnTo = String(formData.get("returnTo") ?? "/portal/forms");
+  const returnTo = rawReturnTo.startsWith("/portal/") ? rawReturnTo : "/portal/forms";
+  // KID-2413 bug 7: the empty-title path was a silent no-op. Refuse it
+  // server-side (nothing is created) and tell the caller in its language.
+  if (!title) {
+    const sep = returnTo.includes("?") ? "&" : "?";
+    redirect(`${returnTo}${sep}error=formTitle`);
+  }
   let fieldsJson = [];
   for (let i = 0; i < 20; i++) {
     const label = String(formData.get(`field_${i}_label`) ?? "").trim();
@@ -2834,10 +2855,6 @@ export async function createFormAction(formData: FormData) {
       });
     }
   }
-  // KID-52 #10: allow callers (e.g. the Surveys tab) to create forms/surveys
-  // without leaving their page — a relative returnTo wins over /portal/forms.
-  const rawReturnTo = String(formData.get("returnTo") ?? "/portal/forms");
-  const returnTo = rawReturnTo.startsWith("/portal/") ? rawReturnTo : "/portal/forms";
   redirect(returnTo);
 }
 
