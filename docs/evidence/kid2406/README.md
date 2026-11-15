@@ -1,9 +1,13 @@
 # KID-2406 — public navigation latency: edge cache, no DB on render, Frankfurt region
 
 Branch: `kid2406-nav-perf` (based on `origin/master` @ `c9d32ee`)
-Commits: `79acd42`, `5e04d81`, `4d46c5a`
+Commits: `79acd42`, `5e04d81`, `4d46c5a`, `7c6907b`
 Preview: https://kiddy-nl8y6lsm0-kiddy2.vercel.app — deployment `dpl_DGLKW4YCoXHY4cXWLnC7bHZLgKJ1`
 Inspector: https://vercel.com/kiddy2/kiddy/DGLKW4YCoXHY4cXWLnC7bHZLgKJ1
+Production: `master` fast-forward `c9d32ee..7c6907b` (board approval `e21822a7`,
+2026-11-14), deployed to `kiddyapp.net` — deployment
+`H84obz24gVQMUeUmkmVy5goD4iiy`. Post-cut numbers are in
+[Production cut](#production-cut-2026-11-14) below.
 
 The preview carries Vercel Authentication. Verification used the existing
 automation bypass created for KID-2072's review
@@ -89,6 +93,54 @@ Other verified behaviour:
 - Arabic copy is real, e.g. `/for-centers?lang=ar` title
   `للحضانات — أديروا اليوم من مكان واحد | Kiddy`.
 
+## Production cut (2026-11-14)
+
+Board approval `e21822a7-4810-41c6-ae6b-006d876b1563` was approved and the cut
+was `git push origin kid2406-nav-perf:master` — a clean fast-forward
+`c9d32ee..7c6907b` (no merge commit). The Vercel GitHub status for
+`Vercel – kiddy` reported `success` on `7c6907b`, and production
+`https://kiddyapp.net/` started serving the new deployment.
+
+Same runner as the preview table, requests through Cloudflare to the Paris edge
+POP. `x-vercel-id` now ends `::fra1` (previously `cdg1::iad1`).
+
+| | Production before (master `c9d32ee`) | Production after (`7c6907b`) |
+|---|---|---|
+| Function region | `cdg1::iad1` (US East) | `cdg1::fra1` (Frankfurt) |
+| HTML cache | `x-vercel-cache: MISS` every time, `cf-cache-status: DYNAMIC` | `MISS -> HIT`, `age` 1–37 s (then `STALE`/SWR after 300 s) |
+| `cdn-cache-control` | absent | `public, s-maxage=300, stale-while-revalidate=86400` |
+| Warm TTFB `/` (10 samples) | 0.37–0.43 s | **min 0.241 s, median 0.254 s, max 0.293 s** |
+| First request `/` | 3.30 s (cold start) | 0.45 s (cache MISS) |
+
+All five marketing routes cache: `/features`, `/for-centers`, `/for-parents`,
+`/contact` each returned `x-vercel-cache: MISS` on the first request and `HIT`
+(warm TTFB 0.24–0.29 s) on the second. `/?lang=ar` returns `200`,
+`<html lang="ar" dir="rtl">`, `cdn-cache-control` present, `MISS -> HIT`.
+
+Behaviour re-checked against production, identical to local/preview:
+
+- `GET /features?utm=1` + `kiddy_site_lang=ar` → `307 /features?utm=1&lang=ar`.
+- `GET /?lang=en` + `kiddy_site_lang=ar` → `200`, `<html lang="en" dir="ltr">`.
+- `GET /switch-lang?lang=ar` → `303 /?lang=ar` + both `Set-Cookie` values.
+- `/` with no cookie → `<html lang="en" dir="ltr">`.
+- The `polyfills-*.js` script tag is still emitted with `noModule`; production
+  modern-chunk download total is 369,547 B across 7 scripts (the same tree as
+  the preview table, measured through the live CDN).
+
+**TTFB target note.** The `< 200 ms` acceptance target was not reached from this
+runner: an empty 404 on a Vercel alias measures 0.243 s and a Cloudflare-cached
+static CSS asset measures 0.21–0.27 s, so ~0.21 s is this vantage's network floor.
+The warm HTML TTFB (0.24–0.25 s median) is therefore essentially at the floor; the
+edge-cache + Frankfurt move removed the origin render/DB cost, not the
+runner→edge RTT. A vantage closer to the edge (or Egypt/mobile field data
+post-launch) is the better way to confirm the user-visible improvement.
+
+**Cloudflare.** `cf-cache-status: DYNAMIC` on HTML in production: the Cloudflare
+zone still does not cache the marketing HTML, so only Vercel's edge cache is in
+play (`x-vercel-cache: HIT`). This matches the risk recorded on the approval. A
+Cloudflare Cache Rule for the five paths (Cache Eligible, respect
+`CDN-Cache-Control`) is the optional next step; it was not changed here.
+
 ## JavaScript
 
 Landing page, production build, scripts parsed from the served HTML:
@@ -137,18 +189,19 @@ the exact pooler region.
 
 ## Not done / follow-ups
 
-- **Production cut not performed.** Production deploys are GitHub pushes to
-  `master`; this needs board approval. After approval: `git push origin
-  kid2406-nav-perf:master` (or merge the branch) and re-run the preview checks on
-  `kiddyapp.net`.
-- PSI was unavailable (`429` daily quota for the shared keyless project) and
-  Lighthouse could not launch (Playwright Chromium is missing `libglib-2.0`), so
-  the evidence above uses raw TTFB + header/cache state. If PSI is required, run
-  it from the board side after the production cut.
+- PSI was still unavailable after the cut (`429` daily quota for the shared
+  keyless project) and Lighthouse could not launch (Playwright Chromium is missing
+  `libglib-2.0`), so the evidence above is raw TTFB + header/cache state. Run PSI
+  from the board side (or with a keyed project) when the quota resets.
 - Auth pages (`/login`, `/register`, password pages) remain dynamic: they read
   the session and their language toggle is cookie-based. They still benefit from
   the region move and the no-bootstrap/no-DB changes, but are not edge-cached.
-- Add a Cache Rule / confirm Cloudflare behaviour on `kiddyapp.net` after the cut.
-  `CDN-Cache-Control` is the right signal; if the zone has a Cache Everything
-  rule, HTML will cache at Cloudflare too.
+- Cloudflare does not cache the marketing HTML (`cf-cache-status: DYNAMIC`). To
+  add a second cache layer, create a Cloudflare Cache Rule for the five paths that
+  respects `CDN-Cache-Control`. Vercel's edge cache is already serving `HIT`.
 - Revoke the KID-2077/KID-2072 automation bypass at KID-2072's gate (not here).
+
+## Rollback
+
+Redeploy the pre-cut production deployment `c9d32ee` (the approval note records its
+production deployment id `7764919093`). No schema or data change is involved.
