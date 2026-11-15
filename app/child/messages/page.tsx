@@ -82,6 +82,7 @@ export default async function ParentMessagesPage(
 
   const i18n = await readPart("i18nForAccount", () => i18nForAccount(session.accountId));
   const dict = i18n.ok ? i18n.value.dict : FALLBACK_I18N.dict;
+  const locale = i18n.ok ? i18n.value.locale : FALLBACK_I18N.locale;
   if (!i18n.ok) failed.add("i18n");
   const t = (key: string, vars?: Record<string, string | number>) => tr(dict, key, vars);
 
@@ -298,7 +299,7 @@ export default async function ParentMessagesPage(
                       )}
                       {m.body}
                       <div className="small" style={{ opacity: 0.75, marginTop: 2 }}>
-                        {fmtTime(m.created_at)}
+                        {fmtTime(m.created_at, locale)}
                       </div>
                     </div>
                   </div>
@@ -360,7 +361,7 @@ export default async function ParentMessagesPage(
                     >
                       {m.body}
                       <div className="small" style={{ opacity: 0.75, marginTop: 2 }}>
-                        {fmtTime(m.created_at)}
+                        {fmtTime(m.created_at, locale)}
                       </div>
                     </div>
                   </div>

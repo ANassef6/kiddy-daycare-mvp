@@ -35,7 +35,16 @@ export type PickupTimeCode = "invalid_time" | "past" | "cross_day" | "outside_ho
 
 export type PickupTimeDecision =
   | { ok: true; at: Date }
-  | { ok: false; code: PickupTimeCode; error: string };
+  | {
+      ok: false;
+      code: PickupTimeCode;
+      error: string;
+      // KID-2413 bug 6: structured detail so callers can localize the message.
+      detail?: "before_open" | "after_close";
+      day?: string;
+      open?: string;
+      close?: string;
+    };
 
 /** The accepted request formats: ISO-8601 with T ("2026-11-11T15:30" in a
  *  datetime-local picker is local by definition) or a full ISO instant with
@@ -132,6 +141,7 @@ export function evaluatePickupTime(input: {
     return {
       ok: false,
       code: "closed_day",
+      day: key,
       error: `${dayLabelFor(key)} is a closed day — times cannot be registered on a day the center is closed.`,
     };
   }
@@ -144,6 +154,9 @@ export function evaluatePickupTime(input: {
       return {
         ok: false,
         code: "outside_hours",
+        detail: "before_open",
+        day: key,
+        open: day.open,
         error: `The center hasn't opened yet — opening time is ${day.open}. Times can be registered from ${day.open}.`,
       };
     }
@@ -154,6 +167,9 @@ export function evaluatePickupTime(input: {
       return {
         ok: false,
         code: "outside_hours",
+        detail: "after_close",
+        day: key,
+        close: day.close,
         error: `The center is closed after ${day.close} — times can only be registered until ${day.close}.`,
       };
     }

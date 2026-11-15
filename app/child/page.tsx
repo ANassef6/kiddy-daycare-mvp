@@ -1,7 +1,7 @@
 import { requireSession } from "@/lib/require";
 import { familiesForAccount, todayStatus } from "@/lib/store";
 import { i18nForAccount } from "@/lib/i18n-session";
-import { tr } from "@/lib/i18n";
+import { fmtTimeFor, tr, type Locale } from "@/lib/i18n";
 import ChildCard from "@/components/ChildCard";
 import { recordToolUsage } from "@/lib/tool-usage";
 
@@ -10,7 +10,7 @@ export const dynamic = "force-dynamic";
 export default async function MyChildrenPage() {
   const session = await requireSession();
   await recordToolUsage({ instituteId: null, accountId: session.accountId, toolKey: "dashboard", source: "child", metadata: null });
-  const { dict } = await i18nForAccount(session.accountId);
+  const { dict, locale } = await i18nForAccount(session.accountId);
   const t = (key: string, vars?: Record<string, string | number>) => tr(dict, key, vars);
   const families = await familiesForAccount(session.accountId);
 
@@ -59,8 +59,8 @@ export default async function MyChildrenPage() {
               {status.lastEvent && (
                 <div className="muted small mt-2">
                   {seen
-                    ? t("attendees.checkedInAt", { time: time(status.checkedIn?.recorded_at) })
-                    : t("attendees.checkedOutAt", { time: time(status.checkedOut?.recorded_at) })}
+                    ? t("attendees.checkedInAt", { time: time(status.checkedIn?.recorded_at, locale) })
+                    : t("attendees.checkedOutAt", { time: time(status.checkedOut?.recorded_at, locale) })}
                 </div>
               )}
             </ChildCard>
@@ -71,7 +71,7 @@ export default async function MyChildrenPage() {
   );
 }
 
-function time(iso?: unknown): string {
+function time(iso: unknown, locale: Locale): string {
   if (!iso) return "—";
-  return new Date(String(iso)).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  return fmtTimeFor(locale, iso);
 }

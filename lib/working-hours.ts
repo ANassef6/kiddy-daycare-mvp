@@ -32,6 +32,10 @@ export const DAY_LABELS = [
 
 export type DayHours = { open: string; close: string };
 
+// KID-2413 bug 6: machine-readable refusal reasons so callers can render the
+// message in the account's language instead of shipping English-only prose.
+export type CheckInErrorCode = "closed_day" | "before_open";
+
 // Persisted/returned shape: `{ "0"?: DayHours, "1"?: DayHours, … }`.
 export type WorkingWeek = Record<string, DayHours>;
 
@@ -118,13 +122,15 @@ export function dayLabelFor(key: string): string {
 export function checkInOpen(
   week: WorkingWeek,
   now = new Date()
-): { allowed: boolean; error?: string; open?: string } {
+): { allowed: boolean; error?: string; open?: string; code?: CheckInErrorCode; day?: string } {
   if (!workingHoursConfigured(week)) return { allowed: true };
   const key = todayKey(now);
   const day = week[key];
   if (!day) {
     return {
       allowed: false,
+      code: "closed_day",
+      day: key,
       error: `${dayLabelFor(key)} is a closed day — no check-ins are allowed today.`,
     };
   }
@@ -135,6 +141,8 @@ export function checkInOpen(
   if (nowMins < openMins) {
     return {
       allowed: false,
+      code: "before_open",
+      day: key,
       open: day.open,
       error: `The center hasn't opened yet — opening time is ${day.open}. Check-ins start at ${day.open}.`,
     };

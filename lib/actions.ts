@@ -3,7 +3,8 @@
 import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
-import { LANG_COOKIE, tenancyDisabledMessage, getDictionary, localeOf, tr, type Locale, type TenancyDisabledReason } from "@/lib/i18n";
+import { LANG_COOKIE, tenancyDisabledMessage, getDictionary, localeOf, tr, type Dict, type Locale, type TenancyDisabledReason } from "@/lib/i18n";
+import { checkInPolicyError, pickupPolicyError } from "@/lib/policy-i18n";
 import {
   createAccount,
   findAccountByEmail,
@@ -245,6 +246,12 @@ async function tenancyDisabledError(
     console.error("KID-199.3 tenancy gate failed open:", err);
   }
   return null;
+}
+
+// KID-2413 bug 6: policy refusals render in the account's language.
+async function dictForAccount(accountId: string): Promise<Dict> {
+  const account = await getAccount(accountId);
+  return getDictionary(localeOf(account?.language));
 }
 
 export async function loginAction(formData: FormData) {
@@ -1401,7 +1408,7 @@ export async function checkInOutAction(formData: FormData) {
       const access = (await familyAccessForAccount(me.accountId)) ?? "parent";
       if (access !== "pickup" && !(await parentCheckInOutAllowed(String(instituteId)))) {
         console.error(`KID-1329 refused parent check-in/out: the center has the toggle off`, me.email);
-        return { error: "The daycare has turned off parent check-in/out. Please contact the center staff." };
+        return { error: tr(await dictForAccount(me.accountId), "policy.parentCheckInDisabled") };
       }
     }
     // KID-58: no one can check in before the center opens.
@@ -1409,7 +1416,8 @@ export async function checkInOutAction(formData: FormData) {
       if (instituteId) {
         const policy = await checkInAllowed(String(instituteId));
         if (!policy.allowed) {
-          return { error: policy.error ?? "Check-in is not allowed at this time." };
+          const dict = await dictForAccount(me.accountId);
+          return { error: checkInPolicyError(dict, policy) ?? tr(dict, "policy.checkInNotAllowed") };
         }
       }
     }
@@ -1429,7 +1437,7 @@ export async function checkInOutAction(formData: FormData) {
     });
     if (!decision.ok) {
       console.error(`KID-1371 refused pickup-time registration (${decision.code})`, me.email);
-      return { error: decision.error };
+      return { error: pickupPolicyError(await dictForAccount(me.accountId), decision) };
     }
     const registered = await registerCheckInOut({
       childId,
@@ -4209,7 +4217,8 @@ export async function logStaffStatusAction(formData: FormData) {
       if (instituteId) {
         const policy = await checkInAllowed(String(instituteId));
         if (!policy.allowed) {
-          return { error: policy.error ?? "Check-in is not allowed at this time." };
+          const dict = await dictForAccount(me.accountId);
+          return { error: checkInPolicyError(dict, policy) ?? tr(dict, "policy.checkInNotAllowed") };
         }
       }
     }

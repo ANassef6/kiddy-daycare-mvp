@@ -43,7 +43,7 @@ import { queryGet } from "@/lib/db";
 import { CONTACT_RELATIONSHIP_LABELS } from "@/lib/contact-relationship";
 import { i18nForAccount } from "@/lib/i18n-session";
 import { configuredReportDate, todayIso } from "@/lib/report-dates";
-import { tr } from "@/lib/i18n";
+import { fmtTimeFor, tr, type Locale } from "@/lib/i18n";
 
 export const dynamic = "force-dynamic";
 
@@ -148,13 +148,13 @@ export default async function PortalChildPage(
       label:
         reportDate === today
           ? t("profile.todaysDailyReport")
-          : t("profile.dailyReportForDate", { date: fmtDate(reportDate) }),
+          : t("profile.dailyReportForDate", { date: fmtDate(reportDate, locale) }),
       node: dailyReportTab(child, report, today, todayStatuses, dict, reportDate, locale),
     },
     {
       id: "about",
       label: t("profile.about", { name: child.first_name }),
-      node: aboutTab(child, status, rooms, dict),
+      node: aboutTab(child, status, rooms, dict, locale),
     },
     {
       id: "family",
@@ -169,7 +169,7 @@ export default async function PortalChildPage(
     {
       id: "documents",
       label: t("profile.signedDocuments"),
-      node: documentsTab(consents, dict),
+      node: documentsTab(consents, dict, locale),
     },
     {
       id: "schedules",
@@ -189,7 +189,7 @@ export default async function PortalChildPage(
     {
       id: "incident",
       label: t("profile.incidentsAndAccidents"),
-      node: incidentsTab(child, incidents, dict),
+      node: incidentsTab(child, incidents, dict, locale),
     },
   ];
 
@@ -301,7 +301,7 @@ export default async function PortalChildPage(
         <div style={{ flex: 1 }}>
           <h1 className="title mt-1" style={{ marginBottom: 0 }}>{child.first_name} {child.last_name}</h1>
           <p className="subtitle" style={{ marginBottom: 0 }}>
-            {t("profile.room", { room: child.room_name ?? "—" })} · {child.dob ? t("profile.dob", { date: fmtDate(child.dob) }) : ""}{child.gender ? ` · ${cap(child.gender)}` : ""} · {t("profile.today")}{" "}
+            {t("profile.room", { room: child.room_name ?? "—" })} · {child.dob ? t("profile.dob", { date: fmtDate(child.dob, locale) }) : ""}{child.gender ? ` · ${cap(child.gender)}` : ""} · {t("profile.today")}{" "}
             {status.lastEvent ? cap(status.lastEvent.type) : t("profile.notReportedYet")}
           </p>
         </div>
@@ -344,12 +344,12 @@ function dailyReportTab(child: any, report: any, today: string, todayStatuses: a
         <h3 className="subtitle">
           {reportDate === today
             ? t("profile.todaysDailyReport")
-            : t("profile.dailyReportForDate", { date: fmtDate(reportDate) })}
+            : t("profile.dailyReportForDate", { date: fmtDate(reportDate, locale) })}
         </h3>
         {report?.saved_by_name && (
           <p className="small muted" style={{ marginTop: -4 }}>
             {t("profile.lastSavedBy")} <strong>{report.saved_by_name}</strong>
-            {report?.saved_at ? ` · ${fmtDate(report.saved_at)} ${time(report.saved_at)}` : ""}
+            {report?.saved_at ? ` · ${fmtDate(report.saved_at, locale)} ${time(report.saved_at, locale)}` : ""}
           </p>
         )}
         <Attribution
@@ -482,7 +482,7 @@ function dailyReportTab(child: any, report: any, today: string, todayStatuses: a
                   <strong>{displayValue(String(s.kind), String(s.value), t)}</strong>
                   {s.note ? <span className="muted"> — {s.note}</span> : null}
                 </div>
-                <span className="muted">{time(s.recorded_at)}{s.recorded_by_name ? ` · ${s.recorded_by_name}` : ""}</span>
+                <span className="muted">{time(s.recorded_at, locale)}{s.recorded_by_name ? ` · ${s.recorded_by_name}` : ""}</span>
               </div>
             ))}
           </div>
@@ -492,16 +492,16 @@ function dailyReportTab(child: any, report: any, today: string, todayStatuses: a
   );
 }
 
-function aboutTab(child: any, status: any, rooms: any[], dict: any) {
+function aboutTab(child: any, status: any, rooms: any[], dict: any, locale: Locale) {
   const t = (key: string, vars?: Record<string, string | number>) => tr(dict, key, vars);
   const rows: [string, string][] = [
     [t("profile.fullName"), `${child.first_name} ${child.last_name}`],
-    [t("profile.dateOfBirth"), child.dob ? fmtDate(child.dob) : "—"],
+    [t("profile.dateOfBirth"), child.dob ? fmtDate(child.dob, locale) : "—"],
     [t("profile.gender"), child.gender ? cap(child.gender) : "—"],
     [t("common.room"), child.room_name ?? "—"],
-    [t("profile.enrolled"), child.enrolled_at ? fmtDate(child.enrolled_at) : "—"],
+    [t("profile.enrolled"), child.enrolled_at ? fmtDate(child.enrolled_at, locale) : "—"],
     [t("profile.status"), child.status ? cap(String(child.status).replace("_", " ")) : t("profile.active")],
-    [t("profile.lastDate"), child.last_date ? fmtDate(child.last_date) : "—"],
+    [t("profile.lastDate"), child.last_date ? fmtDate(child.last_date, locale) : "—"],
     [t("profile.checkInToday"), status.lastEvent ? cap(status.lastEvent.type) : t("profile.notYet")],
   ];
   return (
@@ -637,7 +637,7 @@ async function mediaTab(media: any[], dict: any) {
   );
 }
 
-function documentsTab(consents: any[], dict: any) {
+function documentsTab(consents: any[], dict: any, locale: Locale) {
   const t = (key: string, vars?: Record<string, string | number>) => tr(dict, key, vars);
   return (
     <div className="card">
@@ -645,7 +645,7 @@ function documentsTab(consents: any[], dict: any) {
       {consents.length === 0 ? <p className="muted small">{t("profile.noDocuments")}</p> : null}
       {consents.map((c: any) => (
         <div className="list-item small" key={c.id}>
-          <div><strong>{c.title}</strong><br /><span className="muted">{fmtDate(c.created_at)} — {c.description ?? ""}</span></div>
+          <div><strong>{c.title}</strong><br /><span className="muted">{fmtDate(c.created_at, locale)} — {c.description ?? ""}</span></div>
           <span className="badge badge-green">{c.consentee_name ? t("profile.signed", { name: c.consentee_name }) : cap(c.status ?? "open")}</span>
         </div>
       ))}
@@ -690,7 +690,7 @@ function invoicesTab(child: any, billing: any[], dict: any, centerCurrency: stri
   );
 }
 
-function learningTab(child: any, areas: any[], observations: any[], byName: string, dict: any, locale: string) {
+function learningTab(child: any, areas: any[], observations: any[], byName: string, dict: any, locale: Locale) {
   const t = (key: string, vars?: Record<string, string | number>) => tr(dict, key, vars);
   return (
     <div className="grid">
@@ -705,7 +705,7 @@ function learningTab(child: any, areas: any[], observations: any[], byName: stri
             <div>
               <span className="badge">{cap(o.kind)}</span>{" "}
               <strong>{o.title ?? t("learning.observation")}</strong>
-              <span className="muted"> · {fmtDate(o.recorded_at ?? o.created_at)}</span>
+              <span className="muted"> · {fmtDate(o.recorded_at ?? o.created_at, locale)}</span>
               {o.milestone_name && <div className="mt-1"><span className="badge badge-green">{o.milestone_name}</span></div>}
               {o.body ? <div className="muted mt-1">{o.body}</div> : null}
             </div>
@@ -728,7 +728,7 @@ function learningTab(child: any, areas: any[], observations: any[], byName: stri
   );
 }
 
-function incidentsTab(child: any, incidents: any[], dict: any) {
+function incidentsTab(child: any, incidents: any[], dict: any, locale: Locale) {
   const t = (key: string, vars?: Record<string, string | number>) => tr(dict, key, vars);
   return (
     <div className="grid">
@@ -737,7 +737,7 @@ function incidentsTab(child: any, incidents: any[], dict: any) {
         {incidents.length === 0 ? <p className="muted small">{t("profile.noneIncident")}</p> : null}
         {incidents.map((i: any) => (
           <div className="list-item small" key={i.id}>
-            <div><strong>{cap(i.type)}</strong> — {new Date(i.created_at).toDateString()}<br /><span className="muted">{i.description}</span></div>
+            <div><strong>{cap(i.type)}</strong> — {fmtDate(i.created_at, locale)}<br /><span className="muted">{i.description}</span></div>
             <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 6 }}>
               <span className={i.acknowledged ? "badge badge-green" : "badge badge-red"}>{i.acknowledged ? t("profile.acked") : t("profile.open")}</span>
               {!i.acknowledged && (
@@ -794,9 +794,9 @@ function pendingInviteIdForContact(
   return invite ? String(invite.id) : null;
 }
 function capital(s: unknown) { const v = String(s ?? ""); return v.charAt(0).toUpperCase() + v.slice(1); }
-function time(v?: unknown): string {
+function time(v: unknown, locale: Locale): string {
   if (!v) return "—";
-  return new Date(String(v)).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  return fmtTimeFor(locale, v);
 }
 function displayValue(kind: string, value: string, t: any): string {
   if (kind === "sick" && value === "yes") return t("child.feelingSick");

@@ -10,7 +10,7 @@ export const dynamic = "force-dynamic";
 
 export default async function ParentLearningPage() {
   const session = await requireFamilyPage("/child/learning");
-  const { dict } = await i18nForAccount(session.accountId);
+  const { dict, locale } = await i18nForAccount(session.accountId);
   const t = (key: string, vars?: Record<string, string | number>) => tr(dict, key, vars);
   const families = await familiesForAccount(session.accountId);
   const usageInstituteId = String((families[0] as Row)?.institute_id ?? "") || null;
@@ -33,7 +33,7 @@ export default async function ParentLearningPage() {
               <div>
                 <div className="small">
                   <span className="badge">{cap(o.kind)}</span>{" "}
-                  {o.title && <strong>{o.title}</strong>} <span className="muted">{fmtDate(o.recorded_at ?? o.created_at)}</span>
+                  {o.title && <strong>{o.title}</strong>} <span className="muted">{fmtDate(o.recorded_at ?? o.created_at, locale)}</span>
                 </div>
                 {(o.learning_point_name || o.age_group || o.milestone_name) && (
                   <div className="mt-1" style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>

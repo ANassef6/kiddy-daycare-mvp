@@ -2,7 +2,7 @@ import { requireFamilyPage } from "@/lib/require";
 import { listEvents, eventMedia, listVideos } from "@/lib/store";
 import { firstInstituteId, cap } from "@/lib/helpers";
 import { i18nForAccount } from "@/lib/i18n-session";
-import { tr } from "@/lib/i18n";
+import { fmtTimeFor, tr, type Locale } from "@/lib/i18n";
 import { recordToolUsage } from "@/lib/tool-usage";
 
 export const dynamic = "force-dynamic";
@@ -11,17 +11,17 @@ export const dynamic = "force-dynamic";
 // strings and the shared fmtTime feeds them straight to `new Date(...)`,
 // which renders "Invalid Date" on the live tab. Parse the bare time first;
 // real ISO timestamps keep the locale time formatting.
-function prettyEventTime(v: unknown): string {
+function prettyEventTime(v: unknown, locale: Locale): string {
   if (!v) return "";
   const m = String(v).match(/^(\d{1,2}):(\d{2})/);
   if (m) return `${m[1].padStart(2, "0")}:${m[2]}`;
   const d = new Date(String(v));
-  return Number.isNaN(d.getTime()) ? String(v) : d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  return Number.isNaN(d.getTime()) ? String(v) : fmtTimeFor(locale, d);
 }
 
 export default async function ParentEventsPage() {
   const session = await requireFamilyPage("/child/events");
-  const { dict } = await i18nForAccount(session.accountId);
+  const { dict, locale } = await i18nForAccount(session.accountId);
   const t = (key: string, vars?: Record<string, string | number>) => tr(dict, key, vars);
   const instituteId = await firstInstituteId();
   if (!instituteId) return <p className="muted">{t("events.noInstitute")}</p>;
@@ -44,7 +44,7 @@ export default async function ParentEventsPage() {
           <div className="card" key={e.id}>
             <div className="badge" style={{ marginBottom: 8 }}>{cap(e.event_date)}</div>
             <div style={{ fontWeight: 700, fontSize: 17 }}>{e.title}</div>
-            {e.start_time && <div className="muted small">{prettyEventTime(e.start_time)}{e.end_time ? ` – ${prettyEventTime(e.end_time)}` : ""}</div>}
+            {e.start_time && <div className="muted small">{prettyEventTime(e.start_time, locale)}{e.end_time ? ` – ${prettyEventTime(e.end_time, locale)}` : ""}</div>}
             {e.location && <div className="muted small">📍 {e.location}</div>}
             {e.description && <p className="small mt-2">{e.description}</p>}
             {e.media.length > 0 && (

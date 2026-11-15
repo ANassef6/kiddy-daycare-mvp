@@ -13,6 +13,9 @@ import {
   getWorkingHours,
 } from "@/lib/store";
 import { evaluatePickupTime } from "@/lib/pickup-policy";
+import { pickupPolicyError } from "@/lib/policy-i18n";
+import { getDictionary, localeOf, tr } from "@/lib/i18n";
+import { getAccount } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
@@ -29,6 +32,9 @@ export const dynamic = "force-dynamic";
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await requireMobileSession(req);
   if (session instanceof NextResponse) return session;
+  // KID-2413 bug 6: policy refusals follow the account language.
+  const account = await getAccount(session.accountId);
+  const dict = getDictionary(localeOf(account?.language));
 
   const childId = (await params).id;
   const child = await getChild(childId);
@@ -54,7 +60,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   if (session.role === "parent") {
     const access = (await familyAccessForAccount(session.accountId)) ?? "parent";
     if (access !== "pickup" && !(await parentCheckInOutAllowed(String(child.institute_id ?? "")))) {
-      return errorPayload("The daycare has turned off parent check-in/out. Please contact the center staff.", 403);
+      return errorPayload(tr(dict, "policy.parentCheckInDisabled"), 403);
     }
   }
 
@@ -66,7 +72,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const week = child.institute_id ? await getWorkingHours(String(child.institute_id)) : {};
   const decision = evaluatePickupTime({ type, now: new Date(), week, at: body.at ?? undefined });
   if (!decision.ok) {
-    return errorPayload(decision.error, 422);
+    return errorPayload(pickupPolicyError(dict, decision), 422);
   }
 
   await registerCheckInOut({
