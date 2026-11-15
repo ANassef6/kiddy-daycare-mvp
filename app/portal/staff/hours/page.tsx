@@ -3,7 +3,8 @@ import { resolveTenantInstituteId } from "@/lib/tenant";
 import { staffIdForAccount } from "@/lib/auth";
 import { isAdminRole } from "@/lib/role";
 import {listStaff, staffRooms, getInstitute } from "@/lib/store";
-import { cap, safeJson } from "@/lib/helpers";
+import { cap } from "@/lib/helpers";
+import { dayLabelFor, normalizeWorkingHours } from "@/lib/working-hours";
 
 export const dynamic = "force-dynamic";
 
@@ -23,7 +24,10 @@ export default async function PortalStaffHoursPage() {
   }
 
   const institute = iid ? await getInstitute(iid) : undefined;
-  const openingHours = safeJson<Record<string, string>>(institute?.opening_hours, {});
+  // KID-2413 bug 1: opening_hours stores per-day objects (`{"1":{"open","close"}}`),
+  // not strings — rendering the raw value threw "Objects are not valid as a React child"
+  // and 500ed the page. Normalize to the typed week first.
+  const openingHours = normalizeWorkingHours(institute?.opening_hours);
   const roomAccess = await Promise.all(staff.map((s: any) => staffRooms(s.id)));
   const roomByStaff = Object.fromEntries(roomAccess.map((r, i) => [staff[i].id, r]));
 
@@ -38,12 +42,14 @@ export default async function PortalStaffHoursPage() {
       <div className="card mb-4">
         <h3 className="subtitle">Center opening hours</h3>
         {Object.keys(openingHours).length === 0 && <p className="muted small">No opening hours configured.</p>}
-        {Object.entries(openingHours).map(([day, hours]) => (
-          <div className="list-item" key={day}>
-            <span className="small" style={{ fontWeight: 600 }}>{cap(day)}</span>
-            <span className="muted small">{hours}</span>
-          </div>
-        ))}
+        {Object.entries(openingHours)
+          .sort(([a], [b]) => Number(a) - Number(b))
+          .map(([day, hours]) => (
+            <div className="list-item" key={day}>
+              <span className="small" style={{ fontWeight: 600 }}>{cap(dayLabelFor(day))}</span>
+              <span className="muted small">{hours.open} – {hours.close}</span>
+            </div>
+          ))}
       </div>
 
       <table className="data">
