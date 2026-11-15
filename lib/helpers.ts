@@ -1,6 +1,7 @@
 // Tiny shared helpers used across parent + portal T5 pages.
 import { familiesForAccount } from "./store";
 import { resolveTenantInstituteId } from "./tenant";
+import { fmtDateFor, fmtTimeFor, type Locale } from "./i18n";
 
 // KID-199.3: session-aware tenancy. This used to be a "first institute in the
 // table" query, which put every user — including the staff and parents of the
@@ -46,20 +47,16 @@ export function safeJson<T = any>(v: unknown, fallback: T): T {
   }
 }
 
-export function fmtDate(v: unknown): string {
+// KID-2413 (bug 5): these helpers used to render English-only `toDateString()`
+// / default-locale times inside Arabic pages. The locale is now explicit and
+// falls back to English for the call sites that have no session (tests,
+// server-generated strings).
+export function fmtDate(v: unknown, locale: Locale = "en"): string {
   if (!v) return "—";
-  try {
-    return new Date(String(v)).toDateString();
-  } catch {
-    return String(v);
-  }
+  return fmtDateFor(locale, v);
 }
 
-export function fmtTime(v: unknown): string {
+export function fmtTime(v: unknown, locale: Locale = "en"): string {
   if (!v) return "";
-  try {
-    return new Date(String(v)).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-  } catch {
-    return String(v);
-  }
+  return fmtTimeFor(locale, v);
 }

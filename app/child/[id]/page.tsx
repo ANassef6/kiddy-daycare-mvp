@@ -21,13 +21,13 @@ import ContactBadges from "@/components/ContactBadges";
 import DailyReportDateNav from "@/components/DailyReportDateNav";
 import Attribution from "@/components/Attribution";
 import { getBranding } from "@/lib/theme";
-import { firstInstituteId, fmtDate } from "@/lib/helpers";
+import { firstInstituteId } from "@/lib/helpers";
 import { DEFAULT_CURRENCY } from "@/lib/currency";
 import { configuredReportDate, todayIso } from "@/lib/report-dates";
 import { isPlatformOperatorRole } from "@/lib/platform";
 import { toggleLikeAction, uploadPaymentProofAction } from "@/lib/actions";
 import { i18nForAccount } from "@/lib/i18n-session";
-import { tr } from "@/lib/i18n";
+import { fmtDateFor, fmtDateTimeFor, fmtTimeFor, tr } from "@/lib/i18n";
 import { recordToolUsage } from "@/lib/tool-usage";
 import { signedUrlsForRefs, storageSrcFor } from "@/lib/storage";
 
@@ -220,7 +220,7 @@ export default async function ChildDetailPage(
                 <strong>{statusValue(String(s.kind), String(s.value), t)}</strong>
                 {s.note ? <span className="muted"> — {s.note}</span> : null}
               </div>
-              <span className="muted">{time(s.recorded_at)}</span>
+              <span className="muted">{time(s.recorded_at, locale)}</span>
             </div>
           ))}
         </div>
@@ -229,7 +229,7 @@ export default async function ChildDetailPage(
       <h2 className="title mt-5">
         {reportDate === today
           ? t("child.todaysReport")
-          : t("child.reportForDate", { date: fmtDate(reportDate) })}
+          : t("child.reportForDate", { date: fmtDateFor(locale, reportDate) })}
       </h2>
       <DailyReportDateNav
         basePath={`/child/${child.id}`}
@@ -303,7 +303,7 @@ export default async function ChildDetailPage(
               <div>
                 <strong>{b.period ?? b.description}</strong>
                 {b.due_date ? (
-                  <div className="muted">{t("child.invoiceDue", { date: fmtDate(b.due_date) })}</div>
+                  <div className="muted">{t("child.invoiceDue", { date: fmtDateFor(locale, b.due_date) })}</div>
                 ) : null}
               </div>
               <div style={{ textAlign: "right", display: "flex", alignItems: "center", gap: 10 }}>
@@ -371,7 +371,7 @@ export default async function ChildDetailPage(
         feed.map((post: any) => (
           <div className="card mb-4" key={post.id}>
             <div className="row" style={{ justifyContent: "space-between", alignItems: "center" }}>
-              <div className="small muted">{post.author_name} · {new Date(post.created_at).toLocaleString()}</div>
+              <div className="small muted">{post.author_name} · {fmtDateTimeFor(locale, post.created_at)}</div>
               <form action={toggleLikeAction}>
                 <input type="hidden" name="postId" value={post.id} />
                 <button
@@ -412,7 +412,7 @@ export default async function ChildDetailPage(
           <h2 className="title mt-5">{t("child.incidentReports")}</h2>
           {incidents.map((i: any) => (
             <div className="card mb-3" key={i.id}>
-              <div className="small muted">{capital(i.type)} · {new Date(i.created_at).toLocaleString()}</div>
+              <div className="small muted">{capital(i.type)} · {fmtDateTimeFor(locale, i.created_at)}</div>
               <p className="mt-2">{i.description}</p>
               <span className={i.acknowledged ? "badge badge-green" : "badge badge-red"}>
                 {i.acknowledged ? t("child.acknowledged") : t("child.needsAcknowledgement")}
@@ -433,9 +433,9 @@ function safeJson(v: unknown): Record<string, string> {
     return {};
   }
 }
-function time(iso?: unknown): string {
+function time(iso?: unknown, locale: "en" | "ar" = "en"): string {
   if (!iso) return "—";
-  return new Date(String(iso)).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  return fmtTimeFor(locale, iso) || "—";
 }
 function capitalize(s: string) {
   return s.charAt(0).toUpperCase() + s.slice(1);

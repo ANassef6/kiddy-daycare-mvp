@@ -8,6 +8,7 @@ import {
   checkInOpen,
   closeCutoff,
   busAutoOffCutoff,
+  type CheckInGate,
   type WorkingWeek,
 } from "./working-hours";
 import { feedCopyFor, type FeedCopy } from "./i18n";
@@ -1283,10 +1284,7 @@ export async function getWorkingHours(instituteId: string): Promise<WorkingWeek>
 }
 
 // Early check-in gate used by both the child and the staff attendance flows.
-export async function checkInAllowed(
-  instituteId: string,
-  now = new Date()
-): Promise<{ allowed: boolean; error?: string; open?: string }> {
+export async function checkInAllowed(instituteId: string, now = new Date()): Promise<CheckInGate> {
   const week = await getWorkingHours(instituteId);
   return checkInOpen(week, now);
 }
@@ -3972,7 +3970,7 @@ export async function recentActivityFeed(
           : copy.checkedOutTitle(`${a.first_name} ${a.last_name}`),
       timestamp: String(a.recorded_at),
       link: "/portal/attendance",
-      meta: new Date(String(a.recorded_at)).toLocaleString(),
+      meta: copy.dateTime(a.recorded_at),
     });
   }
 

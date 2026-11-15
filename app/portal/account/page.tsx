@@ -11,16 +11,16 @@ import ChangePasswordCard from "@/components/ChangePasswordCard";
 
 export const dynamic = "force-dynamic";
 
-const NOTIFICATION_LABELS: Record<string, string> = {
-  newsfeed: "Newsfeed posts",
-  homework: "Homework",
-  supplies: "Supplies",
-  billing: "Billing",
-  attendance: "Attendance",
-  incidents: "Incidents",
-  messages: "Messages",
-  daily_report: "Daily reports",
-  events: "Events",
+const NOTIFICATION_LABEL_KEYS: Record<string, string> = {
+  newsfeed: "account.notifNewsfeed",
+  homework: "account.notifHomework",
+  supplies: "account.notifSupplies",
+  billing: "account.notifBilling",
+  attendance: "account.notifAttendance",
+  incidents: "account.notifIncidents",
+  messages: "account.notifMessages",
+  daily_report: "account.notifDailyReport",
+  events: "account.notifEvents",
 };
 
 export default async function PortalAccountPage({ searchParams }: { searchParams: Promise<{ saved?: string; pw?: string }> }) {
@@ -90,7 +90,7 @@ export default async function PortalAccountPage({ searchParams }: { searchParams
             <tbody>
               {(NOTIFICATION_ACTIVITIES as readonly string[]).map((a) => (
                 <tr key={a}>
-                  <td style={{ fontWeight: 600 }}>{NOTIFICATION_LABELS[a] ?? a}</td>
+                  <td style={{ fontWeight: 600 }}>{NOTIFICATION_LABEL_KEYS[a] ? tr(dict, NOTIFICATION_LABEL_KEYS[a]) : a}</td>
                   <td><input type="checkbox" name={`${a}_email`} defaultChecked={on(a, "email")} /></td>
                   <td><input type="checkbox" name={`${a}_inapp`} defaultChecked={on(a, "inapp")} /></td>
                 </tr>

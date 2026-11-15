@@ -75,9 +75,17 @@ export default async function PortalPerformancePage(
           <div className="field" style={{ margin: 0 }}>
             <label className="label">{t("performance.staffMember")}</label>
             <select className="select" name="staffId" defaultValue={staffId ?? ""} style={{ minWidth: 220 }}>
-              {staff.map((s: any) => (
-                <option key={String(s.id)} value={String(s.id)}>{s.full_name}{s.role ? ` (${t(`roles.${s.role}`, {})})` : ""}</option>
-              ))}
+              {staff.map((s: any) => {
+                const roleKey =
+                  s.role === "teacher" ? "staff.roleTeacher"
+                  : s.role === "caregiver" ? "staff.roleCaregiver"
+                  : `roles.${s.role}`;
+                return (
+                  <option key={String(s.id)} value={String(s.id)}>
+                    {s.full_name}{s.role ? ` (${t(roleKey)})` : ""}
+                  </option>
+                );
+              })}
             </select>
           </div>
           <div className="field" style={{ margin: 0 }}>

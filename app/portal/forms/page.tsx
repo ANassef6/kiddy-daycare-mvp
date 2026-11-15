@@ -35,7 +35,7 @@ function kindLabel(dict: Dict, kind: unknown): string {
 
 export default async function PortalFormsPage(
   props: {
-    searchParams: Promise<{ view?: string; q?: string; status?: string; type?: string; form?: string }>;
+    searchParams: Promise<{ view?: string; q?: string; status?: string; type?: string; form?: string; error?: string }>;
   }
 ) {
   const searchParams = await props.searchParams;
@@ -229,6 +229,11 @@ export default async function PortalFormsPage(
 
   return (
     <div>
+      {searchParams.error === "form-title" && (
+        <div role="alert" className="card mb-3" style={{ borderLeft: "4px solid #b91c1c" }}>
+          <p className="small" style={{ margin: 0 }}>{tr(dict, "formsAdmin.titleRequired")}</p>
+        </div>
+      )}
       <div className="row" style={{ justifyContent: "space-between", alignItems: "center" }}>
         <div>
           <h1 className="title" style={{ marginBottom: 0 }}>{tr(dict, "formsAdmin.pageTitle")}</h1>

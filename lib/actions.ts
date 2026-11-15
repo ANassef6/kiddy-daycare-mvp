@@ -3,7 +3,7 @@
 import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
-import { LANG_COOKIE, tenancyDisabledMessage, getDictionary, localeOf, tr, type Locale, type TenancyDisabledReason } from "@/lib/i18n";
+import { LANG_COOKIE, tenancyDisabledMessage, getDictionary, localeOf, tr, type Dict, type Locale, type TenancyDisabledReason } from "@/lib/i18n";
 import {
   createAccount,
   findAccountByEmail,
@@ -91,6 +91,7 @@ import {
 } from "@/lib/store";
 import type { WorkingWeek } from "@/lib/working-hours";
 import { evaluatePickupTime } from "@/lib/pickup-policy";
+import { checkInRefusalMessage, pickupRefusalMessage } from "@/lib/policy-messages";
 import { supabaseConfigured, getSupabase, isGoTrueAlreadyRegisteredError, isGoTrueServerError } from "@/lib/supabase";
 import {
   storageAdminConfigured,
@@ -206,6 +207,13 @@ async function gateLocale(accountLanguage: unknown): Promise<string> {
 async function gateMessage(key: string, accountLanguage: unknown): Promise<string> {
   const lang = await gateLocale(accountLanguage);
   return tr(getDictionary(localeOf(lang) as Locale), key);
+}
+
+// KID-2413 (bug 6): policy refusals need the resolved dictionary, not just a
+// key — the message interpolates the closed day / opening time.
+async function gatePolicyMessage(accountLanguage: unknown, build: (dict: Dict) => string): Promise<string> {
+  const lang = await gateLocale(accountLanguage);
+  return build(getDictionary(localeOf(lang) as Locale));
 }
 
 // KID-1178/F-06: one place renders the denied-by-throttle banner so every
@@ -1399,7 +1407,8 @@ export async function checkInOutAction(formData: FormData) {
       if (instituteId) {
         const policy = await checkInAllowed(String(instituteId));
         if (!policy.allowed) {
-          return { error: policy.error ?? "Check-in is not allowed at this time." };
+          const language = (await getAccount(me.accountId))?.language;
+          return { error: await gatePolicyMessage(language, (dict) => checkInRefusalMessage(dict, policy)) };
         }
       }
     }
@@ -1419,7 +1428,8 @@ export async function checkInOutAction(formData: FormData) {
     });
     if (!decision.ok) {
       console.error(`KID-1371 refused pickup-time registration (${decision.code})`, me.email);
-      return { error: decision.error };
+      const language = (await getAccount(me.accountId))?.language;
+      return { error: await gatePolicyMessage(language, (dict) => pickupRefusalMessage(dict, decision)) };
     }
     const registered = await registerCheckInOut({
       childId,
@@ -1635,12 +1645,22 @@ export async function createIncidentAction(formData: FormData) {
   const instituteId = await firstInstituteId();
   const childId = String(formData.get("childId") ?? "");
   if (childId) await assertChildInScope(childId, me);
+  // KID-2413 (bug 7): an empty description used to create a blank incident
+  // row. Validate server-side (HTML `required` alone is bypassable) and send
+  // the user back to the incident tab with a localized message.
+  const description = String(formData.get("description") ?? "").trim();
+  if (!description) {
+    const back = childId
+      ? `/portal/children/${encodeURIComponent(childId)}?tab=incident&error=incident-description`
+      : "/portal/incidents?error=incident-description";
+    redirect(back);
+  }
   const incident = await createIncident({
     instituteId,
     childId,
     accountId: me.accountId,
     type: String(formData.get("type") ?? "incident"),
-    description: String(formData.get("description") ?? ""),
+    description,
   });
   // KID-477: reported incidents are on the trail (type only — the
   // description stays inside the incident record).
@@ -2781,8 +2801,16 @@ export async function addEventMediaAction(formData: FormData) {
 export async function createFormAction(formData: FormData) {
   const me = await authAccount();
   const instituteId = await requireInstitute();
-  const title = String(formData.get("title") ?? "");
+  const title = String(formData.get("title") ?? "").trim();
   const kind = String(formData.get("kind") ?? "form");
+  // KID-2413 (bug 7): these redirect targets are resolved before validation so
+  // an empty title can be reported on the page that submitted the form
+  // (Surveys or Forms) instead of silently doing nothing.
+  const rawReturnTo = String(formData.get("returnTo") ?? "/portal/forms");
+  const returnTo = rawReturnTo.startsWith("/portal/") ? rawReturnTo : "/portal/forms";
+  if (!title) {
+    redirect(`${returnTo}${returnTo.includes("?") ? "&" : "?"}error=form-title`);
+  }
   let fieldsJson = [];
   for (let i = 0; i < 20; i++) {
     const label = String(formData.get(`field_${i}_label`) ?? "").trim();
@@ -2818,9 +2846,8 @@ export async function createFormAction(formData: FormData) {
     }
   }
   // KID-52 #10: allow callers (e.g. the Surveys tab) to create forms/surveys
-  // without leaving their page — a relative returnTo wins over /portal/forms.
-  const rawReturnTo = String(formData.get("returnTo") ?? "/portal/forms");
-  const returnTo = rawReturnTo.startsWith("/portal/") ? rawReturnTo : "/portal/forms";
+  // without leaving their page — the resolved returnTo above wins over
+  // /portal/forms.
   redirect(returnTo);
 }
 
@@ -4200,7 +4227,8 @@ export async function logStaffStatusAction(formData: FormData) {
       if (instituteId) {
         const policy = await checkInAllowed(String(instituteId));
         if (!policy.allowed) {
-          return { error: policy.error ?? "Check-in is not allowed at this time." };
+          const language = (await getAccount(me.accountId))?.language;
+          return { error: await gatePolicyMessage(language, (dict) => checkInRefusalMessage(dict, policy)) };
         }
       }
     }

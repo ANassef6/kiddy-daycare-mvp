@@ -3,7 +3,7 @@ import { resolveTenantInstituteId } from "@/lib/tenant";
 import { staffIdForAccount } from "@/lib/auth";
 import { isAdminRole } from "@/lib/role";
 import {listStaff, staffRooms, getInstitute } from "@/lib/store";
-import { cap, safeJson } from "@/lib/helpers";
+import { normalizeWorkingHours, dayLabelFor } from "@/lib/working-hours";
 import { i18nForAccount } from "@/lib/i18n-session";
 import { tr, type Dict } from "@/lib/i18n";
 
@@ -48,7 +48,7 @@ export default async function PortalStaffHoursPage() {
   }
 
   const institute = iid ? await getInstitute(iid) : undefined;
-  const openingHours = safeJson<Record<string, string>>(institute?.opening_hours, {});
+  const openingWeek = normalizeWorkingHours(institute?.opening_hours);
   const roomAccess = await Promise.all(staff.map((s: any) => staffRooms(s.id)));
   const roomByStaff = Object.fromEntries(roomAccess.map((r, i) => [staff[i].id, r]));
 
@@ -59,13 +59,13 @@ export default async function PortalStaffHoursPage() {
 
       <div className="card mb-4">
         <h3 className="subtitle">{tr(dict, "staff.centerOpeningHours")}</h3>
-        {Object.keys(openingHours).length === 0 && <p className="muted small">{tr(dict, "staff.noOpeningHours")}</p>}
-        {Object.entries(openingHours).map(([day, hours]) => {
-          const dayKey = DAY_LABEL_KEY[day.toLowerCase()];
+        {Object.keys(openingWeek).length === 0 && <p className="muted small">{tr(dict, "staff.noOpeningHours")}</p>}
+        {Object.entries(openingWeek).map(([day, hours]) => {
+          const dayKey = DAY_LABEL_KEY[dayLabelFor(day).toLowerCase()];
           return (
             <div className="list-item" key={day}>
-              <span className="small" style={{ fontWeight: 600 }}>{dayKey ? tr(dict, dayKey) : cap(day)}</span>
-              <span className="muted small">{hours}</span>
+              <span className="small" style={{ fontWeight: 600 }}>{dayKey ? tr(dict, dayKey) : dayLabelFor(day)}</span>
+              <span className="muted small">{`${hours.open} - ${hours.close}`}</span>
             </div>
           );
         })}

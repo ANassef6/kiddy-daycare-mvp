@@ -30,6 +30,19 @@ export const DAY_LABELS = [
   "Saturday",
 ] as const;
 
+// KID-2413 (bug 6): dictionary keys for the same day names, so policy
+// refusals can name the closed day in the account's language instead of the
+// English DAY_LABELS above.
+export const DAY_LABEL_KEYS = [
+  "settings.daySunday",
+  "settings.dayMonday",
+  "settings.dayTuesday",
+  "settings.dayWednesday",
+  "settings.dayThursday",
+  "settings.dayFriday",
+  "settings.daySaturday",
+] as const;
+
 export type DayHours = { open: string; close: string };
 
 // Persisted/returned shape: `{ "0"?: DayHours, "1"?: DayHours, … }`.
@@ -112,19 +125,35 @@ export function dayLabelFor(key: string): string {
   return Number.isInteger(idx) && idx >= 0 && idx <= 6 ? DAY_LABELS[idx] : key;
 }
 
+export function dayLabelKey(key: string): string | undefined {
+  const idx = Number(key);
+  return Number.isInteger(idx) && idx >= 0 && idx <= 6 ? DAY_LABEL_KEYS[idx] : undefined;
+}
+
+export type CheckInRefusalCode = "closed_day" | "before_open";
+
+export type CheckInGate = {
+  allowed: boolean;
+  code?: CheckInRefusalCode;
+  dayIndex?: string;
+  open?: string;
+  error?: string;
+};
+
 // Check-in gate: returns an error when the center has working-hours config
 // and the given moment falls on a closed day or before that day's opening
-// time. With no config at all, check-in is always allowed.
-export function checkInOpen(
-  week: WorkingWeek,
-  now = new Date()
-): { allowed: boolean; error?: string; open?: string } {
+// time. With no config at all, check-in is always allowed. The `code`/
+// `dayIndex`/`open` fields let callers render the refusal in the account's
+// language (the `error` string stays as the English fallback).
+export function checkInOpen(week: WorkingWeek, now = new Date()): CheckInGate {
   if (!workingHoursConfigured(week)) return { allowed: true };
   const key = todayKey(now);
   const day = week[key];
   if (!day) {
     return {
       allowed: false,
+      code: "closed_day",
+      dayIndex: key,
       error: `${dayLabelFor(key)} is a closed day — no check-ins are allowed today.`,
     };
   }
@@ -135,6 +164,8 @@ export function checkInOpen(
   if (nowMins < openMins) {
     return {
       allowed: false,
+      code: "before_open",
+      dayIndex: key,
       open: day.open,
       error: `The center hasn't opened yet — opening time is ${day.open}. Check-ins start at ${day.open}.`,
     };

@@ -627,6 +627,15 @@ export const en = {
     // KID-480: push column in the notification preferences table.
     push: "Push",
     saveNotificationPrefs: "Save preferences",
+    notifNewsfeed: "Newsfeed posts",
+    notifHomework: "Homework",
+    notifSupplies: "Supplies",
+    notifBilling: "Billing",
+    notifAttendance: "Attendance",
+    notifIncidents: "Incidents",
+    notifMessages: "Messages",
+    notifDailyReport: "Daily reports",
+    notifEvents: "Events",
     // KID-495: change password (staff/admin + parent) and the temp-password
     // prompt that follows a login made with a shared temporary password.
     changePasswordTitle: "Change password",
@@ -806,6 +815,8 @@ export const en = {
     incident: "Incident",
     accident: "Accident",
     logIncidentBtn: "Log incident",
+    // KID-2413 (bug 7): server-side validation message (createIncidentAction).
+    incidentDescriptionRequired: "Add a description before logging the incident.",
     type: "Type",
     unknown: "Unknown",
   },
@@ -1990,6 +2001,8 @@ export const en = {
     optionsPlaceholder: "Red, Blue, Green",
     requiredCheckbox: "Required",
     createFormBtn: "Create form",
+    // KID-2413 (bug 7): server-side validation message (createFormAction).
+    titleRequired: "Add a title before creating the form.",
   },
   surveysAdmin: {
     pageSubtitle: "Create surveys and read their responses right here — no need to visit the Smart form tab.",
@@ -2095,6 +2108,19 @@ export const en = {
   // KID-2400: server-action user-facing messages (lib/actions.ts). Every
   // return { error } the UI can surface resolves through
   // gateMessage("act.<key>", accountLanguage) — cookie → account → English.
+  // KID-2413 (bug 6): attendance/pickup policy refusals surfaced through the
+  // existing action error path, in the account's language.
+  policy: {
+    checkInNotAllowed: "Check-in is not allowed at this time.",
+    closedDayNoCheckIn: "{day} is a closed day — no check-ins are allowed today.",
+    beforeOpenCheckIn: "The center hasn't opened yet — opening time is {time}. Check-ins start at {time}.",
+    closedDayNoPickup: "{day} is a closed day — times cannot be registered on a day the center is closed.",
+    beforeOpenPickup: "The center hasn't opened yet — opening time is {time}. Times can be registered from {time}.",
+    afterClosePickup: "The center is closed after {time} — times can only be registered until {time}.",
+    pickupInvalidTime: "The pickup time could not be read — send it as an ISO date-time (e.g. 2026-11-11T15:30) and try again.",
+    pickupCrossDay: "A pickup time can only be registered for today — past and future days are not accepted.",
+    pickupPast: "The pickup time is in the past — register a current or upcoming time for today only.",
+  },
   act: {
     inviteInvalidChild: "This invite is not attached to a valid child. Ask your daycare to send a new invite.",
     inviteNoChild: "This invite is not attached to a child. Ask your daycare to send a new invite.",
@@ -2719,8 +2745,17 @@ export const ar = {
     inApp: "داخل التطبيق",
     push: "إشعار فوري",
     saveNotificationPrefs: "حفظ التفضيلات",
-    // KID-495: change password (staff/admin + parent) and the temp-password
-    // prompt that follows a login made with a shared temporary password.
+    notifNewsfeed: "منشورات الأخبار",
+    notifHomework: "الواجبات",
+    notifSupplies: "المستلزمات",
+    notifBilling: "الفواتير",
+    notifAttendance: "الحضور",
+    notifIncidents: "الحوادث",
+    notifMessages: "الرسائل",
+    notifDailyReport: "التقارير اليومية",
+    notifEvents: "الفعاليات",
+    // KID-495: تغيير كلمة المرور (للموظفين/الإدارة + أولياء الأمور) والتنبيه
+    // المؤقت الذي يلي تسجيل دخول بكلمة مرور مشتركة مؤقتة.
     changePasswordTitle: "تغيير كلمة المرور",
     changePasswordHint: "أدخل كلمة المرور الحالية، ثم عيّن كلمة مرور جديدة (8 أحرف على الأقل).",
     currentPassword: "كلمة المرور الحالية",
@@ -2889,6 +2924,8 @@ export const ar = {
     incident: "حادث",
     accident: "إصابة",
     logIncidentBtn: "تسجيل حادث",
+    // KID-2413 (bug 7): رسالة التحقق من جهة الخادم (createIncidentAction).
+    incidentDescriptionRequired: "أضف وصفًا قبل تسجيل الحادث.",
     type: "النوع",
     unknown: "غير معروف",
   },
@@ -4040,6 +4077,8 @@ export const ar = {
     optionsPlaceholder: "أحمر، أزرق، أخضر",
     requiredCheckbox: "إلزامي",
     createFormBtn: "إنشاء النموذج",
+    // KID-2413 (bug 7): رسالة التحقق من جهة الخادم (createFormAction).
+    titleRequired: "أضف عنوانًا قبل إنشاء النموذج.",
   },
   surveysAdmin: {
     pageSubtitle: "أنشئ الاستبيانات واقرأ ردودها هنا مباشرة — دون الحاجة لفتح تبويب النموذج الذكي.",
@@ -4141,6 +4180,17 @@ export const ar = {
     tagline: "برنامج إدارة رعاية الأطفال للحضانات المصرية",
     hint: "تحقق من العنوان الذي أعطتك إياه حضانتك، أو ابدأ من الموقع الرئيسي.",
     mainSiteBtn: "الانتقال إلى الموقع الرئيسي",
+  },
+  policy: {
+    checkInNotAllowed: "تسجيل الحضور غير مسموح في هذا الوقت.",
+    closedDayNoCheckIn: "{day} يوم عطلة — لا يُسمح بتسجيل الحضور اليوم.",
+    beforeOpenCheckIn: "لم تفتح الحضانة بعد — وقت الافتتاح {time}. يبدأ تسجيل الحضور الساعة {time}.",
+    closedDayNoPickup: "{day} يوم عطلة — لا يمكن تسجيل الأوقات في يوم تكون فيه الحضانة مغلقة.",
+    beforeOpenPickup: "لم تفتح الحضانة بعد — وقت الافتتاح {time}. يمكن تسجيل الأوقات ابتداءً من {time}.",
+    afterClosePickup: "الحضانة مغلقة بعد {time} — يمكن تسجيل الأوقات حتى {time} فقط.",
+    pickupInvalidTime: "تعذّر قراءة وقت الانصراف — أرسله بصيغة ISO للتاريخ والوقت (مثل 2026-11-11T15:30) وحاول مرة أخرى.",
+    pickupCrossDay: "يمكن تسجيل وقت الانصراف لليوم فقط — لا تُقبل الأيام السابقة أو اللاحقة.",
+    pickupPast: "وقت الانصراف في الماضي — سجّل وقتًا حاليًا أو قادمًا لليوم فقط.",
   },
   act: {
     inviteInvalidChild: "هذه الدعوة غير مرتبطة بطفل صحيح. اطلب من حضانتك إرسال دعوة جديدة.",
@@ -4332,6 +4382,9 @@ export function fmtDateTimeFor(locale: Locale, v: unknown): string {
 // lib/store's recentActivityFeed never emits its English templates inside an
 // Arabic shell. Defaults to English at call sites that have no session locale.
 export type FeedCopy = {
+  // KID-2413 (bug 5): locale-aware timestamp for feed metadata (the
+  // attendance entry used to call toLocaleString() inside an Arabic shell).
+  dateTime: (v: unknown) => string;
   newsMeta: (comments: number, likes: number) => string;
   newsfeedFallback: () => string;
   due: (date: string) => string;
@@ -4386,6 +4439,7 @@ export function feedCopyFor(locale: Locale): FeedCopy {
   const dict = getDictionary(locale);
   const t = (key: string, vars?: Record<string, string | number>) => tr(dict, key, vars);
   return {
+    dateTime: (v) => fmtDateTimeFor(locale, v),
     newsMeta: (comments, likes) => t("feed.newsMeta", { comments, likes }),
     newsfeedFallback: () => t("feed.newsfeedFallback"),
     due: (date) => t("feed.due", { date }),

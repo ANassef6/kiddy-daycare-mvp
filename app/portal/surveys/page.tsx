@@ -8,19 +8,25 @@ import { tr } from "@/lib/i18n";
 
 export const dynamic = "force-dynamic";
 
-export default async function PortalSurveysPage({ searchParams }: { searchParams: Promise<{ view?: string }> }) {
+export default async function PortalSurveysPage({ searchParams }: { searchParams: Promise<{ view?: string; error?: string }> }) {
   const session = await requireSession();
   const { dict } = await i18nForAccount(session.accountId);
+  const params = await searchParams;
   const instituteId = await firstInstituteId();
   if (!instituteId) return <p className="muted">{tr(dict, "formsAdmin.noInstitute")}</p>;
   await recordToolUsage({ instituteId: String(instituteId ?? "") || null, accountId: session.accountId, toolKey: "surveys", source: "portal", metadata: null });
   const surveys = await listForms(instituteId, "survey");
-  const viewId = (await searchParams).view;
+  const viewId = params.view;
   const active = surveys.find((f: any) => f.id === viewId);
   const responses = active ? await formResponses(active.id) : [];
 
   return (
     <div>
+      {params.error === "form-title" && (
+        <div role="alert" className="card mb-3" style={{ borderLeft: "4px solid #b91c1c" }}>
+          <p className="small" style={{ margin: 0 }}>{tr(dict, "formsAdmin.titleRequired")}</p>
+        </div>
+      )}
       <h1 className="title">{tr(dict, "nav.surveys")}</h1>
       <p className="subtitle">
         {tr(dict, "surveysAdmin.pageSubtitle")}

@@ -13,6 +13,8 @@ import {
   getWorkingHours,
 } from "@/lib/store";
 import { evaluatePickupTime } from "@/lib/pickup-policy";
+import { pickupRefusalMessage } from "@/lib/policy-messages";
+import { i18nForAccount } from "@/lib/i18n-session";
 
 export const dynamic = "force-dynamic";
 
@@ -66,7 +68,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const week = child.institute_id ? await getWorkingHours(String(child.institute_id)) : {};
   const decision = evaluatePickupTime({ type, now: new Date(), week, at: body.at ?? undefined });
   if (!decision.ok) {
-    return errorPayload(decision.error, 422);
+    const { dict } = await i18nForAccount(session.accountId);
+    return errorPayload(pickupRefusalMessage(dict, decision), 422);
   }
 
   await registerCheckInOut({

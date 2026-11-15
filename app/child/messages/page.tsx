@@ -11,12 +11,12 @@ import {
 } from "@/lib/store";
 import { parentMessageRecipients, pickRecipient, sumVisibleUnread } from "@/lib/parent-messaging";
 import { getAccount } from "@/lib/auth";
-import { firstInstituteId, fmtTime } from "@/lib/helpers";
+import { firstInstituteId } from "@/lib/helpers";
 import { sendParentMessageAction } from "@/lib/actions";
 import MessageComposerForm from "@/components/MessageComposerForm";
 import MessagesLoadError from "@/components/MessagesLoadError";
 import { i18nForAccount } from "@/lib/i18n-session";
-import { getDictionary, tr, type Dict, type Locale } from "@/lib/i18n";
+import { fmtTimeFor, getDictionary, tr, type Dict, type Locale } from "@/lib/i18n";
 import { recordToolUsage } from "@/lib/tool-usage";
 
 export const dynamic = "force-dynamic";
@@ -82,6 +82,7 @@ export default async function ParentMessagesPage(
 
   const i18n = await readPart("i18nForAccount", () => i18nForAccount(session.accountId));
   const dict = i18n.ok ? i18n.value.dict : FALLBACK_I18N.dict;
+  const locale = i18n.ok ? i18n.value.locale : FALLBACK_I18N.locale;
   if (!i18n.ok) failed.add("i18n");
   const t = (key: string, vars?: Record<string, string | number>) => tr(dict, key, vars);
 
@@ -298,7 +299,7 @@ export default async function ParentMessagesPage(
                       )}
                       {m.body}
                       <div className="small" style={{ opacity: 0.75, marginTop: 2 }}>
-                        {fmtTime(m.created_at)}
+                        {fmtTimeFor(locale, m.created_at)}
                       </div>
                     </div>
                   </div>
@@ -360,7 +361,7 @@ export default async function ParentMessagesPage(
                     >
                       {m.body}
                       <div className="small" style={{ opacity: 0.75, marginTop: 2 }}>
-                        {fmtTime(m.created_at)}
+                        {fmtTimeFor(locale, m.created_at)}
                       </div>
                     </div>
                   </div>

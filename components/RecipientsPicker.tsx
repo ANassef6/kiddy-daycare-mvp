@@ -94,16 +94,16 @@ export default function RecipientsPicker({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const channelLabel = channel === "center" ? t("picker.pickerCenterEveryone")
+  const channelLabel = channel === "center" ? t("parent.pickerCenterEveryone")
     : channel === "rooms" && roomIds.length > 0
-    ? t("picker.pickerChannelsClassrooms", { rooms: visibleRooms.filter((r) => roomIds.includes(r.id)).map((r) => r.name).join(", ") })
+    ? t("parent.pickerChannelsClassrooms", { rooms: visibleRooms.filter((r) => roomIds.includes(r.id)).map((r) => r.name).join(", ") })
     : "";
 
   const label = channelLabel || (selected.size === 0
-    ? (placeholder ?? t("picker.pickerChoose"))
+    ? (placeholder ?? t("parent.pickerChoose"))
     : selected.size === 1
-      ? t("picker.pickerSelectedOne", { count: selected.size })
-      : t("picker.pickerSelectedMany", { count: selected.size }));
+      ? t("parent.pickerSelectedOne", { count: selected.size })
+      : t("parent.pickerSelectedMany", { count: selected.size }));
 
   return (
     <div ref={ref} style={{ position: "relative" }}>
@@ -147,7 +147,7 @@ export default function RecipientsPicker({
           }}
         >
           <div style={{ padding: "8px 12px", borderBottom: "1px solid var(--color-border)" }}>
-            <div className="small muted" style={{ fontWeight: 700, marginBottom: 6 }}>{t("picker.pickerPredefined")}</div>
+            <div className="small muted" style={{ fontWeight: 700, marginBottom: 6 }}>{t("parent.pickerPredefined")}</div>
             {isAdmin && (
               <label
                 style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 0", cursor: "pointer", fontSize: 14 }}
@@ -161,7 +161,7 @@ export default function RecipientsPicker({
                   onChange={() => pickChannel("center", [])}
                   style={{ accentColor: "var(--brand-primary)" }}
                 />
-                {t("picker.pickerCenterEveryoneInDaycare")}
+                {t("parent.pickerCenterEveryoneInDaycare")}
               </label>
             )}
             <label
@@ -177,10 +177,10 @@ export default function RecipientsPicker({
                 style={{ accentColor: "var(--brand-primary)" }}
               />
               {isAdmin
-                ? t("picker.pickerAllClassrooms")
+                ? t("parent.pickerAllClassrooms")
                 : visibleRooms.length
-                ? t("picker.pickerMyClassrooms")
-                : t("picker.pickerMyClassroomsNone")}
+                ? t("parent.pickerMyClassrooms")
+                : t("parent.pickerMyClassroomsNone")}
             </label>
             {channel === "rooms" && visibleRooms.length > 1 && (
               <div style={{ padding: "4px 0 6px 26px", display: "flex", flexDirection: "column", gap: 4 }}>
@@ -205,7 +205,7 @@ export default function RecipientsPicker({
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder={t("picker.pickerSearchChildren")}
+            placeholder={t("parent.pickerSearchChildren")}
             autoFocus
             style={{
               width: "100%",
@@ -220,11 +220,11 @@ export default function RecipientsPicker({
           />
           {visibleChildren.length === 0 && (
             <div style={{ padding: "8px 12px", fontSize: 13, color: "var(--color-muted)" }}>
-              {isAdmin ? t("picker.pickerNoChildrenAll") : t("picker.pickerNoChildrenRooms")}
+              {isAdmin ? t("parent.pickerNoChildrenAll") : t("parent.pickerNoChildrenRooms")}
             </div>
           )}
           {filtered.length === 0 && visibleChildren.length > 0 && (
-            <div style={{ padding: "8px 12px", fontSize: 13, color: "var(--color-muted)" }}>{t("picker.pickerNoChildrenFound")}</div>
+            <div style={{ padding: "8px 12px", fontSize: 13, color: "var(--color-muted)" }}>{t("parent.pickerNoChildrenFound")}</div>
           )}
           {filtered.map((c) => (
             <label

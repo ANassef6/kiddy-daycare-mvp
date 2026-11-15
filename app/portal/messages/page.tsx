@@ -14,7 +14,8 @@ import {
   unreadCountForAccount,
 } from "@/lib/store";
 import { getAccount } from "@/lib/auth";
-import { firstInstituteId, fmtDate, fmtTime } from "@/lib/helpers";
+import { firstInstituteId } from "@/lib/helpers";
+import { fmtDateFor, fmtTimeFor } from "@/lib/i18n";
 import { sendMessageAction, sendComposerAction, replyThreadAction } from "@/lib/actions";
 import { i18nForAccount } from "@/lib/i18n-session";
 import { tr } from "@/lib/i18n";
@@ -29,7 +30,7 @@ export default async function PortalMessagesPage(
 ) {
   const searchParams = await props.searchParams;
   const session = await requireSession();
-  const { dict } = await i18nForAccount(session.accountId);
+  const { locale, dict } = await i18nForAccount(session.accountId);
   const t = (key: string, vars?: Record<string, string | number>) => tr(dict, key, vars);
   const instituteId = await firstInstituteId();
   if (!instituteId) return <p className="muted">{t("learning.noInstitute")}</p>;
@@ -156,7 +157,7 @@ export default async function PortalMessagesPage(
                   <strong className="small">{c.other_name}</strong>
                   {unread > 0 && <span className="badge badge-red" style={{ marginInlineStart: 6 }}>{unread}</span>}
                   <div className="muted small" style={{ maxWidth: 180, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                    {c.last_message ?? "—"} · {c.last_at ? fmtTime(c.last_at) : ""}
+                    {c.last_message ?? "—"} · {c.last_at ? fmtTimeFor(locale, c.last_at) : ""}
                   </div>
                 </Link>
               </div>
@@ -245,7 +246,7 @@ export default async function PortalMessagesPage(
                     }}>
                       {m.sender_account_id !== session.accountId && <div style={{ fontWeight: 700, fontSize: 11 }}>{m.from_name}</div>}
                       {m.body}
-                      <div className="small" style={{ opacity: 0.75, marginTop: 2 }}>{fmtTime(m.created_at)}</div>
+                      <div className="small" style={{ opacity: 0.75, marginTop: 2 }}>{fmtTimeFor(locale, m.created_at)}</div>
                     </div>
                   </div>
                 ))}
@@ -271,7 +272,7 @@ export default async function PortalMessagesPage(
                       padding: "8px 12px", borderRadius: 12, maxWidth: "75%",
                     }}>
                       {m.body}
-                      <div className="small" style={{ opacity: 0.75, marginTop: 2 }}>{fmtTime(m.created_at)}</div>
+                      <div className="small" style={{ opacity: 0.75, marginTop: 2 }}>{fmtTimeFor(locale, m.created_at)}</div>
                     </div>
                   </div>
                 ))}
@@ -283,7 +284,7 @@ export default async function PortalMessagesPage(
                   <button className="btn btn-primary" type="submit">{t("common.send")}</button>
                 </form>
               )}
-              <p className="muted small mt-2">{t("common.thread")} {fmtDate(new Date().toISOString())}.</p>
+              <p className="muted small mt-2">{t("common.thread")} {fmtDateFor(locale, new Date().toISOString())}.</p>
             </>
           )}
         </div>
