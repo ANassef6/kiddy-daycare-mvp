@@ -1,0 +1,153 @@
+
+> kiddy-web@0.1.0 build
+> next build
+
+Attention: Next.js now collects completely anonymous telemetry regarding usage.
+This information is used to shape Next.js' roadmap and prioritize features.
+You can learn more, including how to opt-out if you'd not like to participate in this anonymous program, by visiting the following URL:
+https://nextjs.org/telemetry
+
+   ▲ Next.js 15.5.29
+
+   Creating an optimized production build ...
+<w> [webpack.cache.PackFileCacheStrategy] Serializing big strings (210kiB) impacts deserialization performance (consider using Buffer instead and decode when needed)
+ ✓ Compiled successfully in 13.6s
+   Linting and checking validity of types ...
+
+./app/child/[id]/page.tsx
+388:32  Warning: Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+./app/child/events/page.tsx
+53:21  Warning: Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+./app/child/newsfeed/page.tsx
+62:17  Warning: Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+./app/portal/children/[id]/page.tsx
+632:13  Warning: Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+./app/portal/events/page.tsx
+67:21  Warning: Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+./app/portal/newsfeed/page.tsx
+99:30  Warning: Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+info  - Need to disable some ESLint rules? Learn more here: https://nextjs.org/docs/app/api-reference/config/eslint#disabling-rules
+   Collecting page data ...
+   Generating static pages (0/4) ...
+   Generating static pages (1/4) 
+   Generating static pages (2/4) 
+   Generating static pages (3/4) 
+ ✓ Generating static pages (4/4)
+   Finalizing page optimization ...
+   Collecting build traces ...
+
+Route (app)                                 Size  First Load JS
+┌ ƒ /                                      974 B         107 kB
+├ ƒ /_not-found                             1 kB         104 kB
+├ ƒ /api/assetlinks                        268 B         103 kB
+├ ƒ /api/attendance/sweep                  268 B         103 kB
+├ ƒ /api/branding                          268 B         103 kB
+├ ƒ /api/chatwoot/identity                 268 B         103 kB
+├ ƒ /api/chatwoot/webhook                  268 B         103 kB
+├ ƒ /api/csp-report                        268 B         103 kB
+├ ƒ /api/enhancements/write-back           268 B         103 kB
+├ ƒ /api/export                            268 B         103 kB
+├ ƒ /api/logout                            268 B         103 kB
+├ ƒ /api/mobile/bootstrap                  268 B         103 kB
+├ ƒ /api/mobile/children/[id]              268 B         103 kB
+├ ƒ /api/mobile/children/[id]/check-in     268 B         103 kB
+├ ƒ /api/mobile/login                      268 B         103 kB
+├ ƒ /api/notifications/unread              268 B         103 kB
+├ ƒ /api/push/public-key                   268 B         103 kB
+├ ƒ /api/push/subscribe                    268 B         103 kB
+├ ƒ /api/push/test                         268 B         103 kB
+├ ƒ /auth/confirm                        1.24 kB         172 kB
+├ ƒ /brand-icon.svg                        268 B         103 kB
+├ ƒ /child                                 308 B         106 kB
+├ ƒ /child/[id]                          2.06 kB         164 kB
+├ ƒ /child/consents                        268 B         103 kB
+├ ƒ /child/drive                           268 B         103 kB
+├ ƒ /child/events                          268 B         103 kB
+├ ƒ /child/forms                           207 B         106 kB
+├ ƒ /child/incidents                       268 B         103 kB
+├ ƒ /child/learning                        268 B         103 kB
+├ ƒ /child/messages                        618 B         107 kB
+├ ƒ /child/newsfeed                        268 B         103 kB
+├ ƒ /child/notifications                   207 B         106 kB
+├ ƒ /child/settings                      2.27 kB         161 kB
+├ ƒ /child/support                         873 B         107 kB
+├ ƒ /child/support/[id]                    873 B         107 kB
+├ ƒ /contact                               974 B         107 kB
+├ ƒ /features                              974 B         107 kB
+├ ƒ /for-centers                           974 B         107 kB
+├ ƒ /for-parents                           974 B         107 kB
+├ ƒ /forgot-password                     1.53 kB         164 kB
+├ ƒ /forms/f/[token]                       268 B         103 kB
+├ ƒ /login                               1.31 kB         163 kB
+├ ƒ /manifest.webmanifest                  268 B         103 kB
+├ ƒ /operator-entry                        268 B         103 kB
+├ ƒ /operator-exit                         268 B         103 kB
+├ ƒ /platform                            2.17 kB         105 kB
+├ ƒ /platform/daycares                     268 B         103 kB
+├ ƒ /platform/daycares/[id]/billing        268 B         103 kB
+├ ƒ /platform/daycares/[id]/invoices       268 B         103 kB
+├ ƒ /portal/account                      1.19 kB         160 kB
+├ ƒ /portal/account-billing                268 B         103 kB
+├ ƒ /portal/attendance                   1.27 kB         107 kB
+├ ƒ /portal/audit                          268 B         103 kB
+├ ƒ /portal/calendar                       207 B         106 kB
+├ ƒ /portal/children                     1.58 kB         108 kB
+├ ƒ /portal/children/[id]                 3.1 kB         168 kB
+├ ƒ /portal/children/[id]/billing          207 B         106 kB
+├ ƒ /portal/children/[id]/development      583 B         107 kB
+├ ƒ /portal/children/development           268 B         103 kB
+├ ƒ /portal/consents                       268 B         103 kB
+├ ƒ /portal/dashboard                      207 B         106 kB
+├ ƒ /portal/drive                          268 B         103 kB
+├ ƒ /portal/enhancements                   268 B         103 kB
+├ ƒ /portal/events                         268 B         103 kB
+├ ƒ /portal/finance                        207 B         106 kB
+├ ƒ /portal/forms                          207 B         106 kB
+├ ƒ /portal/incidents                      268 B         103 kB
+├ ƒ /portal/inquiries                      268 B         103 kB
+├ ƒ /portal/learning                       164 B         162 kB
+├ ƒ /portal/learning/activities          1.92 kB         164 kB
+├ ƒ /portal/learning/curriculum            268 B         103 kB
+├ ƒ /portal/learning/homework              268 B         103 kB
+├ ƒ /portal/messages                       207 B         106 kB
+├ ƒ /portal/newsfeed                     2.14 kB         161 kB
+├ ƒ /portal/notifications                  207 B         106 kB
+├ ƒ /portal/performance                    207 B         106 kB
+├ ƒ /portal/report-center                  268 B         103 kB
+├ ƒ /portal/reports                        268 B         103 kB
+├ ƒ /portal/rooms                          207 B         106 kB
+├ ƒ /portal/rooms/[id]                     207 B         106 kB
+├ ƒ /portal/settings                     1.85 kB         164 kB
+├ ƒ /portal/staff                         2.2 kB         108 kB
+├ ƒ /portal/staff/[id]                   2.15 kB         108 kB
+├ ƒ /portal/staff/hours                    268 B         103 kB
+├ ƒ /portal/staff/schedule                 268 B         103 kB
+├ ƒ /portal/supplies                       268 B         103 kB
+├ ƒ /portal/support                        873 B         107 kB
+├ ƒ /portal/support-inbox                  268 B         103 kB
+├ ƒ /portal/support/[id]                   873 B         107 kB
+├ ƒ /portal/surveys                        268 B         103 kB
+├ ƒ /portal/tags                           609 B         107 kB
+├ ƒ /privacy                               268 B         103 kB
+├ ƒ /rate-limited                          207 B         106 kB
+├ ƒ /register                            1.64 kB         160 kB
+├ ƒ /reset-password                      1.63 kB         172 kB
+├ ƒ /switch-lang                           268 B         103 kB
+├ ƒ /unknown-daycare                       207 B         106 kB
+└ ƒ /welcome                               854 B         107 kB
++ First Load JS shared by all             103 kB
+  ├ chunks/1255-b84741b894bb9354.js      46.6 kB
+  ├ chunks/4bd1b696-f785427dddbba9fb.js  54.2 kB
+  └ other shared chunks (total)          1.93 kB
+
+
+ƒ Middleware                             34.3 kB
+
+ƒ  (Dynamic)  server-rendered on demand
+

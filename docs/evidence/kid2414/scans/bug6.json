@@ -1,0 +1,4 @@
+{
+  "ar": "✓ localized closed-day error «الأحد يوم عطلة — لا يُسمح بتسجيل الحضور اليوم.» (screenshot bug6-attendance-closed-day-ar)",
+  "en": "✓ English closed-day error «Sunday is a closed day — no check-ins are allowed today.» (screenshot bug6-attendance-closed-day-en)"
+}

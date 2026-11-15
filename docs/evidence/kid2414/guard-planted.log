@@ -1,0 +1,36 @@
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - ESM syntax in a file loaded as CommonJS (vitest.config.ts:1:1). Use a `.mjs` extension or set `"type": "module"` in the closest package.json
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+Both esbuild and oxc options were set. oxc options will be used and esbuild options will be ignored. The following esbuild options were set: `{ jsx: 'automatic' }`
+
+ RUN  v5.1.0 /var/tmp/kid2414-qa
+
+ ❯ tests/unit/i18n-page-coverage.test.ts (4 tests | 1 failed) 23ms
+   ❯ i18n page coverage (KID-2400) (3)
+     × every page that renders user-facing text declares dictionary usage 10ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/unit/i18n-page-coverage.test.ts > i18n page coverage (KID-2400) > every page that renders user-facing text declares dictionary usage
+AssertionError: These pages render without any dictionary usage. Localize them (i18nForAccount / getDictionary / tr) or add a justified ALLOWLIST entry in tests/unit/i18n-page-coverage.test.ts:
+portal/zz-qa-unlocalized/page.tsx: expected [ 'portal/zz-qa-unlocalized/page.tsx' ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   "portal/zz-qa-unlocalized/page.tsx",
++ ]
+
+ ❯ tests/unit/i18n-page-coverage.test.ts:68:7
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 3 passed (4)
+   Start at  10:51:15
+   Duration  483ms (transform 68%, import 22%, tests 8%, worker 2%)
+

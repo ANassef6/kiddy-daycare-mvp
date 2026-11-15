@@ -1,0 +1,565 @@
+{
+ "role": "teacher",
+ "locale": "ar",
+ "rows": [
+  {
+   "path": "/portal/dashboard",
+   "status": 200,
+   "lang": "ar",
+   "dir": "rtl",
+   "missing": [],
+   "raw_role": [],
+   "en_dict_hits": [],
+   "date_tokens": [],
+   "ar_on_en": [],
+   "sentences": [],
+   "problems": []
+  },
+  {
+   "path": "/portal/attendance",
+   "status": 200,
+   "lang": "ar",
+   "dir": "rtl",
+   "missing": [],
+   "raw_role": [],
+   "en_dict_hits": [],
+   "date_tokens": [],
+   "ar_on_en": [],
+   "sentences": [],
+   "problems": []
+  },
+  {
+   "path": "/portal/calendar",
+   "status": 200,
+   "lang": "ar",
+   "dir": "rtl",
+   "missing": [],
+   "raw_role": [],
+   "en_dict_hits": [],
+   "date_tokens": [],
+   "ar_on_en": [],
+   "sentences": [],
+   "problems": []
+  },
+  {
+   "path": "/portal/children",
+   "status": 200,
+   "lang": "ar",
+   "dir": "rtl",
+   "missing": [],
+   "raw_role": [],
+   "en_dict_hits": [],
+   "date_tokens": [],
+   "ar_on_en": [],
+   "sentences": [],
+   "problems": []
+  },
+  {
+   "path": "/portal/children/mwhq5xia-kjvq8yap",
+   "status": 200,
+   "lang": "ar",
+   "dir": "rtl",
+   "missing": [],
+   "raw_role": [],
+   "en_dict_hits": [],
+   "date_tokens": [],
+   "ar_on_en": [],
+   "sentences": [],
+   "problems": []
+  },
+  {
+   "path": "/portal/children/mwhq5xia-kjvq8yap/billing",
+   "status": 200,
+   "lang": "ar",
+   "dir": "rtl",
+   "missing": [],
+   "raw_role": [],
+   "en_dict_hits": [],
+   "date_tokens": [
+    "October",
+    "September"
+   ],
+   "ar_on_en": [],
+   "sentences": [],
+   "problems": [
+    "date-tokens:October,September"
+   ]
+  },
+  {
+   "path": "/portal/children/mwhq5xia-kjvq8yap/development",
+   "status": 200,
+   "lang": "ar",
+   "dir": "rtl",
+   "missing": [],
+   "raw_role": [],
+   "en_dict_hits": [],
+   "date_tokens": [],
+   "ar_on_en": [],
+   "sentences": [],
+   "problems": []
+  },
+  {
+   "path": "/portal/children/development",
+   "status": 307,
+   "location": "/portal/learning"
+  },
+  {
+   "path": "/portal/drive",
+   "status": 200,
+   "lang": "ar",
+   "dir": "rtl",
+   "missing": [],
+   "raw_role": [],
+   "en_dict_hits": [],
+   "date_tokens": [],
+   "ar_on_en": [],
+   "sentences": [],
+   "problems": []
+  },
+  {
+   "path": "/portal/finance",
+   "status": 200,
+   "lang": "ar",
+   "dir": "rtl",
+   "missing": [],
+   "raw_role": [],
+   "en_dict_hits": [],
+   "date_tokens": [],
+   "ar_on_en": [],
+   "sentences": [],
+   "problems": []
+  },
+  {
+   "path": "/portal/forms",
+   "status": 200,
+   "lang": "ar",
+   "dir": "rtl",
+   "missing": [],
+   "raw_role": [],
+   "en_dict_hits": [],
+   "date_tokens": [],
+   "ar_on_en": [],
+   "sentences": [
+    "parent-teacher conference survey Retest fixture form"
+   ],
+   "problems": [
+    "en-sentences(1)"
+   ]
+  },
+  {
+   "path": "/portal/incidents",
+   "status": 200,
+   "lang": "ar",
+   "dir": "rtl",
+   "missing": [],
+   "raw_role": [],
+   "en_dict_hits": [],
+   "date_tokens": [],
+   "ar_on_en": [],
+   "sentences": [
+    "Scraped knee on the climbing rope"
+   ],
+   "problems": [
+    "en-sentences(1)"
+   ]
+  },
+  {
+   "path": "/portal/inquiries",
+   "status": 307,
+   "location": "/portal/forms?view=inquiries"
+  },
+  {
+   "path": "/portal/learning",
+   "status": 200,
+   "lang": "ar",
+   "dir": "rtl",
+   "missing": [],
+   "raw_role": [],
+   "en_dict_hits": [],
+   "date_tokens": [],
+   "ar_on_en": [],
+   "sentences": [],
+   "problems": []
+  },
+  {
+   "path": "/portal/learning/curriculum",
+   "status": 200,
+   "lang": "ar",
+   "dir": "rtl",
+   "missing": [],
+   "raw_role": [],
+   "en_dict_hits": [
+    "Activities",
+    "Back",
+    "Child",
+    "Children",
+    "Choice",
+    "Colour",
+    "Curriculum",
+    "Development",
+    "Events",
+    "Features",
+    "Form",
+    "Forms",
+    "From",
+    "Gross",
+    "Group",
+    "Happy",
+    "Home",
+    "Instructions",
+    "Item",
+    "Like",
+    "List",
+    "Name",
+    "Next",
+    "Note",
+    "Notes",
+    "Plan",
+    "Push",
+    "Record",
+    "Relationship",
+    "Reports",
+    "Role",
+    "Room",
+    "Settings",
+    "Support",
+    "Text",
+    "Thank you",
+    "Thread",
+    "Time",
+    "When",
+    "Yes/No"
+   ],
+   "date_tokens": [
+    "Sun"
+   ],
+   "ar_on_en": [],
+   "sentences": [
+    "Adds and subtracts with objects up to ten",
+    "Asks and answers questions and explains a simple idea",
+    "Blends sounds to read short words",
+    "Bounces and sways to a beat",
+    "Builds or completes a puzzle together",
+    "Cares for a plant and explains its needs",
+    "Carries out a one-step classroom job",
+    "Confident feet on and off equipment",
+    "Copies letters and numbers from a model",
+    "Counts to twenty and counts groups",
+    "Creates models and pictures from shapes",
+    "Describes a picture or event with new words",
+    "Draws a simple face and paints a picture",
+    "Draws people and scenes with detail",
+    "Eats with utensils and drinks without spilling",
+    "Feeds a doll or rocks a teddy",
+    "Finds the name card on the register",
+    "Follows class agreements and welcomes others",
+    "Hands out cups or turns pages",
+    "Holds a crayon and makes marks"
+   ],
+   "problems": [
+    "en-dict(40)",
+    "date-tokens:Sun",
+    "en-sentences(20)"
+   ]
+  },
+  {
+   "path": "/portal/learning/activities",
+   "status": 200,
+   "lang": "ar",
+   "dir": "rtl",
+   "missing": [],
+   "raw_role": [],
+   "en_dict_hits": [],
+   "date_tokens": [],
+   "ar_on_en": [],
+   "sentences": [],
+   "problems": []
+  },
+  {
+   "path": "/portal/learning/homework",
+   "status": 200,
+   "lang": "ar",
+   "dir": "rtl",
+   "missing": [],
+   "raw_role": [],
+   "en_dict_hits": [],
+   "date_tokens": [],
+   "ar_on_en": [],
+   "sentences": [],
+   "problems": []
+  },
+  {
+   "path": "/portal/reports",
+   "status": 307,
+   "location": "/portal/report-center"
+  },
+  {
+   "path": "/portal/rooms",
+   "status": 200,
+   "lang": "ar",
+   "dir": "rtl",
+   "missing": [],
+   "raw_role": [],
+   "en_dict_hits": [],
+   "date_tokens": [],
+   "ar_on_en": [],
+   "sentences": [],
+   "problems": []
+  },
+  {
+   "path": "/portal/rooms/mwhq5x84-n0hd3b9j",
+   "status": 200,
+   "lang": "ar",
+   "dir": "rtl",
+   "missing": [],
+   "raw_role": [],
+   "en_dict_hits": [],
+   "date_tokens": [],
+   "ar_on_en": [],
+   "sentences": [],
+   "problems": []
+  },
+  {
+   "path": "/portal/staff",
+   "status": 307,
+   "location": "/portal/staff/mwhq5xbh-djjtmerh"
+  },
+  {
+   "path": "/portal/staff/mwhq5xbh-djjtmerh",
+   "status": 200,
+   "lang": "ar",
+   "dir": "rtl",
+   "missing": [],
+   "raw_role": [],
+   "en_dict_hits": [],
+   "date_tokens": [],
+   "ar_on_en": [],
+   "sentences": [],
+   "problems": []
+  },
+  {
+   "path": "/portal/staff/hours",
+   "status": 200,
+   "lang": "ar",
+   "dir": "rtl",
+   "missing": [],
+   "raw_role": [],
+   "en_dict_hits": [],
+   "date_tokens": [],
+   "ar_on_en": [],
+   "sentences": [],
+   "problems": []
+  },
+  {
+   "path": "/portal/staff/schedule",
+   "status": 200,
+   "lang": "ar",
+   "dir": "rtl",
+   "missing": [],
+   "raw_role": [],
+   "en_dict_hits": [],
+   "date_tokens": [],
+   "ar_on_en": [],
+   "sentences": [],
+   "problems": []
+  },
+  {
+   "path": "/portal/support-inbox",
+   "status": 200,
+   "lang": "ar",
+   "dir": "rtl",
+   "missing": [],
+   "raw_role": [],
+   "en_dict_hits": [],
+   "date_tokens": [],
+   "ar_on_en": [],
+   "sentences": [],
+   "problems": []
+  },
+  {
+   "path": "/portal/surveys",
+   "status": 200,
+   "lang": "ar",
+   "dir": "rtl",
+   "missing": [],
+   "raw_role": [],
+   "en_dict_hits": [],
+   "date_tokens": [],
+   "ar_on_en": [],
+   "sentences": [],
+   "problems": []
+  },
+  {
+   "path": "/portal/tags",
+   "status": 200,
+   "lang": "ar",
+   "dir": "rtl",
+   "missing": [],
+   "raw_role": [],
+   "en_dict_hits": [],
+   "date_tokens": [],
+   "ar_on_en": [],
+   "sentences": [],
+   "problems": []
+  },
+  {
+   "path": "/portal/messages",
+   "status": 200,
+   "lang": "ar",
+   "dir": "rtl",
+   "missing": [],
+   "raw_role": [],
+   "en_dict_hits": [],
+   "date_tokens": [],
+   "ar_on_en": [],
+   "sentences": [],
+   "problems": []
+  },
+  {
+   "path": "/portal/newsfeed",
+   "status": 200,
+   "lang": "ar",
+   "dir": "rtl",
+   "missing": [],
+   "raw_role": [],
+   "en_dict_hits": [],
+   "date_tokens": [],
+   "ar_on_en": [],
+   "sentences": [],
+   "problems": []
+  },
+  {
+   "path": "/portal/events",
+   "status": 200,
+   "lang": "ar",
+   "dir": "rtl",
+   "missing": [],
+   "raw_role": [],
+   "en_dict_hits": [],
+   "date_tokens": [],
+   "ar_on_en": [],
+   "sentences": [],
+   "problems": []
+  },
+  {
+   "path": "/portal/consents",
+   "status": 200,
+   "lang": "ar",
+   "dir": "rtl",
+   "missing": [],
+   "raw_role": [],
+   "en_dict_hits": [
+    "Events"
+   ],
+   "date_tokens": [],
+   "ar_on_en": [],
+   "sentences": [],
+   "problems": [
+    "en-dict(1)"
+   ]
+  },
+  {
+   "path": "/portal/settings",
+   "status": 307,
+   "location": "/portal/dashboard"
+  },
+  {
+   "path": "/portal/notifications",
+   "status": 200,
+   "lang": "ar",
+   "dir": "rtl",
+   "missing": [],
+   "raw_role": [],
+   "en_dict_hits": [],
+   "date_tokens": [
+    "October",
+    "September"
+   ],
+   "ar_on_en": [],
+   "sentences": [],
+   "problems": [
+    "date-tokens:October,September"
+   ]
+  },
+  {
+   "path": "/portal/account",
+   "status": 200,
+   "lang": "ar",
+   "dir": "rtl",
+   "missing": [],
+   "raw_role": [],
+   "en_dict_hits": [],
+   "date_tokens": [],
+   "ar_on_en": [],
+   "sentences": [],
+   "problems": []
+  },
+  {
+   "path": "/portal/account-billing",
+   "status": 307,
+   "location": "/portal/dashboard"
+  },
+  {
+   "path": "/portal/report-center",
+   "status": 200,
+   "lang": "ar",
+   "dir": "rtl",
+   "missing": [],
+   "raw_role": [],
+   "en_dict_hits": [],
+   "date_tokens": [],
+   "ar_on_en": [],
+   "sentences": [],
+   "problems": []
+  },
+  {
+   "path": "/portal/performance",
+   "status": 200,
+   "lang": "ar",
+   "dir": "rtl",
+   "missing": [],
+   "raw_role": [],
+   "en_dict_hits": [],
+   "date_tokens": [],
+   "ar_on_en": [],
+   "sentences": [],
+   "problems": []
+  },
+  {
+   "path": "/portal/supplies",
+   "status": 200,
+   "lang": "ar",
+   "dir": "rtl",
+   "missing": [],
+   "raw_role": [],
+   "en_dict_hits": [],
+   "date_tokens": [],
+   "ar_on_en": [],
+   "sentences": [],
+   "problems": []
+  },
+  {
+   "path": "/portal/enhancements",
+   "status": 307,
+   "location": "/portal/dashboard"
+  },
+  {
+   "path": "/portal/support",
+   "status": 200,
+   "lang": "ar",
+   "dir": "rtl",
+   "missing": [],
+   "raw_role": [],
+   "en_dict_hits": [],
+   "date_tokens": [],
+   "ar_on_en": [],
+   "sentences": [],
+   "problems": []
+  },
+  {
+   "path": "/portal/audit",
+   "status": 307,
+   "location": "/portal/dashboard"
+  }
+ ]
+}

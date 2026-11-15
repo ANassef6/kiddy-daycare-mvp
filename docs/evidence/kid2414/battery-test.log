@@ -1,0 +1,20 @@
+
+> kiddy-web@0.1.0 test
+> vitest run
+
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - ESM syntax in a file loaded as CommonJS (vitest.config.ts:1:1). Use a `.mjs` extension or set `"type": "module"` in the closest package.json
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+Both esbuild and oxc options were set. oxc options will be used and esbuild options will be ignored. The following esbuild options were set: `{ jsx: 'automatic' }`
+
+ RUN  v5.1.0 /var/tmp/kid2414-qa
+
+
+ Test Files  112 passed (112)
+      Tests  1236 passed (1236)
+   Start at  10:51:31
+   Duration  4241.79s (tests 100%)
+
+    Isolate  112 workers spawned · ~135ms startup each (spawn + environment, per file)
+             at least ~14.94s faster with isolate: false — reuses workers across files instead of one per file
+

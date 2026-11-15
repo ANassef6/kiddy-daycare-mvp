@@ -1,0 +1,140 @@
+{
+ "results": [
+  {
+   "probe": "bug7a-forms-empty-title",
+   "locale": "ar",
+   "post_status": 303,
+   "location": "/portal/forms?error=form-title",
+   "status_ok": true,
+   "loc_ok": true,
+   "banner_ok": true,
+   "db_unchanged": true,
+   "db_before": 2,
+   "db_after": 2
+  },
+  {
+   "probe": "bug7b-incident-empty-desc",
+   "locale": "ar",
+   "post_status": 303,
+   "location": "/portal/children/mwhq5xia-kjvq8yap?tab=incident&error=incident-description",
+   "status_ok": true,
+   "loc_ok": true,
+   "banner_ok": true,
+   "db_unchanged": true,
+   "db_before": 2,
+   "db_after": 2
+  },
+  {
+   "probe": "reg-children-missing-guardian",
+   "locale": "ar",
+   "post_status": 303,
+   "location": "/portal/children?error=guardian",
+   "status_ok": true,
+   "loc_ok": true,
+   "banner_ok": true,
+   "db_unchanged": true,
+   "db_before": 4,
+   "db_after": 4
+  },
+  {
+   "probe": "reg-billing-invalid-paymentlink",
+   "locale": "ar",
+   "post_status": 303,
+   "location": "/portal/children/mwhq5xia-kjvq8yap/billing?error=paymentlink",
+   "status_ok": true,
+   "loc_ok": true,
+   "banner_ok": true,
+   "db_unchanged": true,
+   "db_before": 6,
+   "db_after": 6
+  },
+  {
+   "probe": "reg-staff-link-short-password",
+   "locale": "ar",
+   "post_status": 303,
+   "location": "/portal/staff/probe3eafb1dbf21c?error=password",
+   "status_ok": true,
+   "loc_ok": true,
+   "banner_ok": true,
+   "db_unchanged": true,
+   "db_before": 15,
+   "db_after": 15
+  },
+  {
+   "probe": "bug7a-forms-empty-title",
+   "locale": "en",
+   "post_status": 303,
+   "location": "/portal/forms?error=form-title",
+   "status_ok": true,
+   "loc_ok": true,
+   "banner_ok": true,
+   "db_unchanged": true,
+   "db_before": 2,
+   "db_after": 2
+  },
+  {
+   "probe": "bug7b-incident-empty-desc",
+   "locale": "en",
+   "post_status": 303,
+   "location": "/portal/children/mwhq5xia-kjvq8yap?tab=incident&error=incident-description",
+   "status_ok": true,
+   "loc_ok": true,
+   "banner_ok": true,
+   "db_unchanged": true,
+   "db_before": 2,
+   "db_after": 2
+  },
+  {
+   "probe": "reg-children-missing-guardian",
+   "locale": "en",
+   "post_status": 303,
+   "location": "/portal/children?error=guardian",
+   "status_ok": true,
+   "loc_ok": true,
+   "banner_ok": true,
+   "db_unchanged": true,
+   "db_before": 4,
+   "db_after": 4
+  },
+  {
+   "probe": "reg-billing-invalid-paymentlink",
+   "locale": "en",
+   "post_status": 303,
+   "location": "/portal/children/mwhq5xia-kjvq8yap/billing?error=paymentlink",
+   "status_ok": true,
+   "loc_ok": true,
+   "banner_ok": true,
+   "db_unchanged": true,
+   "db_before": 6,
+   "db_after": 6
+  },
+  {
+   "probe": "reg-staff-link-short-password",
+   "locale": "en",
+   "post_status": 303,
+   "location": "/portal/staff/probe3eafb1dbf21c?error=password",
+   "status_ok": true,
+   "loc_ok": true,
+   "banner_ok": true,
+   "db_unchanged": true,
+   "db_before": 15,
+   "db_after": 15
+  }
+ ],
+ "counts_start": {
+  "forms": 2,
+  "incidents": 2,
+  "children": 4,
+  "billing": 6,
+  "accounts": 15,
+  "staff": 9
+ },
+ "counts_end": {
+  "forms": 2,
+  "incidents": 2,
+  "children": 4,
+  "billing": 6,
+  "accounts": 15,
+  "staff": 9
+ }
+}

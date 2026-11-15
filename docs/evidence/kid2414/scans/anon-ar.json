@@ -1,0 +1,141 @@
+{
+ "role": "anon",
+ "locale": "ar",
+ "rows": [
+  {
+   "path": "/login",
+   "status": 200,
+   "lang": "ar",
+   "dir": "rtl",
+   "missing": [],
+   "raw_role": [],
+   "en_dict_hits": [],
+   "date_tokens": [],
+   "ar_on_en": [],
+   "sentences": [],
+   "problems": []
+  },
+  {
+   "path": "/register",
+   "status": 200,
+   "lang": "ar",
+   "dir": "rtl",
+   "missing": [],
+   "raw_role": [],
+   "en_dict_hits": [],
+   "date_tokens": [],
+   "ar_on_en": [],
+   "sentences": [],
+   "problems": []
+  },
+  {
+   "path": "/forgot-password",
+   "status": 200,
+   "lang": "ar",
+   "dir": "rtl",
+   "missing": [],
+   "raw_role": [],
+   "en_dict_hits": [],
+   "date_tokens": [],
+   "ar_on_en": [],
+   "sentences": [],
+   "problems": []
+  },
+  {
+   "path": "/reset-password",
+   "status": 200,
+   "lang": "ar",
+   "dir": "rtl",
+   "missing": [],
+   "raw_role": [],
+   "en_dict_hits": [],
+   "date_tokens": [],
+   "ar_on_en": [],
+   "sentences": [],
+   "problems": []
+  },
+  {
+   "path": "/welcome",
+   "status": 307,
+   "location": "/login"
+  },
+  {
+   "path": "/unknown-daycare",
+   "status": 200,
+   "lang": "ar",
+   "dir": "rtl",
+   "missing": [],
+   "raw_role": [],
+   "en_dict_hits": [],
+   "date_tokens": [],
+   "ar_on_en": [],
+   "sentences": [],
+   "problems": []
+  },
+  {
+   "path": "/",
+   "status": 200,
+   "lang": "ar",
+   "dir": "rtl",
+   "missing": [],
+   "raw_role": [],
+   "en_dict_hits": [],
+   "date_tokens": [],
+   "ar_on_en": [],
+   "sentences": [],
+   "problems": []
+  },
+  {
+   "path": "/features",
+   "status": 200,
+   "lang": "ar",
+   "dir": "rtl",
+   "missing": [],
+   "raw_role": [],
+   "en_dict_hits": [],
+   "date_tokens": [],
+   "ar_on_en": [],
+   "sentences": [],
+   "problems": []
+  },
+  {
+   "path": "/for-centers",
+   "status": 200,
+   "lang": "ar",
+   "dir": "rtl",
+   "missing": [],
+   "raw_role": [],
+   "en_dict_hits": [],
+   "date_tokens": [],
+   "ar_on_en": [],
+   "sentences": [],
+   "problems": []
+  },
+  {
+   "path": "/for-parents",
+   "status": 200,
+   "lang": "ar",
+   "dir": "rtl",
+   "missing": [],
+   "raw_role": [],
+   "en_dict_hits": [],
+   "date_tokens": [],
+   "ar_on_en": [],
+   "sentences": [],
+   "problems": []
+  },
+  {
+   "path": "/contact",
+   "status": 200,
+   "lang": "ar",
+   "dir": "rtl",
+   "missing": [],
+   "raw_role": [],
+   "en_dict_hits": [],
+   "date_tokens": [],
+   "ar_on_en": [],
+   "sentences": [],
+   "problems": []
+  }
+ ]
+}
