@@ -1,8 +1,7 @@
 import type { Metadata } from "next";
 import { headers } from "next/headers";
 import "./globals.css";
-import { brandNameForTitle, getBranding } from "@/lib/theme";
-import { ensureSeeded } from "@/lib/bootstrap";
+import { brandNameForHostTitle, brandNameForTitle, getBranding, getHostBranding } from "@/lib/theme";
 import { dirFor } from "@/lib/i18n";
 import { resolveRequestLocale, resolveSiteLocale } from "@/lib/i18n-session";
 import { PUBLIC_PAGE_HEADER } from "@/middleware";
@@ -18,7 +17,13 @@ import BrandBanner from "@/components/BrandBanner";
 export async function generateMetadata(): Promise<Metadata> {
   let titleBrand = "Kiddy";
   try {
-    titleBrand = (await brandNameForTitle()) || "Kiddy";
+    // KID-2406: the public marketing pages are CDN-cached, so their shared
+    // <head> may only carry host branding — never the signed-in visitor's
+    // daycare name, which would leak one account's brand into the cache.
+    const isPublicPage = (await headers()).get(PUBLIC_PAGE_HEADER) === "1";
+    titleBrand = isPublicPage
+      ? (await brandNameForHostTitle()) || "Kiddy"
+      : (await brandNameForTitle()) || "Kiddy";
   } catch (err) {
     console.error("Title brand resolution failed:", err);
   }
@@ -31,7 +36,10 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
-export const dynamic = "force-dynamic";
+// KID-2406: no root-level force-dynamic. Routes that read cookies/headers (or
+// call the DB) are still dynamic automatically; removing the blanket flag also
+// stops the framework from forcing every page in the tree to skip the cache.
+// The authenticated layouts keep their explicit force-dynamic.
 
 // Resolve the active locale for the request. OBS-001: account.language is the
 // canonical preference — the kiddy_lang cookie is accepted only while they
@@ -41,17 +49,11 @@ export const dynamic = "force-dynamic";
 // marketing pages resolve the exact same locale their <html lang dir> shows.
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
-  // KID-216: the lazy bootstrap (schema + demo seed + platform operator for the
-  // PLATFORM_ADMIN_EMAIL allowlist) was never wired to any request path, so an
-  // unmanaged deployment could never mint its operator account. Await it once
-  // on the first render of every warm instance; it self-skips afterwards and
-  // must never block the render on failure.
-  try {
-    await ensureSeeded();
-  } catch (err) {
-    console.error("Bootstrap failed at layout render:", err);
-  }
-
+  // KID-2406: KID-216's lazy bootstrap (schema + demo seed + platform
+  // operator) used to run here, which made every anonymous marketing render
+  // pay a bootstrap check before the first byte. It now runs from the
+  // authenticated layouts (login/portal/child/platform), where it is still a
+  // once-per-process no-op after the first call. Public pages never need it.
   let theme = "";
   // KID-256: the meta/head branding is the HOST's brand — on
   // sunshine.<apex> the browser chrome, apple-touch icon, and manifest
@@ -64,8 +66,19 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     logoUrl: null as string | null,
     brandImageUrl: null as string | null,
   };
+
+  // KID-1826: middleware flags the public marketing routes so the layout can
+  // skip the banner render entirely (see the BrandBanner mount below).
+  // KID-2406: resolve this BEFORE branding so the public routes pick the
+  // host-only brand (session branding must not enter the shared CDN cache).
+  let isPublicPage = false;
   try {
-    const b = await getBranding();
+    isPublicPage = (await headers()).get(PUBLIC_PAGE_HEADER) === "1";
+  } catch {
+    // no request scope (tests/scripts): keep the banner behavior unchanged
+  }
+  try {
+    const b = isPublicPage ? await getHostBranding() : await getBranding();
     metaBrand = { name: b.name, primaryColor: b.primaryColor, logoUrl: b.logoUrl, brandImageUrl: b.brandImageUrl };
     theme = [
       `--brand-primary: ${b.primaryColor};`,
@@ -74,15 +87,6 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     ].join("\n");
   } catch {
     // never block render on DB availability
-  }
-
-  // KID-1826: middleware flags the public marketing routes so the layout can
-  // skip the banner render entirely (see the BrandBanner mount below).
-  let isPublicPage = false;
-  try {
-    isPublicPage = (await headers()).get(PUBLIC_PAGE_HEADER) === "1";
-  } catch {
-    // no request scope (tests/scripts): keep the banner behavior unchanged
   }
   // KID-2072: the five public marketing pages resolve <html lang dir> from
   // the SITE resolution (site cookie wins, ?lang override honored) — the same

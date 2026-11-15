@@ -107,9 +107,9 @@ export default async function ChildDetailPage(
 
           {status.lastEvent && (
             <p className="muted small mt-2">
-              {status.checkedIn && t("attendees.checkedInAt", { time: time(status.checkedIn.recorded_at) })}
+              {status.checkedIn && t("attendees.checkedInAt", { time: time(status.checkedIn.recorded_at, locale) })}
               {status.checkedIn && status.checkedOut && " · "}
-              {status.checkedOut && t("attendees.checkedOutAt", { time: time(status.checkedOut.recorded_at) })}
+              {status.checkedOut && t("attendees.checkedOutAt", { time: time(status.checkedOut.recorded_at, locale) })}
             </p>
           )}
         </div>
@@ -201,9 +201,9 @@ export default async function ChildDetailPage(
 
         {status.lastEvent && (
           <p className="muted small mt-2">
-            {status.checkedIn && t("attendees.checkedInAt", { time: time(status.checkedIn.recorded_at) })}
+            {status.checkedIn && t("attendees.checkedInAt", { time: time(status.checkedIn.recorded_at, locale) })}
             {status.checkedIn && status.checkedOut && " · "}
-            {status.checkedOut && t("attendees.checkedOutAt", { time: time(status.checkedOut.recorded_at) })}
+            {status.checkedOut && t("attendees.checkedOutAt", { time: time(status.checkedOut.recorded_at, locale) })}
           </p>
         )}
       </div>

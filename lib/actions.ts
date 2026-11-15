@@ -255,6 +255,12 @@ async function tenancyDisabledError(
   return null;
 }
 
+// KID-2413 bug 6: policy refusals render in the account's language.
+async function dictForAccount(accountId: string): Promise<Dict> {
+  const account = await getAccount(accountId);
+  return getDictionary(localeOf(account?.language));
+}
+
 export async function loginAction(formData: FormData) {
   const email = String(formData.get("email") ?? "").trim();
   const password = String(formData.get("password") ?? "");

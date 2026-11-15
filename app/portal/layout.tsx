@@ -7,6 +7,7 @@ import NotificationSoundWatcher from "@/components/NotificationSoundWatcher";
 import { requireSessionWithWithdrawalCheck } from "@/lib/require";
 import { requireTenantForPage } from "@/lib/tenant";
 import { ensureSchema } from "@/lib/db";
+import { ensureSeededSafe } from "@/lib/bootstrap";
 import { getBranding } from "@/lib/theme";
 import { i18nForAccount } from "@/lib/i18n-session";
 import { tr } from "@/lib/i18n";
@@ -18,6 +19,9 @@ import { storageSrcFor } from "@/lib/storage";
 export const dynamic = "force-dynamic";
 
 export default async function PortalLayout({ children }: { children: React.ReactNode }) {
+  // KID-2406: KID-216's one-time bootstrap now runs here instead of on the
+  // public root layout (which every anonymous marketing render paid for).
+  await ensureSeededSafe();
   const session = await requireSessionWithWithdrawalCheck();
   // KID-199.3r: on a daycare subdomain the portal serves ONLY the host tenant.
   // Unknown subdomains land on the neutral error page; a session of another

@@ -43,6 +43,18 @@ export function safeNextPath(next: string | null | undefined): string | null {
   return v;
 }
 
+/** KID-2406: keep an internal marketing link on the visitor's language.
+ *  The public HTML is CDN-cacheable and the CDN cache key is the URL, so the
+ *  Arabic variant must live at a distinct URL (?lang=ar). English stays on the
+ *  clean path. Non-marketing links (auth, portal) are locale-independent and
+ *  pass through untouched. */
+export function withLang(href: string, locale: Locale): string {
+  if (locale !== "ar" || !href.startsWith("/") || href.startsWith("//")) return href;
+  const url = new URL(href, "http://kiddy.invalid");
+  url.searchParams.set("lang", "ar");
+  return `${url.pathname}${url.search}${url.hash}`;
+}
+
 /** The LAST value of a cookie from a raw Cookie header. Duplicate names are
  *  legal in Cookie headers (host-only + Domain cookies, different paths) and
  *  the server's first-value reading is exactly what let a stale kiddy_lang

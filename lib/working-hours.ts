@@ -45,6 +45,10 @@ export const DAY_LABEL_KEYS = [
 
 export type DayHours = { open: string; close: string };
 
+// KID-2413 bug 6: machine-readable refusal reasons so callers can render the
+// message in the account's language instead of shipping English-only prose.
+export type CheckInErrorCode = "closed_day" | "before_open";
+
 // Persisted/returned shape: `{ "0"?: DayHours, "1"?: DayHours, … }`.
 export type WorkingWeek = Record<string, DayHours>;
 

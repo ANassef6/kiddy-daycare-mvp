@@ -4,6 +4,7 @@ import SiteFooter from "@/components/SiteFooter";
 import SiteReveal from "@/components/SiteReveal";
 import { SITE_BRAND } from "@/lib/site";
 import { siteContext } from "@/lib/site-i18n";
+import { withLang } from "@/lib/site-lang";
 
 // KID-1826: every rendered string is localized (site.centers.*).
 // KID-2077: data-reveal / data-reveal-stagger drive the once-per-load scroll
@@ -29,7 +30,7 @@ export default async function ForCentersPage() {
             <h1 className="page-title">{t("site.centers.title")}</h1>
             <p className="subtitle">{t("site.centers.subtitle")}</p>
             <div className="row mt-3">
-              <Link className="btn btn-deep btn-lg" href="/contact">
+              <Link className="btn btn-deep btn-lg" href={withLang("/contact", locale)}>
                 {t("site.centers.ctaBook")}
               </Link>
               <Link className="btn btn-ghost btn-lg" href="/login">
@@ -57,7 +58,7 @@ export default async function ForCentersPage() {
               {t("site.centers.closeBody", { brand: SITE_BRAND })}
             </p>
             <p className="center mt-3">
-              <Link className="btn btn-deep btn-lg" href="/contact">
+              <Link className="btn btn-deep btn-lg" href={withLang("/contact", locale)}>
                 {t("site.centers.closeCta")}
               </Link>
             </p>

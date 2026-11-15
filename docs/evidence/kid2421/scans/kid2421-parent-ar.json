@@ -1,0 +1,169 @@
+{
+ "role": "parent",
+ "locale": "ar",
+ "rows": [
+  {
+   "path": "/child",
+   "status": 200,
+   "lang": "ar",
+   "dir": "rtl",
+   "missing": [],
+   "raw_role": [],
+   "en_dict_hits": [],
+   "date_tokens": [],
+   "ar_on_en": [],
+   "sentences": [],
+   "problems": []
+  },
+  {
+   "path": "/child/mwhq5xia-kjvq8yap",
+   "status": 200,
+   "lang": "ar",
+   "dir": "rtl",
+   "missing": [],
+   "raw_role": [],
+   "en_dict_hits": [],
+   "date_tokens": [],
+   "ar_on_en": [],
+   "sentences": [],
+   "problems": []
+  },
+  {
+   "path": "/child/consents",
+   "status": 200,
+   "lang": "ar",
+   "dir": "rtl",
+   "missing": [],
+   "raw_role": [],
+   "en_dict_hits": [],
+   "date_tokens": [],
+   "ar_on_en": [],
+   "sentences": [
+    "Approve photos of your child at retest events only"
+   ],
+   "problems": [
+    "en-sentences(1)"
+   ]
+  },
+  {
+   "path": "/child/drive",
+   "status": 200,
+   "lang": "ar",
+   "dir": "rtl",
+   "missing": [],
+   "raw_role": [],
+   "en_dict_hits": [],
+   "date_tokens": [],
+   "ar_on_en": [],
+   "sentences": [],
+   "problems": []
+  },
+  {
+   "path": "/child/events",
+   "status": 200,
+   "lang": "ar",
+   "dir": "rtl",
+   "missing": [],
+   "raw_role": [],
+   "en_dict_hits": [],
+   "date_tokens": [],
+   "ar_on_en": [],
+   "sentences": [],
+   "problems": []
+  },
+  {
+   "path": "/child/forms",
+   "status": 200,
+   "lang": "ar",
+   "dir": "rtl",
+   "missing": [],
+   "raw_role": [],
+   "en_dict_hits": [
+    "Survey"
+   ],
+   "date_tokens": [],
+   "ar_on_en": [],
+   "sentences": [],
+   "problems": [
+    "en-dict(1)"
+   ]
+  },
+  {
+   "path": "/child/incidents",
+   "status": 200,
+   "lang": "ar",
+   "dir": "rtl",
+   "missing": [],
+   "raw_role": [],
+   "en_dict_hits": [],
+   "date_tokens": [],
+   "ar_on_en": [],
+   "sentences": [
+    "Scraped knee on the climbing rope"
+   ],
+   "problems": [
+    "en-sentences(1)"
+   ]
+  },
+  {
+   "path": "/child/learning",
+   "status": 200,
+   "lang": "ar",
+   "dir": "rtl",
+   "missing": [],
+   "raw_role": [],
+   "en_dict_hits": [],
+   "date_tokens": [],
+   "ar_on_en": [],
+   "sentences": [],
+   "problems": []
+  },
+  {
+   "path": "/child/messages",
+   "status": 200,
+   "lang": "ar",
+   "dir": "rtl",
+   "missing": [],
+   "raw_role": [],
+   "en_dict_hits": [],
+   "date_tokens": [],
+   "ar_on_en": [],
+   "sentences": [],
+   "problems": []
+  },
+  {
+   "path": "/child/newsfeed",
+   "status": 0,
+   "problems": [
+    "HTTP 0"
+   ]
+  },
+  {
+   "path": "/child/notifications",
+   "status": 0,
+   "problems": [
+    "HTTP 0"
+   ]
+  },
+  {
+   "path": "/child/settings",
+   "status": 0,
+   "problems": [
+    "HTTP 0"
+   ]
+  },
+  {
+   "path": "/child/support",
+   "status": 200,
+   "lang": "ar",
+   "dir": "rtl",
+   "missing": [],
+   "raw_role": [],
+   "en_dict_hits": [],
+   "date_tokens": [],
+   "ar_on_en": [],
+   "sentences": [],
+   "problems": []
+  }
+ ]
+}

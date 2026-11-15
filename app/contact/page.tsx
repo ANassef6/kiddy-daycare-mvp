@@ -5,6 +5,7 @@ import SiteReveal from "@/components/SiteReveal";
 import { SITE_BRAND, PLATFORM_CONTACT_EMAIL } from "@/lib/site";
 import ContactForm from "./ContactForm";
 import { siteContext } from "@/lib/site-i18n";
+import { withLang } from "@/lib/site-lang";
 
 // KID-1826: every rendered string is localized (site.contact.*).
 // KID-2077: data-reveal / data-reveal-stagger drive the once-per-load scroll
@@ -54,7 +55,7 @@ export default async function ContactPage(
                 <h2 className="title">{t("site.contact.sentTitle")}</h2>
                 <p className="muted">{t("site.contact.sentBody")}</p>
                 <p className="small mt-3 muted">{t("site.contact.sentNote")}</p>
-                <Link className="btn btn-deep mt-3" href="/for-parents">
+                <Link className="btn btn-deep mt-3" href={withLang("/for-parents", locale)}>
                   {t("site.contact.sentCta")}
                 </Link>
               </div>
@@ -90,7 +91,7 @@ export default async function ContactPage(
                 <a className="btn btn-deep" href={`mailto:${PLATFORM_CONTACT_EMAIL}`}>
                   {t("site.contact.sideEmailBtn", { email: PLATFORM_CONTACT_EMAIL })}
                 </a>
-                <Link className="btn btn-ghost" href="/for-centers">
+                <Link className="btn btn-ghost" href={withLang("/for-centers", locale)}>
                   {t("site.contact.sideMore")}
                 </Link>
               </div>

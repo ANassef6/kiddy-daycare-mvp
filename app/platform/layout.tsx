@@ -10,10 +10,14 @@ import { isPlatformOperatorEmail, isPlatformOperatorRole } from "@/lib/platform"
 import { redirect } from "next/navigation";
 import { i18nForAccount } from "@/lib/i18n-session";
 import { tr } from "@/lib/i18n";
+import { ensureSeededSafe } from "@/lib/bootstrap";
 
 export const dynamic = "force-dynamic";
 
 export default async function PlatformLayout({ children }: { children: React.ReactNode }) {
+  // KID-2406: KID-216's one-time bootstrap now runs here instead of on the
+  // public root layout (which every anonymous marketing render paid for).
+  await ensureSeededSafe();
   const session = await requireSession();
   // Per-page guard — there is no middleware in this app (same shape as
   // app/portal/settings/page.tsx, with the platform operator sentinel).

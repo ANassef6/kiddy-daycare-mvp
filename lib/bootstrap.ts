@@ -5,9 +5,20 @@ let inFlight: Promise<void> | null = null;
 
 // Ensure the app always has a seeded demo daycare on first load. Applies the
 // schema idempotently and seeds demo data when no institute exists yet.
-// KID-216: the root layout awaits this, so the first request of every warm
+// KID-216: the app boot path awaits this, so the first request of every warm
 // instance pays exactly one bootstrap pass; later calls are a no-op check.
 // Concurrent callers share the single in-flight pass instead of racing.
+// KID-2406: the call moved from the root layout to the authenticated layouts
+// (login/portal/child/platform) so a public marketing render never pays it.
+// KID-2406: the boot call sites must never block or crash a page render.
+export async function ensureSeededSafe(): Promise<void> {
+  try {
+    await ensureSeeded();
+  } catch (err) {
+    console.error("Bootstrap failed at layout render:", err);
+  }
+}
+
 export async function ensureSeeded(): Promise<void> {
   if (initialized) return;
   if (inFlight) return inFlight;

@@ -1,5 +1,5 @@
 import { headers } from "next/headers";
-import { getBranding } from "@/lib/theme";
+import { getHostBranding } from "@/lib/theme";
 import { getDictionary, tr, type Locale } from "@/lib/i18n";
 import { resolveSiteLocale } from "@/lib/i18n-session";
 import { PUBLIC_PATH_HEADER } from "@/middleware";
@@ -33,7 +33,9 @@ export async function siteContext(): Promise<SiteContext> {
   let brandImage: string | null = null;
   let brandName = "Kiddy";
   try {
-    const b = await getBranding();
+    // KID-2406: host-only branding so the rendered HTML is identical for every
+    // visitor of this host and can live in the shared CDN cache.
+    const b = await getHostBranding();
     brandImage = b.brandImageUrl ?? null;
     brandName = b.name;
   } catch (err) {

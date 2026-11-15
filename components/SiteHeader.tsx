@@ -3,6 +3,7 @@ import { SITE_BRAND } from "@/lib/site";
 import { getDictionary, tr, type Locale } from "@/lib/i18n";
 import SiteLangToggle from "@/components/SiteLangToggle";
 import HeaderScrollState from "@/components/HeaderScrollState";
+import { withLang } from "@/lib/site-lang";
 
 export type SiteHeaderProps = {
   active?: string;
@@ -40,7 +41,7 @@ export default function SiteHeader({
     <header className="site-header">
       <HeaderScrollState />
       <div className="container row" style={{ justifyContent: "space-between" }}>
-        <Link href="/" className="site-brand" aria-label={t("site.nav.homeAria", { brand: SITE_BRAND })}>
+        <Link href={withLang("/", locale)} className="site-brand" aria-label={t("site.nav.homeAria", { brand: SITE_BRAND })}>
           <span className="site-brand-mark" aria-hidden="true">
             K
           </span>
@@ -64,7 +65,7 @@ export default function SiteHeader({
           {NAV.map((item) => (
             <Link
               key={item.href}
-              href={item.href}
+              href={withLang(item.href, locale)}
               className={active === item.href ? "active" : undefined}
               aria-current={active === item.href ? "page" : undefined}
             >
@@ -80,7 +81,7 @@ export default function SiteHeader({
           <Link href="/login" className="site-nav-signin">
             {t("site.nav.portal")}
           </Link>
-          <Link href="/contact" className="btn btn-deep site-nav-cta">
+          <Link href={withLang("/contact", locale)} className="btn btn-deep site-nav-cta">
             {t("site.nav.bookDemo")}
           </Link>
         </nav>

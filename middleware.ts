@@ -17,12 +17,24 @@
 //     where they were. Stripping ?lang matters: a cookie-less browser that
 //     pinned /contact?lang=ar would otherwise come back to a ?lang=ar URL
 //     after switching to English and the override would fight the switch.
-//   - Set-Cookie for the ?lang value (kiddy_site_lang + the legacy
-//     kiddy_lang, same value) — best-effort persistence for app surfaces
-//     that still read kiddy_lang.
+//   - NO Set-Cookie here (KID-2406): a response carrying Set-Cookie is forced
+//     to private/no-store by Next, which would make the canonical Arabic URL
+//     uncacheable for every first-time visitor, shared link and crawler.
+//     Preference persistence lives in /switch-lang (the switcher's GET form),
+//     which writes kiddy_site_lang + the legacy kiddy_lang.
+//
+// KID-2406: the marketing pages are now CDN-cacheable. A CDN cache key is the
+// URL (cookies are deliberately excluded by Vercel), so the locale must be in
+// the URL: Arabic rides ?lang=ar, English stays on the clean path, and a
+// visitor whose cookie says Arabic is redirected (307) from the clean URL to
+// the Arabic URL once per navigation. An explicit ?lang always wins (so a
+// shared ?lang=en link still renders English for an Arabic-cookie visitor).
+// Every GET/HEAD marketing render is marked cacheable for a short edge TTL;
+// internal links call withLang() so Arabic visitors do not pay the redirect on
+// every click.
 import { NextResponse, type NextRequest } from "next/server";
 import { LANG_COOKIE } from "@/lib/i18n";
-import { SITE_LANG_COOKIE, localeFromParam } from "@/lib/site-lang";
+import { SITE_LANG_COOKIE, lastCookieValue, localeFromParam } from "@/lib/site-lang";
 
 export const PUBLIC_MARKETING_PATHS = [
   "/",
@@ -38,11 +50,29 @@ export const PUBLIC_PAGE_HEADER = "x-kiddy-public-page";
 export const LANG_OVERRIDE_HEADER = "x-kiddy-lang-override";
 export const PUBLIC_PATH_HEADER = "x-kiddy-public-path";
 
-const LANG_COOKIE_OPTIONS = {
-  path: "/",
-  maxAge: 31536000,
-  sameSite: "lax" as const,
-};
+// KID-2406: short edge TTL, long stale-while-revalidate. Marketing copy rarely
+// changes; a deploy purges the CDN cache automatically, and the 5-minute
+// window bounds any other staleness. Browsers are asked to revalidate
+// (max-age=0) so a deployment reaches them immediately.
+export const MARKETING_CACHE_CONTROL = "public, max-age=0, must-revalidate";
+
+// Next.js derives the browser/edge Cache-Control from the route's rendering
+// mode and overwrites what middleware sets for a dynamic page (`headers()` /
+// `cookies()` make it dynamic), which is exactly the private, no-store default
+// we saw on the first preview. Vercel documents CDN-specific headers as taking
+// precedence over that private value; Cloudflare also honours CDN-Cache-Control
+// (it fronts kiddyapp.net). Vercel-CDN-Cache-Control is used by Vercel and is
+// not forwarded to the browser.
+export const EDGE_CACHE_CONTROL = "public, s-maxage=300, stale-while-revalidate=86400";
+
+function cookieLocale(request: NextRequest): "en" | "ar" | null {
+  // LAST duplicate wins, same shadow-proof rule resolveSiteLocale uses.
+  const raw = request.headers.get("cookie");
+  return (
+    localeFromParam(lastCookieValue(raw, SITE_LANG_COOKIE)) ??
+    localeFromParam(lastCookieValue(raw, LANG_COOKIE))
+  );
+}
 
 export function middleware(request: NextRequest) {
   const path = request.nextUrl.pathname.replace(/\/+$/, "") || "/";
@@ -50,11 +80,22 @@ export function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
+  const searchParams = request.nextUrl.searchParams;
+  const requestedLang = localeFromParam(searchParams.get("lang"));
+  const isRead = request.method === "GET" || request.method === "HEAD";
+
+  // KID-2406: normalize the Arabic URL so the CDN caches one variant per
+  // language. Only the clean URL follows the stored preference; an explicit
+  // ?lang (including ?lang=en) always wins. 307 keeps the method and query.
+  if (isRead && !requestedLang && cookieLocale(request) === "ar") {
+    const url = request.nextUrl.clone();
+    url.searchParams.set("lang", "ar");
+    return NextResponse.redirect(url, 307);
+  }
+
   const headers = new Headers(request.headers);
   headers.set(PUBLIC_PAGE_HEADER, "1");
 
-  const searchParams = request.nextUrl.searchParams;
-  const lang = localeFromParam(searchParams.get("lang"));
   if (searchParams.has("lang")) {
     searchParams.delete("lang");
   }
@@ -63,16 +104,18 @@ export function middleware(request: NextRequest) {
     PUBLIC_PATH_HEADER,
     search ? `${request.nextUrl.pathname}?${search}` : request.nextUrl.pathname
   );
-  if (lang) {
-    headers.set(LANG_OVERRIDE_HEADER, lang);
+  if (requestedLang) {
+    headers.set(LANG_OVERRIDE_HEADER, requestedLang);
   }
 
   const response = NextResponse.next({ request: { headers } });
-  if (lang) {
-    // Best-effort persistence; the override header already covers this
-    // request even when the browser refuses the cookies.
-    response.cookies.set(SITE_LANG_COOKIE, lang, LANG_COOKIE_OPTIONS);
-    response.cookies.set(LANG_COOKIE, lang, LANG_COOKIE_OPTIONS);
+  if (isRead) {
+    // This response is a pure function of host + URL: the layout renders
+    // host branding (never session branding) and the locale comes from the
+    // URL override above. It is therefore safe to share in the CDN cache.
+    response.headers.set("Cache-Control", MARKETING_CACHE_CONTROL);
+    response.headers.set("CDN-Cache-Control", EDGE_CACHE_CONTROL);
+    response.headers.set("Vercel-CDN-Cache-Control", EDGE_CACHE_CONTROL);
   }
   return response;
 }

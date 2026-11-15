@@ -106,6 +106,53 @@ export async function getBranding(): Promise<Branding> {
   return brandingFromInstitute(institute);
 }
 
+// KID-2406: the public marketing pages are CDN-cacheable, so their branding
+// must depend ONLY on the Host header (which is part of the CDN cache key) and
+// never on the visitor's session. A signed-in visitor on the apex therefore
+// sees the same generic Kiddy chrome the anonymous audience sees, and a
+// daycare subdomain's page keeps naming that daycare. Generic hosts do no DB
+// work at all, which is what lets an anonymous landing request render without
+// a database round trip.
+export async function getHostBranding(host?: string | null): Promise<Branding> {
+  let hostname = host;
+  if (hostname === undefined) {
+    try {
+      hostname = (await (await import("next/headers")).headers()).get("host");
+    } catch {
+      hostname = null;
+    }
+  }
+  try {
+    const ctx = splitSubdomainHost(hostname);
+    if (ctx.kind === "subdomain") {
+      const now = Date.now();
+      const { instituteIdBySubdomain } = await import("./store");
+      const hostIid = await instituteIdBySubdomain(ctx.slug);
+      if (!hostIid) return brandingFromInstitute(undefined);
+      const cached = _hostBrandingCache.get(hostIid);
+      if (cached && now - cached.at < BRANDING_TTL_MS) return cached.value;
+      const b = brandingFromInstitute(await storeGetInstitute(hostIid));
+      _hostBrandingCache.set(hostIid, { at: now, value: b });
+      return b;
+    }
+  } catch (err) {
+    console.error("Host branding resolution failed:", err);
+  }
+  return brandingFromInstitute(undefined);
+}
+
+// KID-2406: host-only document title brand for the CDN-cached marketing
+// pages — same rule as getHostBranding, no session lookup (a per-user title
+// would otherwise be stored in the shared cache).
+export async function brandNameForHostTitle(host?: string | null): Promise<string> {
+  try {
+    return (await getHostBranding(host)).name;
+  } catch (err) {
+    console.error("Host title brand resolution failed:", err);
+    return "Kiddy";
+  }
+}
+
 // KID-435: the document title brand. The white-label wiring (KID-256) makes
 // the install meta (theme-color / manifest / apple-touch-icon) follow the
 // host's brand, but the title metadata stayed hardcoded "Kiddy" — so the

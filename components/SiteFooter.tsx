@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { SITE_BRAND } from "@/lib/site";
 import { getDictionary, tr, type Locale } from "@/lib/i18n";
+import { withLang } from "@/lib/site-lang";
 
 export type SiteFooterProps = {
   // KID-1826: the footer renders in the request's site language (defaults to
@@ -23,16 +24,16 @@ export default function SiteFooter({ locale = "en" }: SiteFooterProps = {}) {
           <div>
             <h3 className="site-footer-heading">{t("site.footer.productHeading")}</h3>
             <ul className="site-footer-links">
-              <li><Link href="/features">{t("site.footer.features")}</Link></li>
-              <li><Link href="/for-parents">{t("site.footer.forParents")}</Link></li>
-              <li><Link href="/for-centers">{t("site.footer.forCenters")}</Link></li>
+              <li><Link href={withLang("/features", locale)}>{t("site.footer.features")}</Link></li>
+              <li><Link href={withLang("/for-parents", locale)}>{t("site.footer.forParents")}</Link></li>
+              <li><Link href={withLang("/for-centers", locale)}>{t("site.footer.forCenters")}</Link></li>
             </ul>
           </div>
           <div>
             <h3 className="site-footer-heading">{t("site.footer.companyHeading")}</h3>
             <ul className="site-footer-links">
-              <li><Link href="/contact">{t("site.footer.bookDemo")}</Link></li>
-              <li><Link href="/contact">{t("site.footer.contactUs")}</Link></li>
+              <li><Link href={withLang("/contact", locale)}>{t("site.footer.bookDemo")}</Link></li>
+              <li><Link href={withLang("/contact", locale)}>{t("site.footer.contactUs")}</Link></li>
               <li><Link href="/login">{t("site.footer.signIn")}</Link></li>
             </ul>
           </div>

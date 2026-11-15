@@ -369,6 +369,7 @@ export const en = {
     kindForm: "Form",
     kindSurvey: "Survey",
     kindList: "List / sign-up",
+    errorTitleRequired: "Enter a title before saving. Nothing was created.",
   },
   // KID-368 (DEF-004): /child/consents strings. Consent status badges carry
   // the exact DB enum (pending | approved | denied) — the page bakes each
@@ -622,6 +623,15 @@ export const en = {
     notificationPrefsHint: "Choose how (email / in-app) and for which activities you get notified.",
     prefsSaved: "Preferences saved.",
     activity: "Activity",
+    activityNewsfeed: "Newsfeed posts",
+    activityHomework: "Homework",
+    activitySupplies: "Supplies",
+    activityBilling: "Billing",
+    activityAttendance: "Attendance",
+    activityIncidents: "Incidents",
+    activityMessages: "Messages",
+    activityDailyReport: "Daily reports",
+    activityEvents: "Events",
     email: "Email",
     inApp: "In-app",
     // KID-480: push column in the notification preferences table.
@@ -689,6 +699,7 @@ export const en = {
     noActivity: "No recent activity.",
   },
   profile: {
+    incidentDescriptionRequired: "Describe the incident before logging it. Nothing was created.",
     backToChildren: "Children",
     room: "Room: {room}",
     dob: "DOB {date}",
@@ -815,8 +826,6 @@ export const en = {
     incident: "Incident",
     accident: "Accident",
     logIncidentBtn: "Log incident",
-    // KID-2413 (bug 7): server-side validation message (createIncidentAction).
-    incidentDescriptionRequired: "Add a description before logging the incident.",
     type: "Type",
     unknown: "Unknown",
   },
@@ -827,6 +836,8 @@ export const en = {
     admin: "Admin",
     staff: "Staff",
     carer: "Carer",
+    teacher: "Teacher",
+    caregiver: "Caregiver",
     parent: "Parent",
   },
   // KID-199.4: the /platform surface the board asked for — every daycare with
@@ -2120,6 +2131,7 @@ export const en = {
     pickupInvalidTime: "The pickup time could not be read — send it as an ISO date-time (e.g. 2026-11-11T15:30) and try again.",
     pickupCrossDay: "A pickup time can only be registered for today — past and future days are not accepted.",
     pickupPast: "The pickup time is in the past — register a current or upcoming time for today only.",
+    parentCheckInDisabled: "The daycare has turned off parent check-in/out. Please contact the center staff.",
   },
   act: {
     inviteInvalidChild: "This invite is not attached to a valid child. Ask your daycare to send a new invite.",
@@ -2499,6 +2511,7 @@ export const ar = {
     kindForm: "نموذج",
     kindSurvey: "استبيان",
     kindList: "قائمة / تسجيل",
+    errorTitleRequired: "أدخل عنوانًا قبل الحفظ. لم يتم إنشاء أي شيء.",
   },
   consents: {
     title: "الموافقات والأذونات",
@@ -2741,6 +2754,15 @@ export const ar = {
     notificationPrefsHint: "اختر كيف (بريد إلكتروني / داخل التطبيق) وأي الأنشطة تتلقى عنها إشعارات.",
     prefsSaved: "تم حفظ التفضيلات.",
     activity: "النشاط",
+    activityNewsfeed: "منشورات الأخبار",
+    activityHomework: "الواجبات",
+    activitySupplies: "المستلزمات",
+    activityBilling: "الفواتير",
+    activityAttendance: "الحضور",
+    activityIncidents: "الحوادث",
+    activityMessages: "الرسائل",
+    activityDailyReport: "التقارير اليومية",
+    activityEvents: "الفعاليات",
     email: "البريد الإلكتروني",
     inApp: "داخل التطبيق",
     push: "إشعار فوري",
@@ -2807,6 +2829,7 @@ export const ar = {
     noActivity: "لا يوجد نشاط حديث.",
   },
   profile: {
+    incidentDescriptionRequired: "صِف الحادث قبل تسجيله. لم يتم إنشاء أي شيء.",
     backToChildren: "الأطفال",
     room: "الفصل: {room}",
     dob: "تاريخ الميلاد {date}",
@@ -2924,8 +2947,6 @@ export const ar = {
     incident: "حادث",
     accident: "إصابة",
     logIncidentBtn: "تسجيل حادث",
-    // KID-2413 (bug 7): رسالة التحقق من جهة الخادم (createIncidentAction).
-    incidentDescriptionRequired: "أضف وصفًا قبل تسجيل الحادث.",
     type: "النوع",
     unknown: "غير معروف",
   },
@@ -2934,6 +2955,8 @@ export const ar = {
     admin: "مدير",
     staff: "موظف",
     carer: "مقدّم رعاية",
+    teacher: "معلم",
+    caregiver: "مقدّم رعاية",
     parent: "ولي أمر",
   },
   platform: {
@@ -4191,6 +4214,7 @@ export const ar = {
     pickupInvalidTime: "تعذّر قراءة وقت الانصراف — أرسله بصيغة ISO للتاريخ والوقت (مثل 2026-11-11T15:30) وحاول مرة أخرى.",
     pickupCrossDay: "يمكن تسجيل وقت الانصراف لليوم فقط — لا تُقبل الأيام السابقة أو اللاحقة.",
     pickupPast: "وقت الانصراف في الماضي — سجّل وقتًا حاليًا أو قادمًا لليوم فقط.",
+    parentCheckInDisabled: "أوقفت الحضانة تسجيل الحضور والانصراف لأولياء الأمور. يرجى التواصل مع موظفي المركز.",
   },
   act: {
     inviteInvalidChild: "هذه الدعوة غير مرتبطة بطفل صحيح. اطلب من حضانتك إرسال دعوة جديدة.",

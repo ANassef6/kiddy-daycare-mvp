@@ -65,6 +65,8 @@ export default async function PortalChildPage(
   const session = await requireSession();
   const { locale, dict } = await i18nForAccount(session.accountId);
   const t = (key: string, vars?: Record<string, string | number>) => tr(dict, key, vars);
+  // KID-2413 bug 7: the incident form refuses an empty description server-side.
+  const incidentDescriptionError = searchParams.error === "incidentDescription";
   const child = await getChild(params.id);
   if (!child) notFound();
   // KID-103: direct URLs to out-of-scope children are hidden.

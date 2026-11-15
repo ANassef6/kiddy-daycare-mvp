@@ -4,6 +4,7 @@ import SiteFooter from "@/components/SiteFooter";
 import SiteReveal from "@/components/SiteReveal";
 import { SITE_BRAND } from "@/lib/site";
 import { siteContext } from "@/lib/site-i18n";
+import { withLang } from "@/lib/site-lang";
 
 // KID-1632 rebrand — "the center's day". The landing shows the product's own
 // world instead of selling at it: a live day panel in the hero, a timeline
@@ -39,10 +40,10 @@ export default async function HomePage() {
               <h1>{t("site.landing.heroTitle")}</h1>
               <p className="hero-sub">{t("site.landing.heroSub")}</p>
               <div className="row mt-4">
-                <Link className="btn btn-deep btn-lg" href="/contact">
+                <Link className="btn btn-deep btn-lg" href={withLang("/contact", locale)}>
                   {t("site.landing.heroCta")}
                 </Link>
-                <Link className="btn btn-ghost btn-lg" href="/for-parents">
+                <Link className="btn btn-ghost btn-lg" href={withLang("/for-parents", locale)}>
                   {t("site.landing.heroParentCta")}
                 </Link>
               </div>
@@ -128,7 +129,7 @@ export default async function HomePage() {
               </div>
             </div>
             <p className="center mt-5" data-reveal>
-              <Link href="/features" className="btn btn-ghost">
+              <Link href={withLang("/features", locale)} className="btn btn-ghost">
                 {t("site.landing.exploreFeatures")}
               </Link>
             </p>
@@ -169,7 +170,7 @@ export default async function HomePage() {
                 <li>{t("site.landing.parentsItem3")}</li>
                 <li>{t("site.landing.parentsItem4")}</li>
               </ul>
-              <Link className="btn btn-deep" href="/for-parents">
+              <Link className="btn btn-deep" href={withLang("/for-parents", locale)}>
                 {t("site.landing.parentsCta")}
               </Link>
             </div>
@@ -182,7 +183,7 @@ export default async function HomePage() {
                 <li>{t("site.landing.centersItem3")}</li>
                 <li>{t("site.landing.centersItem4")}</li>
               </ul>
-              <Link className="btn btn-deep" href="/for-centers">
+              <Link className="btn btn-deep" href={withLang("/for-centers", locale)}>
                 {t("site.landing.centersCta")}
               </Link>
             </div>
@@ -195,10 +196,10 @@ export default async function HomePage() {
               <h2>{t("site.landing.ctaTitle", { brand: SITE_BRAND })}</h2>
               <p>{t("site.landing.ctaBody")}</p>
               <div className="row">
-                <Link className="btn btn-deep btn-lg" href="/contact">
+                <Link className="btn btn-deep btn-lg" href={withLang("/contact", locale)}>
                   {t("site.landing.ctaBook")}
                 </Link>
-                <Link className="btn btn-ghost btn-lg" href="/features">
+                <Link className="btn btn-ghost btn-lg" href={withLang("/features", locale)}>
                   {t("site.landing.ctaExplore")}
                 </Link>
               </div>
