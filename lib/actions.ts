@@ -883,6 +883,38 @@ export async function updateDaycareSubdomainAction(formData: FormData) {
   redirect("/platform");
 }
 
+// KID-2403: the platform team is the ONLY rename path. Daycare admins see the
+// name as a dimmed read-only field in settings; both settings actions ignore a
+// submitted `name`. This action changes institute.name and nothing else — the
+// subdomain/slug, colors, font and every URL stay untouched.
+const DAYCARE_NAME_MAX = 120;
+
+export async function updateDaycareNameAction(formData: FormData) {
+  const operator = await requirePlatformOperator();
+  await ensureSchema();
+  const instituteId = String(formData.get("instituteId") ?? "").trim();
+  if (!instituteId) redirect("/platform?error=rename-missing");
+  const typed = String(formData.get("name") ?? "").trim();
+  if (!typed) redirect("/platform?error=rename-empty");
+  if (typed.length > DAYCARE_NAME_MAX) redirect("/platform?error=rename-too-long");
+  await updateInstitute(instituteId, { name: typed });
+  // KID-477: a platform rename is attributed like every other settings write.
+  await recordAuditEvent({
+    instituteId,
+    actorAccountId: operator.accountId,
+    action: "update",
+    entityType: "institute_settings",
+    entityId: instituteId,
+    summary: "Renamed the center from the platform",
+  });
+  const { clearBrandingCache } = await import("@/lib/theme");
+  // The anonymous/per-host branding cache holds the old name for up to 30 s.
+  clearBrandingCache();
+  revalidatePath("/", "layout");
+  revalidatePath("/platform");
+  redirect("/platform");
+}
+
 // KID-199.4: create a new daycare plus its first owner login, so the board can
 // add tenants like "Sunshine Daycare" without a code deploy. Every failure
 // lands back on /platform with a query-tagged friendly message.
@@ -2551,8 +2583,11 @@ export async function saveBrandingAction(formData: FormData) {
   await ensureSchema();
   const instituteId = await firstInstituteId();
   if (instituteId) {
+    // KID-2403: the daycare name is platform-managed and never writable from a
+    // daycare session. The settings form still shows it (disabled), but a
+    // crafted POST that carries `name` must be ignored entirely — only the
+    // colors and font are persisted here.
     await updateInstitute(String(instituteId), {
-      name: String(formData.get("name") ?? ""),
       primary_color: String(formData.get("primaryColor") ?? "#3B82F6"),
       accent_color: String(formData.get("accentColor") ?? "#10B981"),
       font: String(formData.get("font") ?? "Inter"),
@@ -2582,10 +2617,10 @@ export async function saveCenterDetailsAction(formData: FormData) {
   const instituteId = await firstInstituteId();
   if (instituteId) {
     const patch: Record<string, unknown> = {};
-    const name = String(formData.get("name") ?? "").trim();
+    // KID-2403: the name is platform-managed — a daycare admin cannot rename
+    // its center through center details (or a crafted POST of this form).
     const contact = String(formData.get("contact") ?? "").trim();
     const address = String(formData.get("address") ?? "").trim();
-    if (name) patch.name = name;
     patch.contact = contact || null;
     patch.address = address || null;
     // KID-489 item 1 (KID-490): the center's default currency. Only written
@@ -2617,7 +2652,7 @@ export async function saveCenterDetailsAction(formData: FormData) {
       action: "update",
       entityType: "institute_settings",
       entityId: instituteId,
-      summary: name ? `Updated the center profile (${name})` : "Updated the center profile",
+      summary: "Updated the center profile",
       metadata: patch.default_currency ? { defaultCurrency: String(patch.default_currency) } : undefined,
     });
   }
@@ -3387,6 +3422,27 @@ export async function uploadBrandingImageAction(formData: FormData) {
   }
   const column = kind === "logo" ? "logo_url" : "brand_image_url";
   await updateInstitute(instituteId, { [column]: url });
+  const { clearBrandingCache } = await import("@/lib/theme");
+  clearBrandingCache();
+  revalidatePath("/", "layout");
+  redirect("/portal/settings");
+}
+
+// KID-2403: the "×" on a set logo / brand image. Removal is reference-only —
+// the stored object stays in the bucket, the institute column becomes NULL and
+// the existing fallbacks (initials avatar, dash placeholder) render. Strictly
+// one column per request: `kind` must be exactly "logo" or "brandImage".
+export async function removeBrandingImageAction(formData: FormData) {
+  await requireAdmin();
+  await ensureSchema();
+  const instituteId = await firstInstituteId();
+  const kind = String(formData.get("kind") ?? "");
+  // Anything else (missing, unknown, extra text) is a refusal, not a guess.
+  if (!instituteId || (kind !== "logo" && kind !== "brandImage")) {
+    redirect("/portal/settings");
+  }
+  const column = kind === "logo" ? "logo_url" : "brand_image_url";
+  await updateInstitute(instituteId, { [column]: null });
   const { clearBrandingCache } = await import("@/lib/theme");
   clearBrandingCache();
   revalidatePath("/", "layout");

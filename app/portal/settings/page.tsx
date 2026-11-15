@@ -4,7 +4,7 @@ import { resolveTenantInstituteId } from "@/lib/tenant";
 import { requireSession } from "@/lib/require";
 import { isAdminRole } from "@/lib/role";
 import {getInstitute, getWorkingHours } from "@/lib/store";
-import { saveBrandingAction, saveCenterDetailsAction, uploadBrandingImageAction } from "@/lib/actions";
+import { saveBrandingAction, saveCenterDetailsAction, uploadBrandingImageAction, removeBrandingImageAction } from "@/lib/actions";
 import { brandingFromInstitute } from "@/lib/theme";
 import { DEFAULT_CURRENCY, SUPPORTED_CURRENCIES } from "@/lib/currency";
 import Avatar from "@/components/Avatar";
@@ -89,7 +89,26 @@ export default async function PortalSettingsPage(
       <form className="card mb-4" action={saveCenterDetailsAction}>
         <h3 className="subtitle">{tr(dict, "settings.centerDetails")}</h3>
         <div className="row">
-          <div className="col field"><label className="label">{tr(dict, "settings.centerName")}</label><input className="input" name="name" defaultValue={institute?.name ?? ""} placeholder={tr(dict, "settings.centerNamePlaceholder")} /></div>
+          {/* KID-2403: the daycare name is managed by the platform team — the
+              field stays visible for reference but is dimmed and disabled. The
+              server actions ignore a submitted `name` too, so a crafted POST
+              cannot rename the center. */}
+          <div className="col field">
+            <label className="label" htmlFor="centerName">{tr(dict, "settings.centerName")}</label>
+            <input
+              id="centerName"
+              className="input"
+              name="name"
+              defaultValue={institute?.name ?? ""}
+              placeholder={tr(dict, "settings.centerNamePlaceholder")}
+              disabled
+              aria-describedby="centerNameReadonlyHint"
+              style={{ opacity: 0.65, cursor: "not-allowed", background: "#f1f5f9" }}
+            />
+            <p id="centerNameReadonlyHint" className="small muted" style={{ margin: "4px 0 0" }}>
+              {tr(dict, "settings.nameReadonlyHint")}
+            </p>
+          </div>
           <div className="col field"><label className="label">{tr(dict, "settings.contact")}</label><input className="input" name="contact" defaultValue={String(institute?.contact ?? "")} placeholder={tr(dict, "settings.contactPlaceholder")} /></div>
         </div>
         <div className="row">
@@ -168,6 +187,23 @@ export default async function PortalSettingsPage(
             <div className="label">{tr(dict, "settings.logo")}</div>
             <div className="row" style={{ alignItems: "center", gap: 12 }}>
               <Avatar src={b.logoUrl} name={b.name} size={48} color={b.primaryColor} />
+              {/* KID-2403: reference-only removal — the image column becomes
+                  NULL and the initials fallback renders; the stored object is
+                  not deleted. Only shown when a logo is set. */}
+              {b.logoUrl && (
+                <form action={removeBrandingImageAction} style={{ display: "inline" }}>
+                  <input type="hidden" name="kind" value="logo" />
+                  <button
+                    type="submit"
+                    className="btn btn-ghost"
+                    aria-label={tr(dict, "settings.removeLogo")}
+                    title={tr(dict, "settings.removeLogo")}
+                    style={{ lineHeight: 1, fontSize: 16, padding: "4px 8px" }}
+                  >
+                    ×
+                  </button>
+                </form>
+              )}
               <form action={uploadBrandingImageAction} style={{ display: "flex", gap: 8, alignItems: "center" }}>
                 <input type="hidden" name="kind" value="logo" />
                 <input type="file" name="file" accept="image/*" required style={{ fontSize: 13 }} />
@@ -184,6 +220,22 @@ export default async function PortalSettingsPage(
               ) : (
                 <div style={{ width: 48, height: 48, borderRadius: 12, background: "#e2e8f0", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, color: "#64748b" }}>—</div>
               )}
+              {/* KID-2403: same reference-only removal, independent of the logo
+                  button — one column per submit. */}
+              {b.brandImageUrl && (
+                <form action={removeBrandingImageAction} style={{ display: "inline" }}>
+                  <input type="hidden" name="kind" value="brandImage" />
+                  <button
+                    type="submit"
+                    className="btn btn-ghost"
+                    aria-label={tr(dict, "settings.removeBrandImage")}
+                    title={tr(dict, "settings.removeBrandImage")}
+                    style={{ lineHeight: 1, fontSize: 16, padding: "4px 8px" }}
+                  >
+                    ×
+                  </button>
+                </form>
+              )}
               <form action={uploadBrandingImageAction} style={{ display: "flex", gap: 8, alignItems: "center" }}>
                 <input type="hidden" name="kind" value="brandImage" />
                 <input type="file" name="file" accept="image/*" required style={{ fontSize: 13 }} />
@@ -196,7 +248,23 @@ export default async function PortalSettingsPage(
 
       <form className="card" action={saveBrandingAction}>
         <div className="row">
-          <div className="col field"><label className="label">{tr(dict, "settings.daycareName")}</label><input className="input" name="name" defaultValue={b.name} /></div>
+          {/* KID-2403: same platform-managed name, read-only in the branding
+              form as well (saveBrandingAction no longer writes it). */}
+          <div className="col field">
+            <label className="label" htmlFor="brandingName">{tr(dict, "settings.daycareName")}</label>
+            <input
+              id="brandingName"
+              className="input"
+              name="name"
+              defaultValue={b.name}
+              disabled
+              aria-describedby="brandingNameReadonlyHint"
+              style={{ opacity: 0.65, cursor: "not-allowed", background: "#f1f5f9" }}
+            />
+            <p id="brandingNameReadonlyHint" className="small muted" style={{ margin: "4px 0 0" }}>
+              {tr(dict, "settings.nameReadonlyHint")}
+            </p>
+          </div>
           <div className="col field"><label className="label">{tr(dict, "settings.primaryColor")}</label><input className="input" name="primaryColor" type="color" defaultValue={b.primaryColor} style={{ height: 44 }} /></div>
           <div className="col field"><label className="label">{tr(dict, "settings.accentColor")}</label><input className="input" name="accentColor" type="color" defaultValue={b.accentColor} style={{ height: 44 }} /></div>
         </div>

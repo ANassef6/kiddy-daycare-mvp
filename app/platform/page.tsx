@@ -18,6 +18,7 @@ import {
   setDaycareActiveAction,
   createDaycareAction,
   updateDaycareSubdomainAction,
+  updateDaycareNameAction,
   enterDaycareAsAdminAction,
   setPlatformInstapayAction,
 } from "@/lib/actions";
@@ -115,8 +116,19 @@ export default async function PlatformDaycaresPage(
     "billing-annual_amount_egp-invalid": "The annual amount must be a number of at least zero.",
     "billing-cycle-invalid": "Type the first billing month as a date (YYYY-MM-DD).",
   };
+  // KID-2403: the platform-only rename failures render their own localized
+  // banner (the create-flow map has no entry for them and must not fall back
+  // to the generic "creating the daycare" wording).
+  const renameError =
+    searchParams.error === "rename-empty"
+      ? tr(dict, "platform.renameEmpty")
+      : searchParams.error === "rename-too-long"
+        ? tr(dict, "platform.renameTooLong")
+        : searchParams.error === "rename-missing"
+          ? tr(dict, "platform.renameMissing")
+          : "";
   const createError =
-    searchParams.error && !rowEditId && !entryError
+    searchParams.error && !rowEditId && !entryError && !renameError
       ? (ERRORS[searchParams.error] ?? billingErrorKeys[searchParams.error] ?? ERRORS.unknown)
       : "";
   // KID-199.3r: the apex is deployment configuration; when set, the operator
@@ -132,6 +144,7 @@ export default async function PlatformDaycaresPage(
         <div className="card mb-4 banner-success">{tr(dict, "platform.createdMessage")}</div>
       )}
       {createError && <div className="card mb-4 banner-error">{createError}</div>}
+      {renameError && <div className="card mb-4 banner-error">{renameError}</div>}
       {entryError && <div className="card mb-4 banner-error">{entryError}</div>}
 
       {/* KID-737: the platform-wide Instapay link — ONE card for the whole
@@ -371,6 +384,37 @@ export default async function PlatformDaycaresPage(
                         {rowError}
                       </span>
                     ) : null}
+                    {/* KID-2403: the only rename path — changes institute.name
+                        alone. The web prefix and colors keep their own forms. */}
+                    <form
+                      action={updateDaycareNameAction}
+                      style={{ marginTop: 10, borderTop: "1px solid #e5e7eb", paddingTop: 8 }}
+                    >
+                      <input type="hidden" name="instituteId" value={instId} />
+                      <label className="label" htmlFor={`rename-${instId}`} style={{ marginBottom: 2 }}>
+                        {tr(dict, "platform.rename")}
+                      </label>
+                      <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
+                        <input
+                          className="input"
+                          id={`rename-${instId}`}
+                          name="name"
+                          defaultValue={String(inst.name)}
+                          maxLength={120}
+                          style={{ width: 160, marginBottom: 0 }}
+                          aria-label={`${tr(dict, "platform.rename")}: ${String(inst.name)}`}
+                          aria-describedby={`rename-hint-${instId}`}
+                        />
+                        <button className="btn" type="submit">{tr(dict, "platform.renameSave")}</button>
+                      </div>
+                      <span
+                        id={`rename-hint-${instId}`}
+                        className="small muted"
+                        style={{ display: "block", marginTop: 4 }}
+                      >
+                        {tr(dict, "platform.renameHint")}
+                      </span>
+                    </form>
                   </td>
                   <td style={{ padding: 8 }}>
                     <span

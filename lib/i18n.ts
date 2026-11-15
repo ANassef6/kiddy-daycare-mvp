@@ -577,6 +577,13 @@ export const en = {
       "Image storage (Supabase Storage) is not configured, so the image could not be uploaded. Nothing was saved.",
     uploadFailedError:
       "The image upload failed. Your previous logo and brand image are unchanged.",
+    // KID-2403: the name is platform-managed (dimmed + read-only here) and the
+    // "×" clears a set image (reference-only — the object stays in storage).
+    nameReadonlyHint:
+      "The daycare name is managed by the Kiddy platform team. Contact support to change it.",
+    remove: "Remove",
+    removeLogo: "Remove logo",
+    removeBrandImage: "Remove brand image",
     daycareName: "Daycare name",
     primaryColor: "Primary color",
     accentColor: "Accent color",
@@ -860,6 +867,14 @@ export const en = {
     subdomainSave: "Save address",
     // KID-227: make the prefix + public URL obvious.
     editPrefix: "Edit web prefix",
+    // KID-2403: platform-only rename. Changes institute.name only — the web
+    // prefix, colors and URLs stay as they are.
+    rename: "Rename daycare",
+    renameHint: "Only the platform team can change the daycare name. The web prefix and colors stay the same.",
+    renameSave: "Save name",
+    renameEmpty: "Enter a daycare name.",
+    renameTooLong: "The daycare name must be 120 characters or fewer.",
+    renameMissing: "Something went wrong saving the name. Please try again.",
     copyUrl: "Copy link",
     copied: "Copied",
     noPrefix: "No web prefix yet — type one and save.",
@@ -2670,6 +2685,13 @@ export const ar = {
       "لم يتم إعداد وحدة تخزين الصور (Supabase Storage)، ولذلك لم يتم رفع الصورة. لم يُحفظ أي تغيير.",
     uploadFailedError:
       "فشل رفع الصورة. لم يتغير شعارك السابق ولا صورة علامتك.",
+    // KID-2403: اسم الحضانة تديره المنصة (معطّل للقراءة فقط) وزر «×» يزيل
+    // الصورة المضبوطة (إزالة مرجعية — يبقى الملف في التخزين).
+    nameReadonlyHint:
+      "اسم الحضانة يديره فريق منصة Kiddy. تواصل مع الدعم لتغييره.",
+    remove: "إزالة",
+    removeLogo: "إزالة الشعار",
+    removeBrandImage: "إزالة صورة العلامة",
     daycareName: "اسم الحضّانة",
     primaryColor: "اللون الأساسي",
     accentColor: "اللون المميز",
@@ -2936,6 +2958,14 @@ export const ar = {
     subdomainSave: "حفظ العنوان",
     openDaycare: "فتح الروضة",
     editPrefix: "تعديل بادئة العنوان",
+    // KID-2403: إعادة التسمية متاحة لفريق المنصة وحده. تغيّر اسم الحضانة فقط —
+    // وتبقى بادئة العنوان والألوان وعناوين الويب كما هي.
+    rename: "إعادة تسمية الحضانة",
+    renameHint: "فريق المنصة وحده يمكنه تغيير اسم الحضانة. تبقى بادئة العنوان والألوان كما هي.",
+    renameSave: "حفظ الاسم",
+    renameEmpty: "أدخل اسم الحضانة.",
+    renameTooLong: "يجب ألا يزيد اسم الحضانة عن 120 حرفًا.",
+    renameMissing: "حدث خطأ أثناء حفظ الاسم. حاول مرة أخرى.",
     copyUrl: "نسخ الرابط",
     copied: "تم النسخ",
     noPrefix: "لا توجد بادئة عنوان بعد — اكتب واحدة واحفظ.",
