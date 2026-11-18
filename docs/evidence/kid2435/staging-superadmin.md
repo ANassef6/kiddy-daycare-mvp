@@ -81,8 +81,11 @@ Pages for the KID-2435 review:
 | `/platform/pricing` | 200, "Pricing configuration", 6 bands |
 | `/platform/daycares` | 200, "Daycares" |
 | `/platform/daycares/<id>/billing` | 200, "Billing settings", v2 band preview |
-| `/platform/daycares/<id>/invoices` | 200, "Invoices", fixture invoice with v2 columns |
+| `/platform/daycares/<id>/invoices` | 200, "Invoices", row `2026-10 · Core · standard 950 · founding/glide 810 · pilot 350 · total 460 · paid` |
 | Console errors | only the pre-existing `/favicon.ico` 404 |
+
+Screenshots: `platform2.png`, `pricing2.png`, `billing2.png`, `invoices2.png`.
+Raw browser result: `staging-verify.json`.
 
 Production Vercel project, production Supabase project
 (`sfetmfmtoubtdyyeyudd`) and the production deployment were not touched.
