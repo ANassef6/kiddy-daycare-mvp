@@ -12,6 +12,8 @@ export type Account = {
   email: string;
   role: string;
   fullName: string | null;
+  // KID-2439: true when the account signed in with a temporary password.
+  mustChangePassword?: boolean;
 };
 
 export type SessionPayload = {
@@ -22,6 +24,12 @@ export type SessionPayload = {
 export type LoginBody = {
   account: Account;
   token: string;
+};
+
+// KID-2439: the forced / in-app password change response.
+export type ChangePasswordBody = {
+  ok: true;
+  account: Account;
 };
 
 export type ChildInfo = {

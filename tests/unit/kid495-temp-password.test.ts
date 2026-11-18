@@ -193,7 +193,7 @@ describe("KID-495 changePasswordAction", () => {
 
     expect(
       await redirectTarget(() => changePasswordAction(form(["currentPassword", "old-password-7"], ["newPassword", "new-password-9"], ["confirmPassword", "new-password-9"])))
-    ).toContain("/portal/account?pw=changed");
+    ).toContain("/change-password?pw=changed");
 
     const after = await getAccount(String(account!.id));
     expect(mustChangePasswordFor(after)).toBe(false);
@@ -213,7 +213,7 @@ describe("KID-495 changePasswordAction", () => {
     const { changePasswordAction } = await import("@/lib/actions");
     expect(
       await redirectTarget(() => changePasswordAction(form(["currentPassword", "old-password-7"], ["newPassword", "new-password-9"], ["confirmPassword", "new-password-9"])))
-    ).toContain("/child/settings?pw=changed");
+    ).toContain("/change-password?pw=changed");
     expect(mustChangePasswordFor(await getAccount(String(parent.id)))).toBe(false);
   });
 });

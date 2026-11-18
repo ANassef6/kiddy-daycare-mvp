@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { findAccountByEmail, verifyPassword, createSessionToken, emailConfirmedFor } from "@/lib/auth";
+import { findAccountByEmail, verifyPassword, createSessionToken, emailConfirmedFor, mustChangePasswordFor } from "@/lib/auth";
 import { supabaseConfigured, getSupabase } from "@/lib/supabase";
 import {
   authAttemptGuard,
@@ -69,6 +69,9 @@ export async function POST(req: NextRequest) {
             email: account.email,
             role: account.role,
             fullName: account.full_name,
+            // KID-2439: mobile clients use this to open the change-password
+            // screen before the app surface (web enforces it server-side).
+            mustChangePassword: mustChangePasswordFor(account),
           },
           token,
         });
@@ -108,6 +111,7 @@ export async function POST(req: NextRequest) {
       role: account.role,
       fullName: account.full_name,
       emailConfirmed: emailConfirmedFor(account),
+      mustChangePassword: mustChangePasswordFor(account),
     },
     token,
   });
