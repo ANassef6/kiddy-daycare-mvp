@@ -8,10 +8,12 @@ import type { BootstrapPayload, ChildSummary } from "../types";
 
 export function HomeScreen({
   onAuthed,
+  onPasswordChangeRequired,
   onOpenChild,
   onBilling,
 }: {
   onAuthed: (boot: BootstrapPayload | null) => void;
+  onPasswordChangeRequired: () => void;
   onOpenChild: (id: string) => void;
   onBilling: () => void;
 }) {
@@ -32,11 +34,17 @@ export function HomeScreen({
         onAuthed(null);
         return;
       }
+      // KID-2439: the server blocks family data until a temporary password is
+      // replaced; open the change-password screen instead of an error.
+      if (e instanceof ApiError && e.code === "password_change_required") {
+        onPasswordChangeRequired();
+        return;
+      }
       setError(e instanceof ApiError ? e.message : "Could not reach the Kiddy server.");
     } finally {
       setLoading(false);
     }
-  }, [onAuthed]);
+  }, [onAuthed, onPasswordChangeRequired]);
 
   useEffect(() => {
     load();
