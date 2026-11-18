@@ -127,6 +127,11 @@ export default async function PlatformDaycaresPage(
     <div dir={dir}>
       <h1 className="title">{tr(dict, "platform.title")}</h1>
       <p className="subtitle">{tr(dict, "platform.subtitle")}</p>
+      <p className="small">
+        <a href="/platform/pricing" style={{ fontWeight: 700 }}>
+          {tr(dict, "platform.pricingTitle")} →
+        </a>
+      </p>
 
       {created && (
         <div className="card mb-4 banner-success">{tr(dict, "platform.createdMessage")}</div>

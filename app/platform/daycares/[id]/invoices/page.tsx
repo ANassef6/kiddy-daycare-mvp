@@ -115,6 +115,18 @@ export default async function DaycareInvoicesPage(
                     <div className="small muted">
                       {tr(dict, "platform.invoicePlan")}: {inv.plan}
                     </div>
+                    {inv.bandKey ? (
+                      <div className="small muted">
+                        {tr(dict, "platform.invoiceBand")}: {inv.bandName} ·{" "}
+                        {tr(dict, "platform.invoiceStandard")}: {inv.standardAmountEgp}
+                        {inv.foundingApplied
+                          ? ` · ${tr(dict, "platform.invoiceFoundingDiscount")}: ${inv.appliedMonthlyRate}${inv.glideCapped ? " (cap)" : ""}`
+                          : ""}
+                        {inv.pilotCreditEgp > 0
+                          ? ` · ${tr(dict, "platform.invoicePilotCredit")}: ${inv.pilotCreditEgp}`
+                          : ""}
+                      </div>
+                    ) : null}
                   </td>
                   <td className="small" style={{ padding: 8 }}>
                     {inv.maxActiveChildren}

@@ -1062,6 +1062,9 @@ export async function updateDaycareBillingAction(formData: FormData) {
       freeChildThreshold: number("freeChildThreshold"),
       annualAmountEgp: number("annualAmountEgp"),
       firstCycleStart: /^\d{4}-\d{2}-\d{2}$/.test(firstCycleStart) ? firstCycleStart : undefined,
+      foundingClient: String(formData.get("foundingClient") ?? "") === "1",
+      foundingStartedAt: String(formData.get("foundingStartedAt") ?? "").trim(),
+      pilotEndDate: String(formData.get("pilotEndDate") ?? "").trim(),
     });
   } catch (err) {
     const reason = String((err as Error)?.message ?? "");
@@ -1072,6 +1075,9 @@ export async function updateDaycareBillingAction(formData: FormData) {
       "billing-free_child_threshold-invalid",
       "billing-annual_amount_egp-invalid",
       "billing-cycle-invalid",
+      "billing-founding_started_at-invalid",
+      "billing-pilot_end_date-invalid",
+      "founding-cap-reached",
     ];
     console.error("KID-244 updateDaycareBillingAction failed:", err);
     redirect(`${back}?error=${known.includes(reason) ? reason : "unknown"}`);
@@ -1088,6 +1094,101 @@ export async function updateDaycareBillingAction(formData: FormData) {
   });
   revalidatePath("/platform");
   redirect(`${back}?saved=1`);
+}
+
+function pricingFormNumber(formData: FormData, key: string): number | undefined {
+  const raw = String(formData.get(key) ?? "").trim();
+  if (raw === "") return undefined;
+  return Number(raw);
+}
+
+export async function updatePricingBandAction(formData: FormData) {
+  const operator = await requirePlatformOperator();
+  const key = String(formData.get("key") ?? "").trim();
+  if (!key) redirect("/platform/pricing?error=pricing-band-unknown");
+  const back = "/platform/pricing";
+  const { updatePricingBand } = await import("@/lib/pricing");
+  try {
+    await updatePricingBand(key, {
+      name: String(formData.get("name") ?? ""),
+      minChildren: pricingFormNumber(formData, "minChildren"),
+      maxChildren:
+        formData.get("maxChildren") === null ||
+        String(formData.get("maxChildren") ?? "").trim() === ""
+          ? null
+          : pricingFormNumber(formData, "maxChildren"),
+      monthlyEgp: pricingFormNumber(formData, "monthlyEgp"),
+      perChildOverageEgp: pricingFormNumber(formData, "perChildOverageEgp"),
+      foundingMonthlyEgp:
+        formData.get("foundingMonthlyEgp") === null ||
+        String(formData.get("foundingMonthlyEgp") ?? "").trim() === ""
+          ? null
+          : pricingFormNumber(formData, "foundingMonthlyEgp"),
+      annualIsQuote: String(formData.get("annualIsQuote") ?? "") === "1",
+      busTrackingIncluded: String(formData.get("busTrackingIncluded") ?? "") === "1",
+    });
+  } catch (err) {
+    const reason = String((err as Error)?.message ?? "");
+    const known = [
+      "pricing-band-unknown",
+      "pricing-band-invalid",
+      "pricing-band-ladder",
+      "pricing-band-annual-rule",
+    ];
+    console.error("KID-2434 updatePricingBandAction failed:", err);
+    redirect(`${back}?error=${known.includes(reason) ? reason : "unknown"}`);
+  }
+  await recordAuditEvent({
+    actorAccountId: operator.accountId,
+    action: "update",
+    entityType: "pricing_band",
+    entityId: key,
+    summary: `Updated pricing band (${key})`,
+    metadata: { key },
+  });
+  revalidatePath("/platform/pricing");
+  revalidatePath("/platform");
+  redirect(`${back}?saved=band`);
+}
+
+export async function updatePricingSettingsAction(formData: FormData) {
+  const operator = await requirePlatformOperator();
+  const back = "/platform/pricing";
+  const number = (key: string): number | undefined => pricingFormNumber(formData, key);
+  const checked = (key: string): boolean => String(formData.get(key) ?? "") === "1";
+  const { updatePricingSettings } = await import("@/lib/pricing");
+  try {
+    await updatePricingSettings({
+      demoTrialDays: number("demoTrialDays"),
+      demoRoomLimit: number("demoRoomLimit"),
+      demoChildLimit: number("demoChildLimit"),
+      demoBrandedApp: checked("demoBrandedApp"),
+      demoBusTracking: checked("demoBusTracking"),
+      foundingEnabled: checked("foundingEnabled"),
+      foundingCap: number("foundingCap"),
+      foundingOfferDays: number("foundingOfferDays"),
+      foundingLaunchDate: String(formData.get("foundingLaunchDate") ?? "").trim(),
+      foundingPilotFeeEgp: number("foundingPilotFeeEgp"),
+      foundingPilotDays: number("foundingPilotDays"),
+      foundingPilotRoomLimit: number("foundingPilotRoomLimit"),
+      foundingPilotChildLimit: number("foundingPilotChildLimit"),
+      foundingPilotCreditDays: number("foundingPilotCreditDays"),
+      foundingGlideMaxIncreasePct: number("foundingGlideMaxIncreasePct"),
+    });
+  } catch (err) {
+    const reason = String((err as Error)?.message ?? "");
+    console.error("KID-2434 updatePricingSettingsAction failed:", err);
+    redirect(`${back}?error=${reason === "pricing-setting-invalid" ? reason : "unknown"}`);
+  }
+  await recordAuditEvent({
+    actorAccountId: operator.accountId,
+    action: "update",
+    entityType: "pricing_config",
+    summary: "Updated demo and founding-cohort pricing policy",
+  });
+  revalidatePath("/platform/pricing");
+  revalidatePath("/platform");
+  redirect(`${back}?saved=settings`);
 }
 
 // ---------------------------------------------------------------------------

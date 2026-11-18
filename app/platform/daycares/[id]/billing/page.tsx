@@ -12,7 +12,17 @@ import { requireSession } from "@/lib/require";
 import { isPlatformOperatorEmail, isPlatformOperatorRole } from "@/lib/platform";
 import { getInstitute } from "@/lib/store";
 import { enrolledChildCount } from "@/lib/billing";
-import { BILLING_PLANS, BILLING_DEFAULTS, cycleAmountEgp, getDaycareBilling, type DaycareBilling } from "@/lib/billing";
+import { BILLING_PLANS, BILLING_DEFAULTS, getDaycareBilling, type DaycareBilling } from "@/lib/billing";
+import {
+  annualForBand,
+  foundingYearOneForBand,
+  getPricingBands,
+  getPricingSettings,
+  monthlyForBand,
+  pilotCreditAmount,
+  pilotCreditEligible,
+  pricingBandForChildCount,
+} from "@/lib/pricing";
 import { updateDaycareBillingAction, uploadDaycareContractAction } from "@/lib/actions";
 import { getDaycareContract, getDaycareContractUploaderName } from "@/lib/contract";
 import { storageSrcFor } from "@/lib/storage";
@@ -38,6 +48,9 @@ const ERRORS: Record<string, string> = {
   "billing-free_child_threshold-invalid": "The free-child threshold must be a number of at least zero.",
   "billing-annual_amount_egp-invalid": "The annual amount must be a number of at least zero.",
   "billing-cycle-invalid": "Type the first billing month as a date (YYYY-MM-DD).",
+  "billing-founding_started_at-invalid": "Type the founding start as a date (YYYY-MM-DD).",
+  "billing-pilot_end_date-invalid": "Type the pilot end as a date (YYYY-MM-DD).",
+  "founding-cap-reached": "The founding cohort is full. Raise the cap on /platform/pricing first.",
   unknown: "Something went wrong saving the billing settings. Please try again.",
 };
 
@@ -67,6 +80,15 @@ export default async function DaycareBillingPage(
   if (!inst) redirect("/platform?error=missing-id");
   const billing: DaycareBilling = await getDaycareBilling(instituteId);
   const childCount = await enrolledChildCount(instituteId);
+  const [bands, pricingSettings] = await Promise.all([getPricingBands(), getPricingSettings()]);
+  const band = pricingBandForChildCount(childCount, bands);
+  const standardMonthly = monthlyForBand(band, childCount);
+  const standardAnnual = annualForBand(band);
+  const foundingMonthly = foundingYearOneForBand(band);
+  const pilotCredit = pilotCreditAmount(
+    pricingSettings,
+    pilotCreditEligible(billing.pilotEndDate, billing.foundingStartedAt, pricingSettings.foundingPilotCreditDays)
+  );
   const saved = searchParams.saved === "1";
   const error = searchParams.error ? (ERRORS[searchParams.error] ?? ERRORS.unknown) : "";
 
@@ -201,11 +223,44 @@ export default async function DaycareBillingPage(
         </span>
         <span className="small muted" style={{ marginLeft: 16 }}>
           {tr(dict, "platform.billingCyclePreview")}:{" "}
-          <strong>{cycleAmountEgp(billing, childCount)} EGP</strong>
+          <strong>
+            {billing.plan === "demo"
+              ? 0
+              : billing.plan === "annual"
+                ? (standardAnnual ?? 0)
+                : standardMonthly}{" "}
+            EGP
+          </strong>
         </span>
         <span className="small muted" style={{ marginLeft: 16 }}>
           {tr(dict, "platform.billingEnrolledChildren")}: <strong>{childCount}</strong>
         </span>
+      </div>
+
+      <div className="card mb-4">
+        <span className="small muted">
+          {tr(dict, "platform.billingV2Band")}:{" "}
+          <strong>
+            {band.name} ({band.minChildren}-{band.maxChildren ?? "∞"})
+          </strong>
+        </span>
+        <span className="small muted" style={{ marginLeft: 16 }}>
+          {tr(dict, "platform.billingV2StandardMonthly")}: <strong>{standardMonthly} EGP</strong>
+        </span>
+        <span className="small muted" style={{ marginLeft: 16 }}>
+          {tr(dict, "platform.billingV2Annual")}:{" "}
+          <strong>{standardAnnual === null ? tr(dict, "platform.billingV2Quote") : `${standardAnnual} EGP`}</strong>
+        </span>
+        {billing.foundingClient && foundingMonthly !== null ? (
+          <span className="small muted" style={{ marginLeft: 16 }}>
+            {tr(dict, "platform.billingV2FoundingYearOne")}: <strong>{foundingMonthly} EGP</strong>
+          </span>
+        ) : null}
+        {pilotCredit > 0 ? (
+          <span className="small muted" style={{ marginLeft: 16 }}>
+            {tr(dict, "platform.billingV2PilotCredit")}: <strong>{pilotCredit} EGP</strong>
+          </span>
+        ) : null}
       </div>
 
       {saved && <div className="card mb-4 banner-success">{tr(dict, "platform.billingSaved")}</div>}
@@ -230,6 +285,7 @@ export default async function DaycareBillingPage(
             <span className="small muted">{tr(dict, "platform.billingCycleHint")}</span>
           </div>
         </div>
+        <p className="small muted">{tr(dict, "platform.billingLegacyNote")}</p>
         <div className="row">
           <div className="col field">
             <label className="label">{tr(dict, "platform.billingMonthlyRate")}</label>
@@ -277,6 +333,24 @@ export default async function DaycareBillingPage(
             />
           </div>
         </div>
+        <div className="row">
+          <div className="col field">
+            <label className="label">{tr(dict, "platform.billingFoundingTitle")}</label>
+            <label className="small">
+              <input type="checkbox" name="foundingClient" value="1" defaultChecked={billing.foundingClient} />{" "}
+              {tr(dict, "platform.billingFoundingClient")}
+            </label>
+          </div>
+          <div className="col field">
+            <label className="label">{tr(dict, "platform.billingFoundingStarted")}</label>
+            <input className="input" name="foundingStartedAt" type="date" defaultValue={billing.foundingStartedAt} />
+          </div>
+          <div className="col field">
+            <label className="label">{tr(dict, "platform.billingPilotEnd")}</label>
+            <input className="input" name="pilotEndDate" type="date" defaultValue={billing.pilotEndDate} />
+          </div>
+        </div>
+        <p className="small muted">{tr(dict, "platform.billingFoundingNote")}</p>
         <button className="btn btn-primary" type="submit">
           {tr(dict, "platform.billingSave")}
         </button>
