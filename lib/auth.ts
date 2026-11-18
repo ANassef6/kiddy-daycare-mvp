@@ -260,8 +260,18 @@ export function mustChangePasswordFor(account: DbRow | undefined): boolean {
   return !!account?.must_change_password;
 }
 
-// KID-495: flips the temp-password flag. UI guidance only — no session or
-// permission change rides on it.
+// KID-2439: the post-login landing page for a role. Shared by loginAction and
+// the forced-change screen so the two can never disagree.
+export function homeForRole(role: string): string {
+  // KID-199.4r: the platform operator lands on /platform (its internal
+  // sentinel session is not a daycare role).
+  if (role === PLATFORM_OPERATOR_ROLE) return "/platform";
+  return role === "parent" ? "/child" : "/portal/dashboard";
+}
+
+// KID-495: flips the temp-password flag. KID-2439: the flag is authoritative —
+// login and the authenticated layouts route a flagged account to
+// /change-password until the password is replaced (which clears it).
 export async function setMustChangePassword(accountId: string, value: boolean): Promise<void> {
   await queryRun("UPDATE account SET must_change_password = ? WHERE id = ?", value ? 1 : 0, accountId);
 }

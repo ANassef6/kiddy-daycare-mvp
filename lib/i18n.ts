@@ -666,9 +666,13 @@ export const en = {
     passwordWrongCurrent: "That current password is not correct.",
     passwordTooShort: "Use at least 8 characters for the new password.",
     passwordMismatch: "The new passwords don't match.",
+    passwordSame: "Choose a password that is different from your current password.",
     tempPasswordBanner: "Your account is using a temporary password.",
     tempPasswordBannerAction: "Change it now",
     tempPasswordFlagged: "You are using a temporary password. Change it below to keep your account secure.",
+    forcePasswordTitle: "Set a new password",
+    forcePasswordHint: "Your account is using a temporary password. Set a new password to continue into Kiddy.",
+    forcePasswordContinue: "Continue to Kiddy",
   },
   children: {
     // KID-495: admin-created parent login beside the invite flow — a temporary
@@ -2869,9 +2873,13 @@ export const ar = {
     passwordWrongCurrent: "كلمة المرور الحالية غير صحيحة.",
     passwordTooShort: "استخدم 8 أحرف على الأقل لكلمة المرور الجديدة.",
     passwordMismatch: "كلمتا المرور الجديدتان غير متطابقتين.",
+    passwordSame: "اختر كلمة مرور مختلفة عن كلمة المرور الحالية.",
     tempPasswordBanner: "حسابك يستخدم كلمة مرور مؤقتة.",
     tempPasswordBannerAction: "غيّرها الآن",
     tempPasswordFlagged: "أنت تستخدم كلمة مرور مؤقتة. غيّرها أدناه للحفاظ على أمان حسابك.",
+    forcePasswordTitle: "عيّن كلمة مرور جديدة",
+    forcePasswordHint: "حسابك يستخدم كلمة مرور مؤقتة. عيّن كلمة مرور جديدة للمتابعة إلى Kiddy.",
+    forcePasswordContinue: "المتابعة إلى Kiddy",
   },
   children: {
     // KID-495: admin-created parent login beside the invite flow — a temporary

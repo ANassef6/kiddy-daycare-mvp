@@ -17,6 +17,7 @@ import {
   setEmailConfirmed,
   emailConfirmedFor,
   staffIdForAccount,
+  homeForRole,
 } from "@/lib/auth";
 import { sessionCookieOptions } from "@/lib/auth";
 import { queryGet, queryRun, queryAll, ensureSchema, isForeignKeyViolation } from "@/lib/db";
@@ -169,13 +170,6 @@ async function setSession(email: string) {
   return account;
 }
 
-function homeForRole(role: string): string {
-  // KID-199.4r: the platform operator lands on /platform (its internal
-  // sentinel session is not a daycare role).
-  if (role === PLATFORM_OPERATOR_ROLE) return "/platform";
-  return role === "parent" ? "/child" : "/portal/dashboard";
-}
-
 // KID-199.3: a disabled daycare blocks its staff and parents at login with a
 // friendly message, in the family `no_access` style. The platform operator
 // role is exempt — it is the role that re-enables daycares. Re-enabling the
@@ -298,7 +292,8 @@ export async function loginAction(formData: FormData) {
         }
         await recordAuthSuccess(email);
         await setSession(account.email);
-        redirect(homeForRole(account.role));
+        // KID-2439: a temporary password must be replaced before any app page.
+        redirect(mustChangePasswordFor(account) ? "/change-password" : homeForRole(account.role));
       }
     }
   }
@@ -337,7 +332,14 @@ export async function loginAction(formData: FormData) {
   }
   await recordAuthSuccess(email);
   await setSession(account.email);
-  redirect(emailConfirmedFor(account) ? homeForRole(account.role) : "/welcome");
+  // KID-2439: a temporary password must be replaced before any app page.
+  redirect(
+    !emailConfirmedFor(account)
+      ? "/welcome"
+      : mustChangePasswordFor(account)
+        ? "/change-password"
+        : homeForRole(account.role)
+  );
 }
 
 export async function registerAction(formData: FormData) {
@@ -2146,11 +2148,17 @@ export async function changePasswordAction(formData: FormData) {
   const current = String(formData.get("currentPassword") ?? "");
   const next = String(formData.get("newPassword") ?? "");
   const confirm = String(formData.get("confirmPassword") ?? "");
-  const back = me.role === "parent" ? "/child/settings" : "/portal/account";
+  // KID-2439: a flagged account changes the password on the forced screen, so
+  // status feedback returns there (the role settings page would bounce back).
+  const mustChange = mustChangePasswordFor(account);
+  const back = mustChange ? "/change-password" : me.role === "parent" ? "/child/settings" : "/portal/account";
 
   if (next.length < 8) redirect(`${back}?pw=short`);
   if (next !== confirm) redirect(`${back}?pw=mismatch`);
   if (!current || !verifyPassword(current, account.password_hash)) redirect(`${back}?pw=wrong`);
+  // KID-2439: the replacement must actually change the credential — reusing
+  // the temporary password clears the flag but defeats the forced rotation.
+  if (next === current || verifyPassword(next, account.password_hash)) redirect(`${back}?pw=same`);
 
   // GoTrue side (existence-gated, non-blocking): the signInWithPassword call
   // proves the CURRENT password against GoTrue and establishes the session

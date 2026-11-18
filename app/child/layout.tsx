@@ -58,8 +58,8 @@ export default async function ParentLayout({ children }: { children: React.React
       console.error("KID-474 parent bell unread count failed:", err);
       return 0;
     }),
-    // KID-495: nonBlocking temp-password prompt — a failed read degrades to
-    // "not flagged" so the parent shell never breaks.
+    // KID-495/KID-2439: the temp-password flag gates the app (redirect below).
+    // A failed read degrades to "not flagged" so the parent shell never breaks.
     getAccount(session.accountId)
       .then((row) => !!row && mustChangePasswordFor(row))
       .catch((err) => {
@@ -67,6 +67,9 @@ export default async function ParentLayout({ children }: { children: React.React
         return false;
       }),
   ]);
+  // KID-2439: a temporary password is a hard gate — no app page renders until
+  // the account replaces it (the flag clears in updateAccountPassword).
+  if (tempPasswordFlagged) redirect("/change-password");
   const logoUrl: string | null = branding.logoUrl;
   const brandName: string = branding.name;
 
