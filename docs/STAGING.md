@@ -45,6 +45,39 @@ with two rooms, two children, two guardians, a teacher, working hours
 These credentials exist **only** in the staging database. Never reuse this
 password for a production account.
 
+## Superadmin (platform operator) portal
+
+The platform operator is a separate identity, not a daycare role. On staging it
+is bootstrapped from two Vercel env vars on the `kiddy-staging` project:
+
+| Env var | Value |
+| --- | --- |
+| `PLATFORM_ADMIN_EMAIL` | `founder.superadmin@staging.kiddy.test` |
+| `PLATFORM_OPERATOR_PASSWORD` | `12345678` |
+
+On the first request after a deploy, `ensurePlatformOperator()` creates the
+account (the normal `/login` page triggers it), so no manual database step is
+needed. The account carries the internal `platform` sentinel role and lands on
+`/platform` after sign-in.
+
+| Role | Email | Password |
+| --- | --- | --- |
+| Superadmin (platform operator) | `founder.superadmin@staging.kiddy.test` | `12345678` |
+
+Operator pages (sign in at `/login` first):
+
+- `https://kiddy-staging-orcin.vercel.app/platform` — daycare list, create
+  daycare, activate/deactivate.
+- `https://kiddy-staging-orcin.vercel.app/platform/pricing` — pricing v2 bands
+  and founding-cohort configuration.
+- `https://kiddy-staging-orcin.vercel.app/platform/daycares` — each row's
+  billing gear opens `/platform/daycares/<id>/billing`; the invoice list is
+  `/platform/daycares/<id>/invoices`.
+
+`/platform` is deliberately not linked from the daycare owner portal: the
+operator is not a tenant role, so use the direct URL. Removing an email from
+`PLATFORM_ADMIN_EMAIL` cuts access immediately, even for a signed-in session.
+
 Re-seed (repeatable — it wipes only this one fixture centre):
 
 ```bash
