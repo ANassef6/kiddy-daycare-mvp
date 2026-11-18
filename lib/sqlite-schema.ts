@@ -17,6 +17,9 @@ export function sqliteSchema(db: any): void {
     closing_days TEXT,
     contact TEXT,
     address TEXT,
+    -- KID-2437: mirror of supabase/migrations/0046 — the center's IANA
+    -- timezone for every working-hours comparison (wall-clock and calendar).
+    timezone TEXT NOT NULL DEFAULT 'Africa/Cairo',
     active INTEGER NOT NULL DEFAULT 1,
     subdomain TEXT,
     -- KID-1329: mirror of supabase/migrations/0042 — the center-level
@@ -805,6 +808,15 @@ export function sqliteSchema(db: any): void {
   if (!instCols.some((c) => c.name === "allow_parent_check_inout")) {
     db.exec("ALTER TABLE institute ADD COLUMN allow_parent_check_inout INTEGER NOT NULL DEFAULT 1");
   }
+  // KID-2437: mirror of supabase/migrations/0046_kid2437_institute_timezone.sql.
+  // Existing centers backfill to Africa/Cairo (all current tenants are
+  // Egyptian) and keep their stored opening hours as center-local wall clock.
+  if (!instCols.some((c) => c.name === "timezone")) {
+    db.exec("ALTER TABLE institute ADD COLUMN timezone TEXT NOT NULL DEFAULT 'Africa/Cairo'");
+  }
+  try {
+    db.exec("UPDATE institute SET timezone = 'Africa/Cairo' WHERE timezone IS NULL OR TRIM(timezone) = ''");
+  } catch {}
   try {
     const pending = db
       .prepare("SELECT id, name FROM institute WHERE subdomain IS NULL")

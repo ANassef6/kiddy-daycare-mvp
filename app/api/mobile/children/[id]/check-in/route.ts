@@ -10,7 +10,7 @@ import {
   getChild,
   familyAccessForAccount,
   parentCheckInOutAllowed,
-  getWorkingHours,
+  getCenterSchedule,
 } from "@/lib/store";
 import { evaluatePickupTime } from "@/lib/pickup-policy";
 import { pickupRefusalMessage } from "@/lib/policy-messages";
@@ -68,8 +68,16 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   // hours on an open day — otherwise the request is unprocessable (422) and
   // nothing is written. The no-`at` case records the server clock under the
   // same open-day/hours rules.
-  const week = child.institute_id ? await getWorkingHours(String(child.institute_id)) : {};
-  const decision = evaluatePickupTime({ type, now: new Date(), week, at: body.at ?? undefined });
+  const schedule = child.institute_id
+    ? await getCenterSchedule(String(child.institute_id))
+    : { week: {}, timeZone: undefined };
+  const decision = evaluatePickupTime({
+    type,
+    now: new Date(),
+    week: schedule.week,
+    timeZone: schedule.timeZone,
+    at: body.at ?? undefined,
+  });
   if (!decision.ok) {
     return errorPayload(pickupRefusalMessage(dict, decision), 422);
   }

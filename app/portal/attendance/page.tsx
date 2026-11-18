@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { resolveTenantInstituteId } from "@/lib/tenant";
 import { requireSession } from "@/lib/require";
-import {attendanceOn, runAutoCheckoutSweep, scopedRoomIds, listRooms, busStatusByChild, parentCheckInOutAllowed } from "@/lib/store";
+import {attendanceOn, runAutoCheckoutSweep, scopedRoomIds, listRooms, busStatusByChild, parentCheckInOutAllowed, centerToday } from "@/lib/store";
 import { AttendanceCheckIn } from "@/components/AttendanceCheckIn";
 import { BusStatusButtons } from "@/components/BusStatusButtons";
 import { recordToolUsage } from "@/lib/tool-usage";
@@ -20,7 +20,8 @@ export default async function PortalAttendancePage(
   const { dict, locale } = await i18nForAccount(session.accountId);
   const iid = await resolveTenantInstituteId();
   await recordToolUsage({ instituteId: String(iid ?? "") || null, accountId: session.accountId, toolKey: "attendance", source: "portal", metadata: null });
-  const day = searchParams.day ?? new Date().toISOString().slice(0, 10);
+  // KID-2437: the default day is the center's local calendar day.
+  const day = searchParams.day ?? (iid ? await centerToday(iid) : new Date().toISOString().slice(0, 10));
   const q = searchParams.q ?? "";
   const roomId = searchParams.room ?? "";
 

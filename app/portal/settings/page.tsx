@@ -12,6 +12,8 @@ import LanguageSettingsCard from "@/components/LanguageSettingsCard";
 import { i18nForAccount } from "@/lib/i18n-session";
 import { tr } from "@/lib/i18n";
 import { WorkingHoursEditor } from "@/components/WorkingHoursEditor";
+import { normalizeTimeZone } from "@/lib/timezone";
+import { timeZoneOptions } from "@/lib/timezone-options";
 
 export const dynamic = "force-dynamic";
 
@@ -101,6 +103,30 @@ export default async function PortalSettingsPage(
               {SUPPORTED_CURRENCIES.map((c) => <option key={c} value={c}>{c}</option>)}
             </select>
           </div>
+          {/* KID-2437: the center's IANA timezone. Working hours are center-
+              local wall clock, so every check-in/pickup/day-boundary rule
+              converts the stored UTC instant into this zone before comparing.
+              The datalist keeps the field a searchable dropdown without
+              shipping a client component just to filter 400 zones. */}
+          <div className="col field">
+            <label className="label" htmlFor="timezone">{tr(dict, "settings.timezone")}</label>
+            <input
+              className="input"
+              id="timezone"
+              name="timezone"
+              list="timezone-options"
+              autoComplete="off"
+              spellCheck={false}
+              defaultValue={normalizeTimeZone(institute?.timezone)}
+              placeholder={tr(dict, "settings.timezonePlaceholder")}
+            />
+            <datalist id="timezone-options">
+              {timeZoneOptions(normalizeTimeZone(institute?.timezone)).map((zone) => (
+                <option key={zone} value={zone} />
+              ))}
+            </datalist>
+            <p className="small muted">{tr(dict, "settings.timezoneHint")}</p>
+          </div>
         </div>
         {/* KID-1329: one center-level toggle for the parent check-in/out
             surface. Default ON; when OFF the parent app hides its control and
@@ -135,6 +161,11 @@ export default async function PortalSettingsPage(
         {searchParams?.error === "instapay" && (
           <div role="alert" className="card" style={{ borderLeft: "4px solid #b91c1c" }}>
             <p className="small" style={{ margin: 0 }}>{tr(dict, "settings.instapayLinkInvalid")}</p>
+          </div>
+        )}
+        {searchParams?.error === "timezone" && (
+          <div role="alert" className="card" style={{ borderLeft: "4px solid #b91c1c" }}>
+            <p className="small" style={{ margin: 0 }}>{tr(dict, "settings.timezoneInvalid")}</p>
           </div>
         )}
         <div className="mt-3"><button className="btn btn-primary" type="submit">{tr(dict, "settings.saveCenterDetails")}</button></div>

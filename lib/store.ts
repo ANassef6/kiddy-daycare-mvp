@@ -11,6 +11,7 @@ import {
   type CheckInGate,
   type WorkingWeek,
 } from "./working-hours";
+import { localDayBoundsUtc, normalizeTimeZone, zonedDateKey } from "./timezone";
 import { feedCopyFor, type FeedCopy } from "./i18n";
 import { syncChatwootContactForAccount } from "./chatwoot-contacts";
 import { withPerfTiming } from "./perf";
@@ -48,6 +49,9 @@ export async function seedInstitute(data: {
   /** KID-199.3r: explicit subdomain (create-daycare form). Blank derives a
    *  slug from the name; a name with no usable slug leaves the column NULL. */
   subdomain?: string;
+  /** KID-2436: the center's IANA timezone for working-hours rules. Invalid or
+   *  missing values fall back to the platform default (Africa/Cairo). */
+  timeZone?: string;
 }): Promise<Row> {
   const id = uid();
   // KID-199.3r: the subdomain is normalized and de-duplicated at create time,
@@ -56,8 +60,8 @@ export async function seedInstitute(data: {
   const base = explicit || normalizeSubdomainSlug(data.name);
   const subdomain = base ? await nextFreeSubdomain(base) : null;
   await queryRun(
-    `INSERT INTO institute (id, name, primary_color, accent_color, font, logo_url, opening_hours, closing_days, subdomain)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO institute (id, name, primary_color, accent_color, font, logo_url, opening_hours, closing_days, subdomain, timezone)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     id,
     data.name,
     data.primaryColor ?? "#3B82F6",
@@ -66,7 +70,8 @@ export async function seedInstitute(data: {
     data.logoUrl ?? null,
     JSON.stringify(data.openingHours ?? {}),
     JSON.stringify(data.closingDays ?? []),
-    subdomain
+    subdomain,
+    normalizeTimeZone(data.timeZone)
   );
   return (await getInstitute(id))!;
 }
@@ -794,6 +799,9 @@ export async function createDaycare(data: {
   /** KID-199.3r: explicit subdomain (sunshine.<apex> → "sunshine"). Blank
    *  derives a slug from the name; collisions get -2/-3 suffixes. */
   subdomain?: string;
+  /** KID-2436: the center's IANA timezone (working-hours rules). Defaults to
+   *  the platform's operating timezone; the owner can change it in settings. */
+  timeZone?: string;
   /** KID-244: the subscription the operator picked at creation — the billing
    *  row is written in the same logical step, so a daycare never exists
    *  without one. Defaults apply per field (demo / 500 / 50 / 10 / 24000). */
@@ -822,6 +830,7 @@ export async function createDaycare(data: {
     font: data.font,
     logoUrl: data.logoUrl ?? null,
     subdomain: data.subdomain ?? "",
+    timeZone: data.timeZone,
   });
   const instituteId = String(institute.id);
   // KID-199.4r: the board's "number of branches" field — one branch row per
@@ -1211,13 +1220,47 @@ async function notifyTeachersPickupTime(childId: string, at: Date): Promise<void
   }
 }
 
-export async function todayStatus(childId: string): Promise<{ checkedIn?: Row; checkedOut?: Row; lastEvent?: Row }> {
-  const today = new Date().toISOString().slice(0, 10);
+// KID-2437: one UTC half-open range for a CENTER-LOCAL calendar day. The
+// ledger stores UTC instants, so attendance reads must not use the server's
+// `date(recorded_at)` (that is the UTC day). SQLite needs datetime() around
+// both sides because seeded rows can use its space-separated default format.
+function centerDayRange(
+  column: string,
+  day: string,
+  timeZone: string
+): { sql: string; args: unknown[] } {
+  const { start, end } = localDayBoundsUtc(day, timeZone);
+  const bounds = [start.toISOString(), end.toISOString()];
+  return isPostgresMode()
+    ? { sql: `${column} >= ? AND ${column} < ?`, args: bounds }
+    : {
+        sql: `datetime(${column}) >= datetime(?) AND datetime(${column}) < datetime(?)`,
+        args: bounds,
+      };
+}
+
+/** The center-local calendar day (YYYY-MM-DD) at `now`. */
+export async function centerToday(instituteId: string, now = new Date()): Promise<string> {
+  const { timeZone } = await getCenterSchedule(instituteId);
+  return zonedDateKey(now, timeZone);
+}
+
+export async function todayStatus(
+  childId: string,
+  now = new Date()
+): Promise<{ checkedIn?: Row; checkedOut?: Row; lastEvent?: Row }> {
+  const child = await getChild(childId);
+  const instituteId = String(child?.institute_id ?? "");
+  const timeZone = instituteId ? (await getCenterSchedule(instituteId)).timeZone : undefined;
+  const today = timeZone ? zonedDateKey(now, timeZone) : now.toISOString().slice(0, 10);
+  const range = timeZone
+    ? centerDayRange("recorded_at", today, timeZone)
+    : { sql: "date(recorded_at) = ?", args: [today] };
   const latest = await queryAll(
-    `SELECT * FROM check_in WHERE child_id = ? AND date(recorded_at) = ?
+    `SELECT * FROM check_in WHERE child_id = ? AND ${range.sql}
      ORDER BY recorded_at DESC LIMIT 6`,
     childId,
-    today
+    ...range.args
   );
   const last = latest[0];
   return {
@@ -1257,18 +1300,22 @@ export async function attendanceOn(
   }
 
   const where = conditions.join(" AND ");
+  // KID-2437: `day` is the center-local calendar day; translate it to the UTC
+  // range that day occupies in the center's zone before reading the ledger.
+  const { timeZone } = await getCenterSchedule(instituteId);
+  const range = centerDayRange("check_in.recorded_at", day, timeZone);
   return queryAll(
     `SELECT c.id, c.first_name, c.last_name, r.name AS room_name,
-            (SELECT type FROM check_in WHERE child_id = c.id AND date(recorded_at) = ? ORDER BY recorded_at DESC LIMIT 1) AS last_event,
-            (SELECT recorded_at FROM check_in WHERE child_id = c.id AND date(recorded_at) = ? AND type='in' ORDER BY recorded_at DESC LIMIT 1) AS checked_in_at,
-            (SELECT recorded_at FROM check_in WHERE child_id = c.id AND date(recorded_at) = ? AND type='out' ORDER BY recorded_at DESC LIMIT 1) AS checked_out_at
+            (SELECT type FROM check_in WHERE child_id = c.id AND ${range.sql} ORDER BY recorded_at DESC LIMIT 1) AS last_event,
+            (SELECT recorded_at FROM check_in WHERE child_id = c.id AND ${range.sql} AND type='in' ORDER BY recorded_at DESC LIMIT 1) AS checked_in_at,
+            (SELECT recorded_at FROM check_in WHERE child_id = c.id AND ${range.sql} AND type='out' ORDER BY recorded_at DESC LIMIT 1) AS checked_out_at
      FROM child c
      LEFT JOIN room r ON r.id = c.room_id
      WHERE ${where}
      ORDER BY r.name, c.first_name`,
-    day,
-    day,
-    day,
+    ...range.args,
+    ...range.args,
+    ...range.args,
     ...args
   );
 }
@@ -1283,10 +1330,25 @@ export async function getWorkingHours(instituteId: string): Promise<WorkingWeek>
   return normalizeWorkingHours(inst?.opening_hours);
 }
 
+/** KID-2436: one read for both halves of the working-hours config — the
+ *  per-day open/close table AND the center's IANA timezone every comparison
+ *  must be evaluated in. */
+export async function getCenterSchedule(instituteId: string): Promise<{
+  week: WorkingWeek;
+  timeZone: string;
+}> {
+  const inst = await getInstitute(instituteId);
+  return {
+    week: normalizeWorkingHours(inst?.opening_hours),
+    timeZone: normalizeTimeZone(inst?.timezone),
+  };
+}
+
 // Early check-in gate used by both the child and the staff attendance flows.
+// KID-2436: evaluated in the CENTER's timezone, never the server's.
 export async function checkInAllowed(instituteId: string, now = new Date()): Promise<CheckInGate> {
-  const week = await getWorkingHours(instituteId);
-  return checkInOpen(week, now);
+  const { week, timeZone } = await getCenterSchedule(instituteId);
+  return checkInOpen(week, now, timeZone);
 }
 
 // KID-1329: the center's "Allow parents to check in/out" toggle
@@ -1368,8 +1430,8 @@ export async function runAutoCheckoutSweep(
   instituteId: string,
   now = new Date()
 ): Promise<{ children: Row[]; staff: Row[]; busOff: Row[]; at: string; reason: string | null; cutoff: string | null }> {
-  const week = await getWorkingHours(instituteId);
-  const cutoff = closeCutoff(week, now);
+  const { week, timeZone } = await getCenterSchedule(instituteId);
+  const cutoff = closeCutoff(week, now, timeZone);
   const stamp = now.toISOString();
   if (!cutoff || now < cutoff) {
     return {
@@ -1382,16 +1444,18 @@ export async function runAutoCheckoutSweep(
     };
   }
   const actor = await systemAccountId();
-  const today = stamp.slice(0, 10);
+  // KID-2437: the attendance day is the center-local one, not the UTC date.
+  const today = zonedDateKey(now, timeZone);
+  const range = centerDayRange("check_in.recorded_at", today, timeZone);
   const dueChildren = await queryAll(
     `SELECT c.id, c.first_name, c.last_name,
-            (SELECT recorded_at FROM check_in WHERE child_id = c.id AND date(recorded_at) = ? AND type='in' ORDER BY recorded_at DESC, id DESC LIMIT 1) AS checked_in_at
+            (SELECT recorded_at FROM check_in WHERE child_id = c.id AND ${range.sql} AND type='in' ORDER BY recorded_at DESC, id DESC LIMIT 1) AS checked_in_at
      FROM child c
      WHERE c.institute_id = ? AND c.active = 1
-       AND (SELECT type FROM check_in WHERE child_id = c.id AND date(recorded_at) = ? ORDER BY recorded_at DESC, id DESC LIMIT 1) = 'in'`,
-    today,
+       AND (SELECT type FROM check_in WHERE child_id = c.id AND ${range.sql} ORDER BY recorded_at DESC, id DESC LIMIT 1) = 'in'`,
+    ...range.args,
     instituteId,
-    today
+    ...range.args
   );
   const childrenOut: Row[] = [];
   for (const child of dueChildren) {
@@ -1424,23 +1488,29 @@ export async function runAutoCheckoutSweep(
 // Live "who is checked in right now": children whose latest event today is a
 // check-in (checked out afterwards flips them back out of the list).
 // KID-103: scoped to the account's assigned classrooms when accountId is given.
-export async function checkedInNow(instituteId: string, accountId?: string): Promise<Row[]> {
-  const today = new Date().toISOString().slice(0, 10);
+export async function checkedInNow(
+  instituteId: string,
+  accountId?: string,
+  now = new Date()
+): Promise<Row[]> {
+  const { timeZone } = await getCenterSchedule(instituteId);
+  const today = zonedDateKey(now, timeZone);
+  const range = centerDayRange("check_in.recorded_at", today, timeZone);
   const allowedRoomIds = accountId ? await scopedRoomIds(instituteId, accountId) : null;
   if (allowedRoomIds !== null && allowedRoomIds.length === 0) return [];
   const roomFilter =
     allowedRoomIds === null
       ? ""
       : `AND c.room_id IN (${allowedRoomIds.map(() => "?").join(", ")})`;
-  const args: unknown[] = [today, instituteId, today];
+  const args: unknown[] = [...range.args, instituteId, ...range.args];
   if (allowedRoomIds?.length) args.push(...allowedRoomIds);
   return queryAll(
     `SELECT c.id, c.first_name, c.last_name, r.name AS room_name,
-            (SELECT recorded_at FROM check_in WHERE child_id = c.id AND date(recorded_at) = ? AND type='in' ORDER BY recorded_at DESC, id DESC LIMIT 1) AS checked_in_at
+            (SELECT recorded_at FROM check_in WHERE child_id = c.id AND ${range.sql} AND type='in' ORDER BY recorded_at DESC, id DESC LIMIT 1) AS checked_in_at
      FROM child c
      LEFT JOIN room r ON r.id = c.room_id
      WHERE c.institute_id = ? AND c.active = 1
-       AND (SELECT type FROM check_in WHERE child_id = c.id AND date(recorded_at) = ? ORDER BY recorded_at DESC, id DESC LIMIT 1) = 'in'
+       AND (SELECT type FROM check_in WHERE child_id = c.id AND ${range.sql} ORDER BY recorded_at DESC, id DESC LIMIT 1) = 'in'
        ${roomFilter}
      ORDER BY r.name, c.first_name`,
     ...args
@@ -1605,8 +1675,8 @@ export async function runBusAutoOffSweep(
   instituteId: string,
   now = new Date()
 ): Promise<{ children: Row[]; cutoff: string | null; reason: string }> {
-  const week = await getWorkingHours(instituteId);
-  const cutoff = busAutoOffCutoff(week, now);
+  const { week, timeZone } = await getCenterSchedule(instituteId);
+  const cutoff = busAutoOffCutoff(week, now, timeZone);
   const stamp = now.toISOString();
   if (!cutoff || now < cutoff) {
     return {
@@ -1616,14 +1686,15 @@ export async function runBusAutoOffSweep(
     };
   }
   const actor = await systemAccountId();
-  const today = stamp.slice(0, 10);
+  const today = zonedDateKey(now, timeZone);
+  const range = centerDayRange("bus_event.recorded_at", today, timeZone);
   const due = await queryAll(
     `SELECT c.id, c.first_name, c.last_name
      FROM child c
      WHERE c.institute_id = ? AND c.active = 1
-       AND (SELECT type FROM bus_event WHERE child_id = c.id AND date(recorded_at) = ? ORDER BY recorded_at DESC, id DESC LIMIT 1) = 'on'`,
+       AND (SELECT type FROM bus_event WHERE child_id = c.id AND ${range.sql} ORDER BY recorded_at DESC, id DESC LIMIT 1) = 'on'`,
     instituteId,
-    today
+    ...range.args
   );
   const off: Row[] = [];
   for (const child of due) {
