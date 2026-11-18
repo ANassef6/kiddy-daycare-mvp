@@ -11,6 +11,7 @@ import {
   cyclePricing,
   generateDueInvoices,
   listInvoices,
+  rowToBilling,
   updateDaycareBilling,
   type DaycareBilling,
 } from "@/lib/billing";
@@ -391,5 +392,36 @@ describe("schema", () => {
     ]) {
       expect(names).toContain(col);
     }
+  });
+});
+
+describe("rowToBilling date shapes", () => {
+  // KID-2435 regression: Postgres hands DATE/TIMESTAMP columns back as Date
+  // objects. String(date).slice(0, 10) yielded "Thu Oct 01", so a Supabase
+  // deployment never found the billing calendar and generated no invoices.
+  it("normalises Postgres Date objects to YYYY-MM-DD", () => {
+    const billing = rowToBilling({
+      plan: "monthly",
+      first_cycle_start: new Date(Date.UTC(2026, 9, 1)),
+      founding_client: 1,
+      founding_started_at: new Date(Date.UTC(2026, 9, 1)),
+      pilot_end_date: new Date(Date.UTC(2026, 8, 25)),
+    });
+    expect(billing.firstCycleStart).toBe("2026-10-01");
+    expect(billing.foundingStartedAt).toBe("2026-10-01");
+    expect(billing.pilotEndDate).toBe("2026-09-25");
+  });
+
+  it("keeps SQLite text values byte-for-byte", () => {
+    const billing = rowToBilling({
+      plan: "annual",
+      first_cycle_start: "2026-10-01 00:00:00",
+      founding_client: 0,
+      founding_started_at: "2026-10-01",
+      pilot_end_date: "",
+    });
+    expect(billing.firstCycleStart).toBe("2026-10-01");
+    expect(billing.foundingStartedAt).toBe("2026-10-01");
+    expect(billing.pilotEndDate).toBe("");
   });
 });
