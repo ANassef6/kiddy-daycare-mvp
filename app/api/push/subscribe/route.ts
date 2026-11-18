@@ -7,7 +7,7 @@ import { ensureDefaultPushPrefs } from "@/lib/store";
 import { throttle, RATE_LIMIT_RULES } from "@/lib/rate-limit";
 
 // KID-480: store (or drop) the calling browser's web push subscription for
-// the signed-in account. The endpoint is UNIQUE (migration 0032): re-pointing
+// the signed-in account. The endpoint is UNIQUE (migration 0043): re-pointing
 // an existing browser keeps one row per device; disabling an activity stays
 // in notification_pref, so subscribing here only fills opt-in gaps.
 export const dynamic = "force-dynamic";

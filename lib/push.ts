@@ -9,7 +9,7 @@
 //     underlying business write (message, report, announcement) must never
 //     break because push is unavailable or misconfigured.
 //   * a subscription endpoint is UNIQUE: parent permission is per browser,
-//     so re-subscribing re-points the same row (migration 0032).
+//     so re-subscribing re-points the same row (migration 0043).
 //   * stale subscription rows (404/410 from the push service) are deleted
 //     lazily by the sender — no background cleanup job.
 //   * VAPID keys never enter the repo; they arrive via env vars

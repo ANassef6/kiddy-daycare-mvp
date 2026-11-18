@@ -41,3 +41,15 @@ CREATE INDEX IF NOT EXISTS idx_tool_usage_tool_when
   ON tool_usage_event (tool_key, occurred_at DESC);
 CREATE INDEX IF NOT EXISTS idx_tool_usage_account_when
   ON tool_usage_event (account_id, occurred_at DESC);
+
+-- KID-2432: this file used to be prefixed 0033_, colliding with
+-- 0033_instapay_payment_link.sql. The Supabase migration ledger is keyed on the
+-- numeric version alone, so the duplicate prefix made the Supabase Preview
+-- check fail when it recorded the second file. Renamed to the next free
+-- version; every statement is idempotent, so a replay is a no-op.
+--
+-- Renumbering puts this file after 0040's live-schema RLS loop, so a fresh
+-- replay would otherwise create this table without RLS. Re-assert the KID-1177
+-- posture here (idempotent, no policy = deny for every non-owner role).
+ALTER TABLE tool_usage_event ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON TABLE tool_usage_event FROM anon, authenticated;

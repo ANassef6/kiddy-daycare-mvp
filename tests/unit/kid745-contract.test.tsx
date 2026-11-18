@@ -140,8 +140,8 @@ describe("KID-745: schema (Postgres migration mirrored in SQLite)", () => {
     const files = readdirSync("supabase/migrations").filter((f) => f.endsWith(".sql"));
     const taken = files.filter((f) => f.startsWith("0038"));
     expect(taken).toEqual(["0038_kid745_contract.sql"]);
-    // The siblings that share a prefix elsewhere must not collide: 0032/0033
-    // each carry two files by history, so the filename uniquely maps to one.
+    // Every prefix is unique (KID-2432 renumbered the two historical
+    // 0032/0033 pairs), so a filename uniquely maps to one migration.
     expect(files.filter((f) => f.startsWith("0037")).length).toBeGreaterThanOrEqual(1);
     const sql = readFileSync("supabase/migrations/0038_kid745_contract.sql", "utf8");
     expect(sql).toMatch(/CREATE TABLE IF NOT EXISTS daycare_contract/i);
