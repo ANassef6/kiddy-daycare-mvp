@@ -78,6 +78,21 @@ unchanged.
 
 ## Staging-first
 
-Per the standing rule this work is on the working branch only. It is not
-deployed to staging or production by this run; the founder tests on staging
-and signs off before the production cut.
+The two KID-2435 commits were cherry-picked on top of `staging` (`cb8eae4`)
+and pushed as `cb8eae4..a7cc0cf`, so Vercel's `kiddy-staging` project
+auto-deploys them.
+
+| Check | Result |
+| --- | --- |
+| `staging` tip after push | `a7cc0cf` (cherry-picked `76c87af` + the decision note) |
+| `npx tsc --noEmit` on the staging tree | pass |
+| `npm run lint` on the staging tree | pass (existing `no-img-element` warnings only) |
+| `env -u DATABASE_URL -u KIDDY_DATABASE_URL npm run db:verify-migrations` | all checks pass (0045 and 0047 replayed on PGlite Postgres) |
+| `npx vitest run` — KID-2435 + KID-2434 + KID-245 | 67/67 pass |
+| Live deploy | `https://kiddy-staging-orcin.vercel.app/platform/pricing` moved from `404` (old build) to `307 -> /login` (new build) at 19:27Z |
+
+Staging applies pending migrations through `lib/db.ts` on first database
+access, so the founder's first login after the deploy applies `0045` and
+`0047` to the staging Supabase project (`pjubkhhuccoqboypgpty`). Production
+(`sfetmfmtoubtdyyeyudd`) is untouched; the production cut waits for the
+founder's sign-off on staging.
