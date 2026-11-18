@@ -109,3 +109,22 @@ re-enable it in Project Integrations Settings."). The check therefore only runs
 on master pushes and reports against the project dashboard, so PRs cannot
 exercise it. If the integration is wanted, enabling per-PR branches makes the
 next failure of this kind surface before merge.
+
+## Resolution (2026-11-18, founder approved removal)
+
+Founder accepted the removal card. `kid2123-clean`
+(`prj_cYC28PpjIMDVRBcshGLpzNYnEp1p`) was deleted through the Vercel API
+(`DELETE /v9/projects/prj_cYC28PpjIMDVRBcshGLpzNYnEp1p` → `204`).
+
+- `GET /v9/projects/kid2123-clean` → `404`; team project list is now
+  `['kiddy', 'kc-probe']`.
+- Every one of its deployments was `ERROR`, including the latest master build
+  `dpl_45dSuU1jbegQzZJUcY9ZLbJpWnm2` (KID-2437) — the project had `envs: []`
+  and a single `kid2123-clean.vercel.app` alias.
+- No new `Vercel – kid2123-clean` commit status can be posted after deletion.
+  The status already recorded on older commits stays as a historical red X and
+  cannot be rewritten.
+- `Vercel – kiddy` is untouched; production remains live on `kiddyapp.net`.
+
+Master `3fc77ce` check runs: `Supabase Preview` success, `audit` success,
+`Vercel – kiddy` success.
