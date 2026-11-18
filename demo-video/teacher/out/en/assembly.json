@@ -1,0 +1,296 @@
+{
+  "schema": "kiddy.demo-video.assembly.v1",
+  "language": "en",
+  "output": "out/en/teacher-en-1080p.mp4",
+  "srt": "out/en/teacher-en.srt",
+  "sceneTimestamps": "out/en/scene-timestamps.csv",
+  "durationSec": 261.413,
+  "intro": false,
+  "outro": false,
+  "missingVoiceover": [],
+  "missingClips": [],
+  "highlightOverlay": true,
+  "voiceProfile": "Kiddy (93cd5ca5)",
+  "scenes": [
+    {
+      "id": "01-login",
+      "title": "Sign in",
+      "tool": "Authentication",
+      "route": "/login",
+      "startSec": 0,
+      "endSec": 10.5,
+      "hasVoiceover": true,
+      "maxChars": 42
+    },
+    {
+      "id": "02-dashboard",
+      "title": "Dashboard",
+      "tool": "Home dashboard",
+      "route": "/portal/dashboard",
+      "startSec": 10.5,
+      "endSec": 22.078,
+      "hasVoiceover": true,
+      "maxChars": 42
+    },
+    {
+      "id": "03-children",
+      "title": "Children",
+      "tool": "Child list",
+      "route": "/portal/children",
+      "startSec": 22.078,
+      "endSec": 32.778,
+      "hasVoiceover": true,
+      "maxChars": 42
+    },
+    {
+      "id": "04-child-daily-report",
+      "title": "Daily report",
+      "tool": "Child profile / daily report",
+      "route": "/portal/children/[id]?tab=daily",
+      "startSec": 32.778,
+      "endSec": 42.245,
+      "hasVoiceover": true,
+      "maxChars": 42
+    },
+    {
+      "id": "05-child-about",
+      "title": "Child details",
+      "tool": "Child profile / about",
+      "route": "/portal/children/[id]?tab=about",
+      "startSec": 42.245,
+      "endSec": 52.045,
+      "hasVoiceover": true,
+      "maxChars": 42
+    },
+    {
+      "id": "06-child-family",
+      "title": "Family and pickup",
+      "tool": "Child profile / family",
+      "route": "/portal/children/[id]?tab=family",
+      "startSec": 52.045,
+      "endSec": 63.479,
+      "hasVoiceover": true,
+      "maxChars": 42
+    },
+    {
+      "id": "07-child-media",
+      "title": "Child media",
+      "tool": "Child profile / media",
+      "route": "/portal/children/[id]?tab=media",
+      "startSec": 63.479,
+      "endSec": 73.413,
+      "hasVoiceover": true,
+      "maxChars": 42
+    },
+    {
+      "id": "08-child-documents",
+      "title": "Child documents",
+      "tool": "Child profile / documents",
+      "route": "/portal/children/[id]?tab=documents",
+      "startSec": 73.413,
+      "endSec": 81.852,
+      "hasVoiceover": true,
+      "maxChars": 42
+    },
+    {
+      "id": "09-child-schedules",
+      "title": "Child schedule",
+      "tool": "Child profile / schedules",
+      "route": "/portal/children/[id]?tab=schedules",
+      "startSec": 81.852,
+      "endSec": 90.286,
+      "hasVoiceover": true,
+      "maxChars": 42
+    },
+    {
+      "id": "10-child-learning",
+      "title": "Child learning history",
+      "tool": "Child profile / learning history",
+      "route": "/portal/children/[id]?tab=learning",
+      "startSec": 90.286,
+      "endSec": 99.42,
+      "hasVoiceover": true,
+      "maxChars": 42
+    },
+    {
+      "id": "11-child-incidents",
+      "title": "Child incidents",
+      "tool": "Child profile / incidents",
+      "route": "/portal/children/[id]?tab=incidents",
+      "startSec": 99.42,
+      "endSec": 108.187,
+      "hasVoiceover": true,
+      "maxChars": 42
+    },
+    {
+      "id": "12-attendance",
+      "title": "Attendance and bus",
+      "tool": "Attendance",
+      "route": "/portal/attendance",
+      "startSec": 108.187,
+      "endSec": 117.454,
+      "hasVoiceover": true,
+      "maxChars": 42
+    },
+    {
+      "id": "13-consents",
+      "title": "Consents",
+      "tool": "Consents",
+      "route": "/portal/consents",
+      "startSec": 117.454,
+      "endSec": 127.42099999999999,
+      "hasVoiceover": true,
+      "maxChars": 42
+    },
+    {
+      "id": "14-incidents",
+      "title": "Incident reports",
+      "tool": "Incidents",
+      "route": "/portal/incidents",
+      "startSec": 127.42099999999999,
+      "endSec": 136.221,
+      "hasVoiceover": true,
+      "maxChars": 42
+    },
+    {
+      "id": "15-newsfeed",
+      "title": "Newsfeed",
+      "tool": "Newsfeed",
+      "route": "/portal/newsfeed",
+      "startSec": 136.221,
+      "endSec": 146.927,
+      "hasVoiceover": true,
+      "maxChars": 42
+    },
+    {
+      "id": "16-messages",
+      "title": "Messages",
+      "tool": "Messages",
+      "route": "/portal/messages",
+      "startSec": 146.927,
+      "endSec": 158.76399999999998,
+      "hasVoiceover": true,
+      "maxChars": 42
+    },
+    {
+      "id": "17-calendar",
+      "title": "Calendar",
+      "tool": "Calendar",
+      "route": "/portal/calendar",
+      "startSec": 158.76399999999998,
+      "endSec": 165.29799999999997,
+      "hasVoiceover": true,
+      "maxChars": 42
+    },
+    {
+      "id": "18-events",
+      "title": "Events",
+      "tool": "Events",
+      "route": "/portal/events",
+      "startSec": 165.29799999999997,
+      "endSec": 176.31099999999998,
+      "hasVoiceover": true,
+      "maxChars": 42
+    },
+    {
+      "id": "19-drive",
+      "title": "Parent drive",
+      "tool": "Parent drive",
+      "route": "/portal/drive",
+      "startSec": 176.31099999999998,
+      "endSec": 185.57799999999997,
+      "hasVoiceover": true,
+      "maxChars": 42
+    },
+    {
+      "id": "20-learning",
+      "title": "Development observations",
+      "tool": "Learning",
+      "route": "/portal/learning",
+      "startSec": 185.57799999999997,
+      "endSec": 195.17799999999997,
+      "hasVoiceover": true,
+      "maxChars": 42
+    },
+    {
+      "id": "21-activities",
+      "title": "Activities",
+      "tool": "Learning / activities",
+      "route": "/portal/learning/activities",
+      "startSec": 195.17799999999997,
+      "endSec": 204.31199999999995,
+      "hasVoiceover": true,
+      "maxChars": 42
+    },
+    {
+      "id": "22-homework",
+      "title": "Homework",
+      "tool": "Learning / homework",
+      "route": "/portal/learning/homework",
+      "startSec": 204.31199999999995,
+      "endSec": 213.27899999999997,
+      "hasVoiceover": true,
+      "maxChars": 42
+    },
+    {
+      "id": "23-staff-profile",
+      "title": "My staff profile",
+      "tool": "Staff / own profile",
+      "route": "/portal/staff",
+      "startSec": 213.27899999999997,
+      "endSec": 222.27899999999997,
+      "hasVoiceover": true,
+      "maxChars": 42
+    },
+    {
+      "id": "24-staff-schedule",
+      "title": "My schedule",
+      "tool": "Staff / schedule",
+      "route": "/portal/staff/schedule",
+      "startSec": 222.27899999999997,
+      "endSec": 229.94599999999997,
+      "hasVoiceover": true,
+      "maxChars": 42
+    },
+    {
+      "id": "25-working-hours",
+      "title": "Working hours",
+      "tool": "Staff / working hours",
+      "route": "/portal/staff/hours",
+      "startSec": 229.94599999999997,
+      "endSec": 236.05099999999996,
+      "hasVoiceover": true,
+      "maxChars": 42
+    },
+    {
+      "id": "26-notifications",
+      "title": "Notifications",
+      "tool": "Notifications",
+      "route": "/portal/notifications",
+      "startSec": 236.05099999999996,
+      "endSec": 245.12799999999996,
+      "hasVoiceover": true,
+      "maxChars": 42
+    },
+    {
+      "id": "27-account",
+      "title": "Account settings",
+      "tool": "Account",
+      "route": "/portal/account",
+      "startSec": 245.12799999999996,
+      "endSec": 253.79699999999997,
+      "hasVoiceover": true,
+      "maxChars": 42
+    },
+    {
+      "id": "28-wrap",
+      "title": "Close",
+      "tool": "Summary",
+      "route": "/portal/dashboard",
+      "startSec": 253.79699999999997,
+      "endSec": 261.397,
+      "hasVoiceover": true,
+      "maxChars": 42
+    }
+  ]
+}

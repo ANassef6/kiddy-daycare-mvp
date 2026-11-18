@@ -1,0 +1,29 @@
+scene,title,tool,route,start,end,duration,voiceover
+01-login,Sign in,Authentication,/login,0.00,8.67,8.67,yes
+02-dashboard,Dashboard,Home dashboard,/portal/dashboard,8.67,17.70,9.03,yes
+03-children,Children,Child list,/portal/children,17.70,27.90,10.20,yes
+04-child-daily-report,Daily report,Child profile / daily report,/portal/children/[id]?tab=daily,27.90,39.90,12.00,yes
+05-child-about,Child details,Child profile / about,/portal/children/[id]?tab=about,39.90,50.80,10.90,yes
+06-child-family,Family and pickup,Child profile / family,/portal/children/[id]?tab=family,50.80,63.67,12.87,yes
+07-child-media,Child media,Child profile / media,/portal/children/[id]?tab=media,63.67,71.63,7.97,yes
+08-child-documents,Child documents,Child profile / documents,/portal/children/[id]?tab=documents,71.63,80.33,8.70,yes
+09-child-schedules,Child schedule,Child profile / schedules,/portal/children/[id]?tab=schedules,80.33,87.77,7.43,yes
+10-child-learning,Child learning history,Child profile / learning history,/portal/children/[id]?tab=learning,87.77,107.44,19.67,yes
+11-child-incidents,Child incidents,Child profile / incidents,/portal/children/[id]?tab=incidents,107.44,117.34,9.90,yes
+12-attendance,Attendance and bus,Attendance,/portal/attendance,117.34,129.34,12.00,yes
+13-consents,Consents,Consents,/portal/consents,129.34,138.71,9.37,yes
+14-incidents,Incident reports,Incidents,/portal/incidents,138.71,148.26,9.55,yes
+15-newsfeed,Newsfeed,Newsfeed,/portal/newsfeed,148.26,157.76,9.50,yes
+16-messages,Messages,Messages,/portal/messages,157.76,167.79,10.03,yes
+17-calendar,Calendar,Calendar,/portal/calendar,167.79,176.77,8.98,yes
+18-events,Events,Events,/portal/events,176.77,185.80,9.03,yes
+19-drive,Parent drive,Parent drive,/portal/drive,185.80,195.47,9.67,yes
+20-learning,Development observations,Learning,/portal/learning,195.47,206.54,11.07,yes
+21-activities,Activities,Learning / activities,/portal/learning/activities,206.54,215.20,8.67,yes
+22-homework,Homework,Learning / homework,/portal/learning/homework,215.20,221.94,6.73,yes
+23-staff-profile,My staff profile,Staff / own profile,/portal/staff,221.94,229.52,7.58,yes
+24-staff-schedule,My schedule,Staff / schedule,/portal/staff/schedule,229.52,236.75,7.23,yes
+25-working-hours,Working hours,Staff / working hours,/portal/staff/hours,236.75,241.92,5.17,yes
+26-notifications,Notifications,Notifications,/portal/notifications,241.92,251.42,9.50,yes
+27-account,Account settings,Account,/portal/account,251.42,258.66,7.24,yes
+28-wrap,Close,Summary,/portal/dashboard,258.66,266.70,8.04,yes

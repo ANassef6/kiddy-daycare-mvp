@@ -1,0 +1,180 @@
+1
+00:00:00,000 --> 00:00:10,500
+This is the teacher view of Kiddy. Sign in
+with the daycare account your manager gave
+you, and the app opens on your own
+dashboard.
+
+2
+00:00:10,500 --> 00:00:22,078
+The dashboard is your morning start. It
+shows the children in your classrooms, who
+is checked in now, open consents, and the
+latest reports.
+
+3
+00:00:22,078 --> 00:00:32,778
+Children lists every child in the
+classrooms assigned to you. Search by
+name, filter by status, or open a child
+profile.
+
+4
+00:00:32,778 --> 00:00:42,245
+The daily report is the heart of the child
+profile. Pick the date, record the meal,
+mood, sleep, toilet, and a note, then save
+it for the family.
+
+5
+00:00:42,245 --> 00:00:52,045
+About shows the child's room, date of
+birth, allergies, and care notes, so you
+have the important facts before the day
+starts.
+
+6
+00:00:52,045 --> 00:01:03,479
+Family holds the parents and pickup
+contacts, with phone, email, and pickup
+permission. Your manager controls who can
+collect the child.
+
+7
+00:01:03,479 --> 00:01:13,413
+Media keeps the photos and videos you
+share with the family. Upload from your
+device, and parents see it in their app.
+
+8
+00:01:13,413 --> 00:01:21,852
+Documents shows the consent requests sent
+for this child, with the parent's answer
+and the date.
+
+9
+00:01:21,852 --> 00:01:30,286
+Schedules shows the child's weekly plan,
+so you know which days they attend and
+which activities are planned.
+
+10
+00:01:30,286 --> 00:01:39,420
+Learning history collects your
+observations and assessments for this
+child, in one timeline you can revisit.
+
+11
+00:01:39,420 --> 00:01:48,187
+Incidents shows every incident linked to
+this child, with what happened, who
+reported it, and the parent's
+acknowledgement.
+
+12
+00:01:48,187 --> 00:01:57,454
+Attendance is your classroom register.
+Choose the day, filter by room, search for
+a child, then check them in or out. The
+bus buttons show who is on the bus.
+
+13
+00:01:57,454 --> 00:02:07,421
+Send a consent request to one child or the
+whole classroom. The list shows who
+approved, who denied, and who has not
+answered yet.
+
+14
+00:02:07,421 --> 00:02:16,221
+The Incidents page lists reports for your
+classrooms. Open one to read the details
+and see whether the parent has
+acknowledged it.
+
+15
+00:02:16,221 --> 00:02:26,927
+The newsfeed is how you talk to families.
+Write a post, choose a child, a classroom,
+or all families, add a photo, and publish.
+
+16
+00:02:26,927 --> 00:02:38,764
+Messages is your private inbox. Start a
+thread with a parent or a classroom,
+attach a file, and keep every reply
+together.
+
+17
+00:02:38,764 --> 00:02:45,298
+Calendar shows the center's events and
+field trips for the month, with the media
+shared for each one.
+
+18
+00:02:45,298 --> 00:02:56,311
+Create an event from the Events page. Add
+the title, date, time, place, and the
+families who should see it.
+
+19
+00:02:56,311 --> 00:03:05,578
+Parent drive shares a file with one family
+or with all families. Upload it once, and
+it appears in the parent app.
+
+20
+00:03:05,578 --> 00:03:15,178
+Learning is where you record development.
+Choose a child, pick a curriculum area,
+write what you observed, and add it to
+their history.
+
+21
+00:03:15,178 --> 00:03:24,312
+Activities covers the fun part of the day.
+Create an activity with a time, a place,
+and an audience, and parents get the
+update.
+
+22
+00:03:24,312 --> 00:03:33,279
+Homework lets you assign a task to one
+child or the whole classroom, with a due
+date and clear instructions.
+
+23
+00:03:33,279 --> 00:03:42,279
+Your staff profile shows your role, your
+rooms, and your contact details. Your
+manager keeps the team list up to date.
+
+24
+00:03:42,279 --> 00:03:49,946
+Staff schedule shows your weekly shifts,
+so you always know when you are expected
+in your classroom.
+
+25
+00:03:49,946 --> 00:03:56,051
+Working hours shows the center opening
+times and the rooms you can access.
+
+26
+00:03:56,051 --> 00:04:05,128
+Notifications collects messages, reports,
+and activity. Open an item to jump
+straight to the child or the conversation.
+
+27
+00:04:05,128 --> 00:04:13,797
+In Account settings you can change your
+photo, your password, your app language,
+and your push notifications.
+
+28
+00:04:13,797 --> 00:04:21,397
+That is the teacher workspace: every
+child, every daily record, and every
+message home, in one place.
+
