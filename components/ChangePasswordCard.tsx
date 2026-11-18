@@ -11,6 +11,7 @@ const STATUS_KEYS: Record<string, string> = {
   wrong: "account.passwordWrongCurrent",
   short: "account.passwordTooShort",
   mismatch: "account.passwordMismatch",
+  same: "account.passwordSame",
 };
 
 export function passwordChangeStatusTone(status?: string | null): string {

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import PortalSidebar from "@/components/PortalSidebar";
 import PortalAccountMenu from "@/components/PortalAccountMenu";
 import OperatorViewBanner from "@/components/OperatorViewBanner";
@@ -58,8 +59,9 @@ export default async function PortalLayout({ children }: { children: React.React
       console.error("KID-474 staff bell unread count failed:", err);
       return 0;
     }),
-    // KID-495: the temp-password prompt is non-blocking UI guidance — a failed
-    // read must never break the portal shell, so it degrades to "not flagged".
+    // KID-495/KID-2439: the temp-password flag gates the app (redirect below).
+    // A failed read must never break the portal shell, so it degrades to
+    // "not flagged".
     getAccount(session.accountId)
       .then((row) => !!row && mustChangePasswordFor(row))
       .catch((err) => {
@@ -67,6 +69,9 @@ export default async function PortalLayout({ children }: { children: React.React
         return false;
       }),
   ]);
+  // KID-2439: a temporary password is a hard gate — no app page renders until
+  // the account replaces it (the flag clears in updateAccountPassword).
+  if (tempPasswordFlagged) redirect("/change-password");
   const displayName = profile.fullName || session.email;
   const logoUrl: string | null = branding.logoUrl;
   const brandName: string = branding.name;

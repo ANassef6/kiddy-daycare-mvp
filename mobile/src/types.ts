@@ -12,6 +12,8 @@ export type Account = {
   email: string;
   role: string;
   fullName: string | null;
+  // KID-2439: true when the account signed in with a temporary password.
+  mustChangePassword?: boolean;
 };
 
 export type SessionPayload = {
