@@ -21,9 +21,15 @@ export async function resetDb(): Promise<void> {
 
 // Resets and seeds the standard demo daycare (Sunshine Daycare) so tests start
 // from a known, reproducible fixture.
+//
+// KID-2436: production centers default to their own IANA zone (Africa/Cairo
+// for the seeded demo). The shared suites pin the whole existing fixture to
+// UTC so `new Date(y, m, d, h, min)` inputs and the working-hours expectations
+// stay deterministic; tests for center-local evaluation opt in explicitly.
 export async function seedFixture(): Promise<void> {
   await resetDb();
   await seedDemo();
+  await queryRun("UPDATE institute SET timezone = 'UTC'");
 }
 
 // Strict helper for lookup queries that must resolve: throws on a missing row

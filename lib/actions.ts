@@ -21,6 +21,7 @@ import {
 import { sessionCookieOptions } from "@/lib/auth";
 import { queryGet, queryRun, queryAll, ensureSchema, isForeignKeyViolation } from "@/lib/db";
 import { normalizeCurrency } from "@/lib/currency";
+import { isValidTimeZone } from "@/lib/timezone";
 import { parsePaymentLink } from "@/lib/instapay";
 import { validatePaymentProof, paymentProofFilename } from "@/lib/payment-proof";
 import { validateContract, contractStorageFilename } from "@/lib/contract";
@@ -1424,12 +1425,16 @@ export async function checkInOutAction(formData: FormData) {
     // carry a validated candidate time ("pickupAt" datetime-local on the web,
     // "at" on mobile); everything else records the server clock, still
     // subject to the open-day/hours rules.
-    const { getWorkingHours } = await import("@/lib/store");
-    const week = instituteId ? await getWorkingHours(String(instituteId)) : {};
+    const { getCenterSchedule } = await import("@/lib/store");
+    const schedule: { week: WorkingWeek; timeZone?: string } = instituteId
+      ? await getCenterSchedule(String(instituteId))
+      : { week: {} };
+    const { week, timeZone } = schedule;
     const decision = evaluatePickupTime({
       type,
       now: new Date(),
       week,
+      timeZone,
       at: formData.get("pickupAt") ?? undefined,
     });
     if (!decision.ok) {
@@ -2621,6 +2626,14 @@ export async function saveCenterDetailsAction(formData: FormData) {
     if (formData.get("defaultCurrency") !== null) {
       patch.default_currency = normalizeCurrency(formData.get("defaultCurrency"));
     }
+    // KID-2437: the center's IANA timezone. Reject an unknown zone up front
+    // instead of storing a value every working-hours comparison would fall
+    // back on — the banner names the field and nothing else is saved.
+    if (formData.get("timezone") !== null) {
+      const timezone = String(formData.get("timezone") ?? "").trim();
+      if (!isValidTimeZone(timezone)) redirect("/portal/settings?error=timezone");
+      patch.timezone = timezone;
+    }
     // KID-1329: the center-level "Allow parents to check in/out" toggle. The
     // form always posts the field (hidden 0 + checkbox 1), so a save without
     // the checkbox is an explicit OFF, never a silent keep-as-was.
@@ -2644,7 +2657,10 @@ export async function saveCenterDetailsAction(formData: FormData) {
       entityType: "institute_settings",
       entityId: instituteId,
       summary: name ? `Updated the center profile (${name})` : "Updated the center profile",
-      metadata: patch.default_currency ? { defaultCurrency: String(patch.default_currency) } : undefined,
+      metadata: {
+        ...(patch.default_currency ? { defaultCurrency: String(patch.default_currency) } : {}),
+        ...(patch.timezone ? { timezone: String(patch.timezone) } : {}),
+      },
     });
   }
   redirect("/portal/settings");

@@ -48,8 +48,9 @@ export async function GET(req: Request) {
     if (to) rows = rows.filter((r) => String(r.due_date ?? "") <= to);
     name = "billing-export.csv";
   } else if (type === "attendance") {
-    const day = url.searchParams.get("day") ?? new Date().toISOString().slice(0, 10);
-    const { attendanceOn } = await import("@/lib/store");
+    const { attendanceOn, centerToday } = await import("@/lib/store");
+    // KID-2437: the export default is the center-local day.
+    const day = url.searchParams.get("day") ?? (await centerToday(instituteId));
     rows = ((await attendanceOn(instituteId, day)) as Record<string, unknown>[]).map((r) => ({
       child: `${r.first_name} ${r.last_name}`,
       room: r.room_name ?? "",

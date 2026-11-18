@@ -19,7 +19,7 @@ process.env.TZ = "UTC";
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createAccount, createSessionToken } from "@/lib/auth";
-import { queryAll, queryGet } from "@/lib/db";
+import { queryAll, queryGet, queryRun } from "@/lib/db";
 import { linkFamily } from "@/lib/store";
 import { evaluatePickupTime, parsePickupAtCandidate } from "@/lib/pickup-policy";
 import { seedFixture } from "../helpers";
@@ -399,6 +399,24 @@ describe("KID-1371 web checkInOutAction enforces the boundaries", () => {
     expect(await digest(() => checkInOutAction(fd))).toBe(`/child/${childId}`);
     const row = await queryGet("SELECT account_id FROM check_in WHERE child_id = ? AND type = 'out'", childId);
     expect(String(row!.account_id)).toBe(accountId);
+  });
+
+  it("KID-2436: an 08:47 Cairo arrival (06:47 UTC) is accepted for a 07:00-opening center", async () => {
+    await pickupSession();
+    await queryRun("UPDATE institute SET timezone = 'Africa/Cairo' WHERE id = ?", instituteId);
+    // The founder's report: local 08:47, server 06:47 UTC.
+    vi.setSystemTime(new Date("2026-11-11T06:47:00.000Z"));
+    const { checkInOutAction } = await import("@/lib/actions");
+    const fd = new FormData();
+    fd.set("childId", childId);
+    fd.set("type", "in");
+    expect(await digest(() => checkInOutAction(fd))).toBe(`/child/${childId}`);
+    const rows = await queryAll(
+      "SELECT recorded_at FROM check_in WHERE child_id = ? AND type = 'in'",
+      childId
+    );
+    expect(rows).toHaveLength(1);
+    expect(String(rows[0].recorded_at)).toBe("2026-11-11T06:47:00.000Z");
   });
 });
 

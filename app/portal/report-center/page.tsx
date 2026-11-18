@@ -1,5 +1,5 @@
 import { requireSession } from "@/lib/require";
-import { reportCenterStats, staffPerformance, attendanceOn, listChildren, listRoomsScoped, recentReports } from "@/lib/store";
+import { centerToday, reportCenterStats, staffPerformance, attendanceOn, listChildren, listRoomsScoped, recentReports } from "@/lib/store";
 import { firstInstituteId } from "@/lib/helpers";
 import { i18nForAccount } from "@/lib/i18n-session";
 import { fmtDateFor, tr } from "@/lib/i18n";
@@ -37,7 +37,8 @@ export default async function PortalReportCenterPage(
     listRoomsScoped(instituteId, session.accountId),
     recentReports(instituteId, 50, session.accountId),
   ]);
-  const today = new Date().toISOString().slice(0, 10);
+  // KID-2437: "today" is the center-local day, not the server UTC date.
+  const today = await centerToday(instituteId);
   const attendance = await attendanceOn(instituteId, today, { accountId: session.accountId });
   // KID-52 #7: filtered-reports section moved here from the removed Reports
   // tab so billing/daily filters + exports live in one place.

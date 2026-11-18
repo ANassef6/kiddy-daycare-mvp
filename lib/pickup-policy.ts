@@ -29,6 +29,12 @@
 // hand it in, so the whole matrix is testable without a database.
 
 import { dayLabelFor, parseHM, workingHoursConfigured, type WorkingWeek } from "./working-hours";
+import {
+  zonedDateKey,
+  zonedDateTimeToInstant,
+  zonedMinutesOfDay,
+  zonedWeekday,
+} from "./timezone";
 
 /** Why a pickup-time candidate was refused (ordered test-matrix codes). */
 export type PickupTimeCode = "invalid_time" | "past" | "cross_day" | "outside_hours" | "closed_day";
@@ -41,25 +47,46 @@ export type PickupTimeDecision =
  *  datetime-local picker is local by definition) or a full ISO instant with
  *  Z/offset. Anything present but unparseable fails closed — silently
  *  ignoring a submitted time is what let KID-1330 see no rejection at all. */
-export function parsePickupAtCandidate(raw: unknown): { state: "none" } | { state: "invalid" } | { state: "valid"; at: Date } {
+export function parsePickupAtCandidate(
+  raw: unknown,
+  timeZone?: string
+): { state: "none" } | { state: "invalid" } | { state: "valid"; at: Date } {
   if (raw === undefined || raw === null) return { state: "none" };
   const s = String(raw).trim();
   if (!s) return { state: "none" };
   // Naive local datetime-local values must be explicitly local-parsed so the
-  // day boundary is the day the user picked, not a UTC shift of it.
+  // day boundary is the day the user picked, not a UTC shift of it. KID-2436:
+  // without a timezone this keeps the host-local interpretation; callers with
+  // a center zone get the wall clock the PARENT picked in the center's zone.
   const naive = /^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})(?::(\d{2})(?:\.(\d{1,3}))?)?$/.exec(s);
   let at: Date;
   if (naive) {
     const [, y, mo, d, h, mi, se, ms] = naive;
-    at = new Date(
-      Number(y),
-      Number(mo) - 1,
-      Number(d),
-      Number(h),
-      Number(mi),
-      Number(se ?? 0),
-      ms ? Number(`0.${ms}`) * 1000 : 0
-    );
+    if (timeZone) {
+      const second = Number(se ?? 0);
+      const base = zonedDateTimeToInstant(
+        {
+          year: Number(y),
+          month: Number(mo),
+          day: Number(d),
+          hour: Number(h),
+          minute: Number(mi),
+          second,
+        },
+        timeZone
+      );
+      at = ms ? new Date(base.getTime() + Number(`0.${ms}`) * 1000) : base;
+    } else {
+      at = new Date(
+        Number(y),
+        Number(mo) - 1,
+        Number(d),
+        Number(h),
+        Number(mi),
+        Number(se ?? 0),
+        ms ? Number(`0.${ms}`) * 1000 : 0
+      );
+    }
   } else {
     if (Number.isNaN(new Date(s).getTime())) return { state: "invalid" };
     at = new Date(s);
@@ -82,8 +109,13 @@ export function evaluatePickupTime(input: {
   now: Date;
   week: WorkingWeek;
   at?: unknown;
+  /** KID-2436: the center's IANA timezone. When present, supplied wall-clock
+   *  values, the same-day boundary, the open day, and open/close bounds are
+   *  all evaluated in the center's zone instead of the server's. */
+  timeZone?: string;
 }): PickupTimeDecision {
-  const parsed = parsePickupAtCandidate(input.at);
+  const timeZone = input.timeZone;
+  const parsed = parsePickupAtCandidate(input.at, timeZone);
   // Default: record the server clock. Equal timestamps pass the "not past"
   // check via >=, so a plain no-`at` registration never trips the rule.
   const at = parsed.state === "valid" ? parsed.at : new Date(input.now.getTime());
@@ -98,10 +130,11 @@ export function evaluatePickupTime(input: {
 
   // A request chose the moment — bound it hard.
   if (parsed.state === "valid") {
-    // Same-day only: the ledger day is the UTC date of recorded_at
-    // (date(recorded_at) everywhere in lib/store.ts, and todayIso() builds
-    // today from the server clock's UTC date), so the comparison is too.
-    if (at.toISOString().slice(0, 10) !== input.now.toISOString().slice(0, 10)) {
+    // Same-day only. KID-2436: "today" is the center's local calendar day;
+    // without a zone the legacy UTC-day comparison is kept.
+    const atDay = timeZone ? zonedDateKey(at, timeZone) : at.toISOString().slice(0, 10);
+    const nowDay = timeZone ? zonedDateKey(input.now, timeZone) : input.now.toISOString().slice(0, 10);
+    if (atDay !== nowDay) {
       return {
         ok: false,
         code: "cross_day",
@@ -125,8 +158,8 @@ export function evaluatePickupTime(input: {
   if (parsed.state !== "valid") return { ok: true, at };
   if (!workingHoursConfigured(input.week)) return { ok: true, at };
 
-  // Working hours are keyed by the LOCAL day (existing convention).
-  const key = String(at.getDay());
+  // Working hours are keyed by the center-local day (KID-2436).
+  const key = timeZone ? String(zonedWeekday(at, timeZone)) : String(at.getDay());
   const day = input.week[key];
   if (!day) {
     return {
@@ -138,7 +171,9 @@ export function evaluatePickupTime(input: {
   }
   const open = parseHM(day.open);
   const close = parseHM(day.close);
-  const atMinutes = at.getHours() * 60 + at.getMinutes();
+  const atMinutes = timeZone
+    ? zonedMinutesOfDay(at, timeZone)
+    : at.getHours() * 60 + at.getMinutes();
   if (open) {
     const openMinutes = open.h * 60 + open.m;
     if (atMinutes < openMinutes) {

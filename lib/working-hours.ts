@@ -45,6 +45,17 @@ export const DAY_LABEL_KEYS = [
 
 export type DayHours = { open: string; close: string };
 
+// KID-2436: every rule below compares a UTC instant with the center's local
+// working hours. The optional `timeZone` argument is the center's configured
+// IANA zone (institute.timezone); when omitted the function keeps the legacy
+// server-local behavior so pure callers/tests stay explicit about their clock.
+import {
+  zonedDateTimeToInstant,
+  zonedMinutesOfDay,
+  zonedParts,
+  zonedWeekday,
+} from "./timezone";
+
 // KID-2413 bug 6: machine-readable refusal reasons so callers can render the
 // message in the account's language instead of shipping English-only prose.
 export type CheckInErrorCode = "closed_day" | "before_open";
@@ -149,9 +160,9 @@ export type CheckInGate = {
 // time. With no config at all, check-in is always allowed. The `code`/
 // `dayIndex`/`open` fields let callers render the refusal in the account's
 // language (the `error` string stays as the English fallback).
-export function checkInOpen(week: WorkingWeek, now = new Date()): CheckInGate {
+export function checkInOpen(week: WorkingWeek, now = new Date(), timeZone?: string): CheckInGate {
   if (!workingHoursConfigured(week)) return { allowed: true };
-  const key = todayKey(now);
+  const key = timeZone ? String(zonedWeekday(now, timeZone)) : todayKey(now);
   const day = week[key];
   if (!day) {
     return {
@@ -163,7 +174,7 @@ export function checkInOpen(week: WorkingWeek, now = new Date()): CheckInGate {
   }
   const parsed = parseHM(day.open);
   if (!parsed) return { allowed: true };
-  const nowMins = now.getHours() * 60 + now.getMinutes();
+  const nowMins = timeZone ? zonedMinutesOfDay(now, timeZone) : now.getHours() * 60 + now.getMinutes();
   const openMins = parsed.h * 60 + parsed.m;
   if (nowMins < openMins) {
     return {
@@ -179,27 +190,60 @@ export function checkInOpen(week: WorkingWeek, now = new Date()): CheckInGate {
 
 // Moment 3 hours after today's closing time (the auto-check-out cutoff), or
 // undefined when today has no configured close time.
-export function closeCutoff(week: WorkingWeek, now = new Date()): Date | undefined {
+export function closeCutoff(week: WorkingWeek, now = new Date(), timeZone?: string): Date | undefined {
   if (!workingHoursConfigured(week)) return undefined;
-  const day = week[todayKey(now)];
+  const key = timeZone ? String(zonedWeekday(now, timeZone)) : todayKey(now);
+  const day = week[key];
   if (!day) return undefined;
   const parsed = parseHM(day.close);
   if (!parsed) return undefined;
-  const cutoff = new Date(now);
-  cutoff.setHours(parsed.h + AUTO_CHECKOUT_GRACE_HOURS, parsed.m, 0, 0);
-  return cutoff;
+  if (!timeZone) {
+    const cutoff = new Date(now);
+    cutoff.setHours(parsed.h + AUTO_CHECKOUT_GRACE_HOURS, parsed.m, 0, 0);
+    return cutoff;
+  }
+  return cutoffInZone(now, timeZone, parsed, AUTO_CHECKOUT_GRACE_HOURS);
+}
+
+// KID-2436: close + grace in the CENTER's wall clock. The grace can cross
+// midnight (e.g. 23:00 + 3h), so the day overflow is intentional.
+function cutoffInZone(
+  now: Date,
+  timeZone: string,
+  close: { h: number; m: number },
+  graceHours: number
+): Date {
+  const local = zonedParts(now, timeZone);
+  const totalMinutes = close.h * 60 + close.m + graceHours * 60;
+  const dayShift = Math.floor(totalMinutes / 1440);
+  const minutesInDay = totalMinutes - dayShift * 1440;
+  return zonedDateTimeToInstant(
+    {
+      year: local.year,
+      month: local.month,
+      day: local.day + dayShift,
+      hour: Math.floor(minutesInDay / 60),
+      minute: minutesInDay % 60,
+      second: 0,
+    },
+    timeZone
+  );
 }
 
 // KID-494: moment 2 hours after today's closing time (the auto off-bus
 // cutoff), or undefined when today has no configured close time. Runs ahead
 // of the 3h attendance cutoff so the bus sweep fires first.
-export function busAutoOffCutoff(week: WorkingWeek, now = new Date()): Date | undefined {
+export function busAutoOffCutoff(week: WorkingWeek, now = new Date(), timeZone?: string): Date | undefined {
   if (!workingHoursConfigured(week)) return undefined;
-  const day = week[todayKey(now)];
+  const key = timeZone ? String(zonedWeekday(now, timeZone)) : todayKey(now);
+  const day = week[key];
   if (!day) return undefined;
   const parsed = parseHM(day.close);
   if (!parsed) return undefined;
-  const cutoff = new Date(now);
-  cutoff.setHours(parsed.h + BUS_AUTO_OFF_GRACE_HOURS, parsed.m, 0, 0);
-  return cutoff;
+  if (!timeZone) {
+    const cutoff = new Date(now);
+    cutoff.setHours(parsed.h + BUS_AUTO_OFF_GRACE_HOURS, parsed.m, 0, 0);
+    return cutoff;
+  }
+  return cutoffInZone(now, timeZone, parsed, BUS_AUTO_OFF_GRACE_HOURS);
 }
