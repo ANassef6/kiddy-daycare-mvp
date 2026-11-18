@@ -1,0 +1,39 @@
+{
+  "base": "https://kiddy-staging-orcin.vercel.app",
+  "at": "2026-11-18T20:18:47.051Z",
+  "pages": [
+    {
+      "name": "platform",
+      "path": "/platform",
+      "h1": "Daycares",
+      "hasBillingFixture": true
+    },
+    {
+      "name": "pricing",
+      "path": "/platform/pricing",
+      "h1": "Pricing configuration",
+      "hasBillingFixture": false
+    },
+    {
+      "name": "billing",
+      "path": "/platform/daycares/mwmk77e9-zxp7hwli/billing",
+      "h1": "Billing settings",
+      "hasBillingFixture": true,
+      "table": ""
+    },
+    {
+      "name": "invoices",
+      "path": "/platform/daycares/mwmk77e9-zxp7hwli/invoices",
+      "h1": "Invoices",
+      "hasBillingFixture": true,
+      "table": "Cycle\nPeak children\nBillable children\nFlat rate (EGP)\nIncremental total (EGP)\nTotal (EGP)\nDue\nStatus\nProof\n2026-10\nPlan: monthly\nPricing v2 band: Core · Standard amount (EGP): 950 · Founding / glide rate: 810 · Pilot credit (EGP): 350\n\t22\n0 Billable children\n\t0\t810\t0\t460 EGP\tThu Nov 05\tPaid\nPaid at: 2026-11-12\n\t—"
+    }
+  ],
+  "login": {
+    "landed": "/platform",
+    "h1": "Daycares"
+  },
+  "consoleErrors": [
+    "Failed to load resource: the server responded with a status of 404 ()"
+  ]
+}
