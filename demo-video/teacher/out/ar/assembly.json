@@ -9,8 +9,6 @@
   "outro": false,
   "missingVoiceover": [],
   "missingClips": [],
-  "highlightOverlay": true,
-  "voiceProfile": "Kiddy (93cd5ca5)",
   "scenes": [
     {
       "id": "01-login",
