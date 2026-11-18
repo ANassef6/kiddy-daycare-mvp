@@ -3,6 +3,7 @@ import { API_ORIGIN } from "./config";
 import type {
   BootstrapPayload,
   BillingPayload,
+  ChangePasswordBody,
   ChildDetailPayload,
   ChildSummary,
   LoginBody,
@@ -12,6 +13,8 @@ export class ApiError extends Error {
   constructor(
     message: string,
     public status: number,
+    // KID-2439: machine-readable refusal (e.g. password_change_required).
+    public code: string | null = null,
   ) {
     super(message);
     this.name = "ApiError";
@@ -80,11 +83,13 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
     body = null;
   }
   if (!res.ok) {
+    const payload = body && typeof body === "object" ? (body as Record<string, unknown>) : null;
     const message =
-      body && typeof body === "object" && "error" in (body as object)
-        ? String((body as { error: unknown }).error)
+      payload && "error" in payload
+        ? String(payload.error)
         : `Request failed (${res.status})`;
-    throw new ApiError(message, res.status);
+    const code = payload && typeof payload.code === "string" ? payload.code : null;
+    throw new ApiError(message, res.status, code);
   }
   return body as T;
 }
@@ -102,6 +107,19 @@ export const api = {
 
   async bootstrap(): Promise<BootstrapPayload> {
     return request<BootstrapPayload>("/api/mobile/bootstrap");
+  },
+
+  // KID-2439: replaces a temporary/reset password. The server clears the
+  // forced-change flag in the same write, so the app can open normally after.
+  async changePassword(
+    currentPassword: string,
+    newPassword: string,
+    confirmPassword: string,
+  ): Promise<ChangePasswordBody> {
+    return request<ChangePasswordBody>("/api/mobile/change-password", {
+      method: "POST",
+      body: JSON.stringify({ currentPassword, newPassword, confirmPassword }),
+    });
   },
 
   async child(id: string): Promise<ChildDetailPayload> {

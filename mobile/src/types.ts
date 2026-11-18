@@ -26,6 +26,12 @@ export type LoginBody = {
   token: string;
 };
 
+// KID-2439: the forced / in-app password change response.
+export type ChangePasswordBody = {
+  ok: true;
+  account: Account;
+};
+
 export type ChildInfo = {
   id: string;
   first_name: string;

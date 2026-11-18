@@ -1,7 +1,7 @@
 // Mobile API helpers: an HTTP session for the mobile client, reusing the web's
 // signed session tokens (lib/auth.ts) so the app and web share one identity.
 import { NextRequest, NextResponse } from "next/server";
-import { verifyToken, getAccount } from "./auth";
+import { verifyToken, getAccount, mustChangePasswordFor } from "./auth";
 import { queryGet, type Row } from "./db";
 import { getFirstInstitute, getInstitute, brandingFromInstitute, type Branding } from "./theme";
 import { familiesForAccount, getChild, todayStatus, reportFor } from "./store";
@@ -28,7 +28,15 @@ export function mobileSessionFromRequest(req: NextRequest): MobileSession | null
   };
 }
 
-export async function requireMobileSession(req: NextRequest): Promise<MobileSession | NextResponse> {
+// KID-2439: a temporary/reset password must be replaced before the app shows
+// any family data. Every mobile data route goes through this helper, so an
+// older installed app cannot bypass the forced-change gate either.
+export const MUST_CHANGE_PASSWORD_CODE = "password_change_required";
+
+export async function requireMobileSession(
+  req: NextRequest,
+  opts: { allowMustChangePassword?: boolean } = {}
+): Promise<MobileSession | NextResponse> {
   const session = mobileSessionFromRequest(req);
   if (!session) {
     return NextResponse.json({ error: "not signed in" }, { status: 401 });
@@ -36,6 +44,12 @@ export async function requireMobileSession(req: NextRequest): Promise<MobileSess
   const account = await getAccount(session.accountId);
   if (!account) {
     return NextResponse.json({ error: "account not found" }, { status: 401 });
+  }
+  if (!opts.allowMustChangePassword && mustChangePasswordFor(account)) {
+    return NextResponse.json(
+      { error: "password change required", code: MUST_CHANGE_PASSWORD_CODE },
+      { status: 403 }
+    );
   }
   return session;
 }

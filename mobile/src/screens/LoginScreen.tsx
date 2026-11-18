@@ -12,8 +12,9 @@ import { StatusBar } from "expo-status-bar";
 import { Button, Screen, usePalette } from "../components";
 import { api, ApiError } from "../api";
 import { BRANDING_DEFAULTS } from "../config";
+import type { LoginBody } from "../types";
 
-export function LoginScreen({ onLogin }: { onLogin: () => void }) {
+export function LoginScreen({ onLogin }: { onLogin: (body: LoginBody) => void }) {
   const p = usePalette();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -25,8 +26,8 @@ export function LoginScreen({ onLogin }: { onLogin: () => void }) {
     setBusy(true);
     setError(null);
     try {
-      await api.login(email.trim().toLowerCase(), password);
-      onLogin();
+      const body = await api.login(email.trim().toLowerCase(), password);
+      onLogin(body);
     } catch (e) {
       setError(e instanceof ApiError ? e.message : "Could not reach the Kiddy server.");
     } finally {
