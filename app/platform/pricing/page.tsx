@@ -1,0 +1,249 @@
+import { redirect } from "next/navigation";
+import { requireSession } from "@/lib/require";
+import { isPlatformOperatorEmail, isPlatformOperatorRole } from "@/lib/platform";
+import {
+  annualForMonthly,
+  countFoundingClients,
+  foundingOfferState,
+  getPricingBands,
+  getPricingSettings,
+} from "@/lib/pricing";
+import { updatePricingBandAction, updatePricingSettingsAction } from "@/lib/actions";
+import { i18nForAccount } from "@/lib/i18n-session";
+import { tr } from "@/lib/i18n";
+
+export const dynamic = "force-dynamic";
+
+const ERRORS: Record<string, string> = {
+  "pricing-band-unknown": "That pricing band does not exist.",
+  "pricing-band-invalid": "Check the band values: children and amounts must be valid numbers.",
+  "pricing-band-ladder": "The bands must cover 1 child upward with no gaps or overlaps.",
+  "pricing-band-annual-rule": "The annual amount must equal 10x the monthly amount.",
+  "pricing-setting-invalid": "Check the demo and founding-cohort values.",
+  unknown: "Something went wrong saving the pricing configuration. Please try again.",
+};
+
+export default async function PlatformPricingPage(props: {
+  searchParams: Promise<{ saved?: string; error?: string }>;
+}) {
+  const searchParams = await props.searchParams;
+  const session = await requireSession();
+  if (!isPlatformOperatorRole(session.role) || !isPlatformOperatorEmail(session.email)) {
+    redirect("/login");
+  }
+  const { dict, dir } = await i18nForAccount(session.accountId);
+  const bands = await getPricingBands();
+  const settings = await getPricingSettings();
+  const signedClients = await countFoundingClients();
+  const offer = foundingOfferState(settings, signedClients);
+  const error = searchParams.error ? (ERRORS[searchParams.error] ?? ERRORS.unknown) : "";
+
+  return (
+    <div dir={dir}>
+      <h1 className="title">{tr(dict, "platform.pricingTitle")}</h1>
+      <p className="subtitle">{tr(dict, "platform.pricingSubtitle")}</p>
+      <p className="small">
+        <a href="/platform">← {tr(dict, "platform.pricingBack")}</a>
+      </p>
+
+      {searchParams.saved ? (
+        <div className="card mb-4 banner-success">
+          {searchParams.saved === "settings"
+            ? tr(dict, "platform.pricingSavedSettings")
+            : tr(dict, "platform.pricingSavedBand")}
+        </div>
+      ) : null}
+      {error ? <div className="card mb-4 banner-error">{error}</div> : null}
+
+      <h2 className="title">{tr(dict, "platform.pricingBandTitle")}</h2>
+      <p className="small muted">{tr(dict, "platform.pricingBandHint")}</p>
+      <p className="small muted">{tr(dict, "platform.pricingAnnualRule")}</p>
+
+      <div className="card mb-4">
+        {bands.map((band) => (
+          <form key={band.key} action={updatePricingBandAction} className="mb-4">
+            <input type="hidden" name="key" value={band.key} />
+            <div className="row">
+              <div className="col field">
+                <label className="label">{tr(dict, "platform.pricingBandName")}</label>
+                <input className="input" name="name" defaultValue={band.name} />
+              </div>
+              <div className="col field">
+                <label className="label">{tr(dict, "platform.pricingBandMin")}</label>
+                <input className="input" name="minChildren" type="number" min={1} defaultValue={band.minChildren} />
+              </div>
+              <div className="col field">
+                <label className="label">{tr(dict, "platform.pricingBandMax")}</label>
+                <input
+                  className="input"
+                  name="maxChildren"
+                  type="number"
+                  min={1}
+                  defaultValue={band.maxChildren ?? ""}
+                  placeholder={tr(dict, "platform.pricingBandUnlimited")}
+                />
+              </div>
+            </div>
+            <div className="row">
+              <div className="col field">
+                <label className="label">{tr(dict, "platform.pricingBandMonthly")}</label>
+                <input className="input" name="monthlyEgp" type="number" min={0} defaultValue={band.monthlyEgp} />
+              </div>
+              <div className="col field">
+                <label className="label">{tr(dict, "platform.pricingBandAnnual")}</label>
+                <input
+                  className="input"
+                  type="text"
+                  readOnly
+                  value={band.annualIsQuote ? tr(dict, "platform.pricingBandQuote") : String(annualForMonthly(band.monthlyEgp))}
+                />
+              </div>
+              <div className="col field">
+                <label className="label">{tr(dict, "platform.pricingBandPerChild")}</label>
+                <input
+                  className="input"
+                  name="perChildOverageEgp"
+                  type="number"
+                  min={0}
+                  defaultValue={band.perChildOverageEgp}
+                />
+              </div>
+            </div>
+            <div className="row">
+              <div className="col field">
+                <label className="label">{tr(dict, "platform.pricingBandFoundingMonthly")}</label>
+                <input
+                  className="input"
+                  name="foundingMonthlyEgp"
+                  type="number"
+                  min={0}
+                  defaultValue={band.foundingMonthlyEgp ?? ""}
+                />
+              </div>
+              <div className="col field">
+                <label className="label">{tr(dict, "platform.pricingBandBus")}</label>
+                <label className="small">
+                  <input type="checkbox" name="busTrackingIncluded" value="1" defaultChecked={band.busTrackingIncluded} />{" "}
+                  {tr(dict, "platform.pricingBandBusIncluded")}
+                </label>
+              </div>
+              <div className="col field">
+                <label className="label">{tr(dict, "platform.pricingBandQuoteLabel")}</label>
+                <label className="small">
+                  <input type="checkbox" name="annualIsQuote" value="1" defaultChecked={band.annualIsQuote} />{" "}
+                  {tr(dict, "platform.pricingBandQuoteHint")}
+                </label>
+              </div>
+            </div>
+            <button className="btn btn-primary" type="submit">
+              {tr(dict, "platform.pricingBandSave")}
+            </button>
+          </form>
+        ))}
+      </div>
+
+      <h2 className="title">{tr(dict, "platform.pricingDemoTitle")}</h2>
+      <p className="small muted">{tr(dict, "platform.pricingDemoHint")}</p>
+      <p className="small muted">
+        {tr(dict, "platform.pricingFoundingSigned", {
+          signed: String(offer.signedClients),
+          cap: String(offer.cap),
+        })}{" "}
+        — {tr(dict, `platform.pricingOffer${offer.status[0]!.toUpperCase()}${offer.status.slice(1)}`)}
+      </p>
+
+      <form className="card mb-4" action={updatePricingSettingsAction}>
+        <div className="row">
+          <div className="col field">
+            <label className="label">{tr(dict, "platform.pricingDemoTrialDays")}</label>
+            <input className="input" name="demoTrialDays" type="number" min={0} defaultValue={settings.demoTrialDays} />
+          </div>
+          <div className="col field">
+            <label className="label">{tr(dict, "platform.pricingDemoRoomLimit")}</label>
+            <input className="input" name="demoRoomLimit" type="number" min={1} defaultValue={settings.demoRoomLimit} />
+          </div>
+          <div className="col field">
+            <label className="label">{tr(dict, "platform.pricingDemoChildLimit")}</label>
+            <input className="input" name="demoChildLimit" type="number" min={1} defaultValue={settings.demoChildLimit} />
+          </div>
+        </div>
+        <div className="row">
+          <div className="col field">
+            <label className="label">{tr(dict, "platform.pricingDemoBrandedApp")}</label>
+            <label className="small">
+              <input type="checkbox" name="demoBrandedApp" value="1" defaultChecked={settings.demoBrandedApp} />{" "}
+              {tr(dict, "platform.pricingAllowed")}
+            </label>
+          </div>
+          <div className="col field">
+            <label className="label">{tr(dict, "platform.pricingDemoBus")}</label>
+            <label className="small">
+              <input type="checkbox" name="demoBusTracking" value="1" defaultChecked={settings.demoBusTracking} />{" "}
+              {tr(dict, "platform.pricingAllowed")}
+            </label>
+          </div>
+        </div>
+
+        <h2 className="title">{tr(dict, "platform.pricingFoundingTitle")}</h2>
+        <p className="small muted">{tr(dict, "platform.pricingFoundingHint")}</p>
+        <div className="row">
+          <div className="col field">
+            <label className="label">{tr(dict, "platform.pricingFoundingEnabled")}</label>
+            <label className="small">
+              <input type="checkbox" name="foundingEnabled" value="1" defaultChecked={settings.foundingEnabled} />{" "}
+              {tr(dict, "platform.pricingAllowed")}
+            </label>
+          </div>
+          <div className="col field">
+            <label className="label">{tr(dict, "platform.pricingFoundingCap")}</label>
+            <input className="input" name="foundingCap" type="number" min={0} defaultValue={settings.foundingCap} />
+          </div>
+          <div className="col field">
+            <label className="label">{tr(dict, "platform.pricingFoundingOfferDays")}</label>
+            <input className="input" name="foundingOfferDays" type="number" min={0} defaultValue={settings.foundingOfferDays} />
+          </div>
+          <div className="col field">
+            <label className="label">{tr(dict, "platform.pricingFoundingLaunchDate")}</label>
+            <input
+              className="input"
+              name="foundingLaunchDate"
+              type="date"
+              defaultValue={settings.foundingLaunchDate}
+            />
+          </div>
+        </div>
+        <div className="row">
+          <div className="col field">
+            <label className="label">{tr(dict, "platform.pricingFoundingPilotFee")}</label>
+            <input className="input" name="foundingPilotFeeEgp" type="number" min={0} defaultValue={settings.foundingPilotFeeEgp} />
+          </div>
+          <div className="col field">
+            <label className="label">{tr(dict, "platform.pricingFoundingPilotDays")}</label>
+            <input className="input" name="foundingPilotDays" type="number" min={1} defaultValue={settings.foundingPilotDays} />
+          </div>
+          <div className="col field">
+            <label className="label">{tr(dict, "platform.pricingFoundingPilotRoomLimit")}</label>
+            <input className="input" name="foundingPilotRoomLimit" type="number" min={1} defaultValue={settings.foundingPilotRoomLimit} />
+          </div>
+          <div className="col field">
+            <label className="label">{tr(dict, "platform.pricingFoundingPilotChildLimit")}</label>
+            <input className="input" name="foundingPilotChildLimit" type="number" min={1} defaultValue={settings.foundingPilotChildLimit} />
+          </div>
+        </div>
+        <div className="row">
+          <div className="col field">
+            <label className="label">{tr(dict, "platform.pricingFoundingCreditDays")}</label>
+            <input className="input" name="foundingPilotCreditDays" type="number" min={0} defaultValue={settings.foundingPilotCreditDays} />
+          </div>
+          <div className="col field">
+            <label className="label">{tr(dict, "platform.pricingFoundingGlidePct")}</label>
+            <input className="input" name="foundingGlideMaxIncreasePct" type="number" min={0} max={100} defaultValue={settings.foundingGlideMaxIncreasePct} />
+          </div>
+        </div>
+        <button className="btn btn-primary" type="submit">
+          {tr(dict, "platform.pricingSettingsSave")}
+        </button>
+      </form>
+    </div>
+  );
+}
