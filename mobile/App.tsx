@@ -37,6 +37,17 @@ export default function App() {
     };
   }, []);
 
+  // Stable callbacks: HomeScreen lists these in its fetch effect's deps, and
+  // an inline identity would re-run the bootstrap request on every render.
+  // They must stay above the boot early return so the hook order is stable.
+  const goHome = useCallback((next: BootstrapPayload | null) => {
+    setBoot(next);
+    setAuthed(next !== null);
+    if (next === null) setMustChange(false);
+    setRoute({ name: "home" });
+  }, []);
+  const requirePasswordChange = useCallback(() => setMustChange(true), []);
+
   if (!checkedSession) {
     return (
       <View style={styles.boot}>
@@ -46,15 +57,6 @@ export default function App() {
   }
 
   const branding = boot?.branding ?? BRANDING_DEFAULTS;
-  // Stable callbacks: HomeScreen lists these in its fetch effect's deps, and
-  // an inline identity would re-run the bootstrap request on every render.
-  const goHome = useCallback((next: BootstrapPayload | null) => {
-    setBoot(next);
-    setAuthed(next !== null);
-    if (next === null) setMustChange(false);
-    setRoute({ name: "home" });
-  }, []);
-  const requirePasswordChange = useCallback(() => setMustChange(true), []);
 
   return (
     <ThemeProvider branding={branding}>
