@@ -23,12 +23,13 @@ document. No new rate card was invented.
 
 ## Decisions and edge cases
 
-- **Peak snapshot.** The issue text says "cycle peak child count" and KID-245
-  already bills on the cycle's measured peak; the engine uses that same peak
-  for band selection. Noor's section 1 says "active child count on the 1st";
-  the two agree for a stable roster and differ only when the roster changes
-  inside a month. This should be confirmed by Noor/founder before production
-  cut (see open question below).
+- **Peak snapshot (founder-confirmed).** The issue text says "cycle peak
+  child count" and KID-245 already bills on the cycle's measured peak; the
+  engine uses that same peak for band selection. The founder answered the
+  saved `band_snapshot` question on 18 Nov 2026 with **cycle peak**, so the
+  build is correct and no engine change was needed. Noor's section 1 wording
+  ("active child count on the 1st") stays a documentation delta for Noor to
+  correct; behaviour is unchanged.
 - **Exact glide chain.** The 20% cap compounds on the unrounded rate and is
   rounded only when billed: 810 -> 972 -> 1,166.4 -> 1,399.68 -> billed 1,400,
   matching Noor's worked example and the "no invoice in months 1–12 exceeds
@@ -67,12 +68,13 @@ document. No new rate card was invented.
 - Founding cap: the configured cap is enforced in the data layer; a new
   founding flag past the cap is refused.
 
-## Open question for the founder / Noor
+## Band snapshot decision (founder, 18 Nov 2026)
 
-Band selection currently uses the **cycle peak** (the task's wording and the
-KID-245 snapshot), while Noor's probe says the **count on the 1st**. Confirm
-which is intended; if the 1st wins, the change is isolated to the peak value
-fed into `cyclePricing` in `generateDueInvoices`.
+The saved question `band_snapshot` is answered: **cycle peak (current build)**.
+The band is selected from the cycle peak child count used by the KID-245
+snapshot, not from the active count at 00:00 on the 1st. This matches the
+committed engine; there is no code change and the 17-test KID-2435 suite is
+unchanged.
 
 ## Staging-first
 
