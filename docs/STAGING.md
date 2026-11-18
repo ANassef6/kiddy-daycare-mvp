@@ -36,11 +36,19 @@ read production secrets.
 with two rooms, two children, two guardians, a teacher, working hours
 (Sun–Thu 07:00–18:00, Africa/Cairo), a daily report and a pending invoice.
 
+`scripts/seed-staging-billing-fixture.ts` seeds **Billing Test Daycare**
+(subdomain `billingtest`) for the pricing-v2 billing module: 22 active
+children (Core band), founding client, pilot ended 25 Sep 2026, first cycle
+Oct 2026. It issues one paid invoice with the frozen v2 snapshot — band
+`core`, standard 950 EGP, founding rate 810 EGP, pilot credit 350 EGP, total
+460 EGP — so the operator invoice list is never empty during a review.
+
 | Role | Email | Password |
 | --- | --- | --- |
 | Owner | `founder.owner@staging.kiddy.test` | `12345678` |
 | Teacher | `founder.teacher@staging.kiddy.test` | `12345678` |
 | Parent | `founder.parent@staging.kiddy.test` | `12345678` |
+| Billing fixture owner | `founder.billing@staging.kiddy.test` | `12345678` |
 
 These credentials exist **only** in the staging database. Never reuse this
 password for a production account.

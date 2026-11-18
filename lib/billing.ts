@@ -113,10 +113,14 @@ export function rowToBilling(row: Row): DaycareBilling {
     perChildRateEgp: clampInt(row.per_child_rate_egp ?? row.perChildRateEgp, BILLING_DEFAULTS.perChildRateEgp),
     freeChildThreshold: clampInt(row.free_child_threshold ?? row.freeChildThreshold, BILLING_DEFAULTS.freeChildThreshold),
     annualAmountEgp: clampInt(row.annual_amount_egp ?? row.annualAmountEgp, BILLING_DEFAULTS.annualAmountEgp),
-    firstCycleStart: String((row.first_cycle_start ?? row.firstCycleStart ?? "")).slice(0, 10),
+    // KID-2435: Postgres returns DATE/TIMESTAMP columns as Date objects, so
+    // String(...).slice(0, 10) produced "Thu Oct 01" and hid the billing
+    // calendar (no invoice ever generated). datePart() normalises both
+    // engines to YYYY-MM-DD.
+    firstCycleStart: datePart(row.first_cycle_start ?? row.firstCycleStart),
     foundingClient: Number(row.founding_client ?? (row.foundingClient ? 1 : 0)) === 1,
-    foundingStartedAt: String((row.founding_started_at ?? row.foundingStartedAt ?? "")).slice(0, 10),
-    pilotEndDate: String((row.pilot_end_date ?? row.pilotEndDate ?? "")).slice(0, 10),
+    foundingStartedAt: datePart(row.founding_started_at ?? row.foundingStartedAt),
+    pilotEndDate: datePart(row.pilot_end_date ?? row.pilotEndDate),
   };
 }
 
