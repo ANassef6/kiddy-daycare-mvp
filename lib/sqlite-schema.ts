@@ -612,6 +612,9 @@ export function sqliteSchema(db: any): void {
     free_child_threshold INTEGER NOT NULL DEFAULT 10,
     annual_amount_egp INTEGER NOT NULL DEFAULT 24000,
     first_cycle_start TEXT,
+    founding_client INTEGER NOT NULL DEFAULT 0,
+    founding_started_at TEXT,
+    pilot_end_date TEXT,
     updated_at TEXT NOT NULL DEFAULT (datetime('now'))
   );
   CREATE INDEX IF NOT EXISTS idx_daycare_billing_plan ON daycare_billing (plan);
@@ -648,6 +651,19 @@ export function sqliteSchema(db: any): void {
     payment_proof_url TEXT,
     payment_proof_uploaded_at TEXT,
     payment_reference TEXT,
+    -- KID-2435: pricing-v2 snapshot (mirror of migration 0047). The historic
+    -- formula columns stay; these record the configured band and founding/
+    -- glide/credit values the invoice was issued with.
+    band_key TEXT NOT NULL DEFAULT '',
+    band_name TEXT NOT NULL DEFAULT '',
+    standard_monthly_egp INTEGER NOT NULL DEFAULT 0,
+    standard_amount_egp INTEGER NOT NULL DEFAULT 0,
+    applied_monthly_rate_exact REAL NOT NULL DEFAULT 0,
+    applied_monthly_rate INTEGER NOT NULL DEFAULT 0,
+    founding_applied INTEGER NOT NULL DEFAULT 0,
+    founding_term_index INTEGER NOT NULL DEFAULT 0,
+    glide_capped INTEGER NOT NULL DEFAULT 0,
+    pilot_credit_egp INTEGER NOT NULL DEFAULT 0,
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
   );
   CREATE UNIQUE INDEX IF NOT EXISTS uq_daycare_invoice_cycle
@@ -656,6 +672,61 @@ export function sqliteSchema(db: any): void {
     ON daycare_invoice (status, due_date);
   CREATE INDEX IF NOT EXISTS idx_daycare_invoice_institute
     ON daycare_invoice (institute_id, cycle_month DESC);
+
+  -- KID-2434: mirror of supabase/migrations/0045_pricing_v2.sql — the six
+  -- operator-editable standard pricing bands plus the demo and founding-
+  -- cohort policy. Annual is 10x monthly for every standard band; the quote
+  -- band keeps annual NULL. The seed rows are the approved KID-2433 values.
+  CREATE TABLE IF NOT EXISTS pricing_band (
+    key TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    min_children INTEGER NOT NULL CHECK (min_children >= 1),
+    max_children INTEGER CHECK (max_children IS NULL OR max_children >= min_children),
+    monthly_egp INTEGER NOT NULL CHECK (monthly_egp >= 0),
+    annual_egp INTEGER CHECK (annual_egp IS NULL OR annual_egp >= 0),
+    annual_is_quote INTEGER NOT NULL DEFAULT 0,
+    per_child_overage_egp INTEGER NOT NULL DEFAULT 0 CHECK (per_child_overage_egp >= 0),
+    founding_monthly_egp INTEGER CHECK (founding_monthly_egp IS NULL OR founding_monthly_egp >= 0),
+    bus_tracking_included INTEGER NOT NULL DEFAULT 1,
+    sort_order INTEGER NOT NULL DEFAULT 0,
+    updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+    CHECK (annual_is_quote = 1 OR annual_egp = monthly_egp * 10)
+  );
+  CREATE INDEX IF NOT EXISTS idx_pricing_band_order ON pricing_band (sort_order);
+
+  CREATE TABLE IF NOT EXISTS pricing_config (
+    key TEXT PRIMARY KEY,
+    value TEXT NOT NULL,
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+
+  INSERT OR IGNORE INTO pricing_band
+    (key, name, min_children, max_children, monthly_egp, annual_egp, annual_is_quote,
+     per_child_overage_egp, founding_monthly_egp, bus_tracking_included, sort_order)
+  VALUES
+    ('seed', 'Seed', 1, 15, 600, 6000, 0, 0, 510, 1, 1),
+    ('core', 'Core', 16, 30, 950, 9500, 0, 0, 810, 1, 2),
+    ('standard', 'Standard', 31, 50, 1400, 14000, 0, 0, 1190, 1, 3),
+    ('plus', 'Plus', 51, 80, 1900, 19000, 0, 0, 1620, 1, 4),
+    ('enterprise', 'Enterprise', 81, 120, 2500, 25000, 0, 0, 2130, 1, 5),
+    ('enterprise_plus', 'Enterprise+', 121, NULL, 2500, NULL, 1, 20, NULL, 1, 6);
+
+  INSERT OR IGNORE INTO pricing_config (key, value) VALUES
+    ('demo.trial_days', '30'),
+    ('demo.room_limit', '1'),
+    ('demo.child_limit', '20'),
+    ('demo.branded_app', '0'),
+    ('demo.bus_tracking', '0'),
+    ('founding.enabled', '1'),
+    ('founding.cap', '10'),
+    ('founding.offer_days', '90'),
+    ('founding.launch_date', ''),
+    ('founding.pilot_fee_egp', '350'),
+    ('founding.pilot_days', '30'),
+    ('founding.pilot_room_limit', '1'),
+    ('founding.pilot_child_limit', '20'),
+    ('founding.pilot_credit_days', '14'),
+    ('founding.glide_max_increase_pct', '20');
 
   -- KID-258 A1 (KID-264): mirror of supabase/migrations/
   -- 0029_enhancement_request.sql — the daycare owner's "Enhancements
@@ -880,6 +951,34 @@ export function sqliteSchema(db: any): void {
   }
   if (!invoiceCols.some((c) => c.name === "payment_reference")) {
     db.exec("ALTER TABLE daycare_invoice ADD COLUMN payment_reference TEXT");
+  }
+  // KID-2435: mirror of migration 0047 — the pricing-v2 snapshot columns for
+  // databases created before they existed.
+  for (const [col, ddl] of [
+    ["band_key", "TEXT NOT NULL DEFAULT ''"],
+    ["band_name", "TEXT NOT NULL DEFAULT ''"],
+    ["standard_monthly_egp", "INTEGER NOT NULL DEFAULT 0"],
+    ["standard_amount_egp", "INTEGER NOT NULL DEFAULT 0"],
+    ["applied_monthly_rate_exact", "REAL NOT NULL DEFAULT 0"],
+    ["applied_monthly_rate", "INTEGER NOT NULL DEFAULT 0"],
+    ["founding_applied", "INTEGER NOT NULL DEFAULT 0"],
+    ["founding_term_index", "INTEGER NOT NULL DEFAULT 0"],
+    ["glide_capped", "INTEGER NOT NULL DEFAULT 0"],
+    ["pilot_credit_egp", "INTEGER NOT NULL DEFAULT 0"],
+  ]) {
+    if (!invoiceCols.some((c) => c.name === col)) {
+      db.exec(`ALTER TABLE daycare_invoice ADD COLUMN ${col} ${ddl}`);
+    }
+  }
+  const billingCols = db.prepare("PRAGMA table_info(daycare_billing)").all() as { name: string }[];
+  if (!billingCols.some((c) => c.name === "founding_client")) {
+    db.exec("ALTER TABLE daycare_billing ADD COLUMN founding_client INTEGER NOT NULL DEFAULT 0");
+  }
+  if (!billingCols.some((c) => c.name === "founding_started_at")) {
+    db.exec("ALTER TABLE daycare_billing ADD COLUMN founding_started_at TEXT");
+  }
+  if (!billingCols.some((c) => c.name === "pilot_end_date")) {
+    db.exec("ALTER TABLE daycare_billing ADD COLUMN pilot_end_date TEXT");
   }
   const obsCols = db.prepare("PRAGMA table_info(learning_observation)").all() as { name: string }[];
   if (!obsCols.some((c) => c.name === "age_group")) {
