@@ -30,3 +30,17 @@ CREATE TABLE IF NOT EXISTS push_subscription (
 
 CREATE INDEX IF NOT EXISTS idx_push_subscription_account
   ON push_subscription (account_id);
+
+-- KID-2432: this file used to be prefixed 0032_, colliding with
+-- 0032_center_default_currency.sql. The Supabase migration ledger is keyed on
+-- the numeric version alone, so a second 0032 file made the Supabase Preview
+-- check fail every time it tried to record it ("duplicate key value violates
+-- unique constraint schema_migrations_pkey, Key (version)=(0032)"). Renamed to
+-- the next free version; the DDL is idempotent, so replaying it on a database
+-- that already has the table is a no-op.
+--
+-- Renumbering puts this file after 0040's live-schema RLS loop, so a fresh
+-- replay would otherwise create this table without RLS. Re-assert the KID-1177
+-- posture here (idempotent, no policy = deny for every non-owner role).
+ALTER TABLE push_subscription ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON TABLE push_subscription FROM anon, authenticated;

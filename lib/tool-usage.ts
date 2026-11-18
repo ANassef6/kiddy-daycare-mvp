@@ -13,7 +13,7 @@
 //     neglected tools, and a per-daycare breakdown. Counts only; no row
 //     content crosses tenants (daycare owners never see this surface).
 //
-// The schema is 0033_tool_usage_event.sql (mirrored in lib/sqlite-schema.ts).
+// The schema is 0044_tool_usage_event.sql (mirrored in lib/sqlite-schema.ts).
 // Historical usage is backfilled from existing domain tables by
 // backfillToolUsageEstimates(): one estimate event per (daycare, tool), dated
 // at the latest related record, labeled `"estimate": true` in metadata —

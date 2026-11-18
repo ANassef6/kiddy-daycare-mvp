@@ -541,7 +541,7 @@ export function sqliteSchema(db: any): void {
   CREATE INDEX IF NOT EXISTS idx_notification_unread ON notification (account_id, read_at);
 
   -- KID-480: web push subscriptions (mirror of
-  -- supabase/migrations/0032_push_subscriptions.sql). One row per browser
+  -- supabase/migrations/0043_push_subscriptions.sql). One row per browser
   -- registration; endpoint is UNIQUE so subscribe upserts by it. Per-activity
   -- delivery gating stays in notification_pref (channel 'push'), and the
   -- sender lazily deletes stale rows when the push service reports 404/410.
@@ -715,7 +715,7 @@ export function sqliteSchema(db: any): void {
   CREATE INDEX IF NOT EXISTS idx_audit_entity ON audit_event (entity_type, entity_id, created_at DESC);
   CREATE INDEX IF NOT EXISTS idx_audit_actor ON audit_event (actor_account_id, created_at DESC);
 
-  -- KID-481: mirror of supabase/migrations/0033_tool_usage_event.sql — one row
+  -- KID-481: mirror of supabase/migrations/0044_tool_usage_event.sql — one row
   -- per recorded tool usage (KID-481 Insights). Same event style as
   -- audit_event above: add-only, tenant-scoped, bounded JSON metadata.
   -- occurred_at stays TEXT on SQLite (identity with every other table here);
