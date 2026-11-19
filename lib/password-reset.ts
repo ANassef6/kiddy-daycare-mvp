@@ -18,6 +18,12 @@ export type RecoveryParams = {
   accessToken: string | null;
   refreshToken: string;
   code: string | null;
+  // Supabase's verify endpoint redirects a reused/expired/malformed link with
+  // an error in the fragment or query instead of credentials. Keep those so
+  // the page can show a clear "expired" message.
+  error?: string | null;
+  errorCode?: string | null;
+  errorDescription?: string | null;
 };
 
 export type RecoveryAuthError = {
@@ -46,7 +52,7 @@ export type RecoveryAuthClient = {
 
 export type RecoverySetupResult =
   | { ok: true }
-  | { ok: false; reason: "no-token" | "invalid"; detail?: string };
+  | { ok: false; reason: "no-token" | "invalid" | "expired"; detail?: string };
 
 export type PasswordResetResult =
   | { ok: true; email: string; accessToken: string }
@@ -67,7 +73,20 @@ export function parseRecoveryParams(hash: string, search: string): RecoveryParam
     accessToken: fragment.get("access_token") || query.get("access_token"),
     refreshToken: fragment.get("refresh_token") || query.get("refresh_token") || "",
     code: query.get("code") || fragment.get("code"),
+    error: fragment.get("error") || query.get("error"),
+    errorCode: fragment.get("error_code") || query.get("error_code"),
+    errorDescription: fragment.get("error_description") || query.get("error_description"),
   };
+}
+
+/**
+ * A link Supabase itself marked invalid never reaches the token exchange.
+ * Returns "expired" for the otp_expired shape, "invalid" for everything else.
+ */
+export function recoveryLinkError(params: RecoveryParams): "expired" | "invalid" | null {
+  if (!params.error && !params.errorCode) return null;
+  const code = `${params.errorCode ?? ""} ${params.error ?? ""}`.toLowerCase();
+  return code.includes("expired") || code.includes("otp_expired") ? "expired" : "invalid";
 }
 
 export function hasRecoveryCredentials(params: RecoveryParams): boolean {
@@ -83,6 +102,15 @@ export async function establishRecoverySession(
   client: RecoveryAuthClient,
   params: RecoveryParams
 ): Promise<RecoverySetupResult> {
+  const linkError = recoveryLinkError(params);
+  if (linkError) {
+    return {
+      ok: false,
+      reason: linkError,
+      detail: params.errorDescription ?? params.errorCode ?? params.error ?? undefined,
+    };
+  }
+
   if (params.accessToken) {
     const { error } = await client.auth.setSession({
       access_token: params.accessToken,

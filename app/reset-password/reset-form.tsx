@@ -9,6 +9,7 @@ import {
   establishRecoverySession,
   hasRecoveryCredentials,
   parseRecoveryParams,
+  recoveryLinkError,
   type RecoveryParams,
 } from "@/lib/password-reset";
 
@@ -87,6 +88,22 @@ export default function ResetPasswordForm({ labels }: { labels: ResetPasswordLab
 
       const params = readRecoveryParams();
       paramsRef.current = params;
+
+      // Supabase marks a reused/expired/malformed link by redirecting with
+      // ?error=/#error= instead of credentials. Say so directly.
+      const linkError = recoveryLinkError(params);
+      if (linkError) {
+        console.error(
+          "KID-2441 reset-password: recovery link rejected:",
+          params.errorCode ?? params.error ?? linkError
+        );
+        if (!cancelled) {
+          setStatus("error");
+          setMessage(linkError === "expired" ? labels.expiredLink : labels.invalidLink);
+        }
+        return;
+      }
+
       if (!hasRecoveryCredentials(params)) {
         if (!cancelled) setStatus("no-token");
         return;
@@ -99,8 +116,12 @@ export default function ResetPasswordForm({ labels }: { labels: ResetPasswordLab
           "KID-2441 reset-password: recovery link could not establish a session:",
           setup.detail ?? setup.reason
         );
-        setStatus(setup.reason === "no-token" ? "no-token" : "error");
-        if (setup.reason !== "no-token") setMessage(labels.invalidLink);
+        if (setup.reason === "no-token") {
+          setStatus("no-token");
+        } else {
+          setStatus("error");
+          setMessage(setup.reason === "expired" ? labels.expiredLink : labels.invalidLink);
+        }
         return;
       }
       setStatus("ready");
