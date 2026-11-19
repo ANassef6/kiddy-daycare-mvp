@@ -56,7 +56,9 @@ export async function GET(req: Request) {
       room: r.room_name ?? "",
       status: r.last_event ?? "absent",
       checked_in: r.checked_in_at ?? "",
+      checked_in_source: r.checked_in_source ?? "",
       checked_out: r.checked_out_at ?? "",
+      checked_out_source: r.checked_out_source ?? "",
     }));
     name = `attendance-${day}.csv`;
   } else if (type === "children") {

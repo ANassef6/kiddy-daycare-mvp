@@ -190,6 +190,11 @@ export const en = {
     busOff: "Off the bus",
     busOnAt: "On the bus at {time}",
     busOffAt: "Off the bus at {time}",
+    // KID-2448: the parent-facing bus cycle states.
+    busOnMorning: "On the bus — on the way to the daycare",
+    busOffMorning: "Arrived at the daycare by bus",
+    busOnAfternoon: "On the bus — on the way home",
+    busOffAfternoon: "Dropped off at home by bus",
   },
   child: {
     myChildren: "My children",
@@ -1379,6 +1384,15 @@ export const en = {
     busAutoCheckedOutBody: "Checked out automatically — on the way home by bus.",
     busAutoCheckedInBody: "Checked in automatically — arrived at the center by bus.",
     busAutoOffBody: "Off-bus was set automatically after working hours — your child is safe.",
+    // KID-2448: one notification per bus-cycle transition.
+    busPickedUpTitle: "{name} was picked up by the daycare bus",
+    busPickedUpBody: "On the way to the daycare.",
+    busArrivedTitle: "{name} arrived at the daycare",
+    busArrivedBody: "Checked in automatically when the child got off the bus.",
+    busDepartedTitle: "{name} is on the bus home",
+    busDepartedBody: "On the way home — the check-out is recorded when the child gets off the bus.",
+    busDroppedOffTitle: "{name} was dropped off at home",
+    busDroppedOffBody: "Checked out automatically — home safe.",
     incidentTitle: "Incident: {name}",
     reportedBy: "Reported by {name}",
     messageTitle: "Message from {name}",
@@ -1747,6 +1761,16 @@ export const en = {
     absent: "Absent",
     busOn: "On bus",
     busOff: "Off bus",
+    // KID-2448: the strict bus cycle (two pairs per day).
+    busOnMorning: "On bus (to daycare)",
+    busOffMorning: "Arrived at daycare",
+    busOnAfternoon: "On bus (home)",
+    busOffAfternoon: "Dropped off at home",
+    busCycleComplete: "Bus cycle complete",
+    busSource: "Bus",
+    busErrorOffWithoutOn: "Register On bus before Off bus.",
+    busErrorOnBeforeOff: "Register Off bus before the next On bus.",
+    busErrorCycleComplete: "This child already completed both bus cycles today.",
     empty: "No children match the current filters.",
   },
   calendar: {
@@ -2384,6 +2408,10 @@ export const ar = {
     busOff: "نزل من الباص",
     busOnAt: "في الباص منذ {time}",
     busOffAt: "نزول من الباص: {time}",
+    busOnMorning: "في الباص — في طريقه إلى الحضانة",
+    busOffMorning: "وصل إلى الحضانة بالباص",
+    busOnAfternoon: "في الباص — في طريق العودة إلى المنزل",
+    busOffAfternoon: "وصل إلى المنزل بالباص",
   },
   child: {
     myChildren: "أطفالي",
@@ -3464,6 +3492,14 @@ export const ar = {
     busAutoCheckedOutBody: "سُجّل الانصراف تلقائيًا — في طريق العودة إلى المنزل بالباص.",
     busAutoCheckedInBody: "سُجّل الحضور تلقائيًا — وصل إلى الحضانة بالباص.",
     busAutoOffBody: "سُجّل النزول تلقائيًا بعد ساعات العمل للتأكد من أمان طفلك.",
+    busPickedUpTitle: "اصطحاب {name} بباص الحضانة",
+    busPickedUpBody: "في طريق الطفل إلى الحضانة.",
+    busArrivedTitle: "وصول {name} إلى الحضانة",
+    busArrivedBody: "سُجّل الحضور تلقائيًا عند نزول الطفل من الباص.",
+    busDepartedTitle: "{name} في الباص إلى المنزل",
+    busDepartedBody: "في طريق العودة إلى المنزل — يُسجّل الانصراف عند نزول الطفل من الباص.",
+    busDroppedOffTitle: "وصول {name} إلى المنزل",
+    busDroppedOffBody: "سُجّل الانصراف تلقائيًا — وصل الطفل إلى المنزل بأمان.",
     incidentTitle: "حادث: {name}",
     reportedBy: "المُبلِّغ: {name}",
     messageTitle: "رسالة من {name}",
@@ -3872,6 +3908,15 @@ export const ar = {
     absent: "غائب",
     busOn: "في الباص",
     busOff: "نزل من الباص",
+    busOnMorning: "في الباص (إلى الحضانة)",
+    busOffMorning: "وصل إلى الحضانة",
+    busOnAfternoon: "في الباص (إلى المنزل)",
+    busOffAfternoon: "وصل إلى المنزل",
+    busCycleComplete: "اكتملت دورة الباص",
+    busSource: "باص",
+    busErrorOffWithoutOn: "سجّل ركوب الباص قبل نزوله.",
+    busErrorOnBeforeOff: "سجّل نزول الباص قبل الركوب التالي.",
+    busErrorCycleComplete: "أكمل هذا الطفل دورتي الباص اليوم بالفعل.",
     empty: "لا يوجد أطفال يطابقون عوامل التصفية الحالية.",
   },
   calendar: {
@@ -4496,6 +4541,15 @@ export type FeedCopy = {
   busAutoCheckedOutBody: () => string;
   busAutoCheckedInBody: () => string;
   busAutoOffBody: () => string;
+  // KID-2448: the four bus-cycle transitions.
+  busPickedUpTitle: (name: string) => string;
+  busPickedUpBody: () => string;
+  busArrivedTitle: (name: string) => string;
+  busArrivedBody: () => string;
+  busDepartedTitle: (name: string) => string;
+  busDepartedBody: () => string;
+  busDroppedOffTitle: (name: string) => string;
+  busDroppedOffBody: () => string;
   incidentTitle: (name: string) => string;
   reportedBy: (name: string) => string;
   // KID-474: message + daily report feed entries (staff derived feed and
@@ -4548,6 +4602,14 @@ export function feedCopyFor(locale: Locale): FeedCopy {
     busAutoCheckedOutBody: () => t("feed.busAutoCheckedOutBody"),
     busAutoCheckedInBody: () => t("feed.busAutoCheckedInBody"),
     busAutoOffBody: () => t("feed.busAutoOffBody"),
+    busPickedUpTitle: (name) => t("feed.busPickedUpTitle", { name }),
+    busPickedUpBody: () => t("feed.busPickedUpBody"),
+    busArrivedTitle: (name) => t("feed.busArrivedTitle", { name }),
+    busArrivedBody: () => t("feed.busArrivedBody"),
+    busDepartedTitle: (name) => t("feed.busDepartedTitle", { name }),
+    busDepartedBody: () => t("feed.busDepartedBody"),
+    busDroppedOffTitle: (name) => t("feed.busDroppedOffTitle", { name }),
+    busDroppedOffBody: () => t("feed.busDroppedOffBody"),
     incidentTitle: (name) => t("feed.incidentTitle", { name }),
     reportedBy: (name) => t("feed.reportedBy", { name }),
     messageTitle: (name) => t("feed.messageTitle", { name }),

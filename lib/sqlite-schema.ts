@@ -160,7 +160,12 @@ export function sqliteSchema(db: any): void {
     account_id TEXT NOT NULL REFERENCES account(id) ON DELETE CASCADE,
     type TEXT NOT NULL,
     recorded_at TEXT NOT NULL DEFAULT (datetime('now')),
-    is_edit INTEGER NOT NULL DEFAULT 0
+    is_edit INTEGER NOT NULL DEFAULT 0,
+    -- KID-2448: NULL = manual/staff/parent write; 'bus' = a bus off-bus
+    -- transition auto-checked the child in/out. Mirror of
+    -- supabase/migrations/0051_kid2448_bus_cycle.sql (also used by KID-2447's
+    -- 'auto_end_of_day' marker).
+    source TEXT
   );
 
   CREATE TABLE IF NOT EXISTS attendance_schedule (
@@ -785,6 +790,12 @@ export function sqliteSchema(db: any): void {
   const roomCols = db.prepare("PRAGMA table_info(room)").all() as { name: string }[];
   if (!roomCols.some((c) => c.name === "colour")) {
     db.exec("ALTER TABLE room ADD COLUMN colour TEXT NOT NULL DEFAULT '#3B82F6'");
+  }
+  // KID-2448: mirror of supabase/migrations/0051_kid2448_bus_cycle.sql for
+  // databases created before the bus-source marker existed.
+  const checkInCols = db.prepare("PRAGMA table_info(check_in)").all() as { name: string }[];
+  if (!checkInCols.some((c) => c.name === "source")) {
+    db.exec("ALTER TABLE check_in ADD COLUMN source TEXT");
   }
   const instCols = db.prepare("PRAGMA table_info(institute)").all() as { name: string }[];
   if (!instCols.some((c) => c.name === "contact")) {
