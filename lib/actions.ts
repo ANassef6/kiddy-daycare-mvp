@@ -104,7 +104,7 @@ import {
   publicUrl,
 } from "@/lib/storage";
 import { activationStepError } from "@/lib/activation";
-import { requestOrigin, publicOrigin } from "@/lib/url";
+import { requestOrigin, publicOrigin, resetRedirectOrigin } from "@/lib/url";
 import { sendContactInvite, contactNameForInvite } from "@/lib/contact-invite";
 import { notifyPlatformInbox } from "@/lib/contact-notify";
 import { PLATFORM_CONTACT_EMAIL } from "@/lib/site";
@@ -694,7 +694,7 @@ export async function requestPasswordResetAction(formData: FormData) {
     };
   }
   const { error } = await getSupabase().auth.resetPasswordForEmail(email, {
-    redirectTo: `${await publicOrigin(await requestOrigin())}/reset-password`,
+    redirectTo: `${await resetRedirectOrigin(await requestOrigin())}/reset-password`,
   });
   if (error) {
     // KID-111: log reset-mail failures (e.g. non-routable demo addresses).
@@ -4472,7 +4472,7 @@ export async function resendActivationAction(formData: FormData) {
     // Fallback: a recovery email also reaches the GoTrue identity when the
     // signup-resend path rejects (e.g. user already exists server-side).
     const recovery = await getSupabase().auth.resetPasswordForEmail(email, {
-      redirectTo: `${await publicOrigin(await requestOrigin())}/reset-password`,
+      redirectTo: `${await resetRedirectOrigin(await requestOrigin())}/reset-password`,
     });
     if (!recovery.error) {
       await logResendAttempt({
