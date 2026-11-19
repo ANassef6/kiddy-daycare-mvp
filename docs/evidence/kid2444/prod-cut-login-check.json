@@ -1,0 +1,10 @@
+{
+  "device": "Appetize pixel6 / Android 14.0 / Chrome 113.0.5672.136",
+  "provider": "com.android.chrome mode=TRUSTED_WEB_ACTIVITY",
+  "originVerifier": "Verification succeeded",
+  "afterLogin": "https://sunshine.kiddyapp.net/child",
+  "afterForceStopAppAndChrome_coldStart": "https://sunshine.kiddyapp.net/child",
+  "signInForm": 0,
+  "urlBar": false,
+  "screenshot": "prod-cut-03-coldstart-signedin.png"
+}

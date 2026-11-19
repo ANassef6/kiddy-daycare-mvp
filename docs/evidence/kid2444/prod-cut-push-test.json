@@ -1,0 +1,11 @@
+{
+  "backend": "https://sunshine.kiddyapp.net",
+  "device": "Appetize pixel6 / Android 14.0 / Chrome 113.0.5672.136",
+  "permissionPrompt": "Chrome site prompt: Allow Sunshine Daycare to send you notifications?",
+  "permissionAfterAllow": "granted",
+  "serviceWorker": "active",
+  "subscriptionEndpointHost": "fcm.googleapis.com",
+  "testPush": { "status": 200, "body": { "ok": true, "delivered": 1 } },
+  "testPushWhileAppForceStopped": { "status": 200, "body": { "ok": true, "delivered": 1 } },
+  "notificationShade": "Kiddy — Push notifications are working."
+}

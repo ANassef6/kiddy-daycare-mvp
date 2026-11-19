@@ -135,3 +135,48 @@ No secret or VAPID change. After approval and deployment:
 3. Login once, force-stop, reopen: still signed in.
 4. Enable notifications (one tap), send the test push, background the app:
    notification arrives while the app is closed.
+
+## Production cut (2026-11-19)
+
+Founder approval `73a0cf4b` ("Approve the production deploy for the Android v5
+fixes?") was accepted at 2026-11-19T20:05:19Z.
+
+| Item | Value |
+|---|---|
+| Pull request | #64 `kid2444-prod-cut` → `master` |
+| Merge commit | `f03ba25` (2026-11-19T20:17:52Z) |
+| Vercel deployment | `dpl_9cr4geAy1mkhWPR4pBNjkHo3kPrf` — READY |
+| Production host | `https://sunshine.kiddyapp.net` |
+| Secret / VAPID change | none |
+
+The cut contains the three web fixes above (assetlinks hex format, `/login`
+session resume, push-card subscription state). A later unrelated KID-2441 cut
+(`b07a645`) carried the same commits forward; the device checks below ran
+against production while both were live and the behaviour was unchanged.
+
+### Post-deploy verification
+
+| Check | Result | Evidence |
+|---|---|---|
+| Google `assetlinks:check` for `net.kiddyapp.sunshine` | `linked: true`, no error code | [`prod-cut-assetlinks-check.json`](prod-cut-assetlinks-check.json) |
+| v5 cold start renderer | `provider pick: com.android.chrome mode=TRUSTED_WEB_ACTIVITY`, `cr_OriginVerifier: Verification succeeded`, no URL bar | [`prod-cut-twa-logcat.txt`](prod-cut-twa-logcat.txt), [`prod-cut-02-twa-fullscreen-login.png`](prod-cut-02-twa-fullscreen-login.png) |
+| Login once, then force-stop app **and** Chrome, cold start | lands on `/child`, `signInForm: 0` | [`prod-cut-login-check.json`](prod-cut-login-check.json), [`prod-cut-03-coldstart-signedin.png`](prod-cut-03-coldstart-signedin.png) |
+| Push permission prompt | Chrome prompt: "Allow Sunshine Daycare to send you notifications?" | [`prod-cut-04-push-permission.png`](prod-cut-04-push-permission.png) |
+| Push subscription | permission `granted`, service worker `active`, FCM endpoint | [`prod-cut-push-test.json`](prod-cut-push-test.json), [`prod-cut-07-push-enabled.png`](prod-cut-07-push-enabled.png) |
+| Test push, app backgrounded | `{"ok":true,"delivered":1}`; notification "Kiddy — Push notifications are working." in the shade | [`prod-cut-05-notification-background.png`](prod-cut-05-notification-background.png) |
+| Test push after `am force-stop` on the app | `{"ok":true,"delivered":1}`; notification still arrives | [`prod-cut-06-notification-app-closed.png`](prod-cut-06-notification-app-closed.png) |
+
+Device for the TWA/push run: Appetize pixel6, Android 14.0, Chrome
+113.0.5672.136. The Android v5 artifact is unchanged: versionCode 5, same
+release certificate, sha256
+`87729f8aa1bcf843e2e1444fb7e7a09004a1b3fd45141c938324da4c6cf25cfa`.
+
+### What the founder should see
+
+1. Open the app: it opens full-screen (no browser URL bar) and shows the
+   children home directly when the 30-day session is still valid.
+2. First launch after install: sign in once. After that, closing or
+   force-stopping the app keeps the session.
+3. Settings → Push notifications → **Enable push notifications** shows the
+   Chrome permission prompt once. After **Allow**, a test push arrives in the
+   notification shade even when the app is closed.
