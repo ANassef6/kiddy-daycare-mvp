@@ -131,6 +131,11 @@ export default async function PlatformDaycaresPage(
         <a href="/platform/pricing" style={{ fontWeight: 700 }}>
           {tr(dict, "platform.pricingTitle")} →
         </a>
+        {" · "}
+        {/* KID-2442: the self-service password reset for any account. */}
+        <a href="/platform/password-reset" style={{ fontWeight: 700 }}>
+          {tr(dict, "platform.passwordResetLink")} →
+        </a>
       </p>
 
       {created && (
