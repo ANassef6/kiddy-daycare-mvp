@@ -1,0 +1,11 @@
+{
+  "base": "https://kiddy-staging-orcin.vercel.app",
+  "afterLogin": "https://kiddy-staging-orcin.vercel.app/child",
+  "afterReopen": "https://kiddy-staging-orcin.vercel.app/child",
+  "heading": "My children",
+  "signInForm": 0,
+  "errors": [
+    "Failed to load resource: the server responded with a status of 404 ()"
+  ],
+  "pageText": "Skip to content\nFounder Test Daycare\n2\nSign out\nMy children\nLayla Founder\nSunflowers\nNot checked in yet\nOmar Founder\nLittle Stars\nNot checked in yet\nSigned in as founder.parent@staging.kiddy.test"
+}

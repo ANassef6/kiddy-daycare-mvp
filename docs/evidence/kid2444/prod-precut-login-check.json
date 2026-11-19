@@ -1,0 +1,11 @@
+{
+  "base": "https://sunshine.kiddyapp.net",
+  "afterLogin": "https://sunshine.kiddyapp.net/child",
+  "afterReopen": "https://sunshine.kiddyapp.net/login",
+  "heading": "Sign in",
+  "signInForm": 1,
+  "errors": [
+    "Failed to load resource: the server responded with a status of 404 ()"
+  ],
+  "pageText": "تخطَّ إلى المحتوى\nSunshine Daycare\nEnglish\nالعربية\nSign in\n\nWelcome back. Sign in to see your daycare's day.\n\nEmail\nPassword\nSign in\n\nForgot your password?\n\nHave an invite code? Activate your account"
+}
