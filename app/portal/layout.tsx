@@ -5,7 +5,8 @@ import OperatorViewBanner from "@/components/OperatorViewBanner";
 import NotificationBell from "@/components/NotificationBell";
 import NotificationSoundWatcher from "@/components/NotificationSoundWatcher";
 import { requireSessionWithWithdrawalCheck } from "@/lib/require";
-import { requireTenantForPage } from "@/lib/tenant";
+import { requireTenantForPage, resolveTenantInstituteId } from "@/lib/tenant";
+import { isInstituteReadOnly } from "@/lib/billing";
 import { ensureSchema } from "@/lib/db";
 import { ensureSeededSafe } from "@/lib/bootstrap";
 import { getBranding } from "@/lib/theme";
@@ -67,6 +68,16 @@ export default async function PortalLayout({ children }: { children: React.React
         return false;
       }),
   ]);
+  // KID-2435 v3: a failed payment past its grace window, or a cancellation
+  // whose paid month ended, makes the account read-only. The banner tells the
+  // user why writes are refused; billing never disables the login.
+  const tenantId = await resolveTenantInstituteId();
+  const readOnly = tenantId
+    ? await isInstituteReadOnly(String(tenantId)).catch((err) => {
+        console.error("KID-2435 read-only state lookup failed:", err);
+        return false;
+      })
+    : false;
   const displayName = profile.fullName || session.email;
   const logoUrl: string | null = branding.logoUrl;
   const brandName: string = branding.name;
@@ -100,6 +111,21 @@ export default async function PortalLayout({ children }: { children: React.React
             dict={dict}
           />
         </div>
+        {readOnly && (
+          <div
+            className="small"
+            role="status"
+            style={{
+              background: "#fef3c7",
+              border: "1px solid #f59e0b",
+              borderRadius: 8,
+              padding: "8px 12px",
+              marginBottom: 12,
+            }}
+          >
+            {tr(dict, "topbar.readOnly")}
+          </div>
+        )}
         {!session.emailConfirmed && (
           <div
             className="small"

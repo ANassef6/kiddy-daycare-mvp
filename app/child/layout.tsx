@@ -7,7 +7,8 @@ import ServiceWorkerRegister from "@/components/ServiceWorkerRegister";
 import NotificationSoundWatcher from "@/components/NotificationSoundWatcher";
 import { getAccount, mustChangePasswordFor } from "@/lib/auth";
 import { requireSessionWithWithdrawalCheck } from "@/lib/require";
-import { requireTenantForPage } from "@/lib/tenant";
+import { requireTenantForPage, resolveTenantInstituteId } from "@/lib/tenant";
+import { isInstituteReadOnly } from "@/lib/billing";
 import { familyAccessForAccount, unreadNotificationCount } from "@/lib/store";
 import { ensureSchema } from "@/lib/db";
 import { ensureSeededSafe } from "@/lib/bootstrap";
@@ -69,6 +70,14 @@ export default async function ParentLayout({ children }: { children: React.React
   ]);
   const logoUrl: string | null = branding.logoUrl;
   const brandName: string = branding.name;
+  // KID-2435 v3: read-only notices writes are refused; access is not blocked.
+  const tenantId = await resolveTenantInstituteId();
+  const readOnly = tenantId
+    ? await isInstituteReadOnly(String(tenantId)).catch((err) => {
+        console.error("KID-2435 read-only state lookup failed:", err);
+        return false;
+      })
+    : false;
 
   const navItems = [
     { href: "/child", label: tr(dict, "nav.myChildren") },
@@ -97,6 +106,21 @@ export default async function ParentLayout({ children }: { children: React.React
 
   return (
     <div className="container" style={{ maxWidth: 760 }}>
+      {readOnly && (
+        <div
+          className="small"
+          role="status"
+          style={{
+            background: "#fef3c7",
+            border: "1px solid #f59e0b",
+            borderRadius: 8,
+            padding: "8px 12px",
+            marginTop: 12,
+          }}
+        >
+          {tr(dict, "topbar.readOnly")}
+        </div>
+      )}
       {!session.emailConfirmed && (
         <div
           className="small"

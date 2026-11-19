@@ -23,8 +23,10 @@
 //   - demo: no invoices at all;
 //   - a failed payment gets a 7-day grace window (pricing_config
 //     billing.grace_days). After it, the unpaid invoice is overdue and the
-//     existing KID-199.3 disable applies; marking the invoice paid
-//     re-activates the daycare. Data is never deleted;
+//     account becomes READ-ONLY (isInstituteReadOnly) — never disabled and
+//     never deleted. Paying the last overdue invoice lifts the state;
+//   - a cancellation takes effect at the end of the paid month: no later
+//     cycle is billed, and access becomes read-only the next day;
 //   - the operator can override an invoice's total (with a note) before
 //     payment; paid invoices are locked.
 //
@@ -67,6 +69,7 @@ export const BILLING_DEFAULTS = {
   foundingClient: false,
   foundingStartedAt: "",
   pilotEndDate: "",
+  cancelAt: "",
 };
 
 export type DaycareBilling = {
@@ -83,6 +86,10 @@ export type DaycareBilling = {
   foundingClient: boolean;
   foundingStartedAt: string;
   pilotEndDate: string;
+  /** KID-2435 v3: last day of the paid month, or "" when the subscription is
+   *  not cancelled. Cancellation takes effect the day after this date: the
+   *  engine bills no later cycle and the account becomes read-only. */
+  cancelAt: string;
 };
 
 /** The 1st of the month after `date` (the signup month is free). Pure; also
@@ -125,6 +132,9 @@ export function rowToBilling(row: Row): DaycareBilling {
     foundingClient: Number(row.founding_client ?? (row.foundingClient ? 1 : 0)) === 1,
     foundingStartedAt: String((row.founding_started_at ?? row.foundingStartedAt ?? "")).slice(0, 10),
     pilotEndDate: String((row.pilot_end_date ?? row.pilotEndDate ?? "")).slice(0, 10),
+    // Supabase returns DATE columns as Date objects: datePart normalises both
+    // shapes (the staging-only "Thu Oct 01" bug, KID-2435).
+    cancelAt: datePart(row.cancel_at ?? row.cancelAt),
   };
 }
 
@@ -173,6 +183,7 @@ export type BillingPatch = Partial<{
   foundingClient: boolean;
   foundingStartedAt: string;
   pilotEndDate: string;
+  cancelAt: string;
   touchedAt: string;
 }>;
 
@@ -207,6 +218,7 @@ export async function updateDaycareBilling(instituteId: string, patch: BillingPa
   for (const [key, column] of [
     ["foundingStartedAt", "founding_started_at"],
     ["pilotEndDate", "pilot_end_date"],
+    ["cancelAt", "cancel_at"],
   ] as const) {
     const value = patch[key];
     if (value !== undefined && value !== "" && !/^\d{4}-\d{2}-\d{2}$/.test(value)) {
@@ -256,6 +268,10 @@ export async function updateDaycareBilling(instituteId: string, patch: BillingPa
   if (patch.pilotEndDate !== undefined) {
     sets.push("pilot_end_date = ?");
     values.push(patch.pilotEndDate || null);
+  }
+  if (patch.cancelAt !== undefined) {
+    sets.push("cancel_at = ?");
+    values.push(patch.cancelAt || null);
   }
   sets.push("updated_at = ?");
   values.push(patch.touchedAt ?? new Date().toISOString());
@@ -679,6 +695,7 @@ export async function generateDueInvoices(now: Date = new Date()): Promise<numbe
     `SELECT b.institute_id, b.plan, b.monthly_rate_egp, b.per_child_rate_egp,
             b.free_child_threshold, b.first_cycle_start,
             b.founding_client, b.founding_started_at, b.pilot_end_date,
+            b.cancel_at,
             i.name AS institute_name
      FROM daycare_billing b
      JOIN institute i ON i.id = b.institute_id`
@@ -698,9 +715,12 @@ export async function generateDueInvoices(now: Date = new Date()): Promise<numbe
       a.cycleMonth.localeCompare(b.cycleMonth)
     );
     const existingMonths = new Set(existing.map((i) => i.cycleMonth));
-    const missing = pendingCycleMonths(billing.plan, firstMonth, today).filter(
-      (m) => !existingMonths.has(m)
-    );
+    // KID-2435 v3: cancellation covers the paid month only. A cycle that
+    // starts AFTER `cancel_at` is never billed, so a cancelled subscription
+    // stops at the end of the month it paid for.
+    const missing = pendingCycleMonths(billing.plan, firstMonth, today)
+      .filter((m) => !existingMonths.has(m))
+      .filter((m) => !billing.cancelAt || cycleStartDate(m) <= billing.cancelAt);
     if (missing.length === 0) continue;
 
     // KID-2435 v3: the founding rate is fixed at the first invoice of term 0
@@ -858,45 +878,71 @@ async function emailInvoiceOwners(
 
 // ----- enforcement, payment, overrides -----
 
-/** KID-245 enforcement: every pending invoice whose due date has passed
- *  becomes overdue, and every daycare still ACTIVE that carries an unpaid
- *  overdue invoice is disabled (the existing KID-199.3 setInstituteActive —
- *  all of its users are then blocked at login). Returns how many daycares
- *  were flipped. Idempotent: an already-disabled daycare is not re-written. */
+/** KID-245 + KID-2435 v3 enforcement: every pending invoice whose due date
+ *  plus the configured grace window has passed becomes overdue. The account
+ *  then becomes READ-ONLY (billing rule 9) — never disabled, never deleted.
+ *  Returns how many invoices crossed into overdue in this pass. Idempotent:
+ *  an already-overdue invoice is not rewritten. */
 export async function applyOverdueEnforcement(now: Date = new Date()): Promise<number> {
   const today = todayIso(now);
   // KID-2435 v3: a failed payment gets the configured grace window (default
-  // 7 days) before the invoice becomes overdue and the account is enforced.
-  // Data is never deleted; the account is only blocked, never wiped.
+  // 7 days) before the invoice becomes overdue and the account turns
+  // read-only. Data is never deleted; access is only restricted, never wiped.
   const { billingGraceDays } = await getPricingSettings();
   const graceCutoff = addDaysIso(today, -Math.max(0, billingGraceDays));
-  await queryRun(
+  const res = await queryRun(
     "UPDATE daycare_invoice SET status = 'overdue' WHERE status = 'pending' AND due_date < ?",
     graceCutoff
   );
-  // Only institutes that are still active need the flip — the typical sweep
-  // is a single cheap SELECT returning nothing.
-  const active = await queryAll(
-    `SELECT DISTINCT di.institute_id
-     FROM daycare_invoice di
-     JOIN institute i ON i.id = di.institute_id
-     WHERE di.status = 'overdue' AND i.active = 1`
-  );
-  let disabled = 0;
-  // store.ts imports this module statically, so setInstituteActive must be
-  // reached dynamically (same pattern lib/actions.ts uses for its gates).
-  const { setInstituteActive } = await import("./store");
-  for (const row of active) {
-    await setInstituteActive(String(row.institute_id), false);
-    disabled += 1;
-  }
-  return disabled;
+  return res.rowCount;
 }
 
-/** KID-245: mark an invoice paid. Flips the invoice to `paid` (paid_at), and
- *  re-activates the daycare — the billing block lifts — as soon as no OTHER
- *  unpaid overdue invoice remains. Marking an already-paid invoice paid
- *  again is a no-op. */
+/** KID-2435 v3: true when the daycare's subscription is in its read-only
+ *  state — an unpaid invoice past the grace window, or a cancellation whose
+ *  paid month has ended. Data stays available; every write is refused.
+ *  Billing no longer disables the institute, so this is the single source of
+ *  truth for the read-only state (login and the write gate both use it). */
+export async function isInstituteReadOnly(
+  instituteId: string,
+  now: Date = new Date()
+): Promise<boolean> {
+  if (await hasOverdueInvoice(instituteId)) return true;
+  const billing = await getDaycareBilling(instituteId);
+  return !!billing.cancelAt && todayIso(now) > billing.cancelAt;
+}
+
+/** The account-level read-only check used by the server-action write gate.
+ *  Read-only when any institute the account belongs to is read-only. */
+export async function isAccountReadOnly(
+  accountId: string,
+  now: Date = new Date()
+): Promise<boolean> {
+  const rows = await queryAll(
+    `SELECT DISTINCT i.id
+     FROM institute i
+     JOIN staff s ON s.institute_id = i.id
+     JOIN account a ON a.staff_id = s.id
+     WHERE a.id = ?
+     UNION
+     SELECT DISTINCT i.id
+     FROM institute i
+     JOIN child c ON c.institute_id = i.id
+     JOIN family_member fm ON fm.child_id = c.id
+     WHERE fm.account_id = ?`,
+    accountId,
+    accountId
+  );
+  for (const row of rows) {
+    if (await isInstituteReadOnly(String(row.id), now)) return true;
+  }
+  return false;
+}
+
+/** KID-245: mark an invoice paid. Flips the invoice to `paid` (paid_at). The
+ *  read-only state lifts automatically once no OTHER unpaid overdue invoice
+ *  remains (isInstituteReadOnly reads the ledger). Billing never flips
+ *  institute.active, so paying an invoice can never undo a manual disable.
+ *  Marking an already-paid invoice paid again is a no-op. */
 export async function markInvoicePaid(
   invoiceId: string,
   opts: { paidAt?: string } = {}
@@ -910,14 +956,6 @@ export async function markInvoicePaid(
     paidAt,
     invoiceId
   );
-  const remaining = await queryGet(
-    "SELECT id FROM daycare_invoice WHERE institute_id = ? AND status = 'overdue' LIMIT 1",
-    String(row.institute_id)
-  );
-  if (!remaining) {
-    const { setInstituteActive } = await import("./store");
-    await setInstituteActive(String(row.institute_id), true);
-  }
 }
 
 /** KID-245: the operator's manual override of an invoice's payable amount
@@ -977,8 +1015,8 @@ export async function setDaycareInvoicePaymentProof(
  *  are the caller's concern — the sweep itself throws loudly. */
 export async function runBillingSweep(
   now: Date = new Date()
-): Promise<{ generated: number; disabled: number }> {
+): Promise<{ generated: number; overdue: number }> {
   const generated = await generateDueInvoices(now);
-  const disabled = await applyOverdueEnforcement(now);
-  return { generated, disabled };
+  const overdue = await applyOverdueEnforcement(now);
+  return { generated, overdue };
 }

@@ -48,6 +48,7 @@ const ERRORS: Record<string, string> = {
   "billing-cycle-invalid": "Type the first billing month as a date (YYYY-MM-DD).",
   "billing-founding_started_at-invalid": "Type the founding start as a date (YYYY-MM-DD).",
   "billing-pilot_end_date-invalid": "Type the pilot end as a date (YYYY-MM-DD).",
+  "billing-cancel_at-invalid": "Type the cancellation date as a date (YYYY-MM-DD).",
   "founding-cap-reached": "The founding cohort is full. Raise the cap on /platform/pricing first.",
   unknown: "Something went wrong saving the billing settings. Please try again.",
 };
@@ -327,6 +328,13 @@ export default async function DaycareBillingPage(
           </div>
         </div>
         <p className="small muted">{tr(dict, "platform.billingFoundingNote")}</p>
+        <div className="row">
+          <div className="col field">
+            <label className="label">{tr(dict, "platform.billingCancelAt")}</label>
+            <input className="input" name="cancelAt" type="date" defaultValue={billing.cancelAt} />
+            <span className="small muted">{tr(dict, "platform.billingCancelHint")}</span>
+          </div>
+        </div>
         <button className="btn btn-primary" type="submit">
           {tr(dict, "platform.billingSave")}
         </button>

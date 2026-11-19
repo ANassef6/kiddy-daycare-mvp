@@ -21,6 +21,9 @@ export function sqliteSchema(db: any): void {
     -- timezone for every working-hours comparison (wall-clock and calendar).
     timezone TEXT NOT NULL DEFAULT 'Africa/Cairo',
     active INTEGER NOT NULL DEFAULT 1,
+    -- KID-2435 v3: 'manual' or NULL. Billing no longer hard-disables (it
+    -- yields read-only access); mirror of supabase/migrations/0049.
+    disabled_reason TEXT,
     subdomain TEXT,
     -- KID-1329: mirror of supabase/migrations/0042 — the center-level
     -- "Allow parents to check in/out" toggle. 0 = off, anything else = on.
@@ -614,6 +617,8 @@ export function sqliteSchema(db: any): void {
     founding_client INTEGER NOT NULL DEFAULT 0,
     founding_started_at TEXT,
     pilot_end_date TEXT,
+    -- KID-2435 v3: last day of the paid month (mirror of 0049). NULL = active.
+    cancel_at TEXT,
     updated_at TEXT NOT NULL DEFAULT (datetime('now'))
   );
   CREATE INDEX IF NOT EXISTS idx_daycare_billing_plan ON daycare_billing (plan);
@@ -875,6 +880,19 @@ export function sqliteSchema(db: any): void {
   if (!instCols.some((c) => c.name === "allow_parent_check_inout")) {
     db.exec("ALTER TABLE institute ADD COLUMN allow_parent_check_inout INTEGER NOT NULL DEFAULT 1");
   }
+  // KID-2435 v3: mirror of supabase/migrations/0049. Billing no longer
+  // hard-disables an account; record why a row is inactive and re-enable the
+  // rows the overdue sweep disabled under the old rule.
+  if (!instCols.some((c) => c.name === "disabled_reason")) {
+    db.exec("ALTER TABLE institute ADD COLUMN disabled_reason TEXT");
+    db.exec("UPDATE institute SET disabled_reason = 'manual' WHERE active = 0");
+    db.exec(`UPDATE institute SET disabled_reason = 'billing'
+      WHERE active = 0 AND EXISTS (
+        SELECT 1 FROM daycare_invoice di
+        WHERE di.institute_id = institute.id AND di.status = 'overdue'
+      )`);
+    db.exec("UPDATE institute SET active = 1, disabled_reason = NULL WHERE disabled_reason = 'billing'");
+  }
   // KID-2437: mirror of supabase/migrations/0046_kid2437_institute_timezone.sql.
   // Existing centers backfill to Africa/Cairo (all current tenants are
   // Egyptian) and keep their stored opening hours as center-local wall clock.
@@ -975,6 +993,10 @@ export function sqliteSchema(db: any): void {
   }
   if (!billingCols.some((c) => c.name === "pilot_end_date")) {
     db.exec("ALTER TABLE daycare_billing ADD COLUMN pilot_end_date TEXT");
+  }
+  // KID-2435 v3: mirror of supabase/migrations/0049 — cancellation date.
+  if (!billingCols.some((c) => c.name === "cancel_at")) {
+    db.exec("ALTER TABLE daycare_billing ADD COLUMN cancel_at TEXT");
   }
   const obsCols = db.prepare("PRAGMA table_info(learning_observation)").all() as { name: string }[];
   if (!obsCols.some((c) => c.name === "age_group")) {

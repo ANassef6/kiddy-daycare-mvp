@@ -135,3 +135,30 @@ access, so the founder's first login after the deploy applies `0045` and
 `0047` to the staging Supabase project (`pjubkhhuccoqboypgpty`). Production
 (`sfetmfmtoubtdyyeyudd`) is untouched; the production cut waits for the
 founder's sign-off on staging.
+
+## v3 follow-up: read-only after grace and end-of-month cancellation (19 Nov 2026)
+
+`ff76fe4` shipped the monthly-only v3 scope. This follow-up adds the two
+rules that were still missing and removes the hard billing disable:
+
+- **Read-only after grace.** `applyOverdueEnforcement` no longer calls
+  `setInstituteActive(false)`. An unpaid invoice past `due_date + grace_days`
+  makes the account read-only (`isInstituteReadOnly`); login still works,
+  every write is refused at the `authAccount()` boundary, and both layouts
+  show the read-only banner. Self-service actions (language, password,
+  payment proof, support ticket) stay available.
+- **Cancellation at the end of the paid month.** `daycare_billing.cancel_at`
+  stores the last paid day. `generateDueInvoices` bills no cycle that starts
+  after it, and access becomes read-only the next day. Owners cancel or
+  resume on `/portal/account-billing`; operators can set/clear the date on
+  `/platform/daycares/[id]/billing`.
+- **Migration `0049`** adds `institute.disabled_reason` so a manual disable
+  is distinguishable from the old billing disable, re-enables rows the old
+  sweep disabled, and adds `daycare_billing.cancel_at`.
+
+Verification: `npx tsc --noEmit` pass; `npm run lint` pass (existing
+`no-img-element` warnings); `npm run db:verify-migrations` all pass (0049
+replays on PGlite Postgres); KID-2435 + KID-2434 + KID-244 + KID-245 +
+KID-746 + KID-850 suites pass (96/96). The single earlier KID-245 run
+recorded seven hook timeouts under parallel load; re-running that file alone
+passes 27/27. No production or staging deploy.
