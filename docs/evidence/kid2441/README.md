@@ -89,4 +89,40 @@ and is not touched by this change.
 
 ## Production cut
 
-Held for founder sign-off after staging verification.
+Founder sign-off: staging confirmation card accepted 2026-11-19T20:05Z.
+
+The base reset fix (this page's Part 2) was already cut to production in
+PR #62 (merge `aea2e88`, deployment `dpl_9xo27xkdwL1xeCM7FRLN6fswpqLr`).
+This cut adds the reset-origin follow-up from `dd70dc0`:
+
+| Item | Value |
+|---|---|
+| Pull request | #65 `kid2441-tenant-reset-origin` → `master` |
+| Merge commit | `c78608b` (2026-11-19T20:27:11Z) |
+| Vercel deployment | `dpl_Hj44ru262zg2CNSUxy7yXapjHsho` — READY |
+| Production aliases | `kiddyapp.net`, `*.kiddyapp.net`, `sunshine.kiddyapp.net` |
+
+What the cut contains: `resetOriginFor` / `resetRedirectOrigin` in
+`lib/url.ts`, both reset-mail call sites in `lib/actions.ts`, and the five
+origin-selection tests in `tests/unit/kid2441-password-reset.test.ts`.
+
+Production env confirms the helper has the values it needs:
+`PUBLIC_APEX_DOMAIN=kiddyapp.net`, `NEXT_PUBLIC_SITE_URL=https://kiddyapp.net`.
+
+Post-deploy smoke check (anonymous, after the alias moved):
+
+| URL | Result |
+|---|---|
+| `https://kiddyapp.net/reset-password` | 200 |
+| `https://sunshine.kiddyapp.net/reset-password` | 200 |
+| `https://kiddyapp.net/forgot-password` | 200 |
+| `https://sunshine.kiddyapp.net/forgot-password` | 200 |
+
+The Sunshine reset page still server-renders the tenant title
+(`Sunshine Daycare — childcare, in your pocket`), so the tenant surface is
+intact. No account credential or token is recorded here.
+
+Gates on the cut branch (rebased on `f03ba25`): `tsc --noEmit` 0,
+`next lint` 0 errors (pre-existing `img` warnings only), `next build` green,
+KID-2441 suite 25/25, targeted regression
+(KID-2441/KID-2442/i18n/i18n-page-coverage/KID-495) 59/59.
