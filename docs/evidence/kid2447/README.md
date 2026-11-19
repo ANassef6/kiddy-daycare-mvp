@@ -21,7 +21,7 @@ attendance/dashboard page loads or when a scheduler called
 | Notification | `lib/store.ts` → `notifyAutoCheckout` | One durable in-app `attendance / auto_checkout` row per center owner/admin **and** each affected child's classroom teachers (`staff_room`). Payload lists the children; ref `auto-checkout-<institute>-<centerDay>` dedupes repeated sweeps. Best-effort: never rolls back the checkout. |
 | Copy | `lib/i18n.ts`, `notificationViewCopy`, `app/portal/notifications/page.tsx` | EN + AR title/body; the notice links to `/portal/attendance`. |
 | Visible marker | `app/portal/attendance/page.tsx`, `app/child/[id]/page.tsx` | Check-out time shows an **auto / تلقائي** badge; the child page says "Checked out automatically at …" instead of implying a pickup. |
-| Schedule | `vercel.json` | Cron every minute → `GET /api/attendance/sweep`. Vercel sends `Authorization: Bearer $CRON_SECRET` when the env var is set (see `docs/DEPLOY_SECRETS.md`). The route logs only when it did work, so a quiet minute is silent. |
+| Schedule | `vercel.json` | Removed on 19 Nov 2026: Vercel rejected every deploy with "Hobby accounts are limited to daily cron jobs" for `* * * * *`. The route is unchanged and the sweep still runs on attendance/dashboard loads. An every-minute trigger needs Pro Cron Jobs or an external scheduler that calls `GET /api/attendance/sweep` with `Authorization: Bearer $CRON_SECRET` (see `docs/DEPLOY_SECRETS.md`). |
 
 ## Expected behavior
 
