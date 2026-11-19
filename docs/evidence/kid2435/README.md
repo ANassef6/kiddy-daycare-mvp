@@ -298,3 +298,51 @@ log). The fixture invoice was not modified.
 Production Vercel project, production Supabase project and the production
 deployment remain on their previous successful state; no production cut was
 made.
+
+## Operator page simplification (19 Nov 2026 feedback)
+
+The founder rejected the “Test branch billing on staging” card with a UI
+change request: show a short band reference at the top, choose demo or monthly
+from a plan drop-down, ask for the band when monthly is selected, and remove
+the bus-tracking and branded-app ticks (both always on).
+
+Commit `d6ebc53` implements it; `staging` was pushed `18fa06f..6be8459`.
+
+**What changed**
+
+- **Band reference.** `app/platform/pricing-reference.tsx` renders band name,
+  child range, standard monthly and founding year-1 at the top of
+  `/platform/pricing`, the per-daycare billing page and the create-daycare
+  form. Enterprise+ shows `2,500 EGP + 20 per child above 120` and “Quote”
+  for the founding amount.
+- **Plan and band pickers.** `billing-plan-fields.tsx` is a small client
+  island: the plan drop-down offers Demo and Monthly; when Monthly is chosen
+  the Band drop-down appears (with `Automatic (from child count)` as the
+  default).
+- **Selectable band.** Migration `0052_kid2435_band_selection.sql` adds
+  `band_key` to `daycare_billing` and `branch_billing`. An empty value keeps
+  the approved automatic cycle-peak band selection; a set value pins the
+  subscription to that band. The create form and the per-branch form both
+  write it, and the invoice engine (`cyclePricing`) honours it.
+- **Always on.** The bus-tracking band tick and the demo branded-app / bus
+  checkboxes are gone. The save actions force both on; migration `0052`
+  normalises existing rows to the always-on state.
+
+**Verification**
+
+- `npx tsc --noEmit` pass.
+- `npm run lint` pass (existing `no-img-element` warnings only).
+- `npm run db:verify-migrations` pass, including `0052` on PGlite Postgres.
+- `npm run build` pass.
+- KID-2435 (engine + branch), KID-2434, KID-244, KID-245, KID-246, KID-746,
+  KID-850: 118/118 pass, including three new band-selection tests.
+- **Live staging HTML scrape** (Skyvern run `tsk_598920066479039144`):
+  `/platform/pricing` shows `Bands — child counts and monthly prices` with all
+  six rows and only one checkbox left (founding enabled). No
+  `busTrackingIncluded`, `demoBrandedApp` or `demoBusTracking` field remains.
+- **Create form** (Skyvern run `tsk_598922587624843040`): the reference table
+  sits above the `Billing plan` drop-down; the legacy rate fields are gone.
+- **Per-daycare billing page**, rendered from the same code against a fresh
+  SQLite database: `Billing settings` shows the reference table first, then
+  `Branch subscriptions: 1` / `Branch: Main (primary)`; with the branch on
+  monthly, the `Band` drop-down lists Automatic plus all six bands.
