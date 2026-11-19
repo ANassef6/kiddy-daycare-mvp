@@ -261,16 +261,19 @@ describe("D3 an unread badge counts only what the page can open", () => {
     await store.sendMessage({ instituteId: iid, senderAccountId: String(hidden.id), recipientAccountId: parentId, body: "visible one", threadId: String(openThread.id) });
 
     // The KID-148 production shape: an unread message in a thread whose other
-    // participant is not classroom staff. The admin sees this conversation at
-    // /portal/messages; the parent's page must not offer it.
+    // participant is not classroom staff. KID-2449 changed the origin rule:
+    // staff/admin-initiated threads ARE replyable, so this blocked thread must
+    // be opened by someone outside the staff side (another parent) for the
+    // room rule to apply. The parent's page must not offer it.
+    const stranger = await createAccount({ email: "unrelated.parent@example.test", password: "x", fullName: "Unrelated Parent", role: "parent" });
     const blockedThread = await store.createMessageThread({
       instituteId: iid,
       title: "QA message round6 148",
       isGroup: false,
-      createdBy: String(hidden.id),
+      createdBy: String(stranger.id),
       participantIds: [parentId],
     });
-    await store.sendMessage({ instituteId: iid, senderAccountId: String(hidden.id), recipientAccountId: parentId, body: "checking in from portal", threadId: String(blockedThread.id) });
+    await store.sendMessage({ instituteId: iid, senderAccountId: String(stranger.id), recipientAccountId: parentId, body: "checking in from portal", threadId: String(blockedThread.id) });
 
     const scoped = await store.threadsForAccountScoped(parentId);
     expect(scoped.map((t: any) => String(t.id))).toEqual([String(openThread.id)]);
