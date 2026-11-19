@@ -8,10 +8,13 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as store from "@/lib/store";
 import {
   BILLING_DEFAULTS,
+  cycleEndDate,
   cyclePricing,
   generateDueInvoices,
+  isInstituteReadOnly,
   listInvoices,
   rowToBilling,
+  runBillingSweep,
   updateDaycareBilling,
   type DaycareBilling,
 } from "@/lib/billing";
@@ -377,7 +380,7 @@ describe("rowToBilling date shapes", () => {
 
   it("keeps SQLite text values byte-for-byte", () => {
     const billing = rowToBilling({
-      plan: "annual",
+      plan: "monthly",
       first_cycle_start: "2026-10-01 00:00:00",
       founding_client: 0,
       founding_started_at: "2026-10-01",
@@ -386,5 +389,60 @@ describe("rowToBilling date shapes", () => {
     expect(billing.firstCycleStart).toBe("2026-10-01");
     expect(billing.foundingStartedAt).toBe("2026-10-01");
     expect(billing.pilotEndDate).toBe("");
+describe("v3 payment grace and read-only", () => {
+  it("stays writable inside the 7-day grace, then becomes read-only without disabling the account", async () => {
+    const iid = await newDaycare("monthly", "2026-03-01");
+    await seedChildren(iid, 12, "2026-02-01 09:00:00");
+
+    // Cycle 2026-03 closes 31 Mar, due 5 Apr, grace ends 12 Apr.
+    await generateDueInvoices(utcDate(2026, 4, 1));
+    const inGrace = await runBillingSweep(utcDate(2026, 4, 6));
+    expect(inGrace.overdue).toBe(0);
+    expect(await isInstituteReadOnly(iid)).toBe(false);
+    expect((await listInvoices(iid))[0]!.status).toBe("pending");
+
+    const afterGrace = await runBillingSweep(utcDate(2026, 4, 13));
+    expect(afterGrace.overdue).toBe(1);
+    expect((await listInvoices(iid))[0]!.status).toBe("overdue");
+    // Read-only, not disabled: login still works and data is available.
+    expect(Number((await store.getInstitute(iid))!.active)).toBe(1);
+    expect(await isInstituteReadOnly(iid)).toBe(true);
+  });
+});
+
+describe("v3 cancellation at the end of the paid month", () => {
+  it("bills the paid months only and turns read-only the day after the cancellation date", async () => {
+    const iid = await newDaycare("monthly", "2026-01-01");
+    await seedChildren(iid, 12, "2025-12-01 09:00:00");
+    await updateDaycareBilling(iid, { cancelAt: cycleEndDate("2026-02") });
+
+    // Generation on 1 Jun would normally bill Jan-May; cancellation caps it
+    // at the paid month (Feb).
+    await generateDueInvoices(utcDate(2026, 6, 1));
+    expect((await listInvoices(iid)).map((i) => i.cycleMonth).sort()).toEqual([
+      "2026-01",
+      "2026-02",
+    ]);
+
+    expect(await isInstituteReadOnly(iid, utcDate(2026, 2, 28))).toBe(false);
+    expect(await isInstituteReadOnly(iid, utcDate(2026, 3, 1))).toBe(true);
+  });
+
+  it("clearing the cancellation date resumes billing for later cycles", async () => {
+    const iid = await newDaycare("monthly", "2026-01-01");
+    await seedChildren(iid, 12, "2025-12-01 09:00:00");
+    await updateDaycareBilling(iid, { cancelAt: cycleEndDate("2026-02") });
+    await generateDueInvoices(utcDate(2026, 6, 1));
+
+    await updateDaycareBilling(iid, { cancelAt: "" });
+    await generateDueInvoices(utcDate(2026, 6, 1));
+    expect((await listInvoices(iid)).map((i) => i.cycleMonth).sort()).toEqual([
+      "2026-01",
+      "2026-02",
+      "2026-03",
+      "2026-04",
+      "2026-05",
+    ]);
+    expect(await isInstituteReadOnly(iid, utcDate(2026, 6, 2))).toBe(false);
   });
 });

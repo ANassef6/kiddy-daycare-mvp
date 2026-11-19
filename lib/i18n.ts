@@ -143,6 +143,8 @@ export const en = {
     emailNotConfirmed:
       "Your email isn't confirmed yet — password sign-in is locked until you click the link we sent.",
     signedInAs: "Signed in as {email}",
+    readOnly:
+      "This account is read-only. You can view your data, but changes are paused until the overdue invoice is paid or the subscription is resumed. Your data is never deleted.",
   },
   auth: {
     invalidEmailPassword: "Invalid email or password.",
@@ -964,7 +966,9 @@ export const en = {
     billingFoundingClient: "Founding client",
     billingFoundingStarted: "Founding start",
     billingPilotEnd: "Pilot end",
-    billingFoundingNote: "Year-1 amount comes from the pricing bands. The invoice engine applies the founding rate, the 20% glide cap and the pilot credit automatically.",
+    billingFoundingNote: "Year-1 amount comes from the pricing bands. The invoice engine applies the founding rate for months 1–12, the standard band from month 13, and the pilot credit automatically.",
+    billingCancelAt: "Cancellation date",
+    billingCancelHint: "The last paid day. No later month is billed and the account becomes read-only the next day. Leave empty to keep the subscription.",
     // KID-2434: the platform pricing v2 configuration surface.
     pricingTitle: "Pricing configuration",
     pricingSubtitle: "The standard monthly bands, demo plan and founding-cohort policy. Changes apply to every daycare.",
@@ -1196,8 +1200,22 @@ export const en = {
     dueSoon:
       "Invoice {cycle} is due on {date} — pay before then to keep the daycare open.",
     overdueWarning:
-      "Invoice {cycle} is overdue ({amount} EGP). Pay it now — the daycare is disabled while an invoice stays unpaid.",
-    autoDisableHint: "The platform disables the daycare from the due date onward until the invoice is paid.",
+      "Invoice {cycle} is overdue ({amount} EGP). Pay it now — after the grace window the account becomes read-only.",
+    autoDisableHint:
+      "A failed payment gets 7 days' grace, then the account is read-only until the invoice is paid. Your data is never deleted.",
+    // KID-2435 v3: cancellation takes effect at the end of the paid month.
+    cancelCard: "Cancellation",
+    cancelActive: "The subscription ends on {date}. No later month is billed.",
+    cancelNone: "No cancellation is pending.",
+    cancelNote:
+      "Cancellation takes effect at the end of the paid month. Your data is kept and the account becomes read-only after that date.",
+    cancelButton: "Cancel at the end of this month",
+    resumeButton: "Keep the subscription",
+    cancelDemo: "The demo plan has no subscription to cancel.",
+    cancelDone: "Cancellation scheduled.",
+    cancelResumed: "The pending cancellation is cleared.",
+    cancelError: "The cancellation could not be saved. Please try again.",
+    readOnlyNote: "The account is read-only. Pay the overdue invoice to make changes again.",
     // KID-737: the platform Instapay link and the owner's payment-proof
     // upload on the subscription invoice table.
     colPay: "Pay",
@@ -2409,6 +2427,8 @@ export const ar = {
     emailNotConfirmed:
       "لم يتم تأكيد بريدك الإلكتروني بعد — تسجيل الدخول بكلمة المرور مقفول حتى تضغط على الرابط الذي أرسلناه لك.",
     signedInAs: "مسجّل الدخول كـ {email}",
+    readOnly:
+      "هذا الحساب للعرض فقط. يمكنك رؤية بياناتك، لكن التعديلات متوقفة حتى تسديد الفاتورة المتأخرة أو استئناف الاشتراك. لا تُحذف بياناتك أبدًا.",
   },
   auth: {
     invalidEmailPassword: "البريد الإلكتروني أو كلمة المرور غير صحيحة.",
@@ -3181,7 +3201,9 @@ export const ar = {
     billingFoundingClient: "عميل مؤسِّس",
     billingFoundingStarted: "بداية العضوية المؤسِّسة",
     billingPilotEnd: "نهاية التجربة",
-    billingFoundingNote: "مبلغ السنة الأولى يأتي من فئات الأسعار. يطبّق محرك الفواتير سعر التأسيس وحد التدرّج 20% ورصيد التجربة تلقائيًا.",
+    billingFoundingNote: "مبلغ السنة الأولى يأتي من فئات الأسعار. يطبّق محرك الفواتير سعر التأسيس للأشهر 1–12، وفئة السعر القياسية من الشهر 13، ورصيد التجربة تلقائيًا.",
+    billingCancelAt: "تاريخ الإلغاء",
+    billingCancelHint: "آخر يوم مدفوع. لا يُحتسب أي شهر لاحق ويصبح الحساب للعرض فقط في اليوم التالي. اتركه فارغًا للإبقاء على الاشتراك.",
     // KID-2434: واجهة إعداد أسعار كيدي الإصدار الثاني.
     pricingTitle: "إعداد الأسعار",
     pricingSubtitle: "الفئات الشهرية القياسية وخطة التجربة وسياسة الدفعة المؤسِّسة. تنطبق التغييرات على كل الحضانات.",
@@ -3735,8 +3757,22 @@ export const ar = {
     nothingDue: "لا توجد فواتير مستحقة أو متأخرة الآن.",
     dueSoon: "فاتورة الدورة {cycle} تستحق في {date} — سدّدها قبل ذلك لإبقاء الحضانة مفتوحة.",
     overdueWarning:
-      "فاتورة الدورة {cycle} متأخرة ({amount} جنيه). سدّدها الآن — الحضانة موقوفة طالما الفاتورة غير مسددة.",
-    autoDisableHint: "تُوقف المنصّة الحضانة من تاريخ الاستحقاق حتى تسديد الفاتورة.",
+      "فاتورة الدورة {cycle} متأخرة ({amount} جنيه). سدّدها الآن — يصبح الحساب للعرض فقط بعد فترة السماح.",
+    autoDisableHint:
+      "لدفعة الفاشلة 7 أيام سماح، ثم يصبح الحساب للعرض فقط حتى تسديد الفاتورة. لا تُحذف بياناتك أبدًا.",
+    // KID-2435 v3: الإلغاء يسري في نهاية الشهر المدفوع.
+    cancelCard: "الإلغاء",
+    cancelActive: "ينتهي الاشتراك في {date}. لا يُحتسب أي شهر لاحق.",
+    cancelNone: "لا يوجد إلغاء معلّق.",
+    cancelNote:
+      "يسري الإلغاء في نهاية الشهر المدفوع. تُحفظ بياناتك ويصبح الحساب للعرض فقط بعد ذلك التاريخ.",
+    cancelButton: "الإلغاء في نهاية هذا الشهر",
+    resumeButton: "الإبقاء على الاشتراك",
+    cancelDemo: "الخطة التجريبية ليس لها اشتراك لإلغائه.",
+    cancelDone: "تم جدولة الإلغاء.",
+    cancelResumed: "تم إلغاء الإلغاء المعلّق.",
+    cancelError: "تعذّر حفظ الإلغاء. حاول مرة أخرى.",
+    readOnlyNote: "الحساب للعرض فقط. سدّد الفاتورة المتأخرة لتمكين التعديلات مرة أخرى.",
     // KID-737: رابط إنستا باي من المنصّة ورفع إثبات الدفع على جدول فواتير
     // الاشتراك. (التوأم العربي.)
     colPay: "الدفع",
