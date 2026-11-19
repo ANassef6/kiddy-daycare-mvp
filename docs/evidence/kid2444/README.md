@@ -122,7 +122,7 @@ sha256        87729f8aa1bcf843e2e1444fb7e7a09004a1b3fd45141c938324da4c6cf25cfa
 
 Fallback (no Chrome/Custom Tabs provider) cold-start proof on a pixel4 /
 Android 10 with Chrome disabled: no URL bar, full-screen `/login`
-([`s1-01-fullscreen-login.png`](s1-01-fullscreen-login.png)).
+([`s5-01-fullscreen-login.png`](s5-01-fullscreen-login.png)).
 
 ## Production gate (founder approval)
 
