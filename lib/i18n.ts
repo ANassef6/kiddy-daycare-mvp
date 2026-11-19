@@ -185,6 +185,8 @@ export const en = {
     notCheckedInYet: "Not checked in yet",
     checkedInAt: "Checked in at {time}",
     checkedOutAt: "Checked out at {time}",
+    // KID-2447: the system checked the child out at the end of working hours.
+    autoCheckedOutAt: "Checked out automatically at {time}",
     // KID-494: the parent-facing bus status badge.
     busOn: "On the bus",
     busOff: "Off the bus",
@@ -1440,6 +1442,9 @@ export const en = {
     checkedOutTitle: "Checked out: {name}",
     // KID-1385: pickup-time set/changed notification for the classroom's teachers.
     pickupTimeTitle: "Pickup time set for {name} at {time}",
+    // KID-2447: staff notification after the end-of-working-hours auto check-out.
+    autoCheckoutTitle: "Auto check-out at closing time",
+    autoCheckoutBody: "{names} — still checked in at the end of working hours and checked out automatically. Follow up with their parents.",
     busOnTitle: "{name} got on the bus",
     busOffTitle: "{name} got off the bus",
     busAutoCheckedOutBody: "Checked out automatically — on the way home by bus.",
@@ -1801,7 +1806,8 @@ export const en = {
     title: "Today's attendance",
     subtitle: "Viewing {date} — who is here and who has checked out.",
     sweepComplete: "Sweep complete — {total} checked out automatically ({children} child, {staff} staff).",
-    autoCheckoutRun: "Auto check-out run at {time}: {names} checked out by the system after closing +3h.",
+    autoCheckoutRun: "Auto check-out run at {time}: {names} checked out by the system at the end of working hours.",
+    autoCheckoutBadge: "auto",
     staffSuffix: "(staff)",
     busAutoOff: "Bus auto-off (closing +2h): {names} — parents notified.",
     searchLabel: "Search by name",
@@ -2445,6 +2451,8 @@ export const ar = {
     notCheckedInYet: "لم يسجّل الحضور بعد",
     checkedInAt: "سجّل الحضور في {time}",
     checkedOutAt: "سجّل الانصراف في {time}",
+    // KID-2447: سجّل النظام الانصراف عند نهاية ساعات العمل.
+    autoCheckedOutAt: "سجّل الانصراف تلقائيًا في {time}",
     // KID-494: شارة حالة الباص التي يراها الوالد.
     busOn: "في الباص",
     busOff: "نزل من الباص",
@@ -3591,6 +3599,9 @@ export const ar = {
     checkedOutTitle: "تسجيل انصراف: {name}",
     // KID-1385: إشعار وقت الانصراف لمعلمي الفصل (AR).
     pickupTimeTitle: "تم تسجيل وقت انصراف {name} الساعة {time}",
+    // KID-2447: إشعار الموظفين بعد الانصراف التلقائي عند نهاية ساعات العمل (AR).
+    autoCheckoutTitle: "انصراف تلقائي عند موعد الإغلاق",
+    autoCheckoutBody: "{names} — كانوا ما زالوا مسجّلين حضورهم عند نهاية ساعات العمل وتم تسجيل انصرافهم تلقائيًا. يرجى المتابعة مع أولياء أمورهم.",
     busOnTitle: "ركوب الباص: {name}",
     busOffTitle: "نزول من الباص: {name}",
     busAutoCheckedOutBody: "سُجّل الانصراف تلقائيًا — في طريق العودة إلى المنزل بالباص.",
@@ -3992,7 +4003,8 @@ export const ar = {
     title: "حضور اليوم",
     subtitle: "عرض {date} — من حاضر ومن سجّل الانصراف.",
     sweepComplete: "اكتملت المسح الآلي — تم تسجيل انصراف {total} تلقائيًا ({children} طفل، {staff} من الموظفين).",
-    autoCheckoutRun: "تشغيل الانصراف التلقائي في {time}: سجّل النظام انصراف {names} بعد الإغلاق بثلاث ساعات.",
+    autoCheckoutRun: "تشغيل الانصراف التلقائي في {time}: سجّل النظام انصراف {names} عند نهاية ساعات العمل.",
+    autoCheckoutBadge: "تلقائي",
     staffSuffix: "(موظف)",
     busAutoOff: "نزول تلقائي من الباص (الإغلاق + ساعتان): {names} — تم إشعار أولياء الأمور.",
     searchLabel: "بحث بالاسم",
@@ -4622,6 +4634,9 @@ export type FeedCopy = {
   checkedOutTitle: (name: string) => string;
   // KID-1385: pickup-time set/changed notification title (name + minute).
   pickupTimeTitle: (name: string, time: string) => string;
+  // KID-2447: end-of-working-hours auto check-out notification copy.
+  autoCheckoutTitle: () => string;
+  autoCheckoutBody: (names: string) => string;
   // KID-494: bus on/off notification entries.
   busOnTitle: (name: string) => string;
   busOffTitle: (name: string) => string;
@@ -4675,6 +4690,8 @@ export function feedCopyFor(locale: Locale): FeedCopy {
     checkedInTitle: (name) => t("feed.checkedInTitle", { name }),
     checkedOutTitle: (name) => t("feed.checkedOutTitle", { name }),
     pickupTimeTitle: (name, time) => t("feed.pickupTimeTitle", { name, time }),
+    autoCheckoutTitle: () => t("feed.autoCheckoutTitle"),
+    autoCheckoutBody: (names) => t("feed.autoCheckoutBody", { names }),
     busOnTitle: (name) => t("feed.busOnTitle", { name }),
     busOffTitle: (name) => t("feed.busOffTitle", { name }),
     busAutoCheckedOutBody: () => t("feed.busAutoCheckedOutBody"),

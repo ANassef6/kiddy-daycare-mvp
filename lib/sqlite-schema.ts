@@ -160,7 +160,11 @@ export function sqliteSchema(db: any): void {
     account_id TEXT NOT NULL REFERENCES account(id) ON DELETE CASCADE,
     type TEXT NOT NULL,
     recorded_at TEXT NOT NULL DEFAULT (datetime('now')),
-    is_edit INTEGER NOT NULL DEFAULT 0
+    is_edit INTEGER NOT NULL DEFAULT 0,
+    -- KID-2447: NULL = manual/staff/parent write; 'auto_end_of_day' = written
+    -- by the end-of-working-hours sweep with no pickup person. Mirror of
+    -- supabase/migrations/0051_kid2447_auto_checkout_source.sql.
+    source TEXT
   );
 
   CREATE TABLE IF NOT EXISTS attendance_schedule (
@@ -856,6 +860,12 @@ export function sqliteSchema(db: any): void {
   const roomCols = db.prepare("PRAGMA table_info(room)").all() as { name: string }[];
   if (!roomCols.some((c) => c.name === "colour")) {
     db.exec("ALTER TABLE room ADD COLUMN colour TEXT NOT NULL DEFAULT '#3B82F6'");
+  }
+  // KID-2447: mirror of supabase/migrations/0051_kid2447_auto_checkout_source.sql
+  // for databases created before the auto-checkout source marker existed.
+  const checkInCols = db.prepare("PRAGMA table_info(check_in)").all() as { name: string }[];
+  if (!checkInCols.some((c) => c.name === "source")) {
+    db.exec("ALTER TABLE check_in ADD COLUMN source TEXT");
   }
   const instCols = db.prepare("PRAGMA table_info(institute)").all() as { name: string }[];
   if (!instCols.some((c) => c.name === "contact")) {

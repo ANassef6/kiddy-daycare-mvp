@@ -1,0 +1,13 @@
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - ESM syntax in a file loaded as CommonJS (vitest.config.ts:1:1). Use a `.mjs` extension or set `"type": "module"` in the closest package.json
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+Both esbuild and oxc options were set. oxc options will be used and esbuild options will be ignored. The following esbuild options were set: `{ jsx: 'automatic' }`
+
+ RUN  v5.1.0 /paperclip/instances/default/projects/0b010c62-f8dd-4ffe-8878-2d3806434323/6818d57f-20ed-4b77-93d5-60640e214757/kiddy-daycare-mvp
+
+
+ Test Files  3 passed (3)
+      Tests  40 passed (40)
+   Start at  20:32:13
+   Duration  191.92s (tests 100%)
+
