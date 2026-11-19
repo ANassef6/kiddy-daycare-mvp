@@ -268,3 +268,33 @@ The per-minute auto check-out at closing is therefore **not** active on
 staging or production until one of those is set up; the sweep still runs when
 attendance or the dashboard is opened, which is the documented staging test
 path.
+
+## Staging is live after the fix (19 Nov 2026)
+
+Commit `527dcd9` (the cron removal) was cherry-picked from
+`demo-video-teacher-finals`, and `staging` was pushed `ffa7581..527dcd9`.
+Vercel deployment `dpl_E7uUMHRD7p6Z8vDKnGeTiGx6rAyC` reached `READY`
+(`BUILDING` at 21:42:36Z, `READY` at 21:43:23Z) and
+`kiddy-staging-orcin.vercel.app` was assigned to it. The previous staging
+build was v2 `e7e8241`; this is the first staging deployment of the v3 branch
+code.
+
+Browser verification (Skyvern, staging superadmin
+`founder.superadmin@staging.kiddy.test`):
+
+| Step | Observation |
+| --- | --- |
+| `/login` → sign in | lands `/platform`, heading "Daycares" |
+| `/platform/daycares/mwmk77e9-zxp7hwli/billing` | heading "Billing settings"; summary `Current plan: monthly`, `Bills now: 950 EGP`, `Enrolled children: 22`, `Pricing v2 band: Core (16-30)`, `Standard monthly: 950 EGP`, `Founding year-1 monthly: 810 EGP`, `Pilot credit: 350 EGP` |
+| same page, branch section | **`Branch subscriptions: 1`** and **`Branch: Main (primary)`** with the same Core/950/810/350 values |
+| same page, founding fields | Founding client, Founding start, Pilot end, Cancellation date and "Save billing settings" are present; the helper says the engine applies the founding rate for months 1–12 and the standard band from month 13 |
+| `/platform/daycares/mwmk77e9-zxp7hwli/invoices` | heading "Invoices"; the row has a **Branch** column with **`Main`**, cycle `2026-10`, `Plan: monthly`, status `Paid` |
+| Console | only the pre-existing `/favicon.ico` 404 |
+
+Evidence artifacts are in the Skyvern run `tsk_598896783461327284`
+(`html_scrape` captures of the billing and invoice pages, HAR and console
+log). The fixture invoice was not modified.
+
+Production Vercel project, production Supabase project and the production
+deployment remain on their previous successful state; no production cut was
+made.
