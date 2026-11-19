@@ -49,6 +49,19 @@ are derived from the strict event sequence:
 | `npm run build` (with a throwaway `SESSION_SECRET`) | exit 0, all routes collected |
 | `npm run db:verify-migrations` | "All migration checks passed." |
 
+## Staging deployment (Vercel)
+
+- PR: https://github.com/ANassef6/kiddy-daycare-mvp/pull/67
+- Staging project deployment (commit `0226dec`):
+  https://kiddy-staging-git-kid2448-bus-cycle-kiddy2.vercel.app — build SUCCESS.
+- Production-preview project deployment:
+  https://kiddy-git-kid2448-bus-cycle-kiddy2.vercel.app — build SUCCESS.
+- Anonymous probes return `302` to Vercel SSO on both previews (project
+  deployment protection, unchanged); the founder opens the staging URL while
+  signed in to Vercel.
+- `dependency-audit` check: SUCCESS. `Supabase Preview`: skipped (pre-existing
+  duplicate-version ledger condition, not a deploy gate).
+
 ## Founder test steps (staging / preview)
 
 1. Open **Attendance** as staff for a test child that has no attendance today.
