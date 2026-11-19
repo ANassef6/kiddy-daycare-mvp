@@ -8,9 +8,12 @@
 //     same per-origin tenancy rule as every tenant surface: the known
 //     `sunshine` subdomain gets the net.kiddyapp.sunshine statement, apex /
 //     legacy / preview / unknown subdomains stay fail-closed (no statement);
-//   - the fingerprint is the release cert digest in the assetlinks-shape
-//     (base64 of the raw SHA-256 bytes), public by design, matching the
-//     QA-recorded hex digest 8ce12814…01bd (derived, never hand-copied);
+//   - the fingerprint is the release cert digest in the assetlinks-required
+//     shape (colon-separated uppercase hex octets), public by design,
+//     matching the QA-recorded hex digest 8ce12814…01bd (derived, never
+//     hand-copied). KID-2444: the previous base64 rendering is rejected by
+//     the Digital Asset Links API as a malformed fingerprint; pin the hex
+//     shape so it cannot regress;
 //   - the serving path is wired as code: next.config rewrites
 //     /.well-known/assetlinks.json → /api/assetlinks, whose route is
 //     application/json and never renders one tenant's statement for another
@@ -28,8 +31,8 @@ vi.mock("next/headers", () => ({
 }));
 
 import {
-  KIDDY_PLAY_SIGNING_CERT_SHA256_BASE64,
-  KIDDY_RELEASE_CERT_SHA256_BASE64,
+  KIDDY_PLAY_SIGNING_CERT_SHA256,
+  KIDDY_RELEASE_CERT_SHA256,
   TWA_RELATION,
   assetLinksForHost,
 } from "@/lib/twa";
@@ -66,7 +69,7 @@ describe("KID-443: assetlinks resolves per request host (same tenancy rule as th
     for (const s of statements!) {
       expect(s.relation).toEqual([TWA_RELATION]);
       expect(s.target.namespace).toBe("android_app");
-      expect(s.target.sha256_cert_fingerprints).toContain(KIDDY_RELEASE_CERT_SHA256_BASE64);
+      expect(s.target.sha256_cert_fingerprints).toContain(KIDDY_RELEASE_CERT_SHA256);
     }
   });
 
@@ -79,12 +82,12 @@ describe("KID-443: assetlinks resolves per request host (same tenancy rule as th
     // sunshine.kiddy.app is signed by Play App Signing on its distributed
     // builds, so it must verify against BOTH signs of identity.
     expect(byPackage.get("sunshine.kiddy.app")).toEqual([
-      KIDDY_RELEASE_CERT_SHA256_BASE64,
-      KIDDY_PLAY_SIGNING_CERT_SHA256_BASE64,
+      KIDDY_RELEASE_CERT_SHA256,
+      KIDDY_PLAY_SIGNING_CERT_SHA256,
     ]);
     // The legacy packages keep ONLY the release/upload certificate.
-    expect(byPackage.get("net.kiddyapp.sunshine")).toEqual([KIDDY_RELEASE_CERT_SHA256_BASE64]);
-    expect(byPackage.get("com.kiddy.app")).toEqual([KIDDY_RELEASE_CERT_SHA256_BASE64]);
+    expect(byPackage.get("net.kiddyapp.sunshine")).toEqual([KIDDY_RELEASE_CERT_SHA256]);
+    expect(byPackage.get("com.kiddy.app")).toEqual([KIDDY_RELEASE_CERT_SHA256]);
   });
 
   it("generic hosts (apex/legacy/previews/subdomain-less) publish nothing — fail closed", () => {
@@ -98,22 +101,25 @@ describe("KID-443: assetlinks resolves per request host (same tenancy rule as th
     expect(assetLinksForHost(`admin.${APEX}`)).toBeNull(); // reserved label
   });
 
-  it("the release fingerprint is the QA-recorded release digest, base64-of-raw-bytes shape", () => {
-    // QA (KID-441) recorded the signer cert digest as this hex; the constant
-    // must be exactly the same digest, in assetlinks' required rendering.
-    const hex = "8ce12814125fd35db0f662dc56d6f3d5e5a3f714bc2c2656483f30263d5001bd";
-    const expectedBase64 = Buffer.from(hex.toUpperCase().replace(/:/g, ""), "hex").toString("base64");
-    expect(KIDDY_RELEASE_CERT_SHA256_BASE64).toBe(expectedBase64);
-    expect(KIDDY_RELEASE_CERT_SHA256_BASE64).toMatch(/^[A-Za-z0-9+/]{43}=$/);
+  it("the release fingerprint is the QA-recorded release digest in colon-separated hex", () => {
+    // KID-2444: Digital Asset Links only accepts colon-separated uppercase hex
+    // (32 octets). The old base64 rendering made the DA API reject the whole
+    // file and Chrome opened an unverified Custom Tab instead of a TWA.
+    expect(KIDDY_RELEASE_CERT_SHA256).toBe(
+      "8C:E1:28:14:12:5F:D3:5D:B0:F6:62:DC:56:D6:F3:D5:E5:A3:F7:14:BC:2C:26:56:48:3F:30:26:3D:50:01:BD",
+    );
+    expect(KIDDY_RELEASE_CERT_SHA256).toMatch(/^[0-9A-F]{2}(:[0-9A-F]{2}){31}$/);
+    expect(KIDDY_RELEASE_CERT_SHA256.split(":")).toHaveLength(32);
   });
 
-  it("the Play fingerprint is the Android-Publisher-reported Play App Signing digest, base64-of-raw-bytes shape", () => {
+  it("the Play fingerprint is the Android-Publisher-reported Play App Signing digest in colon-separated hex", () => {
     // KID-470: the Android Publisher API reported the Play-signed versionCode 5
-    // APK certificate as this hex (the Play App Signing key, not the upload key).
-    const hex = "AF88F9A080C216AF64B7BCCAB6648D88AB7B535EA001537EAF70F471E0B7EBD7";
-    const expectedBase64 = Buffer.from(hex, "hex").toString("base64");
-    expect(KIDDY_PLAY_SIGNING_CERT_SHA256_BASE64).toBe(expectedBase64);
-    expect(KIDDY_PLAY_SIGNING_CERT_SHA256_BASE64).toMatch(/^[A-Za-z0-9+/]{43}=$/);
+    // APK certificate as this digest (the Play App Signing key, not the upload key).
+    expect(KIDDY_PLAY_SIGNING_CERT_SHA256).toBe(
+      "AF:88:F9:A0:80:C2:16:AF:64:B7:BC:CA:B6:64:8D:88:AB:7B:53:5E:A0:01:53:7E:AF:70:F4:71:E0:B7:EB:D7",
+    );
+    expect(KIDDY_PLAY_SIGNING_CERT_SHA256).toMatch(/^[0-9A-F]{2}(:[0-9A-F]{2}){31}$/);
+    expect(KIDDY_PLAY_SIGNING_CERT_SHA256.split(":")).toHaveLength(32);
   });
 
   it("the route serves JSON, serves only the request host's own statements, no-store on its failure paths", async () => {

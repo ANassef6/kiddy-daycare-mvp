@@ -59,9 +59,18 @@ export default function PushNotificationsCard({
       setState("unsupported");
       return;
     }
-    if (Notification.permission === "denied") setState("denied");
-    else setState(Notification.permission === "granted" ? "subscribed" : "default");
     setSoundOn(window.localStorage.getItem(SOUND_KEY) !== "off");
+    const permission = Notification.permission;
+    if (permission === "denied") {
+      setState("denied");
+      return;
+    }
+    // KID-2444: permission "granted" does NOT mean this device has a live push
+    // subscription. Chrome can keep the permission while the subscription is
+    // gone (data cleared, browser update, unsubscribed elsewhere). The old
+    // card showed "enabled" in that state, so no Enable button was offered and
+    // no notification could ever arrive. Subscribe state must be the actual
+    // PushManager subscription.
     void (async () => {
       try {
         const keyRes = await fetch("/api/push/public-key", { cache: "no-store" });
@@ -70,11 +79,13 @@ export default function PushNotificationsCard({
           setState("not-configured");
           return;
         }
-        if (Notification.permission === "granted") {
-          const reg = await navigator.serviceWorker.getRegistration("/");
-          const existing = await reg?.pushManager.getSubscription();
-          if (existing) setState("subscribed");
+        if (permission !== "granted") {
+          setState("default");
+          return;
         }
+        const reg = await navigator.serviceWorker.getRegistration("/");
+        const existing = await reg?.pushManager.getSubscription();
+        setState(existing ? "subscribed" : "default");
       } catch (err) {
         console.error("KID-480 push card init failed:", err);
         setState("not-configured");

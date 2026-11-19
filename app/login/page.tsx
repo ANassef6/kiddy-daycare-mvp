@@ -1,5 +1,7 @@
 import Link from "next/link";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
+import { redirect } from "next/navigation";
+import { getAccount, homeForRole, mustChangePasswordFor, sessionFromHeaders } from "@/lib/auth";
 import { LANG_COOKIE, getDictionary, localeOf, tenancyDisabledMessage, tr, type Locale, type TenancyDisabledReason } from "@/lib/i18n";
 import { brandNameForTitle } from "@/lib/theme";
 import AuthBrand from "@/components/AuthBrand";
@@ -38,13 +40,27 @@ export default async function LoginPage({ searchParams }: { searchParams?: Promi
   const locale: Locale = localeOf(cookieLang);
   const dict = getDictionary(locale);
   const t = (key: string, vars?: Record<string, string | number>) => tr(dict, `login.${key}`, vars);
+  const params = (await searchParams) ?? {};
+
+  // KID-2444: the v4 app launches /login on every cold start. Even when the
+  // 30-day session cookie was still valid, this page always painted the
+  // sign-in form, so a signed-in parent saw "login every time". Resume an
+  // existing session just like the login action does. Guard notices
+  // (?error=…, ?confirmed=1) must still render, and must not bounce a
+  // disabled/withdrawn account between /login and its home.
+  if (!params.error && !params.confirmed) {
+    const session = sessionFromHeaders(await headers());
+    if (session) {
+      const account = await getAccount(session.accountId);
+      redirect(mustChangePasswordFor(account) ? "/change-password" : homeForRole(session.role));
+    }
+  }
 
   // KID-437: the header fallback is per-origin (same rule as the KID-435
   // titles), so a tenant's own subdomain already names the daycare in the SSR
   // paint instead of flashing generic Kiddy until the client fetch lands.
   const headerBrand = (await brandNameForTitle()) || dict.app.name;
 
-  const params = (await searchParams) ?? {};
   const confirmed = params.confirmed === "1";
 
   // Build the guard/red notice as content (plain string or the isolated-name

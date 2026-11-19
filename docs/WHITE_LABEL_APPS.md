@@ -74,10 +74,12 @@ Prerequisites — **all human / account steps, not automatable from this repo:**
 6. Play Store listing: app title ≤ 30 chars, e.g. `Sunshine Daycare`; lead
    description with the daycare's own words; add the daycare's region —
    Brazil/Egypt etc. — so local search ("روضة sunshine") finds it.
-7. Asset-links verification: put the Bubblewrap-generated
-   `assetlinks.json` content on the tenant origin route `.well-known` if the
-   operator wants URL-origin verification (deep links) in the packaged app.
-   This is a config step on the hosting deployment, not a code change each time.
+7. Asset-links verification: the platform serves
+   `.well-known/assetlinks.json` as code per tenant host (`lib/twa.ts` +
+   `app/api/assetlinks/route.ts`). Fingerprints must be colon-separated
+   uppercase hex — see `docs/TWA_ASSETLINKS.md` for the derivation and the
+   Google check command. Base64 is rejected by Digital Asset Links and sends
+   the app to an unverified Custom Tab.
 
 ### Per-daycare checklist (copy per brand)
 

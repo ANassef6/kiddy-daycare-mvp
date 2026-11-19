@@ -1,0 +1,22 @@
+GET https://digitalassetlinks.googleapis.com/v1/assetlinks:check
+source.web.site=https://sunshine.kiddyapp.net
+target.android_app.package_name=net.kiddyapp.sunshine
+target.android_app.certificate.sha256_fingerprint=8C:E1:28:14:12:5F:D3:5D:B0:F6:62:DC:56:D6:F3:D5:E5:A3:F7:14:BC:2C:26:56:48:3F:30:26:3D:50:01:BD
+relation=delegate_permission/common.handle_all_urls
+
+{
+    "maxAge": "599.999999929s",
+    "debugString": "********************* ERRORS *********************\n* Error: invalid_argument: Invalid android app asset descriptor (malformed cert fingerprint): jOEoFBJf012w9mLcVtbz1eWj9xS8LCZWSD8wJj1QAb0= [5] while fetching Web statements from https://sunshine.kiddyapp.net./.well-known/assetlinks.json (which is equivalent to 'https://sunshine.kiddyapp.net/.well-known/assetlinks.json') using download from the web (ID 1).\n* Error: invalid_argument: Invalid android app asset descriptor (malformed cert fingerprint): r4j5oIDCFq9kt7zKtmSNiKt7U16gAVN+r3D0ceC369c= [5] while fetching Web statements from https://sunshine.kiddyapp.net./.well-known/assetlinks.json (which is equivalent to 'https://sunshine.kiddyapp.net/.well-known/assetlinks.json') using download from the web (ID 1).\n* Error: invalid_argument: Invalid android app asset descriptor (malformed cert fingerprint): jOEoFBJf012w9mLcVtbz1eWj9xS8LCZWSD8wJj1QAb0= [5] while fetching Web statements from https://sunshine.kiddyapp.net./.well-known/assetlinks.json (which is equivalent to 'https://sunshine.kiddyapp.net/.well-known/assetlinks.json') using download from the web (ID 1).\n* Error: invalid_argument: Invalid android app asset descriptor (malformed cert fingerprint): jOEoFBJf012w9mLcVtbz1eWj9xS8LCZWSD8wJj1QAb0= [5] while fetching Web statements from https://sunshine.kiddyapp.net./.well-known/assetlinks.json (which is equivalent to 'https://sunshine.kiddyapp.net/.well-known/assetlinks.json') using download from the web (ID 1).\n",
+    "errorCode": [
+        "ERROR_CODE_MALFORMED_CONTENT"
+    ]
+}
+
+--- statements:list (what production serves today) ---
+{
+    "maxAge": "599.999999930s",
+    "debugString": "********************* ERRORS *********************\n* Error: invalid_argument: Invalid android app asset descriptor (malformed cert fingerprint): jOEoFBJf012w9mLcVtbz1eWj9xS8LCZWSD8wJj1QAb0= [5] while fetching Web statements from https://sunshine.kiddyapp.net./.well-known/assetlinks.json (which is equivalent to 'https://sunshine.kiddyapp.net/.well-known/assetlinks.json') using download from the web (ID 1).\n* Error: invalid_argument: Invalid android app asset descriptor (malformed cert fingerprint): r4j5oIDCFq9kt7zKtmSNiKt7U16gAVN+r3D0ceC369c= [5] while fetching Web statements from https://sunshine.kiddyapp.net./.well-known/assetlinks.json (which is equivalent to 'https://sunshine.kiddyapp.net/.well-known/assetlinks.json') using download from the web (ID 1).\n* Error: invalid_argument: Invalid android app asset descriptor (malformed cert fingerprint): jOEoFBJf012w9mLcVtbz1eWj9xS8LCZWSD8wJj1QAb0= [5] while fetching Web statements from https://sunshine.kiddyapp.net./.well-known/assetlinks.json (which is equivalent to 'https://sunshine.kiddyapp.net/.well-known/assetlinks.json') using download from the web (ID 1).\n* Error: invalid_argument: Invalid android app asset descriptor (malformed cert fingerprint): jOEoFBJf012w9mLcVtbz1eWj9xS8LCZWSD8wJj1QAb0= [5] while fetching Web statements from https://sunshine.kiddyapp.net./.well-known/assetlinks.json (which is equivalent to 'https://sunshine.kiddyapp.net/.well-known/assetlinks.json') using download from the web (ID 1).\n",
+    "errorCode": [
+        "ERROR_CODE_MALFORMED_CONTENT"
+    ]
+}
