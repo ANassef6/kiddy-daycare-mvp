@@ -10,6 +10,7 @@ import {
   conversation,
 } from "@/lib/store";
 import { parentMessageRecipients, pickRecipient, sumVisibleUnread } from "@/lib/parent-messaging";
+import { parentMayUseThread } from "@/lib/parent-thread-policy";
 import { getAccount } from "@/lib/auth";
 import { firstInstituteId } from "@/lib/helpers";
 import { sendParentMessageAction } from "@/lib/actions";
@@ -118,9 +119,11 @@ export default async function ParentMessagesPage(
   const sendError =
     searchParams.error === "recipient"
       ? t("messages.sendFailedRecipient")
-      : searchParams.error
-        ? t("messages.sendFailedGeneric")
-        : "";
+      : searchParams.error === "thread-reply"
+        ? t("messages.sendFailedThread")
+        : searchParams.error
+          ? t("messages.sendFailedGeneric")
+          : "";
 
   const mePart = await readPart("getAccount", () => getAccount(session.accountId));
   const me = mePart.ok ? mePart.value : null;
@@ -181,6 +184,23 @@ export default async function ParentMessagesPage(
       await softWrite("markThreadRead", () => markThreadRead(threadId, session.accountId));
     }
   }
+
+  // KID-2449: a thread opened by staff/admin is replyable even when the parent
+  // has no classroom-assigned staff in their recipient list. The page and the
+  // action share `parentMayUseThread`, so an offered reply is an accepted one.
+  const allowedStaffIds = new Set(recipients.map((r: any) => String(r.id)));
+  const threadOtherIds = thread
+    ? ((thread.participant_ids as string[] | undefined) ?? []).filter((id) => id !== session.accountId)
+    : [];
+  const canReplyInThread = thread
+    ? parentMayUseThread({
+        viewerId: session.accountId,
+        participantIds: threadOtherIds,
+        creatorRole: thread.creator_role,
+        allowedStaffIds,
+      })
+    : false;
+  const threadReplyTarget = threadOtherIds[0] ?? (center ? String(center.id) : undefined);
 
   const directRows = !threadId && me && center ? await readPart("conversation", () => conversation(me!.id, String(center!.id))) : { ok: true, value: [] };
   const direct = directRows.ok ? directRows.value : [];
@@ -311,22 +331,23 @@ export default async function ParentMessagesPage(
               </>
             )}
           </div>
-          {/* KID-169: no recipient means nobody is assigned to the classroom, so
-              there is no reply target — say so instead of rendering a form that
-              can only fail. KID-534: recipients failed to load → no composer is
-              rendered and the recoverable state above explains why. */}
-          {canOfferRecipients && center ? (
+          {/* KID-2449: the reply target is the thread itself, so a staff/admin-
+              initiated thread stays replyable even when no classroom staff is
+              in the parent's recipient list. KID-534: recipients failed to
+              load → no composer is rendered and the recoverable state above
+              explains why. */}
+          {canOfferRecipients && canReplyInThread && threadReplyTarget ? (
             <MessageComposerForm
               action={sendParentMessageAction}
               sendLabel={t("common.send")}
               sendingLabel={t("messages.sending")}
               placeholder={t("messages.writeMessage")}
-              hiddenRecipientId={String(center.id)}
+              hiddenRecipientId={String(threadReplyTarget)}
               threadId={threadId}
             />
           ) : canOfferRecipients ? (
-            <p className="muted small mt-3" data-testid="messages-no-staff">
-              {t("messages.noClassroomStaff")}
+            <p className="muted small mt-3" data-testid="messages-thread-blocked">
+              {t("messages.threadReplyBlocked")}
             </p>
           ) : null}
           <p className="mt-2">

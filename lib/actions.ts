@@ -3732,9 +3732,21 @@ export async function sendParentMessageAction(formData: FormData) {
       const thread = await threadForViewer(threadId, me.accountId);
       if (thread) {
         const others = (await threadParticipantIds(threadId)).filter((pid) => pid !== me.accountId);
-        // KID-144: block replies to threads that include non-classroom staff.
-        if (allowedIds && others.some((id) => !allowedIds.has(id))) {
-          redirect("/child/messages?error=recipient");
+        // KID-2449: the room rule only guards threads the parent opened. A
+        // staff/admin-initiated thread is always replyable, so an admin who
+        // messages a parent can receive the answer.
+        if (allowedIds) {
+          const { parentMayUseThread } = await import("@/lib/parent-thread-policy");
+          if (
+            !parentMayUseThread({
+              viewerId: me.accountId,
+              participantIds: await threadParticipantIds(threadId),
+              creatorRole: thread.creator_role,
+              allowedStaffIds: allowedIds,
+            })
+          ) {
+            redirect("/child/messages?error=thread-reply");
+          }
         }
         for (const rid of others) {
           await sendMessage({ instituteId, senderAccountId: me.accountId, recipientAccountId: rid, body, threadId });

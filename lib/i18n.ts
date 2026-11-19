@@ -478,6 +478,10 @@ export const en = {
       "No staff are available to message yet. Your daycare has not assigned a teacher to your child's classroom — ask the front desk who you should speak to.",
     sendFailedRecipient:
       "Your message was not sent. You can only message staff assigned to your child's classroom. Pick a recipient below and try again.",
+    sendFailedThread:
+      "Your reply was not sent. You can only reply in threads with staff assigned to your child's classroom, or in a thread a staff member started with you.",
+    threadReplyBlocked:
+      "You cannot reply in this thread. Start a new message with staff assigned to your child's classroom instead.",
     sendFailedGeneric: "Your message was not sent. Check the details and try again.",
     // KID-534 (KID-482 D-2): a transient read failure used to throw during
     // render and surface as a server-side 500. The page now degrades to this
@@ -2802,6 +2806,10 @@ export const ar = {
       "لا يوجد موظف متاح للمراسلة بعد. لم تُعيّن الحضانة معلّمًا لفصل طفلك — اسأل الاستقبال عمّن يمكنك التحدث إليه.",
     sendFailedRecipient:
       "لم تُرسل رسالتك. يمكنك مراسلة الموظفين المعيّنين في فصل طفلك فقط. اختر مستلمًا بالأسفل وحاول مرة أخرى.",
+    sendFailedThread:
+      "لم يُرسل ردك. يمكنك الرد في المحادثات مع الموظفين المعيّنين في فصل طفلك، أو في محادثة بدأها موظف معك.",
+    threadReplyBlocked:
+      "لا يمكنك الرد في هذه المحادثة. ابدأ رسالة جديدة مع الموظفين المعيّنين في فصل طفلك.",
     sendFailedGeneric: "لم تُرسل رسالتك. راجع التفاصيل وحاول مرة أخرى.",
     // KID-534 (KID-482 D-2) — mirror of the English recovery copy.
     loadFailedTitle: "تعذر تحميل بعض أجزاء محادثاتك",

@@ -2640,7 +2640,13 @@ export async function threadParticipantIds(threadId: string): Promise<string[]> 
 }
 
 export async function threadForViewer(threadId: string, viewerId: string): Promise<Row | undefined> {
-  const thread = await queryGet("SELECT * FROM message_thread WHERE id = ?", threadId);
+  // KID-2449: the creator's role tells the reply guard whether the parent may
+  // reply regardless of room assignment (staff/admin-initiated threads).
+  const thread = await queryGet(
+    `SELECT t.*, (SELECT role FROM account WHERE id = t.created_by_account_id) AS creator_role
+     FROM message_thread t WHERE t.id = ?`,
+    threadId
+  );
   if (!thread) return undefined;
   const participants = await threadParticipantIds(threadId);
   if (!participants.includes(viewerId)) return undefined;
@@ -2661,6 +2667,7 @@ export async function threadMessages(threadId: string): Promise<Row[]> {
 export async function threadsForAccount(accountId: string): Promise<Row[]> {
   return queryAll(
     `SELECT t.*, t.title AS thread_title,
+            (SELECT role FROM account WHERE id = t.created_by_account_id) AS creator_role,
             (SELECT body FROM message WHERE thread_id = t.id ORDER BY created_at DESC LIMIT 1) AS last_message,
             (SELECT created_at FROM message WHERE thread_id = t.id ORDER BY created_at DESC LIMIT 1) AS last_at,
             (SELECT COUNT(*) FROM message WHERE thread_id = t.id AND recipient_account_id = ? AND read = 0) AS unread_count
@@ -2673,18 +2680,27 @@ export async function threadsForAccount(accountId: string): Promise<Row[]> {
   );
 }
 
-/** KID-144: threads a parent may continue — only those whose other
- *  participants are staff assigned to the parent's children's classrooms.
+/** KID-144 / KID-2449: threads a parent may continue. Parent-initiated
+ *  threads keep the room rule (every other participant is classroom-assigned
+ *  staff); staff/admin-initiated threads are always visible and replyable, so a
+ *  conversation the centre opened with the parent cannot trap the reply.
  */
 export async function threadsForAccountScoped(accountId: string): Promise<Row[]> {
   const threads = await threadsForAccount(accountId);
   const staff = await classroomStaffForParent(accountId);
   const allowedIds = new Set(staff.map((s) => String(s.id)));
+  const { parentMayUseThread } = await import("./parent-thread-policy");
   const out: Row[] = [];
   for (const th of threads) {
     const participants = await threadParticipantIds(String(th.id));
-    const others = participants.filter((id) => id !== accountId);
-    if (others.length > 0 && others.every((id) => allowedIds.has(id))) {
+    if (
+      parentMayUseThread({
+        viewerId: accountId,
+        participantIds: participants,
+        creatorRole: th.creator_role,
+        allowedStaffIds: allowedIds,
+      })
+    ) {
       out.push(th);
     }
   }
