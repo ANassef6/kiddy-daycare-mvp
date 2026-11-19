@@ -15,6 +15,7 @@ import {
   hasRecoveryCredentials,
   isSessionMissingError,
   parseRecoveryParams,
+  recoveryLinkError,
   type RecoveryAuthClient,
   type RecoveryAuthError,
 } from "@/lib/password-reset";
@@ -62,7 +63,14 @@ describe("KID-2441 recovery URL parsing", () => {
         "#access_token=at-1&expires_in=3600&refresh_token=rt-1&token_type=bearer&type=recovery",
         ""
       )
-    ).toEqual({ accessToken: "at-1", refreshToken: "rt-1", code: null });
+    ).toEqual({
+      accessToken: "at-1",
+      refreshToken: "rt-1",
+      code: null,
+      error: null,
+      errorCode: null,
+      errorDescription: null,
+    });
   });
 
   it("reads a PKCE code from the query string", () => {
@@ -70,6 +78,9 @@ describe("KID-2441 recovery URL parsing", () => {
       accessToken: null,
       refreshToken: "",
       code: "pkce-code",
+      error: null,
+      errorCode: null,
+      errorDescription: null,
     });
   });
 
@@ -78,12 +89,34 @@ describe("KID-2441 recovery URL parsing", () => {
       accessToken: "at-2",
       refreshToken: "rt-2",
       code: null,
+      error: null,
+      errorCode: null,
+      errorDescription: null,
     });
   });
 
   it("reports no credentials for a bare /reset-password visit", () => {
     const params = parseRecoveryParams("", "");
     expect(hasRecoveryCredentials(params)).toBe(false);
+  });
+
+  it("reads Supabase's error redirect for a reused or expired link", () => {
+    const params = parseRecoveryParams(
+      "#error=access_denied&error_code=otp_expired&error_description=Email+link+is+invalid+or+has+expired",
+      ""
+    );
+    expect(params.accessToken).toBeNull();
+    expect(params.errorCode).toBe("otp_expired");
+    expect(params.errorDescription).toBe("Email link is invalid or has expired");
+    expect(recoveryLinkError(params)).toBe("expired");
+  });
+
+  it("treats other link errors as invalid", () => {
+    expect(
+      recoveryLinkError(
+        parseRecoveryParams("#error=access_denied&error_code=bad_oauth_state", "")
+      )
+    ).toBe("invalid");
   });
 });
 
@@ -117,6 +150,26 @@ describe("KID-2441 recovery session setup", () => {
     await expect(
       establishRecoverySession(client, { accessToken: "old", refreshToken: "old", code: null })
     ).resolves.toEqual({ ok: false, reason: "invalid", detail: "Invalid or expired token" });
+  });
+
+  it("refuses an error redirect before trying to exchange anything", async () => {
+    const { client, calls } = fakeClient();
+    await expect(
+      establishRecoverySession(client, {
+        accessToken: null,
+        refreshToken: "",
+        code: null,
+        error: "access_denied",
+        errorCode: "otp_expired",
+        errorDescription: "Email link is invalid or has expired",
+      })
+    ).resolves.toEqual({
+      ok: false,
+      reason: "expired",
+      detail: "Email link is invalid or has expired",
+    });
+    expect(calls.setSession).not.toHaveBeenCalled();
+    expect(calls.exchangeCodeForSession).not.toHaveBeenCalled();
   });
 
   it("maps a bare page to no-token", async () => {
