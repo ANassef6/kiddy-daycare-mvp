@@ -98,7 +98,7 @@ export default async function PlatformPasswordResetPage(props: {
         </button>
       </form>
 
-      {target && (
+      {target && !resetDone && (
         <div className="card">
           <h3 className="subtitle">{tr(dict, "platform.passwordResetAccountTitle")}</h3>
           <table style={{ borderCollapse: "collapse", marginBottom: 12 }}>
