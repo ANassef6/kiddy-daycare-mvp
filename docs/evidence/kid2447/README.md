@@ -55,6 +55,16 @@ The sweep deliberately does nothing before the configured close, so a test
 cannot "simulate" an earlier closing time without changing today's config —
 that is the supported path.
 
+## Staging deploy
+
+- Branch `staging`, commit `b482108` (clean cherry-pick of the shared-tree
+  commit onto the then-current `origin/staging` `ea3903b`).
+- URL: https://kiddy-staging-orcin.vercel.app — responds `200` after the push.
+- `GET /api/attendance/sweep` without a secret responds `401 {"ok":false}`,
+  i.e. the deployed route is the fail-closed, CRON_SECRET-protected one.
+- The same commit was checked in a clean worktree of `origin/staging`:
+  `npx tsc --noEmit` clean and `kid2447` + `kid494` suites 21/21 green.
+
 ## Verification
 
 - `tests/unit/kid2447-auto-checkout.test.ts` — 9 tests: close-instant
