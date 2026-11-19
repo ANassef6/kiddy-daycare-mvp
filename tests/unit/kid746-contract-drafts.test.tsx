@@ -186,7 +186,6 @@ describe("KID-746: the template fill", () => {
         monthlyRateEgp: 500,
         perChildRateEgp: 50,
         freeChildThreshold: 10,
-        annualAmountEgp: 24000,
         currency: "EGP",
         termStart: "2026-12-01",
         proposedDate: "2026-11-08",
@@ -221,11 +220,10 @@ describe("KID-746: the template fill", () => {
       ownerName: "",
       ownerEmail: "",
       providerNoticeEmail: "info@kiddyapp.net",
-      plan: "annual" as const,
+      plan: "monthly" as const,
       monthlyRateEgp: 500,
       perChildRateEgp: 50,
       freeChildThreshold: 10,
-      annualAmountEgp: 24000,
       currency: "EGP",
       termStart: "2026-12-01",
       proposedDate: "2026-11-08",
@@ -233,15 +231,15 @@ describe("KID-746: the template fill", () => {
     };
     const en = contractDraftValues("en", data);
     const ar = contractDraftValues("ar", data);
-    expect(en.INITIAL_TERM).toContain("Twelve months");
-    expect(ar.INITIAL_TERM).toContain("اثنا عشر شهرًا");
+    expect(en.INITIAL_TERM).toContain("One month");
+    expect(ar.INITIAL_TERM).toContain("شهر واحد");
     expect(en.INVOICE_DUE_DAY).toContain("5th day");
     expect(ar.INVOICE_DUE_DAY).toContain("اليوم الخامس");
     expect(en.CURRENCY).toBe("EGP");
     expect(ar.CURRENCY).toBe("EGP");
-    // Amount formatting matches the pack: grouped thousands, either locale.
-    expect(en.ANNUAL_AMOUNT_EGP).toBe("24,000");
-    expect(ar.ANNUAL_AMOUNT_EGP).toBe("24,000");
+    // Amount formatting matches the pack: grouped amounts, either locale.
+    expect(en.MONTHLY_RATE_EGP).toBe("500");
+    expect(ar.MONTHLY_RATE_EGP).toBe("500");
   });
 });
 

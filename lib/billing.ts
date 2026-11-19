@@ -12,18 +12,19 @@
 //     following month;
 //   - the billed child count is the PEAK number of children active at any
 //     point during the cycle (not the end-of-month count);
-//   - KID-2435 pricing v2: the band is selected from the cycle's peak child
-//     count and the configured band monthly/annual amount is billed
-//     (Enterprise+ = 2,500 + 20/child above 120; annual = 10x monthly; the
-//     Enterprise+ annual is a per-client quote);
-//   - founding cohort: year-1 monthly for the first 12 months, then the
-//     standard band capped by the 20% glide rule across each 12-month review,
+//   - KID-2435 pricing v3: the band is selected from the cycle's peak child
+//     count and the configured band monthly amount is billed (Enterprise+ =
+//     2,500 + 20/child above 120). There is no annual product: no annual
+//     price, term, renewal or proration;
+//   - founding cohort: the founding monthly rate for the first 12 months,
+//     then the standard band amount from month 13. One step, no glide;
 //     plus the configured pilot-fee credit on the first invoice;
 //   - the legacy per-daycare flat/per-child columns no longer price an invoice;
 //   - demo: no invoices at all;
-//   - an invoice past its due date and unpaid makes the daycare overdue ->
-//     institute.active = 0 (the existing KID-199.3 disable), which blocks
-//     every user at login; marking the invoice paid re-activates the daycare;
+//   - a failed payment gets a 7-day grace window (pricing_config
+//     billing.grace_days). After it, the unpaid invoice is overdue and the
+//     existing KID-199.3 disable applies; marking the invoice paid
+//     re-activates the daycare. Data is never deleted;
 //   - the operator can override an invoice's total (with a note) before
 //     payment; paid invoices are locked.
 //
@@ -41,12 +42,10 @@
 
 import { queryAll, queryGet, queryRun, uid, type Row } from "./db";
 import {
-  annualForMonthly,
   countFoundingClients,
   foundingTermIndex,
   getPricingBands,
   getPricingSettings,
-  glideRateExact,
   monthlyForBand,
   pilotCreditEligible,
   pricingBandForChildCount,
@@ -54,9 +53,9 @@ import {
   type PricingSettings,
 } from "./pricing";
 
-export type BillingPlan = "demo" | "monthly" | "annual";
+export type BillingPlan = "demo" | "monthly";
 
-export const BILLING_PLANS: BillingPlan[] = ["demo", "monthly", "annual"];
+export const BILLING_PLANS: BillingPlan[] = ["demo", "monthly"];
 
 /** The platform defaults — every create-daycare form field is prefilled and
  *  editable; a stored row that predates a new column reads these too. */
@@ -65,7 +64,6 @@ export const BILLING_DEFAULTS = {
   monthlyRateEgp: 500,
   perChildRateEgp: 50,
   freeChildThreshold: 10,
-  annualAmountEgp: 24000,
   foundingClient: false,
   foundingStartedAt: "",
   pilotEndDate: "",
@@ -76,7 +74,6 @@ export type DaycareBilling = {
   monthlyRateEgp: number;
   perChildRateEgp: number;
   freeChildThreshold: number;
-  annualAmountEgp: number;
   /** ISO date (YYYY-MM-DD) of the first billed month, or "" when the row has
    *  no stored cycle start — the UI then treats the signup month as free and
    *  the invoicing engine (Finance/2) falls back to institute.created_at. */
@@ -96,6 +93,15 @@ export function nextMonthStart(date: Date): string {
     .slice(0, 10);
 }
 
+/** KID-2435 v3: billing always starts on the 1st of a month. Accepts any
+ *  stored date shape and returns "YYYY-MM-01" ("" when the value is not a
+ *  date). Demo covers the gap between signing and that date, so the engine
+ *  never prorates. */
+export function monthStart(value: unknown): string {
+  const iso = datePart(value);
+  return iso ? `${iso.slice(0, 7)}-01` : "";
+}
+
 function mapPlan(raw: unknown): BillingPlan {
   const plan = String(raw ?? "");
   return (BILLING_PLANS as string[]).includes(plan) ? (plan as BillingPlan) : "demo";
@@ -112,8 +118,10 @@ export function rowToBilling(row: Row): DaycareBilling {
     monthlyRateEgp: clampInt(row.monthly_rate_egp ?? row.monthlyRateEgp, BILLING_DEFAULTS.monthlyRateEgp),
     perChildRateEgp: clampInt(row.per_child_rate_egp ?? row.perChildRateEgp, BILLING_DEFAULTS.perChildRateEgp),
     freeChildThreshold: clampInt(row.free_child_threshold ?? row.freeChildThreshold, BILLING_DEFAULTS.freeChildThreshold),
-    annualAmountEgp: clampInt(row.annual_amount_egp ?? row.annualAmountEgp, BILLING_DEFAULTS.annualAmountEgp),
-    firstCycleStart: String((row.first_cycle_start ?? row.firstCycleStart ?? "")).slice(0, 10),
+    // KID-2435 v3: the first billed cycle always starts on the 1st. Stored
+    // rows from the annual era may carry another day; normalise on read so
+    // the engine can never prorate a partial month.
+    firstCycleStart: monthStart(row.first_cycle_start ?? row.firstCycleStart),
     foundingClient: Number(row.founding_client ?? (row.foundingClient ? 1 : 0)) === 1,
     foundingStartedAt: String((row.founding_started_at ?? row.foundingStartedAt ?? "")).slice(0, 10),
     pilotEndDate: String((row.pilot_end_date ?? row.pilotEndDate ?? "")).slice(0, 10),
@@ -141,7 +149,6 @@ export async function getDaycareBilling(instituteId: string): Promise<DaycareBil
  *  uses `cyclePricing`/the pricing_band configuration instead. */
 export function cycleAmountEgp(b: DaycareBilling, childCount: number): number {
   if (b.plan === "demo") return 0;
-  if (b.plan === "annual") return b.annualAmountEgp;
   const extra = Math.max(0, Math.round(Number(childCount) || 0) - b.freeChildThreshold);
   return b.monthlyRateEgp + extra * b.perChildRateEgp;
 }
@@ -162,7 +169,6 @@ export type BillingPatch = Partial<{
   monthlyRateEgp: number;
   perChildRateEgp: number;
   freeChildThreshold: number;
-  annualAmountEgp: number;
   firstCycleStart: string;
   foundingClient: boolean;
   foundingStartedAt: string;
@@ -174,7 +180,6 @@ const NUMERIC_FIELDS = [
   ["monthlyRateEgp", "monthly_rate_egp"],
   ["perChildRateEgp", "per_child_rate_egp"],
   ["freeChildThreshold", "free_child_threshold"],
-  ["annualAmountEgp", "annual_amount_egp"],
 ] as const;
 
 /** Writes (upserts) a daycare's billing settings. Validates up front — an
@@ -190,8 +195,14 @@ export async function updateDaycareBilling(instituteId: string, patch: BillingPa
     if (value === undefined) continue;
     if (!Number.isFinite(Number(value)) || Number(value) < 0) throw new Error(`billing-${column}-invalid`);
   }
-  if (patch.firstCycleStart !== undefined && !/^\d{4}-\d{2}-\d{2}$/.test(patch.firstCycleStart)) {
-    throw new Error("billing-cycle-invalid");
+  // KID-2435 v3: billing starts on the 1st of a month. An operator who types
+  // mid-month gets the 1st of that month, never a prorated cycle.
+  let firstCycle = "";
+  if (patch.firstCycleStart !== undefined) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(patch.firstCycleStart)) {
+      throw new Error("billing-cycle-invalid");
+    }
+    firstCycle = monthStart(patch.firstCycleStart);
   }
   for (const [key, column] of [
     ["foundingStartedAt", "founding_started_at"],
@@ -232,7 +243,7 @@ export async function updateDaycareBilling(instituteId: string, patch: BillingPa
   }
   if (patch.firstCycleStart !== undefined) {
     sets.push("first_cycle_start = ?");
-    values.push(patch.firstCycleStart);
+    values.push(firstCycle);
   }
   if (patch.foundingClient !== undefined) {
     sets.push("founding_client = ?");
@@ -374,6 +385,18 @@ export function dueDateForCycleEnd(cycleEndIso: string): string {
   return `${addCycleMonths(end.slice(0, 7), 1)}-05`;
 }
 
+/** "YYYY-MM-DD" shifted by n days (UTC). */
+export function addDaysIso(dateIso: string, days: number): string {
+  const day = dayNumberOf(dateIso);
+  return dateOfDayNumber(day + Math.round(Number(days) || 0));
+}
+
+/** KID-2435 v3: the last day of the payment grace window. An invoice is not
+ *  treated as failed until this date has passed. `dueDate` + `graceDays`. */
+export function graceEndDate(dueDateIso: string, graceDays: number): string {
+  return addDaysIso(dueDateIso, Math.max(0, Math.round(Number(graceDays) || 0)));
+}
+
 /** The newest month whose cycle has fully ended STRICTLY before `today` —
  *  generation happens the day after the cycle closes, so the peak is never
  *  measured from a partially elapsed month. */
@@ -387,24 +410,15 @@ export function newestEndedCycleMonth(todayIsoStr: string): string {
 }
 
 /** The cycle months a plan still needs invoices for, from the first billed
- *  month through every cycle that has already ended by `today`. Monthly:
- *  one month per calendar month. Annual: the FIRST month of every 12-month
- *  block. */
+ *  month through every cycle that has already ended by `today`. Billing is
+ *  monthly only (KID-2435 v3): one month per calendar month. */
 export function pendingCycleMonths(
   plan: BillingPlan,
   firstCycleMonth: string,
   today: string
 ): string[] {
   const months: string[] = [];
-  if (plan === "annual") {
-    for (let k = 0; k < 600; k++) {
-      const blockStart = addCycleMonths(firstCycleMonth, 12 * k);
-      const blockEnd = cycleEndDate(addCycleMonths(firstCycleMonth, 12 * k + 11));
-      if (!(blockEnd < today)) break;
-      months.push(blockStart);
-    }
-    return months;
-  }
+  if (plan === "demo") return months;
   const newestEnded = newestEndedCycleMonth(today);
   if (newestEnded < firstCycleMonth) return [];
   for (let m = firstCycleMonth; m <= newestEnded; m = addCycleMonths(m, 1)) {
@@ -421,13 +435,15 @@ export type CyclePricing = {
   billableChildren: number;
   /** The band's standard monthly price (Enterprise+ includes its overage). */
   standardMonthlyEgp: number;
-  /** The standard amount for THIS cycle before founding/glide: the monthly
-   *  price, or 10x it for an annual block. 0 when the band is quote-only. */
+  /** The standard amount for THIS cycle before founding: the band monthly
+   *  price (including Enterprise+ overage). */
   standardAmountEgp: number;
   appliedMonthlyRateExact: number;
   appliedMonthlyRate: number;
   foundingApplied: boolean;
   foundingTermIndex: number;
+  /** Retained for the invoice snapshot. Always false in v3: there is no
+   *  glide cap, the founding rate steps to standard once at month 13. */
   glideCapped: boolean;
   flatRateAmount: number;
   incrementalRate: number;
@@ -435,23 +451,18 @@ export type CyclePricing = {
   /** The amount due before any pilot credit (the credit is a generation-time
    *  adjustment, not part of the configured price). */
   grossAmount: number;
-  /** Enterprise+ annual has no configured amount: the operator quotes it. */
-  quoteRequired: boolean;
 };
 
-/** KID-2435: price one billing cycle from the approved v2 bands and the
- *  founding-cohort policy.
+/** KID-2435: price one monthly billing cycle from the approved v3 bands and
+ *  the founding-cohort policy.
  *
  *  - The band is selected from the cycle's measured peak child count (the
- *    same snapshot KID-245 bills on).
+ *    founder's confirmed snapshot).
  *  - Standard monthly is the band amount; Enterprise+ adds 20 EGP per child
- *    above 120. Annual is exactly 10x the effective monthly.
- *  - A founding client keeps its year-1 rate for the first 12 months. From
- *    the next 12-month review the rate is `min(standard, previous rate x
- *    (1 + glide cap))`; the cap compounds on the exact rate, never on a
- *    rounded one, and it can only defer a band change, never accelerate it.
- *  - Annual Enterprise+ is a per-client quote, so the engine never invents an
- *    amount for it (`quoteRequired`).
+ *    above 120.
+ *  - A founding client pays the founding monthly rate for the first 12
+ *    months, then the standard band amount from month 13. One step, no glide.
+ *  - There is no annual product; the engine never computes an annual amount.
  */
 export function cyclePricing(params: {
   plan: BillingPlan;
@@ -460,12 +471,12 @@ export function cyclePricing(params: {
   billing: DaycareBilling;
   bands: PricingBand[];
   settings: PricingSettings;
-  /** The exact rate already fixed by an invoice in this term, if any. */
+  /** The founding rate already frozen by the first invoice of term 0. A
+   *  founding client keeps the rate set at signing for months 1-12 even if
+   *  the band grows; month 13 jumps to the standard band amount. */
   termRateExact?: number | null;
-  /** The exact rate of the preceding term (the glide chain's base). */
-  previousRateExact?: number | null;
 }): CyclePricing {
-  const { plan, cycleMonth, billing, bands, settings } = params;
+  const { plan, cycleMonth, billing, bands } = params;
   const maxActive = Math.max(0, Math.round(Number(params.peakChildren) || 0));
   const band = pricingBandForChildCount(maxActive, bands);
   const standardMonthly = monthlyForBand(band, maxActive);
@@ -473,52 +484,33 @@ export function cyclePricing(params: {
   const foundingStart = billing.foundingStartedAt || billing.firstCycleStart || "";
   const termIndex = foundingStart ? foundingTermIndex(foundingStart, cycleStart) : 0;
   const foundingYearOne = band.foundingMonthlyEgp;
-  const foundingCandidate = billing.foundingClient && foundingYearOne !== null;
+  const foundingCandidate =
+    plan !== "demo" && billing.foundingClient && foundingYearOne !== null;
 
   let exact = standardMonthly;
-  if (foundingCandidate) {
-    if (params.termRateExact !== undefined && params.termRateExact !== null) {
-      exact = params.termRateExact;
-    } else if (termIndex === 0) {
-      exact = foundingYearOne;
-    } else {
-      exact = glideRateExact(
-        params.previousRateExact ?? foundingYearOne,
-        standardMonthly,
-        settings.foundingGlideMaxIncreasePct
-      );
-    }
+  if (foundingCandidate && termIndex === 0) {
+    exact =
+      params.termRateExact !== undefined && params.termRateExact !== null
+        ? params.termRateExact
+        : foundingYearOne;
   }
 
-  const foundingApplied = foundingCandidate && exact < standardMonthly - 1e-9;
-  const glideCapped = foundingCandidate && termIndex > 0 && exact < standardMonthly - 1e-9;
-  const quoteRequired = plan === "annual" && band.annualIsQuote;
-  const standardAmount = plan === "annual"
-    ? band.annualIsQuote
-      ? 0
-      : annualForMonthly(band.monthlyEgp)
-    : standardMonthly;
-  const grossAmount = quoteRequired
-    ? 0
-    : plan === "annual"
-      ? Math.round(exact * 10)
-      : Math.round(exact);
+  const foundingApplied = foundingCandidate && termIndex === 0;
+  const grossAmount = Math.round(exact);
 
   let billableChildren = 0;
   let flatRateAmount = grossAmount;
   let incrementalRate = 0;
   let incrementalAmount = 0;
-  if (plan !== "annual") {
-    const atStandard = Math.abs(exact - standardMonthly) < 1e-9;
-    if (band.maxChildren === null && band.perChildOverageEgp > 0 && atStandard) {
-      const included = Math.max(0, band.minChildren - 1);
-      billableChildren = Math.max(0, maxActive - included);
-      flatRateAmount = band.monthlyEgp;
-      incrementalRate = band.perChildOverageEgp;
-      incrementalAmount = billableChildren * incrementalRate;
-    } else if (band.maxChildren === null) {
-      billableChildren = Math.max(0, maxActive - Math.max(0, band.minChildren - 1));
-    }
+  const atStandard = Math.abs(exact - standardMonthly) < 1e-9;
+  if (band.maxChildren === null && band.perChildOverageEgp > 0 && atStandard) {
+    const included = Math.max(0, band.minChildren - 1);
+    billableChildren = Math.max(0, maxActive - included);
+    flatRateAmount = band.monthlyEgp;
+    incrementalRate = band.perChildOverageEgp;
+    incrementalAmount = billableChildren * incrementalRate;
+  } else if (band.maxChildren === null) {
+    billableChildren = Math.max(0, maxActive - Math.max(0, band.minChildren - 1));
   }
 
   return {
@@ -526,17 +518,16 @@ export function cyclePricing(params: {
     maxActiveChildren: maxActive,
     billableChildren,
     standardMonthlyEgp: standardMonthly,
-    standardAmountEgp: standardAmount,
+    standardAmountEgp: standardMonthly,
     appliedMonthlyRateExact: exact,
     appliedMonthlyRate: Math.round(exact),
     foundingApplied,
     foundingTermIndex: termIndex,
-    glideCapped,
+    glideCapped: false,
     flatRateAmount,
     incrementalRate,
     incrementalAmount,
     grossAmount,
-    quoteRequired,
   };
 }
 
@@ -686,7 +677,7 @@ export async function generateDueInvoices(now: Date = new Date()): Promise<numbe
   ]);
   const configs = await queryAll(
     `SELECT b.institute_id, b.plan, b.monthly_rate_egp, b.per_child_rate_egp,
-            b.free_child_threshold, b.annual_amount_egp, b.first_cycle_start,
+            b.free_child_threshold, b.first_cycle_start,
             b.founding_client, b.founding_started_at, b.pilot_end_date,
             i.name AS institute_name
      FROM daycare_billing b
@@ -712,16 +703,13 @@ export async function generateDueInvoices(now: Date = new Date()): Promise<numbe
     );
     if (missing.length === 0) continue;
 
-    // The glide chain keeps the unrounded rate per 12-month term so the 20%
-    // cap compounds exactly. Existing invoices seed the chain: an issued term
-    // keeps its frozen rate.
-    const termRates = new Map<number, number>();
+    // KID-2435 v3: the founding rate is fixed at the first invoice of term 0
+    // and holds for months 1-12. Month 13 uses the standard band amount.
+    let foundingYearOneRate: number | null = null;
     for (const invoice of existing) {
-      if (
-        invoice.appliedMonthlyRateExact > 0 &&
-        !termRates.has(invoice.foundingTermIndex)
-      ) {
-        termRates.set(invoice.foundingTermIndex, invoice.appliedMonthlyRateExact);
+      if (invoice.foundingTermIndex === 0 && invoice.appliedMonthlyRateExact > 0) {
+        foundingYearOneRate = invoice.appliedMonthlyRateExact;
+        break;
       }
     }
 
@@ -750,46 +738,8 @@ export async function generateDueInvoices(now: Date = new Date()): Promise<numbe
 
     for (const cycleMonth of missing) {
       const start = cycleStartDate(cycleMonth);
-      // Monthly cycles span their single month; annual blocks span 12 months
-      // from the block's first month.
-      const end =
-        billing.plan === "annual"
-          ? cycleEndDate(addCycleMonths(cycleMonth, 11))
-          : cycleEndDate(cycleMonth);
+      const end = cycleEndDate(cycleMonth);
       const peak = await peakActiveChildren(instituteId, start, end);
-
-      // Resolve the term's fixed exact rate. An existing invoice for the term
-      // already fixed it; otherwise this is the term's first invoice and the
-      // review chain computes it from the preceding term.
-      const provisional = cyclePricing({
-        plan: billing.plan,
-        peakChildren: peak,
-        cycleMonth,
-        billing,
-        bands,
-        settings: pricingSettings,
-      });
-      const term = provisional.foundingTermIndex;
-      if (
-        billing.foundingClient &&
-        provisional.band.foundingMonthlyEgp !== null &&
-        !termRates.has(term)
-      ) {
-        if (term === 0) {
-          termRates.set(term, provisional.band.foundingMonthlyEgp);
-        } else {
-          const previous =
-            termRates.get(term - 1) ?? provisional.band.foundingMonthlyEgp;
-          termRates.set(
-            term,
-            glideRateExact(
-              previous,
-              provisional.standardMonthlyEgp,
-              pricingSettings.foundingGlideMaxIncreasePct
-            )
-          );
-        }
-      }
       const pricing = cyclePricing({
         plan: billing.plan,
         peakChildren: peak,
@@ -797,18 +747,10 @@ export async function generateDueInvoices(now: Date = new Date()): Promise<numbe
         billing,
         bands,
         settings: pricingSettings,
-        termRateExact: billing.foundingClient ? termRates.get(term) ?? null : null,
-        previousRateExact: termRates.get(term - 1) ?? null,
+        termRateExact: foundingYearOneRate,
       });
-
-      if (pricing.quoteRequired) {
-        // Enterprise+ annual is a per-client quote. Never invent an amount;
-        // leave the block to the operator and say so loudly.
-        console.warn(
-          `KID-2435: annual ${pricing.band.key} is a per-client quote ` +
-            `(institute ${instituteId}, cycle ${cycleMonth}); no invoice generated`
-        );
-        continue;
+      if (pricing.foundingApplied && foundingYearOneRate === null) {
+        foundingYearOneRate = pricing.appliedMonthlyRateExact;
       }
 
       const invoiceOrdinal = existing.length + createdForInstitute;
@@ -923,9 +865,14 @@ async function emailInvoiceOwners(
  *  were flipped. Idempotent: an already-disabled daycare is not re-written. */
 export async function applyOverdueEnforcement(now: Date = new Date()): Promise<number> {
   const today = todayIso(now);
+  // KID-2435 v3: a failed payment gets the configured grace window (default
+  // 7 days) before the invoice becomes overdue and the account is enforced.
+  // Data is never deleted; the account is only blocked, never wiped.
+  const { billingGraceDays } = await getPricingSettings();
+  const graceCutoff = addDaysIso(today, -Math.max(0, billingGraceDays));
   await queryRun(
     "UPDATE daycare_invoice SET status = 'overdue' WHERE status = 'pending' AND due_date < ?",
-    today
+    graceCutoff
   );
   // Only institutes that are still active need the flip — the typical sweep
   // is a single cheap SELECT returning nothing.

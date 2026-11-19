@@ -1007,22 +1007,19 @@ export async function createDaycareAction(formData: FormData) {
 
 // KID-244: the billing settings a NEW daycare starts with. Parsed at the
 // form boundary here, validated (and defaulted) again by the store, so a
-// malformed POST can never write a raw un-validated money value. When
-// monthly/annual is picked the rate fields are editable and prefilled with
-// the platform defaults (500/50/10, 24000 EGP); a missing/garbage rate falls
-// back to the default rather than writing a bad number.
+// malformed POST can never write a raw un-validated money value. KID-2435 v3
+// removed the annual product: only demo and monthly are accepted. The legacy
+// rate fields stay for historic contract data; the invoice engine prices from
+// pricing_band.
 function billingFormNumbers(formData: FormData): {
-  plan: "demo" | "monthly" | "annual";
+  plan: "demo" | "monthly";
   monthlyRateEgp?: number;
   perChildRateEgp?: number;
   freeChildThreshold?: number;
-  annualAmountEgp?: number;
 } {
   const planRaw = String(formData.get("billingPlan") ?? "demo").trim();
-  const plan = (["demo", "monthly", "annual"] as const).includes(
-    planRaw as "demo" | "monthly" | "annual"
-  )
-    ? (planRaw as "demo" | "monthly" | "annual")
+  const plan = (["demo", "monthly"] as const).includes(planRaw as "demo" | "monthly")
+    ? (planRaw as "demo" | "monthly")
     : "demo";
   const num = (key: string, fallback: number): number => {
     const n = Number(String(formData.get(key) ?? "").trim());
@@ -1033,7 +1030,6 @@ function billingFormNumbers(formData: FormData): {
     monthlyRateEgp: num("billingMonthlyRate", 500),
     perChildRateEgp: num("billingPerChildRate", 50),
     freeChildThreshold: num("billingFreeThreshold", 10),
-    annualAmountEgp: num("billingAnnualAmount", 24000),
   };
 }
 
@@ -1048,8 +1044,7 @@ export async function updateDaycareBillingAction(formData: FormData) {
   if (!inst) redirect("/platform?error=missing-id");
   const back = `/platform/daycares/${instituteId}/billing`;
   const planRaw = String(formData.get("plan") ?? "").trim();
-  const plan =
-    planRaw === "monthly" || planRaw === "annual" || planRaw === "demo" ? planRaw : "";
+  const plan = planRaw === "monthly" || planRaw === "demo" ? planRaw : "";
   if (!plan) redirect(`${back}?error=billing-plan-invalid`);
   const number = (key: string): number => Number(String(formData.get(key) ?? "").trim());
   const firstCycleStart = String(formData.get("firstCycleStart") ?? "").trim();
@@ -1060,7 +1055,6 @@ export async function updateDaycareBillingAction(formData: FormData) {
       monthlyRateEgp: number("monthlyRateEgp"),
       perChildRateEgp: number("perChildRateEgp"),
       freeChildThreshold: number("freeChildThreshold"),
-      annualAmountEgp: number("annualAmountEgp"),
       firstCycleStart: /^\d{4}-\d{2}-\d{2}$/.test(firstCycleStart) ? firstCycleStart : undefined,
       foundingClient: String(formData.get("foundingClient") ?? "") === "1",
       foundingStartedAt: String(formData.get("foundingStartedAt") ?? "").trim(),
@@ -1073,7 +1067,6 @@ export async function updateDaycareBillingAction(formData: FormData) {
       "billing-monthly_rate_egp-invalid",
       "billing-per_child_rate_egp-invalid",
       "billing-free_child_threshold-invalid",
-      "billing-annual_amount_egp-invalid",
       "billing-cycle-invalid",
       "billing-founding_started_at-invalid",
       "billing-pilot_end_date-invalid",
@@ -1124,7 +1117,6 @@ export async function updatePricingBandAction(formData: FormData) {
         String(formData.get("foundingMonthlyEgp") ?? "").trim() === ""
           ? null
           : pricingFormNumber(formData, "foundingMonthlyEgp"),
-      annualIsQuote: String(formData.get("annualIsQuote") ?? "") === "1",
       busTrackingIncluded: String(formData.get("busTrackingIncluded") ?? "") === "1",
     });
   } catch (err) {
@@ -1133,7 +1125,6 @@ export async function updatePricingBandAction(formData: FormData) {
       "pricing-band-unknown",
       "pricing-band-invalid",
       "pricing-band-ladder",
-      "pricing-band-annual-rule",
     ];
     console.error("KID-2434 updatePricingBandAction failed:", err);
     redirect(`${back}?error=${known.includes(reason) ? reason : "unknown"}`);
@@ -1173,7 +1164,7 @@ export async function updatePricingSettingsAction(formData: FormData) {
       foundingPilotRoomLimit: number("foundingPilotRoomLimit"),
       foundingPilotChildLimit: number("foundingPilotChildLimit"),
       foundingPilotCreditDays: number("foundingPilotCreditDays"),
-      foundingGlideMaxIncreasePct: number("foundingGlideMaxIncreasePct"),
+      billingGraceDays: number("billingGraceDays"),
     });
   } catch (err) {
     const reason = String((err as Error)?.message ?? "");

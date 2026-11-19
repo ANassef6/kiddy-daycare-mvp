@@ -606,11 +606,10 @@ export function sqliteSchema(db: any): void {
   -- these same defaults in the block below.
   CREATE TABLE IF NOT EXISTS daycare_billing (
     institute_id TEXT PRIMARY KEY REFERENCES institute(id) ON DELETE CASCADE,
-    plan TEXT NOT NULL DEFAULT 'demo' CHECK (plan IN ('demo', 'monthly', 'annual')),
+    plan TEXT NOT NULL DEFAULT 'demo' CHECK (plan IN ('demo', 'monthly')),
     monthly_rate_egp INTEGER NOT NULL DEFAULT 500,
     per_child_rate_egp INTEGER NOT NULL DEFAULT 50,
     free_child_threshold INTEGER NOT NULL DEFAULT 10,
-    annual_amount_egp INTEGER NOT NULL DEFAULT 24000,
     first_cycle_start TEXT,
     founding_client INTEGER NOT NULL DEFAULT 0,
     founding_started_at TEXT,
@@ -622,8 +621,8 @@ export function sqliteSchema(db: any): void {
   -- KID-245: mirror of supabase/migrations/0028_daycare_invoice.sql — one
   -- invoice per billed cycle, (institute_id, cycle_month) unique so the lazy
   -- generator stays idempotent. cycle_month is the FIRST month of the billed
-  -- cycle (YYYY-MM): the month itself for monthly plans, the first month of a
-  -- 12-month block for annual. Amounts are integers in EGP; the formula
+  -- cycle (YYYY-MM). Billing is monthly only (KID-2435 v3); the plan CHECK
+  -- keeps 'annual' so historic rows still read. Amounts are integers in EGP; the formula
   -- fields snapshot the configuration the invoice was computed with, and
   -- total_amount is manually overridable before payment (manual_adjustment
   -- carries the operator's note). Lifecycle: pending -> overdue (past
@@ -673,24 +672,21 @@ export function sqliteSchema(db: any): void {
   CREATE INDEX IF NOT EXISTS idx_daycare_invoice_institute
     ON daycare_invoice (institute_id, cycle_month DESC);
 
-  -- KID-2434: mirror of supabase/migrations/0045_pricing_v2.sql — the six
-  -- operator-editable standard pricing bands plus the demo and founding-
-  -- cohort policy. Annual is 10x monthly for every standard band; the quote
-  -- band keeps annual NULL. The seed rows are the approved KID-2433 values.
+  -- KID-2434/2435: mirror of the pricing-band migrations — the six
+  -- operator-editable standard monthly bands plus the demo and founding-
+  -- cohort policy. KID-2435 v3 dropped the annual product entirely. The seed
+  -- rows are the approved KID-2433 monthly values.
   CREATE TABLE IF NOT EXISTS pricing_band (
     key TEXT PRIMARY KEY,
     name TEXT NOT NULL,
     min_children INTEGER NOT NULL CHECK (min_children >= 1),
     max_children INTEGER CHECK (max_children IS NULL OR max_children >= min_children),
     monthly_egp INTEGER NOT NULL CHECK (monthly_egp >= 0),
-    annual_egp INTEGER CHECK (annual_egp IS NULL OR annual_egp >= 0),
-    annual_is_quote INTEGER NOT NULL DEFAULT 0,
     per_child_overage_egp INTEGER NOT NULL DEFAULT 0 CHECK (per_child_overage_egp >= 0),
     founding_monthly_egp INTEGER CHECK (founding_monthly_egp IS NULL OR founding_monthly_egp >= 0),
     bus_tracking_included INTEGER NOT NULL DEFAULT 1,
     sort_order INTEGER NOT NULL DEFAULT 0,
-    updated_at TEXT NOT NULL DEFAULT (datetime('now')),
-    CHECK (annual_is_quote = 1 OR annual_egp = monthly_egp * 10)
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
   );
   CREATE INDEX IF NOT EXISTS idx_pricing_band_order ON pricing_band (sort_order);
 
@@ -701,15 +697,15 @@ export function sqliteSchema(db: any): void {
   );
 
   INSERT OR IGNORE INTO pricing_band
-    (key, name, min_children, max_children, monthly_egp, annual_egp, annual_is_quote,
+    (key, name, min_children, max_children, monthly_egp,
      per_child_overage_egp, founding_monthly_egp, bus_tracking_included, sort_order)
   VALUES
-    ('seed', 'Seed', 1, 15, 600, 6000, 0, 0, 510, 1, 1),
-    ('core', 'Core', 16, 30, 950, 9500, 0, 0, 810, 1, 2),
-    ('standard', 'Standard', 31, 50, 1400, 14000, 0, 0, 1190, 1, 3),
-    ('plus', 'Plus', 51, 80, 1900, 19000, 0, 0, 1620, 1, 4),
-    ('enterprise', 'Enterprise', 81, 120, 2500, 25000, 0, 0, 2130, 1, 5),
-    ('enterprise_plus', 'Enterprise+', 121, NULL, 2500, NULL, 1, 20, NULL, 1, 6);
+    ('seed', 'Seed', 1, 15, 600, 0, 510, 1, 1),
+    ('core', 'Core', 16, 30, 950, 0, 810, 1, 2),
+    ('standard', 'Standard', 31, 50, 1400, 0, 1190, 1, 3),
+    ('plus', 'Plus', 51, 80, 1900, 0, 1620, 1, 4),
+    ('enterprise', 'Enterprise', 81, 120, 2500, 0, 2130, 1, 5),
+    ('enterprise_plus', 'Enterprise+', 121, NULL, 2500, 20, NULL, 1, 6);
 
   INSERT OR IGNORE INTO pricing_config (key, value) VALUES
     ('demo.trial_days', '30'),
@@ -726,7 +722,7 @@ export function sqliteSchema(db: any): void {
     ('founding.pilot_room_limit', '1'),
     ('founding.pilot_child_limit', '20'),
     ('founding.pilot_credit_days', '14'),
-    ('founding.glide_max_increase_pct', '20');
+    ('billing.grace_days', '7');
 
   -- KID-258 A1 (KID-264): mirror of supabase/migrations/
   -- 0029_enhancement_request.sql — the daycare owner's "Enhancements
