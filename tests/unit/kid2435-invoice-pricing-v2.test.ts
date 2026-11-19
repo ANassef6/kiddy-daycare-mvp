@@ -389,6 +389,9 @@ describe("rowToBilling date shapes", () => {
     expect(billing.firstCycleStart).toBe("2026-10-01");
     expect(billing.foundingStartedAt).toBe("2026-10-01");
     expect(billing.pilotEndDate).toBe("");
+  });
+});
+
 describe("v3 payment grace and read-only", () => {
   it("stays writable inside the 7-day grace, then becomes read-only without disabling the account", async () => {
     const iid = await newDaycare("monthly", "2026-03-01");
