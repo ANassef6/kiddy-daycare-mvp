@@ -95,3 +95,25 @@ in `lib/sqlite-schema.ts`; default `1`) is the flag. It is enforced in code:
 - a theme preset (ocean/sunset/forest/midnight) mapped onto the existing
   `primary_color` / `accent_color` / `font` tokens; "custom" takes typed
   values instead. No separate theme system and no new tables.
+
+## Resetting an account password from `/platform`
+
+KID-2442 adds **Reset a password** to the platform surface
+(`/platform/password-reset`):
+
+1. The operator types the account email and presses **Find account**. The
+   lookup is read-only and shows the account name, email, role and
+   daycare(s).
+2. Pressing **Reset to default password** re-checks the operator server-side,
+   rewrites the app-side hash to the standing default (`12345678`) and sets
+   `must_change_password = 1` in one statement, so the KID-2439 login gate
+   forces a change at the next sign-in.
+3. A linked Supabase GoTrue identity is updated through the service-role
+   admin channel **before** the app-side write; if that update cannot be made,
+   the reset is refused rather than leaving the old credential valid.
+4. Each reset writes one `audit_event` row (`entity_type = account`) with the
+   actor, target account, role, assigned centre(s) and the forced-change flag.
+
+An unknown email shows the localized "no account" message and writes nothing.
+The page and the action both enforce the operator allowlist from
+`PLATFORM_ADMIN_EMAIL`; no daycare role can reach either.

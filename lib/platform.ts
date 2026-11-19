@@ -49,6 +49,16 @@ export function isPlatformOperatorRole(role: string): boolean {
   return role === PLATFORM_OPERATOR_ROLE;
 }
 
+/** The whole /platform guard in one place: the internal sentinel session AND
+ *  the env allowlist. Both must pass (KID-199.4r); removing an email from the
+ *  allowlist cuts access even for an existing session. */
+export function isPlatformOperator(
+  role: string | null | undefined,
+  email: string | null | undefined
+): boolean {
+  return isPlatformOperatorRole(String(role ?? "")) && isPlatformOperatorEmail(email);
+}
+
 // KID-199.4r: the "choose theme" presets for the create-daycare form. Each
 // preset maps onto the existing branding tokens the daycare already stores
 // (institute.primary_color / accent_color / font), so it flows through the

@@ -49,6 +49,9 @@ const VALID_TYPES = new Set([
   "invoice",
   "billing_settings",
   "institute_settings",
+  // KID-2442: platform-operator password resets are attributed to the target
+  // account, so the trail can be filtered by that record type.
+  "account",
 ]);
 
 function slugFor(entityType: string, entityId: string | null): string {
