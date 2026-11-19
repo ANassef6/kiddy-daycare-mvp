@@ -487,9 +487,11 @@ export async function updatePricingSettings(
   return next;
 }
 
+/** KID-2435 v3: the founding cap counts BRANCH subscriptions, not daycares
+ *  (billing rule 12). A four-branch group uses four of the ten slots. */
 export async function countFoundingClients(): Promise<number> {
   const row = await queryGet(
-    "SELECT COUNT(*) AS n FROM daycare_billing WHERE founding_client = 1"
+    "SELECT COUNT(*) AS n FROM branch_billing WHERE founding_client = 1"
   );
   return Number(row?.n ?? 0);
 }

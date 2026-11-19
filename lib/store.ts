@@ -112,6 +112,13 @@ export async function createBranch(
     name,
     address ?? null
   );
+  // KID-2435 v3: every branch is its own subscription. Create its
+  // branch_billing row in the same step (the group defaults seed it), and — if
+  // the group already has the founding status and a slot is free — enroll the
+  // new branch in its own 12-month founding term.
+  const { ensureBranchBillingRows, enrollBranchInFounding } = await import("./billing");
+  await ensureBranchBillingRows();
+  await enrollBranchInFounding(id);
   return (await queryGet("SELECT * FROM branch WHERE id = ?", id))!;
 }
 

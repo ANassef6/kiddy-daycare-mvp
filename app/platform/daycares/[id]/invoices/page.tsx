@@ -96,6 +96,7 @@ export default async function DaycareInvoicesPage(
                 <th className="label" style={{ textAlign: dir === "rtl" ? "right" : "left", padding: 8 }}>
                   {tr(dict, "platform.invoiceCycle")}
                 </th>
+                <th className="label" style={{ padding: 8 }}>{tr(dict, "platform.invoiceBranch")}</th>
                 <th className="label" style={{ padding: 8 }}>{tr(dict, "platform.invoicePeak")}</th>
                 <th className="label" style={{ padding: 8 }}>{tr(dict, "platform.invoiceBillable")}</th>
                 <th className="label" style={{ padding: 8 }}>{tr(dict, "platform.invoiceFlat")}</th>
@@ -127,6 +128,9 @@ export default async function DaycareInvoicesPage(
                           : ""}
                       </div>
                     ) : null}
+                  </td>
+                  <td className="small" style={{ padding: 8 }}>
+                    {inv.branchName || "—"}
                   </td>
                   <td className="small" style={{ padding: 8 }}>
                     {inv.maxActiveChildren}
