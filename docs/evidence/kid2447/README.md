@@ -77,3 +77,46 @@ that is the supported path.
 - `npm run db:verify-migrations` — all checks passed (`verify-migrations.log`).
 - `next lint` on the touched files — no new warnings (one pre-existing
   `<img>` warning in the child page).
+
+## Production cut
+
+Founder sign-off: the staging confirmation card was accepted
+2026-11-19T23:22Z (staging test steps above). This cut carries the same
+behavior that was tested on staging.
+
+| Item | Value |
+|---|---|
+| Pull request | #68 `kid2447-prod-cut` → `master` |
+| Merge commit | `c824633` (2026-11-19T23:41:05Z) |
+| Vercel deployment | production deployment for `c824633` — READY (2026-11-19T23:42:14Z) |
+| Deployment URL | https://kiddy-4vnnzeu7g-kiddy2.vercel.app |
+| Production aliases | `kiddyapp.net`, `*.kiddyapp.net`, `sunshine.kiddyapp.net` |
+
+The cut branch was rebased on `f802cab` (the current `master`, which already
+contains KID-2448's bus cycle). Conflicts were resolved by combining both
+features: the sweep keeps KID-2448's "child is on the bus" skip and KID-2447's
+close-instant cutoff, and the attendance roster shows both the `bus` and
+`auto_end_of_day` markers. KID-2447's migration shares the nullable
+`check_in.source` column with KID-2448's `0051_kid2448_bus_cycle.sql`; both are
+idempotent.
+
+`vercel.json` is deliberately unchanged in production: Hobby projects reject
+sub-daily cron jobs, so the per-minute schedule stays out. The sweep still runs
+on attendance/dashboard page loads, and the `CRON_SECRET`-protected
+`GET /api/attendance/sweep` route is available for Pro Cron Jobs or an external
+scheduler. Closing-time check-outs therefore land on the next attendance or
+dashboard view rather than from a built-in timer.
+
+Post-deploy smoke check (anonymous, after the aliases moved):
+
+| URL | Result |
+|---|---|
+| `https://kiddyapp.net/api/attendance/sweep` (no secret) | `401 {"ok":false}` |
+| `https://kiddyapp.net/login` | `200` |
+| `https://kiddyapp.net/portal/attendance` (anonymous) | `307` → `/login` |
+| `https://kiddy-4vnnzeu7g-kiddy2.vercel.app/api/attendance/sweep` (no secret) | `401 {"ok":false}` |
+
+Gates on the cut branch (rebased on `f802cab`): `tsc --noEmit` 0;
+KID-2447 + working-hours + KID-2448 suites 39/39; migration verifier all checks
+passed; `next build` green; `next lint` on the touched files with only the
+pre-existing `<img>` warning.
