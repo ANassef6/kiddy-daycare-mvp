@@ -214,3 +214,27 @@ KID-2434, KID-244, KID-245, KID-246, KID-746 and KID-850 suites pass
 (115/115). One KID-245 run recorded the known 10s hook timeout under load;
 the file alone passes 27/27. Nothing deployed; production and staging are
 untouched.
+
+## Staging attempt blocked by the Vercel pipeline (19 Nov 2026)
+
+The three v3 commits (`ff76fe4`, `c6dcaff`, `efe0cd4`) were cherry-picked onto
+`staging` after resolving the date-shape conflict, and pushed as
+`1330b0c..ffa7581`. The staging tree was verified before the push:
+
+| Check | Result |
+| --- | --- |
+| `npx tsc --noEmit` | pass |
+| `npm run db:verify-migrations` | all pass (0050 on PGlite Postgres) |
+| KID-2435 branch + engine, KID-244, KID-245, KID-2434, KID-246 | 93/93 pass |
+| `next build` with a test `SESSION_SECRET` | pass |
+
+The Vercel GitHub statuses for `ffa7581` report `failure` for
+`kiddy-staging` (`dpl_7FrZSZBgsTAtftf4ZASZCzd3bppK`) and `kiddy`
+(`dpl_BkEE8BYFneqZn5svwXXodZeCWjHE`). The same failure is already present on
+the previous `staging` tip `1330b0c` (KID-2447), so it predates this change.
+`https://kiddy-staging-orcin.vercel.app` still serves `e7e8241` (the v2
+build): a signed-in visit to `/platform/daycares/[id]/billing` shows the old
+single-daycare form, not the per-branch cards. No deployment log is reachable
+from this run (no Vercel token), so the founder test cannot start until the
+pipeline is fixed. Production is unchanged; the failed production build never
+promoted.
