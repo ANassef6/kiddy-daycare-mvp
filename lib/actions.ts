@@ -116,9 +116,14 @@ import { syncChatwootContactForAccount } from "@/lib/chatwoot-contacts";
 import {
   PLATFORM_OPERATOR_ROLE,
   defaultThemeTokens,
-  isPlatformOperatorEmail,
+  isPlatformOperator,
   isPlatformOperatorRole,
 } from "@/lib/platform";
+import {
+  DEFAULT_ACCOUNT_PASSWORD,
+  resetAccountPasswordToDefault,
+  syncGoTruePassword,
+} from "@/lib/platform-accounts";
 import { resolveTenantInstituteId, loginHostGate } from "@/lib/tenant";
 import { mintOperatorEntryGrant, operatorEntryUrl } from "@/lib/operator-view";
 import {
@@ -782,10 +787,40 @@ async function requirePlatformOperator(): Promise<SessionCookie> {
     if (err instanceof Error && err.message === "not signed in") redirect("/login");
     throw err;
   }
-  if (!isPlatformOperatorRole(me.role) || !isPlatformOperatorEmail(me.email)) {
+  if (!isPlatformOperator(me.role, me.email)) {
     redirect("/login");
   }
   return me;
+}
+
+// KID-2442: the platform operator's one-click password reset. The page has
+// already performed the lookup + confirmation; this action re-checks the
+// operator, requires the explicit-confirm marker, re-reads the account (never
+// trusts the hidden id alone), synchronises GoTrue before touching the app
+// hash, then writes the default password + forced-change flag and the audit
+// row in one helper call. An unknown account redirects to the same friendly
+// "no account" state as a failed lookup, with no partial change.
+export async function resetAccountPasswordAction(formData: FormData) {
+  const operator = await requirePlatformOperator();
+  const accountId = String(formData.get("accountId") ?? "").trim();
+  const confirmed = String(formData.get("confirm") ?? "") === "1";
+  if (!confirmed) redirect("/platform/password-reset?error=confirm");
+  if (!accountId) redirect("/platform/password-reset?error=unknown");
+
+  const account = await getAccount(accountId);
+  if (!account) redirect("/platform/password-reset?error=unknown");
+
+  // GoTrue is the preferred login path, so a stale GoTrue password would keep
+  // the old credential valid. If the linked identity cannot be updated, refuse
+  // before the app-side write (no half-reset).
+  const gotrue = await syncGoTruePassword(account, DEFAULT_ACCOUNT_PASSWORD);
+  if (!gotrue.ok) redirect("/platform/password-reset?error=failed");
+
+  const reset = await resetAccountPasswordToDefault(accountId, operator.accountId);
+  if (!reset) redirect("/platform/password-reset?error=unknown");
+
+  revalidatePath("/platform");
+  redirect(`/platform/password-reset?reset=1&email=${encodeURIComponent(reset.email)}`);
 }
 
 /** Validate the /platform hex color fields without trusting the form: accept

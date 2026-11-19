@@ -127,6 +127,12 @@ export default async function PlatformDaycaresPage(
     <div dir={dir}>
       <h1 className="title">{tr(dict, "platform.title")}</h1>
       <p className="subtitle">{tr(dict, "platform.subtitle")}</p>
+      <p className="small">
+        {/* KID-2442: the self-service password reset for any account. */}
+        <a href="/platform/password-reset" style={{ fontWeight: 700 }}>
+          {tr(dict, "platform.passwordResetLink")} →
+        </a>
+      </p>
 
       {created && (
         <div className="card mb-4 banner-success">{tr(dict, "platform.createdMessage")}</div>
