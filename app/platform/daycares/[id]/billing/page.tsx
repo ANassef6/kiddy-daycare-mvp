@@ -11,8 +11,8 @@ import { redirect } from "next/navigation";
 import { requireSession } from "@/lib/require";
 import { isPlatformOperatorEmail, isPlatformOperatorRole } from "@/lib/platform";
 import { getInstitute } from "@/lib/store";
-import { enrolledChildCount, enrolledChildCountForBranch, listBranchBillings } from "@/lib/billing";
-import { BILLING_PLANS, BILLING_DEFAULTS, getDaycareBilling, type DaycareBilling } from "@/lib/billing";
+import { enrolledChildCountForBranch, listBranchBillings } from "@/lib/billing";
+import { BILLING_DEFAULTS } from "@/lib/billing";
 import {
   foundingYearOneForBand,
   getPricingBands,
@@ -35,6 +35,8 @@ import {
   toolInsights,
 } from "@/lib/tool-usage";
 import { InsightsView } from "./insights-view";
+import { BillingPlanFields } from "./billing-plan-fields";
+import { PricingReference } from "../../../pricing-reference";
 
 export const dynamic = "force-dynamic";
 
@@ -42,6 +44,7 @@ export const dynamic = "force-dynamic";
  *  back with. */
 const ERRORS: Record<string, string> = {
   "billing-plan-invalid": "Choose one of: demo or monthly.",
+  "billing-band-invalid": "Choose one of the pricing bands.",
   "billing-monthly_rate_egp-invalid": "The monthly rate must be a number of at least zero.",
   "billing-per_child_rate_egp-invalid": "The incremental child rate must be a number of at least zero.",
   "billing-free_child_threshold-invalid": "The free-child threshold must be a number of at least zero.",
@@ -77,8 +80,6 @@ export default async function DaycareBillingPage(
   const instituteId = String(params.id ?? "");
   const inst = await getInstitute(instituteId);
   if (!inst) redirect("/platform?error=missing-id");
-  const billing: DaycareBilling = await getDaycareBilling(instituteId);
-  const childCount = await enrolledChildCount(instituteId);
   // KID-2435 v3: the branch is the subscription record. The page lists one
   // billing card per branch; each card bills that branch's own roster.
   const branches = await listBranchBillings(instituteId);
@@ -90,13 +91,6 @@ export default async function DaycareBillingPage(
     );
   }
   const [bands, pricingSettings] = await Promise.all([getPricingBands(), getPricingSettings()]);
-  const band = pricingBandForChildCount(childCount, bands);
-  const standardMonthly = monthlyForBand(band, childCount);
-  const foundingMonthly = foundingYearOneForBand(band);
-  const pilotCredit = pilotCreditAmount(
-    pricingSettings,
-    pilotCreditEligible(billing.pilotEndDate, billing.foundingStartedAt, pricingSettings.foundingPilotCreditDays)
-  );
   const saved = searchParams.saved === "1";
   const error = searchParams.error ? (ERRORS[searchParams.error] ?? ERRORS.unknown) : "";
 
@@ -222,45 +216,10 @@ export default async function DaycareBillingPage(
         </a>
       </p>
 
-      {/* Who was just reached: the gear on /platform; additionally show the
-          exact plan in use and what the current settings bill for this
-          daycare's current roster (demo always bills 0). */}
-      <div className="card mb-4">
-        <span className="small muted">
-          {tr(dict, "platform.billingCurrentPlan")}: <strong>{billing.plan}</strong>
-        </span>
-        <span className="small muted" style={{ marginLeft: 16 }}>
-          {tr(dict, "platform.billingCyclePreview")}:{" "}
-          <strong>
-            {billing.plan === "demo" ? 0 : standardMonthly} EGP
-          </strong>
-        </span>
-        <span className="small muted" style={{ marginLeft: 16 }}>
-          {tr(dict, "platform.billingEnrolledChildren")}: <strong>{childCount}</strong>
-        </span>
-      </div>
-
-      <div className="card mb-4">
-        <span className="small muted">
-          {tr(dict, "platform.billingV2Band")}:{" "}
-          <strong>
-            {band.name} ({band.minChildren}-{band.maxChildren ?? "∞"})
-          </strong>
-        </span>
-        <span className="small muted" style={{ marginLeft: 16 }}>
-          {tr(dict, "platform.billingV2StandardMonthly")}: <strong>{standardMonthly} EGP</strong>
-        </span>
-        {billing.foundingClient && foundingMonthly !== null ? (
-          <span className="small muted" style={{ marginLeft: 16 }}>
-            {tr(dict, "platform.billingV2FoundingYearOne")}: <strong>{foundingMonthly} EGP</strong>
-          </span>
-        ) : null}
-        {pilotCredit > 0 ? (
-          <span className="small muted" style={{ marginLeft: 16 }}>
-            {tr(dict, "platform.billingV2PilotCredit")}: <strong>{pilotCredit} EGP</strong>
-          </span>
-        ) : null}
-      </div>
+      {/* KID-2435: the reference first — bands, child counts and prices — then
+          one compact card per branch with the plan drop-down (and the band
+          drop-down when monthly is chosen). */}
+      <PricingReference bands={bands} dict={dict} />
 
       {saved && <div className="card mb-4 banner-success">{tr(dict, "platform.billingSaved")}</div>}
       {errorText ? <div className="card mb-4 banner-error">{errorText}</div> : null}
@@ -276,7 +235,12 @@ export default async function DaycareBillingPage(
       </div>
       {branches.map((branch, index) => {
         const branchChildren = branchCounts.get(branch.branchId) ?? 0;
-        const branchBand = pricingBandForChildCount(branchChildren, bands);
+        // KID-2435: a chosen band pins the preview too, so the card never
+        // shows a different band from the one the engine will bill.
+        const branchBand =
+          (branch.bandKey
+            ? bands.find((b) => b.key === branch.bandKey)
+            : undefined) ?? pricingBandForChildCount(branchChildren, bands);
         const branchStandard = monthlyForBand(branchBand, branchChildren);
         const branchFounding = foundingYearOneForBand(branchBand);
         const branchPilot = pilotCreditAmount(
@@ -330,17 +294,13 @@ export default async function DaycareBillingPage(
                 </div>
               ) : null}
             </div>
+            <BillingPlanFields
+              dict={dict}
+              bands={bands}
+              defaultPlan={branch.plan}
+              defaultBandKey={branch.bandKey}
+            />
             <div className="row">
-              <div className="col field">
-                <label className="label">{tr(dict, "platform.billingPlan")}</label>
-                <select className="input" name="plan" defaultValue={branch.plan}>
-                  {BILLING_PLANS.map((p) => (
-                    <option key={p} value={p}>
-                      {tr(dict, `platform.billingPlan${p[0]!.toUpperCase()}${p.slice(1)}`)}
-                    </option>
-                  ))}
-                </select>
-              </div>
               <div className="col field">
                 <label className="label">{tr(dict, "platform.billingFirstCycle")}</label>
                 <input

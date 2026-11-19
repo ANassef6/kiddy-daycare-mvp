@@ -815,6 +815,7 @@ export async function createDaycare(data: {
    *  without one. KID-2435 v3 removed the annual product: demo or monthly. */
   billing?: {
     plan?: BillingPlan;
+    bandKey?: string;
     monthlyRateEgp?: number;
     perChildRateEgp?: number;
     freeChildThreshold?: number;
@@ -875,6 +876,7 @@ export async function createDaycare(data: {
   const createdAt = institute.created_at ? new Date(String(institute.created_at)) : new Date();
   await updateDaycareBilling(instituteId, {
     plan: data.billing?.plan ?? "demo",
+    bandKey: data.billing?.bandKey,
     monthlyRateEgp: data.billing?.monthlyRateEgp,
     perChildRateEgp: data.billing?.perChildRateEgp,
     freeChildThreshold: data.billing?.freeChildThreshold,

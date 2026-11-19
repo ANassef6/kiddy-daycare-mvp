@@ -1067,6 +1067,7 @@ export async function createDaycareAction(formData: FormData) {
 // pricing_band.
 function billingFormNumbers(formData: FormData): {
   plan: "demo" | "monthly";
+  bandKey?: string;
   monthlyRateEgp?: number;
   perChildRateEgp?: number;
   freeChildThreshold?: number;
@@ -1081,6 +1082,9 @@ function billingFormNumbers(formData: FormData): {
   };
   return {
     plan,
+    // KID-2435: the band chosen with the monthly plan. "" keeps automatic
+    // cycle-peak selection; the store rejects an unknown key.
+    bandKey: String(formData.get("billingBand") ?? "").trim(),
     monthlyRateEgp: num("billingMonthlyRate", 500),
     perChildRateEgp: num("billingPerChildRate", 50),
     freeChildThreshold: num("billingFreeThreshold", 10),
@@ -1115,11 +1119,14 @@ export async function updateDaycareBillingAction(formData: FormData) {
       pilotEndDate: String(formData.get("pilotEndDate") ?? "").trim(),
       // KID-2435 v3: the last day of the paid month; empty clears it.
       cancelAt: String(formData.get("cancelAt") ?? "").trim(),
+      // KID-2435: "" is automatic band selection; the store validates a key.
+      bandKey: String(formData.get("bandKey") ?? "").trim(),
     });
   } catch (err) {
     const reason = String((err as Error)?.message ?? "");
     const known = [
       "billing-plan-invalid",
+      "billing-band-invalid",
       "billing-monthly_rate_egp-invalid",
       "billing-per_child_rate_egp-invalid",
       "billing-free_child_threshold-invalid",
@@ -1178,11 +1185,14 @@ export async function updateBranchBillingAction(formData: FormData) {
       foundingStartedAt: String(formData.get("foundingStartedAt") ?? "").trim(),
       pilotEndDate: String(formData.get("pilotEndDate") ?? "").trim(),
       cancelAt: String(formData.get("cancelAt") ?? "").trim(),
+      // KID-2435: "" is automatic band selection; the store validates a key.
+      bandKey: String(formData.get("bandKey") ?? "").trim(),
     });
   } catch (err) {
     const reason = String((err as Error)?.message ?? "");
     const known = [
       "billing-plan-invalid",
+      "billing-band-invalid",
       "billing-monthly_rate_egp-invalid",
       "billing-per_child_rate_egp-invalid",
       "billing-free_child_threshold-invalid",
@@ -1271,7 +1281,8 @@ export async function updatePricingBandAction(formData: FormData) {
         String(formData.get("foundingMonthlyEgp") ?? "").trim() === ""
           ? null
           : pricingFormNumber(formData, "foundingMonthlyEgp"),
-      busTrackingIncluded: String(formData.get("busTrackingIncluded") ?? "") === "1",
+      // KID-2435: bus tracking is always included; the tick is gone.
+      busTrackingIncluded: true,
     });
   } catch (err) {
     const reason = String((err as Error)?.message ?? "");
@@ -1307,8 +1318,9 @@ export async function updatePricingSettingsAction(formData: FormData) {
       demoTrialDays: number("demoTrialDays"),
       demoRoomLimit: number("demoRoomLimit"),
       demoChildLimit: number("demoChildLimit"),
-      demoBrandedApp: checked("demoBrandedApp"),
-      demoBusTracking: checked("demoBusTracking"),
+      // KID-2435: branded app and bus tracking are always on for demo.
+      demoBrandedApp: true,
+      demoBusTracking: true,
       foundingEnabled: checked("foundingEnabled"),
       foundingCap: number("foundingCap"),
       foundingOfferDays: number("foundingOfferDays"),

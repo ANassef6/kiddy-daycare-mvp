@@ -128,6 +128,33 @@ describe("Noor's band-resolution vectors (configured values, not code constants)
   });
 });
 
+describe("operator-selected band", () => {
+  it("pins the subscription to the chosen band instead of the cycle peak", () => {
+    const pinned = priceFor(5, { billing: { bandKey: "standard" } });
+    expect(pinned.band.key).toBe("standard");
+    expect(pinned.grossAmount).toBe(1400);
+    // Empty keeps the automatic cycle-peak rule.
+    expect(priceFor(5).band.key).toBe("seed");
+  });
+
+  it("rejects a band key that is not configured", async () => {
+    const iid = await newDaycare("monthly", "2026-01-01");
+    await expect(updateDaycareBilling(iid, { bandKey: "nope" })).rejects.toThrow(
+      "billing-band-invalid"
+    );
+  });
+
+  it("persists the chosen band on the branch subscription", async () => {
+    const iid = await newDaycare("monthly", "2026-01-01");
+    await updateDaycareBilling(iid, { bandKey: "plus" });
+    await seedChildren(iid, 5, "2025-12-01 09:00:00");
+    expect(await generateDueInvoices(utcDate(2026, 2, 2))).toBe(1);
+    const inv = (await listInvoices(iid))[0]!;
+    expect(inv.bandKey).toBe("plus");
+    expect(inv.totalAmount).toBe(1900);
+  });
+});
+
 describe("the invoice engine reads the operator configuration", () => {
   it("bills the configured band amount, not the legacy per-daycare settings", async () => {
     const iid = await newDaycare("monthly", "2026-01-01");

@@ -10,6 +10,7 @@ import {
 import { updatePricingBandAction, updatePricingSettingsAction } from "@/lib/actions";
 import { i18nForAccount } from "@/lib/i18n-session";
 import { tr } from "@/lib/i18n";
+import { PricingReference } from "../pricing-reference";
 
 export const dynamic = "force-dynamic";
 
@@ -57,7 +58,14 @@ export default async function PlatformPricingPage(props: {
       <p className="small muted">{tr(dict, "platform.pricingBandHint")}</p>
       <p className="small muted">{tr(dict, "platform.pricingMonthlyOnly")}</p>
 
-      <div className="card mb-4">
+      {/* KID-2435: the reference first — bands, child counts and prices. The
+          editable forms stay below, collapsed so the page is not a long list. */}
+      <PricingReference bands={bands} dict={dict} />
+
+      <details className="card mb-4">
+        <summary className="small" style={{ cursor: "pointer", fontWeight: 700 }}>
+          {tr(dict, "platform.pricingEditBands")}
+        </summary>
         {bands.map((band) => (
           <form key={band.key} action={updatePricingBandAction} className="mb-4">
             <input type="hidden" name="key" value={band.key} />
@@ -97,8 +105,6 @@ export default async function PlatformPricingPage(props: {
                   defaultValue={band.perChildOverageEgp}
                 />
               </div>
-            </div>
-            <div className="row">
               <div className="col field">
                 <label className="label">{tr(dict, "platform.pricingBandFoundingMonthly")}</label>
                 <input
@@ -109,20 +115,13 @@ export default async function PlatformPricingPage(props: {
                   defaultValue={band.foundingMonthlyEgp ?? ""}
                 />
               </div>
-              <div className="col field">
-                <label className="label">{tr(dict, "platform.pricingBandBus")}</label>
-                <label className="small">
-                  <input type="checkbox" name="busTrackingIncluded" value="1" defaultChecked={band.busTrackingIncluded} />{" "}
-                  {tr(dict, "platform.pricingBandBusIncluded")}
-                </label>
-              </div>
             </div>
             <button className="btn btn-primary" type="submit">
               {tr(dict, "platform.pricingBandSave")}
             </button>
           </form>
         ))}
-      </div>
+      </details>
 
       <h2 className="title">{tr(dict, "platform.pricingDemoTitle")}</h2>
       <p className="small muted">{tr(dict, "platform.pricingDemoHint")}</p>
@@ -149,22 +148,7 @@ export default async function PlatformPricingPage(props: {
             <input className="input" name="demoChildLimit" type="number" min={1} defaultValue={settings.demoChildLimit} />
           </div>
         </div>
-        <div className="row">
-          <div className="col field">
-            <label className="label">{tr(dict, "platform.pricingDemoBrandedApp")}</label>
-            <label className="small">
-              <input type="checkbox" name="demoBrandedApp" value="1" defaultChecked={settings.demoBrandedApp} />{" "}
-              {tr(dict, "platform.pricingAllowed")}
-            </label>
-          </div>
-          <div className="col field">
-            <label className="label">{tr(dict, "platform.pricingDemoBus")}</label>
-            <label className="small">
-              <input type="checkbox" name="demoBusTracking" value="1" defaultChecked={settings.demoBusTracking} />{" "}
-              {tr(dict, "platform.pricingAllowed")}
-            </label>
-          </div>
-        </div>
+        <p className="small muted">{tr(dict, "platform.pricingAlwaysOn")}</p>
 
         <h2 className="title">{tr(dict, "platform.pricingFoundingTitle")}</h2>
         <p className="small muted">{tr(dict, "platform.pricingFoundingHint")}</p>
