@@ -883,9 +883,20 @@ export async function createDaycare(data: {
   };
 }
 
-/** KID-199.3: enable/disable a daycare (platform operator action, KID-199.4 UI). */
-export async function setInstituteActive(instituteId: string, active: boolean): Promise<void> {
-  await queryRun("UPDATE institute SET active = ? WHERE id = ?", active ? 1 : 0, instituteId);
+/** KID-199.3: enable/disable a daycare (platform operator action, KID-199.4 UI).
+ *  KID-2435 v3: a disable records WHY. Only a manual disable blocks login now;
+ *  billing produces read-only access instead (lib/billing isInstituteReadOnly). */
+export async function setInstituteActive(
+  instituteId: string,
+  active: boolean,
+  reason: "manual" | "billing" | null = active ? null : "manual"
+): Promise<void> {
+  await queryRun(
+    "UPDATE institute SET active = ?, disabled_reason = ? WHERE id = ?",
+    active ? 1 : 0,
+    active ? null : reason,
+    instituteId
+  );
 }
 
 /** KID-152: read-only tenant check for the deploy gate — the measurement QA

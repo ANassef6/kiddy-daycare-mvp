@@ -22,6 +22,7 @@ import {
   generateDueInvoices,
   getInvoice,
   cyclePricing,
+  isInstituteReadOnly,
   listInvoices,
   markInvoicePaid,
   newestEndedCycleMonth,
@@ -258,13 +259,16 @@ describe("invoice generation", () => {
     const inGrace = await runBillingSweep(utcDate(2026, 4, 6));
     expect(inGrace.generated).toBe(1);
     expect((await listInvoices(iid))[0]!.status).toBe("pending");
-    expect(inGrace.disabled).toBe(0);
+    expect(inGrace.overdue).toBe(0);
     expect(Number((await store.getInstitute(iid))!.active)).toBe(1);
+    expect(await isInstituteReadOnly(iid)).toBe(false);
 
     const afterGrace = await runBillingSweep(utcDate(2026, 4, 13));
-    expect(afterGrace.disabled).toBe(1);
+    expect(afterGrace.overdue).toBe(1);
     expect((await listInvoices(iid))[0]!.status).toBe("overdue");
-    expect(Number((await store.getInstitute(iid))!.active)).toBe(0);
+    // KID-2435 v3: read-only, never a hard disable. Data stays available.
+    expect(Number((await store.getInstitute(iid))!.active)).toBe(1);
+    expect(await isInstituteReadOnly(iid)).toBe(true);
   });
 
   it("the lazy bootstrap actually runs the sweep (lib/bootstrap.ts wiring)", async () => {
@@ -287,28 +291,31 @@ describe("invoice generation", () => {
   });
 });
 
-describe("overdue enforcement and re-enable", () => {
-  it("an unpaid invoice past its due date becomes overdue and disables the daycare", async () => {
+describe("overdue enforcement and read-only recovery", () => {
+  it("an unpaid invoice past its due date becomes overdue and makes the account read-only", async () => {
     const iid = await newMonthlyDaycare("2026-03-01");
     await seedChildren(iid, 5, "2026-02-01 09:00:00");
     await generateDueInvoices(utcDate(2026, 4, 1));
     expect(Number((await store.getInstitute(iid))!.active)).toBe(1);
+    expect(await isInstituteReadOnly(iid)).toBe(false);
 
-    const disabled = await runBillingSweep(utcDate(2026, 4, 13)).then((r) => r.disabled);
-    expect(disabled).toBe(1);
+    const overdue = await runBillingSweep(utcDate(2026, 4, 13)).then((r) => r.overdue);
+    expect(overdue).toBe(1);
     const inv = (await listInvoices(iid))[0]!;
     expect(inv.status).toBe("overdue");
-    expect(Number((await store.getInstitute(iid))!.active)).toBe(0);
+    // KID-2435 v3: read-only, not a disabled account. Data is never deleted.
+    expect(Number((await store.getInstitute(iid))!.active)).toBe(1);
+    expect(await isInstituteReadOnly(iid)).toBe(true);
     // Idempotent: a re-run (next warm instance) changes nothing.
-    expect((await runBillingSweep(utcDate(2026, 4, 14))).disabled).toBe(0);
-    expect(Number((await store.getInstitute(iid))!.active)).toBe(0);
+    expect((await runBillingSweep(utcDate(2026, 4, 14))).overdue).toBe(0);
+    expect(await isInstituteReadOnly(iid)).toBe(true);
   });
 
-  it("marking the invoice paid flips the daycare back to active", async () => {
+  it("marking the invoice paid lifts read-only without touching active", async () => {
     const iid = await newMonthlyDaycare("2026-03-01");
     await seedChildren(iid, 5, "2026-02-01 09:00:00");
     await runBillingSweep(utcDate(2026, 4, 13));
-    expect(Number((await store.getInstitute(iid))!.active)).toBe(0);
+    expect(await isInstituteReadOnly(iid)).toBe(true);
     const inv = (await listInvoices(iid))[0]!;
 
     await markInvoicePaid(inv.id, { paidAt: "2026-04-14T10:00:00.000Z" });
@@ -316,27 +323,28 @@ describe("overdue enforcement and re-enable", () => {
     expect(paid!.status).toBe("paid");
     expect(paid!.paidAt.slice(0, 10)).toBe("2026-04-14");
     expect(Number((await store.getInstitute(iid))!.active)).toBe(1);
+    expect(await isInstituteReadOnly(iid)).toBe(false);
 
     // Idempotent: paying twice is a no-op, never an error.
     await markInvoicePaid(inv.id);
     expect((await getInvoice(inv.id))!.status).toBe("paid");
   });
 
-  it("the daycare stays disabled while any OTHER overdue invoice remains", async () => {
+  it("the account stays read-only while any OTHER overdue invoice remains", async () => {
     const iid = await newMonthlyDaycare("2026-02-01");
     await seedChildren(iid, 5, "2026-01-01 09:00:00");
     await generateDueInvoices(utcDate(2026, 4, 1)); // cycles 2026-02 + 2026-03
     await runBillingSweep(utcDate(2026, 4, 13));
-    expect(Number((await store.getInstitute(iid))!.active)).toBe(0);
+    expect(await isInstituteReadOnly(iid)).toBe(true);
 
     const invoices = await listInvoices(iid);
     expect(invoices).toHaveLength(2);
-    // Paying one of two overdue invoices does not restore access…
+    // Paying one of two overdue invoices does not restore writes…
     await markInvoicePaid(invoices[0]!.id);
-    expect(Number((await store.getInstitute(iid))!.active)).toBe(0);
+    expect(await isInstituteReadOnly(iid)).toBe(true);
     // …paying the last one does.
     await markInvoicePaid(invoices[1]!.id);
-    expect(Number((await store.getInstitute(iid))!.active)).toBe(1);
+    expect(await isInstituteReadOnly(iid)).toBe(false);
   });
 });
 
@@ -420,11 +428,11 @@ describe("the login gate distinguishes billing from manual disable (EN + AR)", (
     expect(res.error).toContain(PLATFORM_CONTACT_EMAIL);
   });
 
-  it("paying the overdue invoice restores the login (redirect, no error)", async () => {
+  it("a read-only account still signs in; paying lifts read-only", async () => {
+    // KID-2435 v3: billing no longer disables the institute. An overdue
+    // invoice makes the account read-only, so login still succeeds.
     await overdueInvoiceFor(sunshineIid);
-    await queryRun("UPDATE institute SET active = 0 WHERE id = ?", sunshineIid);
-    await markInvoicePaid("inv-kid245");
-    expect(Number((await store.getInstitute(sunshineIid))!.active)).toBe(1);
+    expect(await isInstituteReadOnly(sunshineIid)).toBe(true);
 
     let digest = "";
     try {
@@ -435,6 +443,10 @@ describe("the login gate distinguishes billing from manual disable (EN + AR)", (
     // The seeded owner lands on the portal dashboard — signed in, not blocked.
     expect(digest).toContain("NEXT_REDIRECT");
     expect(digest).toContain("/portal/dashboard");
+
+    await markInvoicePaid("inv-kid245");
+    expect(await isInstituteReadOnly(sunshineIid)).toBe(false);
+    expect(Number((await store.getInstitute(sunshineIid))!.active)).toBe(1);
   });
 
   it("isTenancyBillingBlocked reads the overdue-invoice signature, not the flag alone", async () => {
