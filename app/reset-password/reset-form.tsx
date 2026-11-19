@@ -1,9 +1,16 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { syncAppPasswordAfterResetAction } from "@/lib/actions";
+import {
+  completePasswordReset,
+  establishRecoverySession,
+  hasRecoveryCredentials,
+  parseRecoveryParams,
+  type RecoveryParams,
+} from "@/lib/password-reset";
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
 const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
@@ -15,6 +22,8 @@ export type ResetPasswordLabels = {
   checking: string;
   notConfigured: string;
   invalidLink: string;
+  expiredLink: string;
+  updateFailed: string;
   tooShort: string;
   mismatch: string;
   newPassword: string;
@@ -28,13 +37,38 @@ export type ResetPasswordLabels = {
   backToSignin: string;
 };
 
+function readRecoveryParams(): RecoveryParams {
+  if (typeof window === "undefined") {
+    return { accessToken: null, refreshToken: "", code: null };
+  }
+  return parseRecoveryParams(window.location.hash, window.location.search);
+}
+
+function clearRecoveryHash() {
+  if (typeof window === "undefined" || !window.location.hash) return;
+  window.history.replaceState(
+    window.history.state,
+    "",
+    window.location.pathname + window.location.search
+  );
+}
+
 // KID-2400: the reset flow stays client-side (Supabase JS), but every
 // visible string arrives as `labels` from the server page, which resolves
 // the kiddy_lang cookie locale.
+//
+// KID-2441: ONE client now serves both the link check and the password
+// write. Supabase's automatic URL detection (detectSessionInUrl) consumed and
+// cleared the recovery fragment between them; the submit then used a second,
+// session-less client and surfaced GoTrue's raw "Auth session missing".
+// Detection is off, the parsed values are handed to lib/password-reset, and
+// every failure resolves to a localized message.
 export default function ResetPasswordForm({ labels }: { labels: ResetPasswordLabels }) {
   const [status, setStatus] = useState<Status>("checking");
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const clientRef = useRef<SupabaseClient | null>(null);
+  const paramsRef = useRef<RecoveryParams>({ accessToken: null, refreshToken: "", code: null });
 
   useEffect(() => {
     let cancelled = false;
@@ -47,39 +81,37 @@ export default function ResetPasswordForm({ labels }: { labels: ResetPasswordLab
         return;
       }
       const supabase: SupabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-        auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: true },
+        auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
       });
+      clientRef.current = supabase;
 
-      const hash = typeof window !== "undefined" ? window.location.hash : "";
-      const params = new URLSearchParams(hash.startsWith("#") ? hash.slice(1) : hash);
-      const accessToken = params.get("access_token");
-      const refreshToken = params.get("refresh_token") ?? "";
-      const query = typeof window !== "undefined" ? new URLSearchParams(window.location.search) : new URLSearchParams();
-      const code = query.get("code");
-
-      try {
-        if (accessToken) {
-          const { error: sessionError } = await supabase.auth.setSession({
-            access_token: accessToken,
-            refresh_token: refreshToken,
-          });
-          if (sessionError) throw sessionError;
-        } else if (code) {
-          const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
-          if (exchangeError) throw exchangeError;
-        } else {
-          if (!cancelled) setStatus("no-token");
-          return;
-        }
-        if (!cancelled) setStatus("ready");
-      } catch (e) {
-        if (!cancelled) {
-          setStatus("error");
-          setMessage(e instanceof Error ? e.message : labels.invalidLink);
-        }
+      const params = readRecoveryParams();
+      paramsRef.current = params;
+      if (!hasRecoveryCredentials(params)) {
+        if (!cancelled) setStatus("no-token");
+        return;
       }
+
+      const setup = await establishRecoverySession(supabase, params);
+      if (cancelled) return;
+      if (!setup.ok) {
+        console.error(
+          "KID-2441 reset-password: recovery link could not establish a session:",
+          setup.detail ?? setup.reason
+        );
+        setStatus(setup.reason === "no-token" ? "no-token" : "error");
+        if (setup.reason !== "no-token") setMessage(labels.invalidLink);
+        return;
+      }
+      setStatus("ready");
     }
-    init();
+    init().catch((err) => {
+      console.error("KID-2441 reset-password: link check threw:", err instanceof Error ? err.message : err);
+      if (!cancelled) {
+        setStatus("error");
+        setMessage(labels.invalidLink);
+      }
+    });
     return () => {
       cancelled = true;
     };
@@ -98,34 +130,49 @@ export default function ResetPasswordForm({ labels }: { labels: ResetPasswordLab
       setError(labels.mismatch);
       return;
     }
-    const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-      auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: true },
-    });
-    const hash = window.location.hash.startsWith("#") ? window.location.hash.slice(1) : window.location.hash;
-    const params = new URLSearchParams(hash);
-    const accessToken = params.get("access_token");
-    const refreshToken = params.get("refresh_token") ?? "";
-    if (accessToken) {
-      await supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken });
-    }
-    const { error: updateError, data: updateData } = await supabase.auth.updateUser({ password });
-    if (updateError) {
-      setError(updateError.message);
+    if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+      setStatus("error");
+      setMessage(labels.notConfigured);
       return;
     }
+
+    const supabase =
+      clientRef.current ??
+      createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+        auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
+      });
+    clientRef.current = supabase;
+    const params = paramsRef.current ?? readRecoveryParams();
+
+    const result = await completePasswordReset(supabase, params, password);
+    if (!result.ok) {
+      console.error(
+        "KID-2441 reset-password: password update failed:",
+        result.reason,
+        result.detail ?? ""
+      );
+      if (result.reason === "no-token") {
+        setStatus("no-token");
+        return;
+      }
+      if (result.reason === "expired" || result.reason === "invalid") {
+        setStatus("error");
+        setMessage(result.reason === "expired" ? labels.expiredLink : labels.invalidLink);
+        return;
+      }
+      setError(labels.updateFailed);
+      return;
+    }
+
+    clearRecoveryHash();
+
     // KID-495: sign-in falls back to the app-side hash when GoTrue is
     // unavailable, so the reset must reach account.password_hash too. The
     // reset-issued access token is the proof: the server re-verifies it
     // against GoTrue and only updates the hash for the same email.
-    const email = updateData.user?.email ?? "";
-    let proofToken = accessToken ?? "";
-    if (!proofToken) {
-      const { data: sessionData } = await supabase.auth.getSession();
-      proofToken = sessionData.session?.access_token ?? "";
-    }
-    if (email && proofToken) {
+    if (result.email && result.accessToken) {
       try {
-        const syncOk = await syncAppPasswordAfterResetAction(email, password, proofToken);
+        const syncOk = await syncAppPasswordAfterResetAction(result.email, password, result.accessToken);
         if (!syncOk.ok) {
           console.error("KID-495 reset-password: app-side hash sync failed:", syncOk.reason);
         }
@@ -174,7 +221,7 @@ export default function ResetPasswordForm({ labels }: { labels: ResetPasswordLab
 
       {status === "error" && (
         <div className="card">
-          <p className="muted small">{message}</p>
+          <p className="muted small">{message ?? labels.invalidLink}</p>
           <Link className="btn btn-primary mt-3" href="/forgot-password">{labels.requestNewLink}</Link>
         </div>
       )}
