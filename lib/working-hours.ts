@@ -8,10 +8,17 @@
 // Two behaviors ride on this config:
 //   1. Early check-in is rejected ("No one can be checked-in before the
 //      working hours").
-//   2. Any child/staff still checked-in 3 hours after the closing time is
-//      auto checked-out by the system (actor = system account).
+//   2. KID-2447: every child still checked-in AT the closing time is auto
+//      checked-out by the system (actor = system account). Staff keep the
+//      historical 3-hour grace window (AUTO_CHECKOUT_GRACE_HOURS).
 
 export const AUTO_CHECKOUT_GRACE_HOURS = 3;
+
+// KID-2447: children are checked out at the END of the center's working
+// hours, with no grace. The founder reported children still showing
+// "checked in" after closing; the old child cutoff (close + 3h) left them
+// in the roster for the rest of the evening.
+export const CHILD_AUTO_CHECKOUT_GRACE_HOURS = 0;
 
 // KID-489 item 5 (KID-494): the bus safety net — a child left on the bus when
 // staff forgot the "off bus" transition is auto set off this many hours
@@ -188,9 +195,15 @@ export function checkInOpen(week: WorkingWeek, now = new Date(), timeZone?: stri
   return { allowed: true };
 }
 
-// Moment 3 hours after today's closing time (the auto-check-out cutoff), or
-// undefined when today has no configured close time.
-export function closeCutoff(week: WorkingWeek, now = new Date(), timeZone?: string): Date | undefined {
+// Moment N hours after today's closing time, or undefined when today has no
+// configured close time. Shared by the child (N = 0), staff (N = 3) and bus
+// (N = 2) cutoffs so every rule projects the same center-local wall clock.
+function graceCutoff(
+  week: WorkingWeek,
+  now: Date,
+  timeZone: string | undefined,
+  graceHours: number
+): Date | undefined {
   if (!workingHoursConfigured(week)) return undefined;
   const key = timeZone ? String(zonedWeekday(now, timeZone)) : todayKey(now);
   const day = week[key];
@@ -199,10 +212,26 @@ export function closeCutoff(week: WorkingWeek, now = new Date(), timeZone?: stri
   if (!parsed) return undefined;
   if (!timeZone) {
     const cutoff = new Date(now);
-    cutoff.setHours(parsed.h + AUTO_CHECKOUT_GRACE_HOURS, parsed.m, 0, 0);
+    cutoff.setHours(parsed.h + graceHours, parsed.m, 0, 0);
     return cutoff;
   }
-  return cutoffInZone(now, timeZone, parsed, AUTO_CHECKOUT_GRACE_HOURS);
+  return cutoffInZone(now, timeZone, parsed, graceHours);
+}
+
+// Moment 3 hours after today's closing time (the staff auto-check-out
+// cutoff), or undefined when today has no configured close time.
+export function closeCutoff(week: WorkingWeek, now = new Date(), timeZone?: string): Date | undefined {
+  return graceCutoff(week, now, timeZone, AUTO_CHECKOUT_GRACE_HOURS);
+}
+
+// KID-2447: the exact end of today's working hours — the child auto-check-out
+// cutoff. Undefined on a closed day or when no close time is configured.
+export function endOfWorkingHoursCutoff(
+  week: WorkingWeek,
+  now = new Date(),
+  timeZone?: string
+): Date | undefined {
+  return graceCutoff(week, now, timeZone, CHILD_AUTO_CHECKOUT_GRACE_HOURS);
 }
 
 // KID-2436: close + grace in the CENTER's wall clock. The grace can cross

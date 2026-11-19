@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { resolveTenantInstituteId } from "@/lib/tenant";
 import { requireSession } from "@/lib/require";
-import {attendanceOn, runAutoCheckoutSweep, scopedRoomIds, listRooms, busStatusByChild, parentCheckInOutAllowed, centerToday } from "@/lib/store";
+import {attendanceOn, runAutoCheckoutSweep, scopedRoomIds, listRooms, busStatusByChild, parentCheckInOutAllowed, centerToday, AUTO_CHECKOUT_SOURCE } from "@/lib/store";
 import { AttendanceCheckIn } from "@/components/AttendanceCheckIn";
 import { BusStatusButtons } from "@/components/BusStatusButtons";
 import { recordToolUsage } from "@/lib/tool-usage";
@@ -25,9 +25,10 @@ export default async function PortalAttendancePage(
   const q = searchParams.q ?? "";
   const roomId = searchParams.room ?? "";
 
-  // Auto check-out sweep: anyone still checked-in 3h after closing gets
-  // checked out by the system before attendance is rendered. KID-494: the
-  // same sweep also auto-sets off-bus (close +2h) for children staff left on.
+  // KID-2447: children still checked in when working hours end are checked out
+  // by the system before attendance renders (staff keep the close +3h grace).
+  // KID-494: the same sweep also auto-sets off-bus (close +2h) for children
+  // staff left on.
   const sweep = iid ? await runAutoCheckoutSweep(iid) : undefined;
 
   // Resolve the rooms this account may see.
@@ -148,7 +149,14 @@ export default async function PortalAttendancePage(
                   : <span className="badge">—</span>}
                 </td>
                 <td className="small">{fmtTimeFor(locale, r.checked_in_at)}</td>
-                <td className="small">{fmtTimeFor(locale, r.checked_out_at)}</td>
+                <td className="small">
+                  {fmtTimeFor(locale, r.checked_out_at)}
+                  {r.checked_out_source === AUTO_CHECKOUT_SOURCE && r.checked_out_at && (
+                    <span className="badge badge-gray" style={{ marginLeft: 6 }}>
+                      {tr(dict, "attendance.autoCheckoutBadge")}
+                    </span>
+                  )}
+                </td>
                 <td>
                   <div className="row" style={{ gap: 8 }}>
                     {showParentAction && (

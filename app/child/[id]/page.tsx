@@ -109,7 +109,7 @@ export default async function ChildDetailPage(
             <p className="muted small mt-2">
               {status.checkedIn && t("attendees.checkedInAt", { time: time(status.checkedIn.recorded_at, locale) })}
               {status.checkedIn && status.checkedOut && " · "}
-              {status.checkedOut && t("attendees.checkedOutAt", { time: time(status.checkedOut.recorded_at, locale) })}
+              {status.checkedOut && t(status.checkedOut.source === "auto_end_of_day" ? "attendees.autoCheckedOutAt" : "attendees.checkedOutAt", { time: time(status.checkedOut.recorded_at, locale) })}
             </p>
           )}
         </div>
@@ -203,7 +203,7 @@ export default async function ChildDetailPage(
           <p className="muted small mt-2">
             {status.checkedIn && t("attendees.checkedInAt", { time: time(status.checkedIn.recorded_at, locale) })}
             {status.checkedIn && status.checkedOut && " · "}
-            {status.checkedOut && t("attendees.checkedOutAt", { time: time(status.checkedOut.recorded_at, locale) })}
+            {status.checkedOut && t(status.checkedOut.source === "auto_end_of_day" ? "attendees.autoCheckedOutAt" : "attendees.checkedOutAt", { time: time(status.checkedOut.recorded_at, locale) })}
           </p>
         )}
       </div>
