@@ -57,3 +57,33 @@ valid and the parent is not left in a forced-change state.
    `/change-password` before any role page.
 
 Production is untouched; the cut waits for the founder's staging sign-off.
+
+## Production cut (2026-11-19)
+
+Founder sign-off was recorded on the staging confirmation card, so the same
+password-reset batch was cut to production.
+
+| Item | Value |
+|---|---|
+| Pull request | #62 `kid2442-prod-cut` → `master` |
+| Merge commit | `aea2e88` (2026-11-19T19:02:38Z) |
+| Vercel deployment | `dpl_9xo27xkdwL1xeCM7FRLN6fswpqLr` — READY |
+| Production host | `https://sunshine.kiddyapp.net` |
+
+What the cut contains: KID-2442 (this page/action) plus KID-2441 (the
+`/reset-password` "Auth session missing" fix and localized expired-link copy,
+which rides the same staging batch). KID-2439's forced-change flow was already
+on `master` from PR #61. KID-2435 (pricing v2) and KID-2440 (staging
+environment) also live on the `staging` branch but are **not** part of this
+signed-off batch, so they were deliberately excluded from the cut.
+
+Post-deploy smoke check (anonymous):
+
+| URL | Result |
+|---|---|
+| `/platform/password-reset` | `307 → /login` (route exists and stays operator-gated) |
+| `/platform` | `307 → /login` |
+| `/reset-password` | `200` (KID-2441 page live) |
+
+`npx tsc --noEmit`, `npm run lint`, the KID-2441 + KID-2442 unit suites
+(31/31) and `npm run build` all passed on the cut branch before merge.
