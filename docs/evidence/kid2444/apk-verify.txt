@@ -1,0 +1,15 @@
+Signer #1 certificate DN: CN=Kiddy Release, OU=Mobile, O=Kiddy Daycare, L=Cairo, ST=Cairo, C=EG
+Signer #1 certificate SHA-256 digest: 8ce12814125fd35db0f662dc56d6f3d5e5a3f714bc2c2656483f30263d5001bd
+Signer #1 certificate SHA-1 digest: 8f8ad72cea9c097ceeb7594e09f96513105a4f0a
+Signer #1 certificate MD5 digest: 523e3178e035852af5e04cd4b7c94485
+
+package: name='net.kiddyapp.sunshine' versionCode='5' versionName='5.0.0' platformBuildVersionName='16' platformBuildVersionCode='36' compileSdkVersion='36' compileSdkVersionCodename='16'
+minSdkVersion:'24'
+targetSdkVersion:'36'
+uses-permission: name='android.permission.POST_NOTIFICATIONS'
+uses-permission: name='android.permission.INTERNET'
+uses-permission: name='net.kiddyapp.sunshine.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION'
+application-label:'Sunshine Daycare'
+application-label-af:'Sunshine Daycare'
+
+87729f8aa1bcf843e2e1444fb7e7a09004a1b3fd45141c938324da4c6cf25cfa  sunshine-daycare-v5-signed.apk
