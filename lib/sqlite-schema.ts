@@ -627,6 +627,29 @@ export function sqliteSchema(db: any): void {
   );
   CREATE INDEX IF NOT EXISTS idx_daycare_billing_plan ON daycare_billing (plan);
 
+  -- KID-2435 v3: mirror of supabase/migrations/0050_kid2435_branch_billing.sql
+  -- — the branch is the subscription record (pricing plan v3, billing rule
+  -- 12). One row per branch with its own plan, cycle, founding status, pilot
+  -- dates and cancellation date. daycare_billing stays as the group-level
+  -- defaults row the create form and owner portal read.
+  CREATE TABLE IF NOT EXISTS branch_billing (
+    branch_id TEXT PRIMARY KEY REFERENCES branch(id) ON DELETE CASCADE,
+    institute_id TEXT NOT NULL REFERENCES institute(id) ON DELETE CASCADE,
+    plan TEXT NOT NULL DEFAULT 'demo' CHECK (plan IN ('demo', 'monthly', 'annual')),
+    monthly_rate_egp INTEGER NOT NULL DEFAULT 500,
+    per_child_rate_egp INTEGER NOT NULL DEFAULT 50,
+    free_child_threshold INTEGER NOT NULL DEFAULT 10,
+    first_cycle_start TEXT,
+    founding_client INTEGER NOT NULL DEFAULT 0,
+    founding_started_at TEXT,
+    pilot_end_date TEXT,
+    cancel_at TEXT,
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+  CREATE INDEX IF NOT EXISTS idx_branch_billing_institute ON branch_billing (institute_id);
+  CREATE INDEX IF NOT EXISTS idx_branch_billing_plan ON branch_billing (plan);
+  CREATE INDEX IF NOT EXISTS idx_branch_billing_founding ON branch_billing (founding_client);
+
   -- KID-245: mirror of supabase/migrations/0028_daycare_invoice.sql — one
   -- invoice per billed cycle, (institute_id, cycle_month) unique so the lazy
   -- generator stays idempotent. cycle_month is the FIRST month of the billed
@@ -639,6 +662,9 @@ export function sqliteSchema(db: any): void {
   CREATE TABLE IF NOT EXISTS daycare_invoice (
     id TEXT PRIMARY KEY,
     institute_id TEXT NOT NULL REFERENCES institute(id) ON DELETE CASCADE,
+    -- KID-2435 v3: the branch subscription this invoice belongs to (mirror of
+    -- 0050). Nullable for legacy rows the migration backfills to Main.
+    branch_id TEXT REFERENCES branch(id) ON DELETE CASCADE,
     cycle_month TEXT NOT NULL,
     plan TEXT NOT NULL DEFAULT 'monthly' CHECK (plan IN ('demo', 'monthly', 'annual')),
     max_active_children INTEGER NOT NULL DEFAULT 0,
@@ -674,12 +700,14 @@ export function sqliteSchema(db: any): void {
     pilot_credit_egp INTEGER NOT NULL DEFAULT 0,
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
   );
-  CREATE UNIQUE INDEX IF NOT EXISTS uq_daycare_invoice_cycle
-    ON daycare_invoice (institute_id, cycle_month);
+  CREATE UNIQUE INDEX IF NOT EXISTS uq_daycare_invoice_branch_cycle
+    ON daycare_invoice (branch_id, cycle_month);
   CREATE INDEX IF NOT EXISTS idx_daycare_invoice_status_due
     ON daycare_invoice (status, due_date);
   CREATE INDEX IF NOT EXISTS idx_daycare_invoice_institute
     ON daycare_invoice (institute_id, cycle_month DESC);
+  CREATE INDEX IF NOT EXISTS idx_daycare_invoice_branch
+    ON daycare_invoice (branch_id, cycle_month DESC);
 
   -- KID-2434/2435: mirror of the pricing-band migrations — the six
   -- operator-editable standard monthly bands plus the demo and founding-
@@ -1008,6 +1036,41 @@ export function sqliteSchema(db: any): void {
   if (!billingCols.some((c) => c.name === "cancel_at")) {
     db.exec("ALTER TABLE daycare_billing ADD COLUMN cancel_at TEXT");
   }
+  // KID-2435 v3: mirror of 0050 — the branch is the subscription record.
+  // Add the invoice branch anchor for databases created before it, move the
+  // unique rule from (institute_id, cycle_month) to (branch_id, cycle_month),
+  // give every institute a branch, and backfill one branch_billing row per
+  // branch (the first branch copies today's group row).
+  if (!invoiceCols.some((c) => c.name === "branch_id")) {
+    db.exec("ALTER TABLE daycare_invoice ADD COLUMN branch_id TEXT REFERENCES branch(id) ON DELETE CASCADE");
+  }
+  db.exec("DROP INDEX IF EXISTS uq_daycare_invoice_cycle");
+  db.exec(
+    "CREATE UNIQUE INDEX IF NOT EXISTS uq_daycare_invoice_branch_cycle ON daycare_invoice (branch_id, cycle_month)"
+  );
+  db.exec(
+    "CREATE INDEX IF NOT EXISTS idx_daycare_invoice_branch ON daycare_invoice (branch_id, cycle_month DESC)"
+  );
+  db.exec(`INSERT OR IGNORE INTO branch (id, institute_id, name)
+    SELECT 'main-' || id, id, 'Main' FROM institute
+    WHERE NOT EXISTS (SELECT 1 FROM branch b WHERE b.institute_id = institute.id)`);
+  db.exec(`INSERT OR IGNORE INTO branch_billing
+      (branch_id, institute_id, plan, monthly_rate_egp, per_child_rate_egp,
+       free_child_threshold, first_cycle_start, founding_client,
+       founding_started_at, pilot_end_date, cancel_at, updated_at)
+    SELECT br.id, br.institute_id, COALESCE(db.plan, 'demo'),
+      COALESCE(db.monthly_rate_egp, 500), COALESCE(db.per_child_rate_egp, 50),
+      COALESCE(db.free_child_threshold, 10),
+      COALESCE(db.first_cycle_start, strftime('%Y-%m-01', br.created_at, 'start of month', '+1 month')),
+      COALESCE(db.founding_client, 0), db.founding_started_at, db.pilot_end_date,
+      db.cancel_at, COALESCE(db.updated_at, datetime('now'))
+    FROM branch br
+    LEFT JOIN daycare_billing db ON db.institute_id = br.institute_id
+    WHERE NOT EXISTS (SELECT 1 FROM branch_billing bb WHERE bb.branch_id = br.id)`);
+  db.exec(`UPDATE daycare_invoice SET branch_id = (
+      SELECT br.id FROM branch br WHERE br.institute_id = daycare_invoice.institute_id
+      ORDER BY br.created_at, br.id LIMIT 1)
+    WHERE branch_id IS NULL`);
   const obsCols = db.prepare("PRAGMA table_info(learning_observation)").all() as { name: string }[];
   if (!obsCols.some((c) => c.name === "age_group")) {
     db.exec("ALTER TABLE learning_observation ADD COLUMN age_group TEXT");

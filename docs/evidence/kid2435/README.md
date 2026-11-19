@@ -162,3 +162,55 @@ replays on PGlite Postgres); KID-2435 + KID-2434 + KID-244 + KID-245 +
 KID-746 + KID-850 suites pass (96/96). The single earlier KID-245 run
 recorded seven hook timeouts under parallel load; re-running that file alone
 passes 27/27. No production or staging deploy.
+
+## v3 follow-up: one subscription per branch (19 Nov 2026)
+
+The founder answered the **Branch subscription record** card (`2d9a63f5`)
+on 19 Nov 2026:
+
+- the **branch** record holds the subscription;
+- a branch with **no active children is billed 0**: it is not invoiced until
+  its first active child;
+- a new branch that joins a founding group uses **one new slot** and gets the
+  founding rate for 12 months from its own start;
+- a branch's first billed month starts on the **1st of the month after the
+  branch is created** (the demo covers the gap).
+
+What changed:
+
+- **Migration `0050` + SQLite mirror.** New `branch_billing` table keyed by
+  `branch_id` (institute_id retained for tenant scope) holds the plan, first
+  cycle, founding flag/dates, pilot end, cancellation date and legacy amounts.
+  Every branch is backfilled; the institute's first branch copies today's
+  `daycare_billing` row, later branches start on the same plan with their own
+  cycle. Institutes with no branch get a `Main` branch. `daycare_invoice` gains
+  `branch_id`; the unique rule moves from `(institute_id, cycle_month)` to
+  `(branch_id, cycle_month)`.
+- **Engine per branch.** `generateDueInvoices` resolves the band from that
+  branch's cycle peak and writes one invoice per branch. A zero-child branch
+  is skipped entirely (no zero-value invoice) and is re-checked later. The
+  institute's first branch also owns legacy children with no `branch_id`.
+  Counts and snapshots keep the existing fields; `founding_term_index` is
+  measured from the branch's own `founding_started_at`. The branch date shapes
+  (Postgres `Date` objects and SQLite text) are normalised with `datePart`, so
+  the staging-only "Thu Oct 01" bug cannot return through `branch_billing`.
+- **Founding slots.** `countFoundingClients` counts `branch_billing` rows.
+  A branch added to a founded group is enrolled automatically (one slot, own
+  12-month start); a full cohort leaves it on the standard rate. The cap is
+  enforced in both the per-branch and group writers.
+- **Operator surface.** `/platform/daycares/[id]/billing` now renders one card
+  per branch (plan, cycle, founding/pilot, cancellation) and saves through
+  `updateBranchBillingAction`. The invoice list shows the branch column. The
+  group row remains for the owner portal/create form and a group edit fans out
+  to every branch.
+- **Read-only.** Account read-only still starts with any overdue invoice. A
+  cancellation makes the account read-only only when every billed branch is
+  past its own paid month, so cancelling one branch does not lock the group.
+
+Verification: `npx tsc --noEmit` pass; `npm run lint` pass (existing
+`no-img-element` warnings); `npm run db:verify-migrations` all pass (0050
+replays on PGlite Postgres); KID-2435 (including the new branch suite),
+KID-2434, KID-244, KID-245, KID-246, KID-746 and KID-850 suites pass
+(115/115). One KID-245 run recorded the known 10s hook timeout under load;
+the file alone passes 27/27. Nothing deployed; production and staging are
+untouched.

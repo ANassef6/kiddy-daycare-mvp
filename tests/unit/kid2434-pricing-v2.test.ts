@@ -19,6 +19,7 @@ import {
   validatePricingBands,
 } from "@/lib/pricing";
 import { queryAll, queryGet, queryRun, type Row } from "@/lib/db";
+import { ensureBranchBillingRows } from "@/lib/billing";
 import { dictionaries, keysOf } from "@/lib/i18n";
 import { seedFixture } from "../helpers";
 
@@ -201,10 +202,14 @@ describe("founding cohort configuration", () => {
     expect(pilotCreditAmount(settings, false)).toBe(0);
   });
 
-  it("counts only daycares marked as founding clients", async () => {
+  it("counts founding BRANCH subscriptions, not daycares", async () => {
     expect(await countFoundingClients()).toBe(0);
-    const institute = await queryGet("SELECT id FROM institute LIMIT 1");
-    await queryRun("UPDATE daycare_billing SET founding_client = 1 WHERE institute_id = ?", String(institute!.id));
+    await ensureBranchBillingRows();
+    const branch = await queryGet("SELECT branch_id FROM branch_billing LIMIT 1");
+    await queryRun(
+      "UPDATE branch_billing SET founding_client = 1 WHERE branch_id = ?",
+      String(branch!.branch_id)
+    );
     expect(await countFoundingClients()).toBe(1);
   });
 });

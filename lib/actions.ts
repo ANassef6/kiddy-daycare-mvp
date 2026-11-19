@@ -1109,6 +1109,68 @@ export async function updateDaycareBillingAction(formData: FormData) {
   redirect(`${back}?saved=1`);
 }
 
+// KID-2435 v3: the per-branch billing save action. Same guard and error
+// channel as the group action; the branch must belong to the daycare in the
+// form so one daycare's operator surface can never write another's row.
+export async function updateBranchBillingAction(formData: FormData) {
+  const operator = await requirePlatformOperator();
+  const instituteId = String(formData.get("instituteId") ?? "");
+  const branchId = String(formData.get("branchId") ?? "");
+  if (!instituteId) redirect("/platform?error=missing-id");
+  const branch = await queryGet(
+    "SELECT id FROM branch WHERE id = ? AND institute_id = ?",
+    branchId,
+    instituteId
+  );
+  if (!branch) redirect(`/platform/daycares/${instituteId}/billing?error=unknown`);
+  const back = `/platform/daycares/${instituteId}/billing`;
+  const planRaw = String(formData.get("plan") ?? "").trim();
+  const plan = planRaw === "monthly" || planRaw === "demo" ? planRaw : "";
+  if (!plan) redirect(`${back}?error=billing-plan-invalid`);
+  const number = (key: string): number => Number(String(formData.get(key) ?? "").trim());
+  const firstCycleStart = String(formData.get("firstCycleStart") ?? "").trim();
+  const { updateBranchBilling } = await import("@/lib/billing");
+  try {
+    await updateBranchBilling(branchId, {
+      plan,
+      monthlyRateEgp: number("monthlyRateEgp"),
+      perChildRateEgp: number("perChildRateEgp"),
+      freeChildThreshold: number("freeChildThreshold"),
+      firstCycleStart: /^\d{4}-\d{2}-\d{2}$/.test(firstCycleStart) ? firstCycleStart : undefined,
+      foundingClient: String(formData.get("foundingClient") ?? "") === "1",
+      foundingStartedAt: String(formData.get("foundingStartedAt") ?? "").trim(),
+      pilotEndDate: String(formData.get("pilotEndDate") ?? "").trim(),
+      cancelAt: String(formData.get("cancelAt") ?? "").trim(),
+    });
+  } catch (err) {
+    const reason = String((err as Error)?.message ?? "");
+    const known = [
+      "billing-plan-invalid",
+      "billing-monthly_rate_egp-invalid",
+      "billing-per_child_rate_egp-invalid",
+      "billing-free_child_threshold-invalid",
+      "billing-cycle-invalid",
+      "billing-founding_started_at-invalid",
+      "billing-pilot_end_date-invalid",
+      "billing-cancel_at-invalid",
+      "founding-cap-reached",
+    ];
+    console.error("KID-2435 updateBranchBillingAction failed:", err);
+    redirect(`${back}?error=${known.includes(reason) ? reason : "unknown"}`);
+  }
+  await recordAuditEvent({
+    instituteId,
+    actorAccountId: operator.accountId,
+    action: "update",
+    entityType: "billing_settings",
+    entityId: branchId,
+    summary: `Updated branch billing settings (${plan})`,
+    metadata: { plan, branchId },
+  });
+  revalidatePath("/platform");
+  redirect(`${back}?saved=1`);
+}
+
 /** KID-2435 v3: the daycare owner cancels the subscription. Cancellation
  *  takes effect at the end of the paid month — the current calendar month —
  *  and no later cycle is billed. Data is never deleted. `intent=resume`
