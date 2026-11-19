@@ -214,3 +214,57 @@ KID-2434, KID-244, KID-245, KID-246, KID-746 and KID-850 suites pass
 (115/115). One KID-245 run recorded the known 10s hook timeout under load;
 the file alone passes 27/27. Nothing deployed; production and staging are
 untouched.
+
+## Staging attempt blocked by the Vercel pipeline (19 Nov 2026)
+
+The three v3 commits (`ff76fe4`, `c6dcaff`, `efe0cd4`) were cherry-picked onto
+`staging` after resolving the date-shape conflict, and pushed as
+`1330b0c..ffa7581`. The staging tree was verified before the push:
+
+| Check | Result |
+| --- | --- |
+| `npx tsc --noEmit` | pass |
+| `npm run db:verify-migrations` | all pass (0050 on PGlite Postgres) |
+| KID-2435 branch + engine, KID-244, KID-245, KID-2434, KID-246 | 93/93 pass |
+| `next build` with a test `SESSION_SECRET` | pass |
+
+The Vercel GitHub statuses for `ffa7581` report `failure` for
+`kiddy-staging` (`dpl_7FrZSZBgsTAtftf4ZASZCzd3bppK`) and `kiddy`
+(`dpl_BkEE8BYFneqZn5svwXXodZeCWjHE`). The same failure is already present on
+the previous `staging` tip `1330b0c` (KID-2447), so it predates this change.
+`https://kiddy-staging-orcin.vercel.app` still serves `e7e8241` (the v2
+build): a signed-in visit to `/platform/daycares/[id]/billing` shows the old
+single-daycare form, not the per-branch cards. Production is unchanged; the
+failed production build never promoted.
+
+## Pipeline root cause and fix (19 Nov 2026)
+
+A Vercel token was available in this run, so the failed build was read from
+the Vercel API. The failure is not a code or build error:
+
+> Hobby accounts are limited to daily cron jobs. This cron expression
+> (`* * * * *`) would run more than once per day. Upgrade to the Pro plan to
+> unlock all Cron Jobs features on Vercel.
+
+KID-2447 added a per-minute `crons` entry to `vercel.json`
+(`/api/attendance/sweep`, `* * * * *`). The `kiddy2` team is on the Hobby
+plan, so Vercel rejects the deployment before it builds. The same message is
+returned for every failed deployment on both projects
+(`dpl_7FrZSZBgsTAtftf4ZASZCzd3bppK` / `dpl_BkEE8BYFneqZn5svwXXodZeCWjHE` and
+the later retries). The last successful production deployment is master
+`a035c5e`; the every-minute cron has not deployed to either project.
+
+Fix in this change: remove the `crons` block from `vercel.json`, leaving
+`regions` as before. The sweep route, its `CRON_SECRET` gate and the
+page-load sweep are untouched, so no behavior is lost relative to what was
+actually deployed. A genuine every-minute schedule on this Vercel plan needs
+one of:
+
+- Pro Cron Jobs, or
+- an external scheduler (Supabase `pg_cron`/`pg_net`, or any uptime job) that
+  calls `GET /api/attendance/sweep` with `Authorization: Bearer $CRON_SECRET`.
+
+The per-minute auto check-out at closing is therefore **not** active on
+staging or production until one of those is set up; the sweep still runs when
+attendance or the dashboard is opened, which is the documented staging test
+path.
