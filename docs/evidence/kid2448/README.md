@@ -86,6 +86,34 @@ are derived from the strict event sequence:
    behaves exactly as before. The end-of-day sweep does not check out a child
    who is in the afternoon on-bus state; the bus off-bus writes that check-out.
 
+## Production cut (2026-11-19T23:23Z)
+
+Founder sign-off accepted at 2026-11-19T23:21:55Z (interaction
+`ef899d95-7741-4d7d-8b6c-8f0b58a4bde7`).
+
+- PR #67 merged to `master`: merge commit
+  `8f0759e2ec721b41afbbd5a7ec5a780c3c012fe8`.
+- Production deployment `dpl_8A3cFiYrbZeF3PkcM6LHzw89TmCV`: **READY** on commit
+  `8f0759e`, serving `kiddyapp.net`, `sunshine.kiddyapp.net`, and
+  `kiddy-git-master-kiddy2.vercel.app`.
+- GitHub checks on the merge commit: `audit` SUCCESS, `Supabase Preview`
+  SUCCESS, `Vercel – kiddy` SUCCESS, `Vercel – kiddy-staging` SUCCESS.
+
+Evidence: `prod-cut-probes.json`, `prod-cut-bundle-checks.txt`.
+
+| Check | Result | Evidence |
+| --- | --- | --- |
+| Production deployment is READY on `8f0759e` | PASS | `prod-cut-probes.json` |
+| `GET https://kiddyapp.net/login` | 200 | `prod-cut-probes.json` |
+| `GET /portal/attendance`, `/child`, `/api/export` anonymous | 307 → `/login` (auth gate) | `prod-cut-probes.json` |
+| Production bundle carries the four EN bus states + guard | PASS | `prod-cut-bundle-checks.txt` |
+| Production bundle carries the four AR bus states | PASS | `prod-cut-bundle-checks.txt` |
+| Migration `0051` applies on first authenticated page load | Automatic, idempotent (`ADD COLUMN IF NOT EXISTS`) | `docs/CONTACT_AND_ACCOUNTS.md` runner notes |
+
+The signed-in attendance walk-through that produced the founder sign-off ran on
+the staging URL from the previous section. Production keeps the same commit and
+the same migration; no data backfill is needed because `source` is nullable.
+
 ## Merge note
 
 KID-2447 (end-of-hours auto-checkout) is in flight on the same files. When both

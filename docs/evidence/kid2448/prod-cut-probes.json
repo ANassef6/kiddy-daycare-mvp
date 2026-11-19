@@ -1,0 +1,42 @@
+{
+  "capturedAt": "2026-11-19T23:27:36Z",
+  "productionBase": "https://kiddyapp.net",
+  "deployment": {
+    "id": "dpl_8A3cFiYrbZeF3PkcM6LHzw89TmCV",
+    "state": "READY",
+    "url": "kiddy-5tlz4l9gw-kiddy2.vercel.app",
+    "commit": "8f0759e2ec721b41afbbd5a7ec5a780c3c012fe8",
+    "ref": "master",
+    "aliases": [
+      "kiddyapp.net",
+      "*.kiddyapp.net",
+      "kiddy-one.vercel.app",
+      "sunshine.kiddyapp.net",
+      "maple-grove-daycare.kiddyapp.net",
+      "maple-grove-daycare-2.kiddyapp.net",
+      "kiddy-git-master-kiddy2.vercel.app"
+    ]
+  },
+  "githubChecks": {
+    "commit": "8f0759e2ec721b41afbbd5a7ec5a780c3c012fe8",
+    "state": "success",
+    "statuses": [
+      { "context": "Vercel – kiddy", "state": "success" },
+      { "context": "Vercel – kiddy-staging", "state": "success" }
+    ],
+    "checkRuns": [
+      { "name": "Supabase Preview", "conclusion": "success" },
+      { "name": "audit", "conclusion": "success" }
+    ]
+  },
+  "httpProbes": [
+    { "method": "GET", "url": "https://kiddyapp.net/login", "status": 200, "redirect": null },
+    { "method": "GET", "url": "https://kiddyapp.net/portal/attendance", "status": 307, "redirect": "https://kiddyapp.net/login" },
+    { "method": "GET", "url": "https://kiddyapp.net/child", "status": 307, "redirect": "https://kiddyapp.net/login" },
+    { "method": "GET", "url": "https://kiddyapp.net/api/export", "status": 307, "redirect": "https://kiddyapp.net/login" }
+  ],
+  "notes": [
+    "307 responses are the auth gate for anonymous requests; authenticated pages are unchanged by design.",
+    "supabase/migrations/0051_kid2448_bus_cycle.sql applies automatically on the first authenticated /portal/* or /child/* request after this deploy (lib/db.ts ensurePgSchema ledger runner)."
+  ]
+}

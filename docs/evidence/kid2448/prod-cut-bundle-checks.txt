@@ -1,0 +1,23 @@
+KID-2448 production bundle checks
+Captured: 2026-11-19T23:27Z
+Host: https://kiddyapp.net (deployment dpl_8A3cFiYrbZeF3PkcM6LHzw89TmCV, commit 8f0759e)
+
+Served page: GET /login -> 200
+Chunks downloaded from /_next/static/chunks/* on the production host.
+Chunk: /_next/static/chunks/9082-56f9dcffced485d5.js
+
+English strings found:
+  On bus (to daycare)
+  Arrived at daycare
+  On bus (home)
+  Dropped off at home
+  Bus cycle complete
+  Register On bus before Off bus
+
+Arabic strings found:
+  في الباص (إلى الحضانة)
+  وصل إلى الحضانة
+  في الباص (إلى المنزل)
+  وصل إلى المنزل
+
+Conclusion: production serves the KID-2448 four-state bus wording in both locales.
