@@ -20,21 +20,26 @@ import { splitSubdomainHost } from "./subdomain";
 export const TWA_RELATION = "delegate_permission/common.handle_all_urls";
 export const TWA_NAMESPACE = "android_app";
 
-/** The SHA-256 fingerprint of the current shared release certificate, in the
- *  exact form assetlinks.json wants: base64 of the RAW digest bytes (not the
- *  hex string keytool prints). Derived (never hand-copied) from the release
- *  keystore via:
+/** KID-2443 root cause: the assetlinks.json schema requires the SHA-256
+ *  certificate fingerprint as COLON-SEPARATED UPPERCASE HEX. KID-443 had
+ *  published base64-of-the-raw-digest instead. Google's Digital Asset Links
+ *  API rejected it with ERROR_CODE_MALFORMED_CONTENT ("malformed cert
+ *  fingerprint"), Chrome logged "Statement failure matching fingerprint", and
+ *  the TWA silently degraded to a Chrome Custom Tab with a URL bar — the
+ *  founder's "browser borders" bug. Chrome's verifier accepts only hex, so this
+ *  module must never publish base64.
+ *
+ *  Derived from the release keystore (never hand-copied) with:
  *
  *    keytool -exportcert -keystore <jks> -alias kiddy-release -rfc \
  *      | openssl x509 -outform der \
  *      | openssl dgst -sha256 -binary \
- *      | base64 -w0
+ *      | xxd -p -c 256
  *
- *  QA (KID-441) recorded the same cert as hex
- *  8ce12814125fd35db0f662dc56d6f3d5e5a3f714bc2c2656483f30263d5001bd — the
- *  base64 rendering of that digest must match this constant. */
-export const KIDDY_RELEASE_CERT_SHA256_BASE64 =
-  "jOEoFBJf012w9mLcVtbz1eWj9xS8LCZWSD8wJj1QAb0=";
+ *  QA (KID-441) recorded the same digest as
+ *  8ce12814125fd35db0f662dc56d6f3d5e5a3f714bc2c2656483f30263d5001bd. */
+export const KIDDY_RELEASE_CERT_SHA256_HEX =
+  "8C:E1:28:14:12:5F:D3:5D:B0:F6:62:DC:56:D6:F3:D5:E5:A3:F7:14:BC:2C:26:56:48:3F:30:26:3D:50:01:BD";
 
 /** KID-470: the Google Play App Signing certificate for sunshine.kiddy.app —
  *  the key Play actually uses to sign the APKs it serves (its own upload-key
@@ -42,8 +47,8 @@ export const KIDDY_RELEASE_CERT_SHA256_BASE64 =
  *  reported it as hex
  *  AF88F9A080C216AF64B7BCCAB6648D88AB7B535EA001537EAF70F471E0B7EBD7.
  *  Fingerprint data is public by design, same as the release cert. */
-export const KIDDY_PLAY_SIGNING_CERT_SHA256_BASE64 =
-  "r4j5oIDCFq9kt7zKtmSNiKt7U16gAVN+r3D0ceC369c=";
+export const KIDDY_PLAY_SIGNING_CERT_SHA256_HEX =
+  "AF:88:F9:A0:80:C2:16:AF:64:B7:BC:CA:B6:64:8D:88:AB:7B:53:5E:A0:01:53:7E:AF:70:F4:71:E0:B7:EB:D7";
 
 export interface TwaApp {
   packageNames: string[];
@@ -70,7 +75,7 @@ const TWA_PACKAGES_BY_SUBDOMAIN: Record<string, string[]> = {
 /** Extra per-package fingerprints appended after the shared release cert.
  *  Only packages distributed through Google Play App Signing need an entry. */
 const EXTRA_FINGERPRINTS_BY_PACKAGE: Record<string, string[]> = {
-  "sunshine.kiddy.app": [KIDDY_PLAY_SIGNING_CERT_SHA256_BASE64],
+  "sunshine.kiddy.app": [KIDDY_PLAY_SIGNING_CERT_SHA256_HEX],
 };
 
 export type AssetLinksStatement = {
@@ -86,7 +91,7 @@ function statementsFor(packageName: string): AssetLinksStatement[] {
         namespace: TWA_NAMESPACE,
         package_name: packageName,
         sha256_cert_fingerprints: [
-          KIDDY_RELEASE_CERT_SHA256_BASE64,
+          KIDDY_RELEASE_CERT_SHA256_HEX,
           ...(EXTRA_FINGERPRINTS_BY_PACKAGE[packageName] ?? []),
         ],
       },

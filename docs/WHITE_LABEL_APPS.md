@@ -79,6 +79,44 @@ Prerequisites — **all human / account steps, not automatable from this repo:**
    operator wants URL-origin verification (deep links) in the packaged app.
    This is a config step on the hosting deployment, not a code change each time.
 
+### Asset-links fingerprint format (KID-2443 — do not regress)
+
+`sha256_cert_fingerprints` MUST be colon-separated UPPERCASE SHA-256 HEX, for
+example:
+
+```json
+"sha256_cert_fingerprints": [
+  "8C:E1:28:14:12:5F:D3:5D:B0:F6:62:DC:56:D6:F3:D5:E5:A3:F7:14:BC:2C:26:56:48:3F:30:26:3D:50:01:BD"
+]
+```
+
+Base64 of the same digest is **not** accepted. The platform published base64
+from KID-443 through the v4 APK; Google's Digital Asset Links API returned
+`ERROR_CODE_MALFORMED_CONTENT` ("malformed cert fingerprint") and Chrome logged
+`Statement failure matching fingerprint`, so Chrome silently opened a Custom
+Tab WITH a URL bar instead of the verified full-screen TWA. `lib/twa.ts` now
+publishes hex, and the v5 APK's launch gate verifies the same statement before
+handing off, so a future format regression falls back to the app-owned
+full-screen WebView instead of showing browser chrome.
+
+Derive the value from the signing keystore, never by hand:
+
+```sh
+keytool -exportcert -keystore <jks> -alias kiddy-release -rfc \
+  | openssl x509 -outform der \
+  | openssl dgst -sha256 -binary \
+  | xxd -p -c 256
+# insert ':' between every byte, uppercase
+```
+
+The server route is `https://<tenant>/.well-known/assetlinks.json` (rewritten to
+`app/api/assetlinks`, registry in `lib/twa.ts`). Validate a deployment with:
+
+```sh
+curl "https://digitalassetlinks.googleapis.com/v1/statements:list?source.web.site=https%3A%2F%2F<tenant>&relation=delegate_permission%2Fcommon.handle_all_urls"
+# expect the statements array and NO "ERROR_CODE_MALFORMED_CONTENT"
+```
+
 ### Per-daycare checklist (copy per brand)
 
 ```
