@@ -515,19 +515,27 @@ describe("schema", () => {
     ]) {
       expect(names).toContain(col);
     }
-    // A cycle is billed once: the unique (institute_id, cycle_month) index
-    // rejects a second insert for the same cycle.
-    await queryRun(
-      `INSERT INTO daycare_invoice (id, institute_id, cycle_month, due_date, status, total_amount)
-       VALUES ('dup-1', ?, '2026-03', '2026-04-05', 'pending', 500)`,
+    // KID-2435 v3: a BRANCH is billed once per cycle — the unique
+    // (branch_id, cycle_month) index rejects a second insert for the same
+    // branch and cycle. (Another branch of the same group is a separate
+    // subscription and may share the month.)
+    const branch = await queryGet(
+      "SELECT id FROM branch WHERE institute_id = ? ORDER BY created_at, id LIMIT 1",
       iid
+    );
+    await queryRun(
+      `INSERT INTO daycare_invoice (id, institute_id, branch_id, cycle_month, due_date, status, total_amount)
+       VALUES ('dup-1', ?, ?, '2026-03', '2026-04-05', 'pending', 500)`,
+      iid,
+      branch!.id
     );
     let dupRejected = false;
     try {
       await queryRun(
-        `INSERT INTO daycare_invoice (id, institute_id, cycle_month, due_date, status, total_amount)
-         VALUES ('dup-2', ?, '2026-03', '2026-04-05', 'pending', 500)`,
-        iid
+        `INSERT INTO daycare_invoice (id, institute_id, branch_id, cycle_month, due_date, status, total_amount)
+         VALUES ('dup-2', ?, ?, '2026-03', '2026-04-05', 'pending', 500)`,
+        iid,
+        branch!.id
       );
     } catch {
       dupRejected = true;

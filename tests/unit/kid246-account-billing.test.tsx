@@ -396,6 +396,15 @@ describe("the invoice creation email (best-effort, existing Supabase path)", () 
     try {
       // One ended cycle relative to the injected "today" — deterministic.
       await updateDaycareBilling(res.instituteId, { firstCycleStart: "2026-03-01" });
+      // KID-2435 v3: an empty branch is billed 0 and not invoiced. Seed the
+      // first active child so the March cycle has a subscription amount.
+      await queryRun(
+        `INSERT INTO child (id, institute_id, branch_id, first_name, last_name, status, active, created_at)
+         VALUES (?, ?, ?, 'Mail', 'Child', 'active', 1, '2026-03-02 09:00:00')`,
+        `mail-child-${res.instituteId}`,
+        res.instituteId,
+        res.branchIds[0]
+      );
 
       expect(await generateDueInvoices(utcDate(2026, 4, 1))).toBe(1);
       // Exactly one owner account (createDaycare's owner), invited once.
@@ -434,6 +443,13 @@ describe("the invoice creation email (best-effort, existing Supabase path)", () 
     });
     await setNotificationPref(res.ownerAccountId, "billing", "email", false);
     await updateDaycareBilling(res.instituteId, { firstCycleStart: "2026-03-01" });
+    await queryRun(
+      `INSERT INTO child (id, institute_id, branch_id, first_name, last_name, status, active, created_at)
+       VALUES (?, ?, ?, 'NoMail', 'Child', 'active', 1, '2026-03-02 09:00:00')`,
+      `nomail-child-${res.instituteId}`,
+      res.instituteId,
+      res.branchIds[0]
+    );
 
     // No provider configured, and no owner email should even be attempted —
     // the resolution path must skip before it logs a "pending" send.
