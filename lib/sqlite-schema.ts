@@ -625,6 +625,9 @@ export function sqliteSchema(db: any): void {
     pilot_end_date TEXT,
     -- KID-2435 v3: last day of the paid month (mirror of 0049). NULL = active.
     cancel_at TEXT,
+    -- KID-2435: the contracted band, or '' for automatic (cycle-peak) band
+    -- selection (mirror of 0052).
+    band_key TEXT NOT NULL DEFAULT '',
     updated_at TEXT NOT NULL DEFAULT (datetime('now'))
   );
   CREATE INDEX IF NOT EXISTS idx_daycare_billing_plan ON daycare_billing (plan);
@@ -646,11 +649,15 @@ export function sqliteSchema(db: any): void {
     founding_started_at TEXT,
     pilot_end_date TEXT,
     cancel_at TEXT,
+    -- KID-2435: the contracted band, or '' for automatic (cycle-peak) band
+    -- selection (mirror of 0052).
+    band_key TEXT NOT NULL DEFAULT '',
     updated_at TEXT NOT NULL DEFAULT (datetime('now'))
   );
   CREATE INDEX IF NOT EXISTS idx_branch_billing_institute ON branch_billing (institute_id);
   CREATE INDEX IF NOT EXISTS idx_branch_billing_plan ON branch_billing (plan);
   CREATE INDEX IF NOT EXISTS idx_branch_billing_founding ON branch_billing (founding_client);
+  CREATE INDEX IF NOT EXISTS idx_branch_billing_band ON branch_billing (band_key);
 
   -- KID-245: mirror of supabase/migrations/0028_daycare_invoice.sql — one
   -- invoice per billed cycle, (institute_id, cycle_month) unique so the lazy
@@ -750,8 +757,8 @@ export function sqliteSchema(db: any): void {
     ('demo.trial_days', '30'),
     ('demo.room_limit', '1'),
     ('demo.child_limit', '20'),
-    ('demo.branded_app', '0'),
-    ('demo.bus_tracking', '0'),
+    ('demo.branded_app', '1'),
+    ('demo.bus_tracking', '1'),
     ('founding.enabled', '1'),
     ('founding.cap', '10'),
     ('founding.offer_days', '90'),
@@ -1039,6 +1046,22 @@ export function sqliteSchema(db: any): void {
   if (!billingCols.some((c) => c.name === "cancel_at")) {
     db.exec("ALTER TABLE daycare_billing ADD COLUMN cancel_at TEXT");
   }
+  // KID-2435: mirror of 0052 — the operator-selected contracted band.
+  if (!billingCols.some((c) => c.name === "band_key")) {
+    db.exec("ALTER TABLE daycare_billing ADD COLUMN band_key TEXT NOT NULL DEFAULT ''");
+  }
+  const branchBillingCols = db.prepare("PRAGMA table_info(branch_billing)").all() as { name: string }[];
+  if (!branchBillingCols.some((c) => c.name === "band_key")) {
+    db.exec("ALTER TABLE branch_billing ADD COLUMN band_key TEXT NOT NULL DEFAULT ''");
+  }
+  db.exec(
+    "CREATE INDEX IF NOT EXISTS idx_branch_billing_band ON branch_billing (band_key)"
+  );
+  // KID-2435: mirror of 0052 — bus tracking and branded app are always on.
+  db.exec("UPDATE pricing_band SET bus_tracking_included = 1");
+  db.exec(
+    "UPDATE pricing_config SET value = '1' WHERE key IN ('demo.branded_app', 'demo.bus_tracking')"
+  );
   // KID-2435 v3: mirror of 0050 — the branch is the subscription record.
   // Add the invoice branch anchor for databases created before it, move the
   // unique rule from (institute_id, cycle_month) to (branch_id, cycle_month),
@@ -1060,13 +1083,13 @@ export function sqliteSchema(db: any): void {
   db.exec(`INSERT OR IGNORE INTO branch_billing
       (branch_id, institute_id, plan, monthly_rate_egp, per_child_rate_egp,
        free_child_threshold, first_cycle_start, founding_client,
-       founding_started_at, pilot_end_date, cancel_at, updated_at)
+       founding_started_at, pilot_end_date, cancel_at, band_key, updated_at)
     SELECT br.id, br.institute_id, COALESCE(db.plan, 'demo'),
       COALESCE(db.monthly_rate_egp, 500), COALESCE(db.per_child_rate_egp, 50),
       COALESCE(db.free_child_threshold, 10),
       COALESCE(db.first_cycle_start, strftime('%Y-%m-01', br.created_at, 'start of month', '+1 month')),
       COALESCE(db.founding_client, 0), db.founding_started_at, db.pilot_end_date,
-      db.cancel_at, COALESCE(db.updated_at, datetime('now'))
+      db.cancel_at, COALESCE(db.band_key, ''), COALESCE(db.updated_at, datetime('now'))
     FROM branch br
     LEFT JOIN daycare_billing db ON db.institute_id = br.institute_id
     WHERE NOT EXISTS (SELECT 1 FROM branch_billing bb WHERE bb.branch_id = br.id)`);

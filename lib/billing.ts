@@ -70,6 +70,7 @@ export const BILLING_DEFAULTS = {
   foundingStartedAt: "",
   pilotEndDate: "",
   cancelAt: "",
+  bandKey: "",
 };
 
 export type DaycareBilling = {
@@ -90,6 +91,10 @@ export type DaycareBilling = {
    *  not cancelled. Cancellation takes effect the day after this date: the
    *  engine bills no later cycle and the account becomes read-only. */
   cancelAt: string;
+  /** KID-2435: the operator-selected contracted band. "" keeps the automatic
+   *  cycle-peak band selection; a set value pins the subscription to that band
+   *  (used when an operator sells a band before the roster exists). */
+  bandKey: string;
 };
 
 /** KID-2435 v3: one subscription per branch (pricing plan v3, rule 12). The
@@ -145,6 +150,7 @@ export function rowToBilling(row: Row): DaycareBilling {
     foundingStartedAt: datePart(row.founding_started_at ?? row.foundingStartedAt),
     pilotEndDate: datePart(row.pilot_end_date ?? row.pilotEndDate),
     cancelAt: datePart(row.cancel_at ?? row.cancelAt),
+    bandKey: String(row.band_key ?? row.bandKey ?? ""),
   };
 }
 
@@ -188,7 +194,7 @@ export async function ensureBranchBillingRows(): Promise<void> {
     `SELECT br.id AS branch_id, br.institute_id, br.created_at,
             db.plan, db.monthly_rate_egp, db.per_child_rate_egp, db.free_child_threshold,
             db.first_cycle_start, db.founding_client, db.founding_started_at,
-            db.pilot_end_date, db.cancel_at
+            db.pilot_end_date, db.cancel_at, db.band_key
      FROM branch br
      LEFT JOIN daycare_billing db ON db.institute_id = br.institute_id
      LEFT JOIN branch_billing bb ON bb.branch_id = br.id
@@ -210,8 +216,8 @@ export async function ensureBranchBillingRows(): Promise<void> {
       `INSERT INTO branch_billing
          (branch_id, institute_id, plan, monthly_rate_egp, per_child_rate_egp,
           free_child_threshold, first_cycle_start, founding_client,
-          founding_started_at, pilot_end_date, cancel_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          founding_started_at, pilot_end_date, cancel_at, band_key)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
        ON CONFLICT (branch_id) DO NOTHING`,
       String(row.branch_id),
       String(row.institute_id),
@@ -223,7 +229,8 @@ export async function ensureBranchBillingRows(): Promise<void> {
       isPrimary && Number(row.founding_client ?? 0) === 1 ? 1 : 0,
       isPrimary ? datePart(row.founding_started_at) || null : null,
       isPrimary ? datePart(row.pilot_end_date) || null : null,
-      datePart(row.cancel_at) || null
+      datePart(row.cancel_at) || null,
+      String(row.band_key ?? "")
     );
   }
 }
@@ -307,6 +314,9 @@ export type BillingPatch = Partial<{
   foundingStartedAt: string;
   pilotEndDate: string;
   cancelAt: string;
+  /** KID-2435: "" keeps automatic cycle-peak band selection; any configured
+   *  band key pins the subscription to that band. */
+  bandKey: string;
   touchedAt: string;
 }>;
 
@@ -315,6 +325,17 @@ const NUMERIC_FIELDS = [
   ["perChildRateEgp", "per_child_rate_egp"],
   ["freeChildThreshold", "free_child_threshold"],
 ] as const;
+
+/** KID-2435: validate the operator-selected band. "" is valid (automatic
+ *  cycle-peak selection); any other value must be a configured band key, so a
+ *  malformed POST can never pin a subscription to a band that does not exist. */
+async function normalizeBandKey(bandKey: unknown): Promise<string> {
+  const key = String(bandKey ?? "").trim();
+  if (!key) return "";
+  const bands = await getPricingBands();
+  if (!bands.some((b) => b.key === key)) throw new Error("billing-band-invalid");
+  return key;
+}
 
 /** Writes (upserts) a daycare's billing settings. Validates up front — an
  *  unknown plan or a negative amount throws a named error the action surfaces
@@ -348,6 +369,8 @@ export async function updateDaycareBilling(instituteId: string, patch: BillingPa
       throw new Error(`billing-${column}-invalid`);
     }
   }
+  const bandKey =
+    patch.bandKey !== undefined ? await normalizeBandKey(patch.bandKey) : undefined;
   // KID-2435: the founding cohort cap is a data-layer rule, not just a label
   // on /platform/pricing. KID-2435 v3 counts BRANCH subscriptions: the group
   // write flags every branch that is not flagged yet, and those new slots
@@ -410,6 +433,10 @@ export async function updateDaycareBilling(instituteId: string, patch: BillingPa
   if (patch.cancelAt !== undefined) {
     sets.push("cancel_at = ?");
     values.push(patch.cancelAt || null);
+  }
+  if (bandKey !== undefined) {
+    sets.push("band_key = ?");
+    values.push(bandKey);
   }
   sets.push("updated_at = ?");
   values.push(patch.touchedAt ?? new Date().toISOString());
@@ -482,6 +509,8 @@ export async function updateBranchBilling(branchId: string, patch: BillingPatch)
       throw new Error(`billing-${column}-invalid`);
     }
   }
+  const bandKey =
+    patch.bandKey !== undefined ? await normalizeBandKey(patch.bandKey) : undefined;
   if (patch.foundingClient === true) {
     const current = await queryGet(
       "SELECT founding_client FROM branch_billing WHERE branch_id = ?",
@@ -525,6 +554,10 @@ export async function updateBranchBilling(branchId: string, patch: BillingPatch)
   if (patch.cancelAt !== undefined) {
     sets.push("cancel_at = ?");
     values.push(patch.cancelAt || null);
+  }
+  if (bandKey !== undefined) {
+    sets.push("band_key = ?");
+    values.push(bandKey);
   }
   sets.push("updated_at = ?");
   values.push(patch.touchedAt ?? new Date().toISOString());
@@ -783,7 +816,12 @@ export function cyclePricing(params: {
 }): CyclePricing {
   const { plan, cycleMonth, billing, bands } = params;
   const maxActive = Math.max(0, Math.round(Number(params.peakChildren) || 0));
-  const band = pricingBandForChildCount(maxActive, bands);
+  // KID-2435: an operator-selected band pins the subscription. An empty
+  // band_key keeps the approved automatic rule (the cycle peak selects it).
+  const pinnedBand = billing.bandKey
+    ? bands.find((b) => b.key === billing.bandKey)
+    : undefined;
+  const band = pinnedBand ?? pricingBandForChildCount(maxActive, bands);
   const standardMonthly = monthlyForBand(band, maxActive);
   const cycleStart = cycleStartDate(cycleMonth);
   const foundingStart = billing.foundingStartedAt || billing.firstCycleStart || "";
@@ -1013,7 +1051,7 @@ export async function generateDueInvoices(now: Date = new Date()): Promise<numbe
     `SELECT bb.branch_id, bb.institute_id, bb.plan, bb.monthly_rate_egp,
             bb.per_child_rate_egp, bb.free_child_threshold, bb.first_cycle_start,
             bb.founding_client, bb.founding_started_at, bb.pilot_end_date,
-            bb.cancel_at,
+            bb.cancel_at, bb.band_key,
             br.name AS branch_name,
             i.name AS institute_name,
             (SELECT b2.id FROM branch b2

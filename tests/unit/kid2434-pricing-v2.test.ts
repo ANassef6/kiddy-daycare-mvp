@@ -131,8 +131,8 @@ describe("demo plan configuration", () => {
     expect(settings.demoTrialDays).toBe(30);
     expect(settings.demoRoomLimit).toBe(1);
     expect(settings.demoChildLimit).toBe(20);
-    expect(settings.demoBrandedApp).toBe(false);
-    expect(settings.demoBusTracking).toBe(false);
+    expect(settings.demoBrandedApp).toBe(true);
+    expect(settings.demoBusTracking).toBe(true);
   });
 
   it("persists operator edits", async () => {
