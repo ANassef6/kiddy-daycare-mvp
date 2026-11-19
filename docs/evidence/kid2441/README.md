@@ -51,9 +51,13 @@ treated as a bare visit.
   `detectSessionInUrl: false`; the in-memory recovery session is reused by the
   submit. No raw auth exception reaches the UI.
 - `lib/i18n.ts`: EN + AR copy for expired links and failed updates.
-- `tests/unit/kid2441-password-reset.test.ts`: 20 tests covering both URL
-  shapes, error redirects, session reuse, expired mapping, and the one-client
-  page wiring.
+- `lib/url.ts`: `resetRedirectOrigin` keeps a Sunshine subdomain request on
+  `https://sunshine.kiddyapp.net/reset-password` while previews and localhost
+  still fall back to `NEXT_PUBLIC_SITE_URL`. The reset mail no longer forces
+  every surface to the apex.
+- `tests/unit/kid2441-password-reset.test.ts`: 25 tests covering both URL
+  shapes, error redirects, session reuse, expired mapping, reset-origin
+  selection, and the one-client page wiring.
 
 ### Verification
 
@@ -75,8 +79,8 @@ is recorded here. `md` and `ts` endpoint probes confirm the page labels and
 `dir="rtl"` are server-rendered for the Arabic cookie.
 
 Local gates on the delivered commit: `tsc --noEmit` 0, `next lint` 0,
-`next build` green, KID-2441 suite 20/20, targeted regression suite
-(KID-2441/KID-2442/i18n/i18n-page-coverage/KID-495) 51/51.
+`next build` green, KID-2441 suite 25/25, targeted regression suite
+(KID-2441/KID-2442/i18n/i18n-page-coverage/KID-495) 56/56.
 
 A pre-existing unrelated staging failure remains in
 `tests/unit/kid199-platform-rework.test.ts` (extra `roles.caregiver` and

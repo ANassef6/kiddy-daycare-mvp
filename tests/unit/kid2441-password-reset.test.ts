@@ -19,6 +19,7 @@ import {
   type RecoveryAuthClient,
   type RecoveryAuthError,
 } from "@/lib/password-reset";
+import { resetOriginFor } from "@/lib/url";
 
 type FakeOptions = {
   setSessionError?: RecoveryAuthError | null;
@@ -275,5 +276,35 @@ describe("KID-2441 reset page wiring", () => {
     expect(source).toContain("labels.invalidLink");
     expect(source).toContain("labels.updateFailed");
     expect(source).not.toContain("setError(updateError.message)");
+  });
+});
+
+describe("KID-2441 reset redirect origin", () => {
+  const configured = "https://kiddyapp.net";
+  const apex = "kiddyapp.net";
+
+  it("keeps the Sunshine subdomain when the request came from it", () => {
+    expect(resetOriginFor("https://sunshine.kiddyapp.net", configured, apex)).toBe(
+      "https://sunshine.kiddyapp.net"
+    );
+  });
+
+  it("keeps the apex", () => {
+    expect(resetOriginFor("https://kiddyapp.net", configured, apex)).toBe("https://kiddyapp.net");
+  });
+
+  it("falls back to the configured site for a preview host", () => {
+    expect(resetOriginFor("https://kiddy-staging-orcin.vercel.app", configured, apex)).toBe(
+      configured
+    );
+  });
+
+  it("refuses a lookalike host that only contains the apex name", () => {
+    expect(resetOriginFor("https://kiddyapp.net.evil.example", configured, apex)).toBe(configured);
+    expect(resetOriginFor("https://evil-kiddyapp.net", configured, apex)).toBe(configured);
+  });
+
+  it("uses the request origin for local development", () => {
+    expect(resetOriginFor("http://localhost:3000", "", "")).toBe("http://localhost:3000");
   });
 });
