@@ -15,6 +15,8 @@ export default async function ResetPasswordPage() {
     checking: tr(dict, "resetPassword.checking"),
     notConfigured: tr(dict, "resetPassword.notConfigured"),
     invalidLink: tr(dict, "resetPassword.invalidLink"),
+    expiredLink: tr(dict, "resetPassword.expiredLink"),
+    updateFailed: tr(dict, "resetPassword.updateFailed"),
     tooShort: tr(dict, "resetPassword.tooShort"),
     mismatch: tr(dict, "resetPassword.mismatch"),
     newPassword: tr(dict, "account.newPassword"),
