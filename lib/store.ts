@@ -805,13 +805,12 @@ export async function createDaycare(data: {
   timeZone?: string;
   /** KID-244: the subscription the operator picked at creation — the billing
    *  row is written in the same logical step, so a daycare never exists
-   *  without one. Defaults apply per field (demo / 500 / 50 / 10 / 24000). */
+   *  without one. KID-2435 v3 removed the annual product: demo or monthly. */
   billing?: {
     plan?: BillingPlan;
     monthlyRateEgp?: number;
     perChildRateEgp?: number;
     freeChildThreshold?: number;
-    annualAmountEgp?: number;
   };
   ownerEmail: string;
   ownerPassword: string;
@@ -872,7 +871,6 @@ export async function createDaycare(data: {
     monthlyRateEgp: data.billing?.monthlyRateEgp,
     perChildRateEgp: data.billing?.perChildRateEgp,
     freeChildThreshold: data.billing?.freeChildThreshold,
-    annualAmountEgp: data.billing?.annualAmountEgp,
     firstCycleStart: Number.isNaN(createdAt.getTime())
       ? undefined
       : nextMonthStart(createdAt),

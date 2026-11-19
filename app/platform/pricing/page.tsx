@@ -2,7 +2,6 @@ import { redirect } from "next/navigation";
 import { requireSession } from "@/lib/require";
 import { isPlatformOperatorEmail, isPlatformOperatorRole } from "@/lib/platform";
 import {
-  annualForMonthly,
   countFoundingClients,
   foundingOfferState,
   getPricingBands,
@@ -18,7 +17,6 @@ const ERRORS: Record<string, string> = {
   "pricing-band-unknown": "That pricing band does not exist.",
   "pricing-band-invalid": "Check the band values: children and amounts must be valid numbers.",
   "pricing-band-ladder": "The bands must cover 1 child upward with no gaps or overlaps.",
-  "pricing-band-annual-rule": "The annual amount must equal 10x the monthly amount.",
   "pricing-setting-invalid": "Check the demo and founding-cohort values.",
   unknown: "Something went wrong saving the pricing configuration. Please try again.",
 };
@@ -57,7 +55,7 @@ export default async function PlatformPricingPage(props: {
 
       <h2 className="title">{tr(dict, "platform.pricingBandTitle")}</h2>
       <p className="small muted">{tr(dict, "platform.pricingBandHint")}</p>
-      <p className="small muted">{tr(dict, "platform.pricingAnnualRule")}</p>
+      <p className="small muted">{tr(dict, "platform.pricingMonthlyOnly")}</p>
 
       <div className="card mb-4">
         {bands.map((band) => (
@@ -90,15 +88,6 @@ export default async function PlatformPricingPage(props: {
                 <input className="input" name="monthlyEgp" type="number" min={0} defaultValue={band.monthlyEgp} />
               </div>
               <div className="col field">
-                <label className="label">{tr(dict, "platform.pricingBandAnnual")}</label>
-                <input
-                  className="input"
-                  type="text"
-                  readOnly
-                  value={band.annualIsQuote ? tr(dict, "platform.pricingBandQuote") : String(annualForMonthly(band.monthlyEgp))}
-                />
-              </div>
-              <div className="col field">
                 <label className="label">{tr(dict, "platform.pricingBandPerChild")}</label>
                 <input
                   className="input"
@@ -125,13 +114,6 @@ export default async function PlatformPricingPage(props: {
                 <label className="small">
                   <input type="checkbox" name="busTrackingIncluded" value="1" defaultChecked={band.busTrackingIncluded} />{" "}
                   {tr(dict, "platform.pricingBandBusIncluded")}
-                </label>
-              </div>
-              <div className="col field">
-                <label className="label">{tr(dict, "platform.pricingBandQuoteLabel")}</label>
-                <label className="small">
-                  <input type="checkbox" name="annualIsQuote" value="1" defaultChecked={band.annualIsQuote} />{" "}
-                  {tr(dict, "platform.pricingBandQuoteHint")}
                 </label>
               </div>
             </div>
@@ -236,8 +218,8 @@ export default async function PlatformPricingPage(props: {
             <input className="input" name="foundingPilotCreditDays" type="number" min={0} defaultValue={settings.foundingPilotCreditDays} />
           </div>
           <div className="col field">
-            <label className="label">{tr(dict, "platform.pricingFoundingGlidePct")}</label>
-            <input className="input" name="foundingGlideMaxIncreasePct" type="number" min={0} max={100} defaultValue={settings.foundingGlideMaxIncreasePct} />
+            <label className="label">{tr(dict, "platform.pricingGraceDays")}</label>
+            <input className="input" name="billingGraceDays" type="number" min={0} defaultValue={settings.billingGraceDays} />
           </div>
         </div>
         <button className="btn btn-primary" type="submit">

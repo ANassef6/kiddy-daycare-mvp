@@ -152,21 +152,6 @@ describe("the pricing-v2 formula (cyclePricing)", () => {
     expect(b.incrementalAmount).toBe(200);
     expect(b.grossAmount).toBe(2700);
   });
-
-  it("the annual plan bills 10x the band monthly regardless of the roster", () => {
-    const b = price(87, "annual");
-    expect(b.band.key).toBe("enterprise");
-    expect(b.grossAmount).toBe(25000);
-    expect(b.billableChildren).toBe(0);
-    expect(b.maxActiveChildren).toBe(87);
-  });
-
-  it("does not invent an amount for an Enterprise+ annual quote", () => {
-    const b = price(150, "annual");
-    expect(b.band.key).toBe("enterprise_plus");
-    expect(b.quoteRequired).toBe(true);
-    expect(b.grossAmount).toBe(0);
-  });
 });
 
 describe("peak max-children measurement", () => {
@@ -265,46 +250,20 @@ describe("invoice generation", () => {
     expect(await listInvoices(res.instituteId)).toHaveLength(0);
   });
 
-  it("the annual plan bills one invoice per 12-month cycle, due the 5th after the block", async () => {
-    const res = await store.createDaycare({
-      name: "Annual Grove",
-      ownerEmail: `annual-${Math.random().toString(36).slice(2, 8)}@annualgrove.test`,
-      ownerPassword: "annual-owner-1",
-      ownerFullName: "Annual Owner",
-      billing: { plan: "annual" },
-    });
-    await updateDaycareBilling(res.instituteId, { firstCycleStart: "2026-02-01" });
-    await seedChildren(res.instituteId, 40, "2026-01-01 09:00:00");
-
-    // The 12-month block has not ended — nothing yet, even mid-block.
-    expect(await generateDueInvoices(utcDate(2026, 9, 1))).toBe(0);
-    expect(await listInvoices(res.instituteId)).toHaveLength(0);
-
-    // The block 2026-02..2027-01 ends 2027-01-31; the invoice is due 2027-02-05.
-    expect(await generateDueInvoices(utcDate(2027, 2, 3))).toBe(1);
-    const first = (await listInvoices(res.instituteId))[0]!;
-    expect(first.cycleMonth).toBe("2026-02");
-    expect(first.totalAmount).toBe(14000);
-    expect(first.billableChildren).toBe(0);
-    expect(first.bandKey).toBe("standard");
-    expect(first.dueDate).toBe("2027-02-05");
-
-    // The NEXT block (2027-02..2028-01) gets its own single invoice.
-    expect(await generateDueInvoices(utcDate(2028, 2, 10))).toBe(1);
-    expect((await listInvoices(res.instituteId)).map((i) => i.cycleMonth).sort()).toEqual([
-      "2026-02",
-      "2027-02",
-    ]);
-  });
-
   it("the bootstrap sweep generates and enforces in one pass", async () => {
     const iid = await newMonthlyDaycare("2026-03-01");
     await seedChildren(iid, 11, "2026-02-01 09:00:00");
-    const res = await runBillingSweep(utcDate(2026, 4, 6));
-    expect(res.generated).toBe(1);
-    const inv = (await listInvoices(iid))[0]!;
-    expect(inv.status).toBe("overdue"); // due 2026-04-05, now 2026-04-06
-    expect(res.disabled).toBe(1);
+    // KID-2435 v3: due 2026-04-05, then 7 days' grace. Still pending and
+    // active on 2026-04-06; overdue only after the grace window closes.
+    const inGrace = await runBillingSweep(utcDate(2026, 4, 6));
+    expect(inGrace.generated).toBe(1);
+    expect((await listInvoices(iid))[0]!.status).toBe("pending");
+    expect(inGrace.disabled).toBe(0);
+    expect(Number((await store.getInstitute(iid))!.active)).toBe(1);
+
+    const afterGrace = await runBillingSweep(utcDate(2026, 4, 13));
+    expect(afterGrace.disabled).toBe(1);
+    expect((await listInvoices(iid))[0]!.status).toBe("overdue");
     expect(Number((await store.getInstitute(iid))!.active)).toBe(0);
   });
 
@@ -335,27 +294,27 @@ describe("overdue enforcement and re-enable", () => {
     await generateDueInvoices(utcDate(2026, 4, 1));
     expect(Number((await store.getInstitute(iid))!.active)).toBe(1);
 
-    const disabled = await runBillingSweep(utcDate(2026, 4, 6)).then((r) => r.disabled);
+    const disabled = await runBillingSweep(utcDate(2026, 4, 13)).then((r) => r.disabled);
     expect(disabled).toBe(1);
     const inv = (await listInvoices(iid))[0]!;
     expect(inv.status).toBe("overdue");
     expect(Number((await store.getInstitute(iid))!.active)).toBe(0);
     // Idempotent: a re-run (next warm instance) changes nothing.
-    expect((await runBillingSweep(utcDate(2026, 4, 7))).disabled).toBe(0);
+    expect((await runBillingSweep(utcDate(2026, 4, 14))).disabled).toBe(0);
     expect(Number((await store.getInstitute(iid))!.active)).toBe(0);
   });
 
   it("marking the invoice paid flips the daycare back to active", async () => {
     const iid = await newMonthlyDaycare("2026-03-01");
     await seedChildren(iid, 5, "2026-02-01 09:00:00");
-    await runBillingSweep(utcDate(2026, 4, 6));
+    await runBillingSweep(utcDate(2026, 4, 13));
     expect(Number((await store.getInstitute(iid))!.active)).toBe(0);
     const inv = (await listInvoices(iid))[0]!;
 
-    await markInvoicePaid(inv.id, { paidAt: "2026-04-07T10:00:00.000Z" });
+    await markInvoicePaid(inv.id, { paidAt: "2026-04-14T10:00:00.000Z" });
     const paid = await getInvoice(inv.id);
     expect(paid!.status).toBe("paid");
-    expect(paid!.paidAt.slice(0, 10)).toBe("2026-04-07");
+    expect(paid!.paidAt.slice(0, 10)).toBe("2026-04-14");
     expect(Number((await store.getInstitute(iid))!.active)).toBe(1);
 
     // Idempotent: paying twice is a no-op, never an error.
@@ -367,7 +326,7 @@ describe("overdue enforcement and re-enable", () => {
     const iid = await newMonthlyDaycare("2026-02-01");
     await seedChildren(iid, 5, "2026-01-01 09:00:00");
     await generateDueInvoices(utcDate(2026, 4, 1)); // cycles 2026-02 + 2026-03
-    await runBillingSweep(utcDate(2026, 4, 6));
+    await runBillingSweep(utcDate(2026, 4, 13));
     expect(Number((await store.getInstitute(iid))!.active)).toBe(0);
 
     const invoices = await listInvoices(iid);

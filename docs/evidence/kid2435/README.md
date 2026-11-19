@@ -1,5 +1,44 @@
 # KID-2435 — pricing v2 bands and founding cohort in the invoice engine
 
+## v3 scope update (19 Nov 2026, KID-2430)
+
+The approved plan is now monthly only. This branch is **not merged to
+production** because one approved rule needs a data-model decision first.
+
+Implemented in this change:
+
+- Annual is gone: no annual amount is billed, stored or displayed. The
+  `pricing_band.annual_egp` / `annual_is_quote` columns and
+  `daycare_billing.annual_amount_egp` are dropped by migration `0048`; the
+  pricing, billing and portal surfaces no longer show an annual figure.
+- The 20% glide cap is gone. A founding client pays the rate fixed at its
+  first invoice for months 1–12, then the standard band amount from month 13.
+  One step, no compounding chain.
+- Billing starts on the 1st of a month. `first_cycle_start` is normalised on
+  read and write, so a mid-month date becomes the 1st and no proration exists.
+- Failed payment: `billing.grace_days` (default 7) is added to the due date
+  before the invoice becomes overdue. Data is never deleted.
+- The monthly bands, Enterprise+ formula, founding amounts, founding cap and
+  pilot credit are unchanged.
+
+**Blocked on a decision — one subscription per branch.** The approved plan
+says every branch is its own subscription. The `branch` table exists (id,
+institute_id, name, address, created_at) but has **no billing anchor**:
+`daycare_billing` and `daycare_invoice` are keyed by `institute_id`. Making
+the branch the billable record is a data-model change, not a pricing change.
+The target record and three edge cases are asked back on the issue before
+this merges.
+
+Not in this change:
+
+- True read-only enforcement. The grace window is implemented; after it the
+  existing billing block still disables the whole account at login. A
+  read-only state needs a write gate across server actions.
+- Cancellation at the end of the paid month. No cancellation record or UI
+  exists yet.
+
+## v2 implementation (18 Nov 2026)
+
 ## Founder gate
 
 The 18:05Z founder direction said to implement per Noor's structure and not to

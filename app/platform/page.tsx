@@ -108,11 +108,10 @@ export default async function PlatformDaycaresPage(
   // store throws, with their friendly wording.
   const entryError = searchParams.error ? (ENTRY_ERRORS[searchParams.error] ?? "") : "";
   const billingErrorKeys: Record<string, string> = {
-    "billing-plan-invalid": "Choose one of: demo, monthly or annual.",
+    "billing-plan-invalid": "Choose one of: demo or monthly.",
     "billing-monthly_rate_egp-invalid": "The monthly rate must be a number of at least zero.",
     "billing-per_child_rate_egp-invalid": "The incremental child rate must be a number of at least zero.",
     "billing-free_child_threshold-invalid": "The free-child threshold must be a number of at least zero.",
-    "billing-annual_amount_egp-invalid": "The annual amount must be a number of at least zero.",
     "billing-cycle-invalid": "Type the first billing month as a date (YYYY-MM-DD).",
   };
   const createError =
@@ -500,7 +499,7 @@ export default async function PlatformDaycaresPage(
           <div className="col field">
             <label className="label">{tr(dict, "platform.billingPlan")}</label>
             <select className="input" name="billingPlan" defaultValue="demo">
-              {["demo", "monthly", "annual"].map((p) => (
+              {["demo", "monthly"].map((p) => (
                 <option key={p} value={p}>
                   {tr(dict, `platform.billingPlan${p[0]!.toUpperCase()}${p.slice(1)}`)}
                 </option>
@@ -520,10 +519,6 @@ export default async function PlatformDaycaresPage(
           <div className="col field">
             <label className="label">{tr(dict, "platform.billingFreeThreshold")}</label>
             <input className="input" name="billingFreeThreshold" type="number" min={0} defaultValue={BILLING_DEFAULTS.freeChildThreshold} />
-          </div>
-          <div className="col field">
-            <label className="label">{tr(dict, "platform.billingAnnualAmount")}</label>
-            <input className="input" name="billingAnnualAmount" type="number" min={0} defaultValue={BILLING_DEFAULTS.annualAmountEgp} />
           </div>
         </div>
         <div className="row">

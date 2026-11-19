@@ -32,7 +32,7 @@ beforeEach(async () => {
 });
 
 async function newDaycare(
-  plan: "monthly" | "annual",
+  plan: "monthly",
   firstCycleStart: string,
   founding: { foundingClient?: boolean; foundingStartedAt?: string; pilotEndDate?: string } = {}
 ): Promise<string> {
@@ -115,28 +115,10 @@ describe("Noor's band-resolution vectors (configured values, not code constants)
     }
   });
 
-  it("annual is 10x the band monthly", () => {
-    for (const [children, amount] of [
-      [15, 6000],
-      [25, 9500],
-      [40, 14000],
-      [60, 19000],
-    ] as const) {
-      expect(priceFor(children, { plan: "annual" }).grossAmount).toBe(amount);
-    }
-  });
-
-  it("Enterprise+ annual stays a per-client quote", () => {
-    const p = priceFor(150, { plan: "annual" });
-    expect(p.band.key).toBe("enterprise_plus");
-    expect(p.quoteRequired).toBe(true);
-    expect(p.standardAmountEgp).toBe(0);
-    expect(p.grossAmount).toBe(0);
-  });
-
-  it("founding year-1 and the first review match the approved vectors", () => {
+  it("founding year-1 steps to the standard band at month 13", () => {
     const founding = { foundingClient: true, foundingStartedAt: "2026-01-01" };
     expect(priceFor(22, { billing: founding }).grossAmount).toBe(810);
+    expect(priceFor(22, { billing: founding, cycleMonth: "2026-12" }).grossAmount).toBe(810);
     expect(priceFor(22, { billing: founding, cycleMonth: "2027-01" }).grossAmount).toBe(950);
     expect(priceFor(45, { billing: founding }).grossAmount).toBe(1190);
     expect(priceFor(45, { billing: founding, cycleMonth: "2027-01" }).grossAmount).toBe(1400);
@@ -183,29 +165,10 @@ describe("the invoice engine reads the operator configuration", () => {
     expect(inv.incrementalAmount).toBe(200);
     expect(inv.totalAmount).toBe(2700);
   });
-
-  it("annual bills one 10x block and never invents an Enterprise+ quote", async () => {
-    const iid = await newDaycare("annual", "2026-01-01");
-    await seedChildren(iid, 40, "2025-12-01 09:00:00");
-    expect(await generateDueInvoices(utcDate(2027, 2, 2))).toBe(1);
-    const inv = (await listInvoices(iid))[0]!;
-    expect(inv.cycleMonth).toBe("2026-01");
-    expect(inv.bandKey).toBe("standard");
-    expect(inv.standardAmountEgp).toBe(14000);
-    expect(inv.totalAmount).toBe(14000);
-
-    const quote = await newDaycare("annual", "2026-01-01");
-    await seedChildren(quote, 150, "2025-12-01 09:00:00");
-    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
-    expect(await generateDueInvoices(utcDate(2027, 2, 2))).toBe(0);
-    expect(await listInvoices(quote)).toHaveLength(0);
-    expect(warn).toHaveBeenCalledWith(expect.stringContaining("per-client quote"));
-    warn.mockRestore();
-  });
 });
 
 describe("founding cohort", () => {
-  it("keeps the year-1 rate for 12 months, then glides at 20% per review", async () => {
+  it("keeps the year-1 rate for 12 months, then steps to standard at month 13", async () => {
     const iid = await newDaycare("monthly", "2026-01-01", {
       foundingClient: true,
       foundingStartedAt: "2026-01-01",
@@ -228,9 +191,9 @@ describe("founding cohort", () => {
     ]) {
       expect(amount(month)).toBe(810);
     }
-    // Reviews: 810 -> 972 -> 1,166.4 -> 1,399.68 (billed 1,400).
-    expect(amount("2027-01")).toBe(972);
-    expect(amount("2028-01")).toBe(1166);
+    // Month 13 steps once to the Standard band amount. There is no glide.
+    expect(amount("2027-01")).toBe(1400);
+    expect(amount("2028-01")).toBe(1400);
     expect(amount("2029-01")).toBe(1400);
 
     const yearOne = invoices.find((i) => i.cycleMonth === "2026-12")!;
@@ -241,9 +204,9 @@ describe("founding cohort", () => {
     expect(yearOne.appliedMonthlyRateExact).toBe(810);
 
     const reviewTwo = invoices.find((i) => i.cycleMonth === "2028-01")!;
-    expect(reviewTwo.glideCapped).toBe(true);
+    expect(reviewTwo.glideCapped).toBe(false);
     expect(reviewTwo.foundingTermIndex).toBe(2);
-    expect(reviewTwo.appliedMonthlyRateExact).toBeCloseTo(1166.4, 6);
+    expect(reviewTwo.appliedMonthlyRateExact).toBe(1400);
   });
 
   it("enforces the configured founding cap in the data layer", async () => {

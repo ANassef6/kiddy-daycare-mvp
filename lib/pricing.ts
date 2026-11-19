@@ -1,7 +1,5 @@
 import { queryAll, queryGet, queryRun, type Row } from "./db";
 
-export const ANNUAL_MULTIPLIER = 10;
-
 export type PricingBandKey =
   | "seed"
   | "core"
@@ -25,8 +23,6 @@ export type PricingBand = {
   minChildren: number;
   maxChildren: number | null;
   monthlyEgp: number;
-  annualEgp: number | null;
-  annualIsQuote: boolean;
   perChildOverageEgp: number;
   foundingMonthlyEgp: number | null;
   busTrackingIncluded: boolean;
@@ -40,8 +36,6 @@ export const STANDARD_PRICING_BANDS: PricingBand[] = [
     minChildren: 1,
     maxChildren: 15,
     monthlyEgp: 600,
-    annualEgp: 6000,
-    annualIsQuote: false,
     perChildOverageEgp: 0,
     foundingMonthlyEgp: 510,
     busTrackingIncluded: true,
@@ -53,8 +47,6 @@ export const STANDARD_PRICING_BANDS: PricingBand[] = [
     minChildren: 16,
     maxChildren: 30,
     monthlyEgp: 950,
-    annualEgp: 9500,
-    annualIsQuote: false,
     perChildOverageEgp: 0,
     foundingMonthlyEgp: 810,
     busTrackingIncluded: true,
@@ -66,8 +58,6 @@ export const STANDARD_PRICING_BANDS: PricingBand[] = [
     minChildren: 31,
     maxChildren: 50,
     monthlyEgp: 1400,
-    annualEgp: 14000,
-    annualIsQuote: false,
     perChildOverageEgp: 0,
     foundingMonthlyEgp: 1190,
     busTrackingIncluded: true,
@@ -79,8 +69,6 @@ export const STANDARD_PRICING_BANDS: PricingBand[] = [
     minChildren: 51,
     maxChildren: 80,
     monthlyEgp: 1900,
-    annualEgp: 19000,
-    annualIsQuote: false,
     perChildOverageEgp: 0,
     foundingMonthlyEgp: 1620,
     busTrackingIncluded: true,
@@ -92,8 +80,6 @@ export const STANDARD_PRICING_BANDS: PricingBand[] = [
     minChildren: 81,
     maxChildren: 120,
     monthlyEgp: 2500,
-    annualEgp: 25000,
-    annualIsQuote: false,
     perChildOverageEgp: 0,
     foundingMonthlyEgp: 2130,
     busTrackingIncluded: true,
@@ -105,8 +91,6 @@ export const STANDARD_PRICING_BANDS: PricingBand[] = [
     minChildren: 121,
     maxChildren: null,
     monthlyEgp: 2500,
-    annualEgp: null,
-    annualIsQuote: true,
     perChildOverageEgp: 20,
     foundingMonthlyEgp: null,
     busTrackingIncluded: true,
@@ -129,7 +113,7 @@ export type PricingSettings = {
   foundingPilotRoomLimit: number;
   foundingPilotChildLimit: number;
   foundingPilotCreditDays: number;
-  foundingGlideMaxIncreasePct: number;
+  billingGraceDays: number;
 };
 
 export const PRICING_SETTINGS_DEFAULTS: PricingSettings = {
@@ -147,7 +131,7 @@ export const PRICING_SETTINGS_DEFAULTS: PricingSettings = {
   foundingPilotRoomLimit: 1,
   foundingPilotChildLimit: 20,
   foundingPilotCreditDays: 14,
-  foundingGlideMaxIncreasePct: 20,
+  billingGraceDays: 7,
 };
 
 const SETTING_KEYS: Record<keyof PricingSettings, string> = {
@@ -165,7 +149,7 @@ const SETTING_KEYS: Record<keyof PricingSettings, string> = {
   foundingPilotRoomLimit: "founding.pilot_room_limit",
   foundingPilotChildLimit: "founding.pilot_child_limit",
   foundingPilotCreditDays: "founding.pilot_credit_days",
-  foundingGlideMaxIncreasePct: "founding.glide_max_increase_pct",
+  billingGraceDays: "billing.grace_days",
 };
 
 const BOOLEAN_SETTINGS = new Set<keyof PricingSettings>([
@@ -185,7 +169,7 @@ const NON_NEGATIVE_SETTINGS = new Set<keyof PricingSettings>([
   "foundingPilotRoomLimit",
   "foundingPilotChildLimit",
   "foundingPilotCreditDays",
-  "foundingGlideMaxIncreasePct",
+  "billingGraceDays",
 ]);
 
 function clampInt(value: unknown, fallback: number): number {
@@ -214,11 +198,6 @@ export function bandRowTo(row: Row): PricingBand {
         ? null
         : clampInt(row.max_children, 0),
     monthlyEgp: clampInt(row.monthly_egp, 0),
-    annualEgp:
-      row.annual_egp === null || row.annual_egp === undefined
-        ? null
-        : clampInt(row.annual_egp, 0),
-    annualIsQuote: bool(row.annual_is_quote, false),
     perChildOverageEgp: clampInt(row.per_child_overage_egp, 0),
     foundingMonthlyEgp:
       row.founding_monthly_egp === null || row.founding_monthly_egp === undefined
@@ -227,10 +206,6 @@ export function bandRowTo(row: Row): PricingBand {
     busTrackingIncluded: bool(row.bus_tracking_included, true),
     sortOrder: clampInt(row.sort_order, 0),
   };
-}
-
-export function annualForMonthly(monthlyEgp: number): number {
-  return Math.round(Number(monthlyEgp) || 0) * ANNUAL_MULTIPLIER;
 }
 
 export function pricingBandForChildCount(
@@ -254,10 +229,6 @@ export function monthlyForBand(band: PricingBand, childCount: number): number {
     return band.monthlyEgp + Math.max(0, n - included) * band.perChildOverageEgp;
   }
   return band.monthlyEgp;
-}
-
-export function annualForBand(band: PricingBand): number | null {
-  return band.annualIsQuote ? null : annualForMonthly(band.monthlyEgp);
 }
 
 export function foundingYearOneForBand(band: PricingBand): number | null {
@@ -324,27 +295,6 @@ export function pilotCreditAmount(settings: PricingSettings, eligible: boolean):
   return eligible ? settings.foundingPilotFeeEgp : 0;
 }
 
-export function glideMaxNextAmount(previousAmountEgp: number, maxIncreasePct: number): number {
-  const prev = Math.max(0, Number(previousAmountEgp) || 0);
-  const pct = Math.max(0, Number(maxIncreasePct) || 0);
-  return Math.floor(prev * (1 + pct / 100));
-}
-
-/** KID-2435: the exact (unrounded) glide rate. The approved 20% cap compounds
- *  on the rate itself, so the engine keeps the fractional EGP here and rounds
- *  only when it bills: 810 -> 972 -> 1,166.4 -> 1,399.68 stays under the
- *  1,400 Standard band and is billed as 1,400. */
-export function glideRateExact(
-  previousRateEgp: number,
-  standardMonthlyEgp: number,
-  maxIncreasePct: number
-): number {
-  const prev = Math.max(0, Number(previousRateEgp) || 0);
-  const standard = Math.max(0, Number(standardMonthlyEgp) || 0);
-  const pct = Math.max(0, Number(maxIncreasePct) || 0);
-  return Math.min(standard, prev * (1 + pct / 100));
-}
-
 /** Whole calendar months from `fromIso` to `toIso` (day-of-month aware): a
  *  founding term that starts on the 15th does not roll over on the 1st of the
  *  anniversary month. */
@@ -377,12 +327,8 @@ export function validatePricingBands(bands: PricingBand[]): void {
     if (band.monthlyEgp < 0 || band.perChildOverageEgp < 0) {
       throw new Error("pricing-band-invalid");
     }
-    if (band.annualIsQuote) {
-      if (band.annualEgp !== null || band.maxChildren !== null) {
-        throw new Error("pricing-band-invalid");
-      }
-    } else if (band.annualEgp !== annualForMonthly(band.monthlyEgp)) {
-      throw new Error("pricing-band-annual-rule");
+    if (band.perChildOverageEgp > 0 && band.maxChildren !== null) {
+      throw new Error("pricing-band-invalid");
     }
   }
   if (sorted[0]!.minChildren !== 1) throw new Error("pricing-band-ladder");
@@ -425,7 +371,6 @@ export type PricingBandPatch = Partial<{
   minChildren: number;
   maxChildren: number | null;
   monthlyEgp: number;
-  annualIsQuote: boolean;
   perChildOverageEgp: number;
   foundingMonthlyEgp: number | null;
   busTrackingIncluded: boolean;
@@ -453,7 +398,6 @@ export async function updatePricingBand(
       patch.maxChildren === null ? null : Math.round(Number(patch.maxChildren));
   }
   if (patch.monthlyEgp !== undefined) next.monthlyEgp = Math.round(Number(patch.monthlyEgp));
-  if (patch.annualIsQuote !== undefined) next.annualIsQuote = !!patch.annualIsQuote;
   if (patch.perChildOverageEgp !== undefined) {
     next.perChildOverageEgp = Math.round(Number(patch.perChildOverageEgp));
   }
@@ -474,13 +418,12 @@ export async function updatePricingBand(
   ) {
     throw new Error("pricing-band-invalid");
   }
-  next.annualEgp = next.annualIsQuote ? null : annualForMonthly(next.monthlyEgp);
   const candidate = bands.map((b) => (b.key === key ? next : b));
   validatePricingBands(candidate);
   await queryRun(
     `UPDATE pricing_band
      SET name = ?, min_children = ?, max_children = ?, monthly_egp = ?,
-         annual_egp = ?, annual_is_quote = ?, per_child_overage_egp = ?,
+         per_child_overage_egp = ?,
          founding_monthly_egp = ?, bus_tracking_included = ?, sort_order = ?,
          updated_at = ?
      WHERE key = ?`,
@@ -488,8 +431,6 @@ export async function updatePricingBand(
     next.minChildren,
     next.maxChildren,
     next.monthlyEgp,
-    next.annualEgp,
-    next.annualIsQuote ? 1 : 0,
     next.perChildOverageEgp,
     next.foundingMonthlyEgp,
     next.busTrackingIncluded ? 1 : 0,
@@ -530,7 +471,6 @@ export async function updatePricingSettings(
   if (next.foundingPilotDays < 1 || next.foundingPilotRoomLimit < 1 || next.foundingPilotChildLimit < 1) {
     throw new Error("pricing-setting-invalid");
   }
-  if (next.foundingGlideMaxIncreasePct > 100) throw new Error("pricing-setting-invalid");
   const now = new Date().toISOString();
   for (const key of Object.keys(SETTING_KEYS) as Array<keyof PricingSettings>) {
     if (patch[key] === undefined) continue;
