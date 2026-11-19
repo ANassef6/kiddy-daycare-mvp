@@ -7,6 +7,7 @@ import {
   encodeWorkingHours,
   checkInOpen,
   closeCutoff,
+  endOfWorkingHoursCutoff,
   busAutoOffCutoff,
   type CheckInGate,
   type WorkingWeek,
@@ -1310,8 +1311,9 @@ export async function attendanceOn(
             (SELECT recorded_at FROM check_in WHERE child_id = c.id AND ${range.sql} AND type='in' ORDER BY recorded_at DESC LIMIT 1) AS checked_in_at,
             (SELECT source FROM check_in WHERE child_id = c.id AND ${range.sql} AND type='in' ORDER BY recorded_at DESC LIMIT 1) AS checked_in_source,
             (SELECT recorded_at FROM check_in WHERE child_id = c.id AND ${range.sql} AND type='out' ORDER BY recorded_at DESC LIMIT 1) AS checked_out_at,
-            -- KID-2448: 'bus' marks attendance rows written by a bus off-bus
-            -- transition; attendance history/exports use it as a display marker.
+            -- KID-2447 + KID-2448: the source column marks a system-written
+            -- row ('auto_end_of_day' or 'bus'); attendance history/exports use
+            -- it only as a display marker.
             (SELECT source FROM check_in WHERE child_id = c.id AND ${range.sql} AND type='out' ORDER BY recorded_at DESC LIMIT 1) AS checked_out_source
      FROM child c
      LEFT JOIN room r ON r.id = c.room_id
@@ -1389,19 +1391,27 @@ export async function systemAccountId(): Promise<string> {
   return String(acc.id);
 }
 
+// KID-2447: `source` records WHY the row was written without a pickup person.
+// NULL stays a normal manual/staff/parent checkout; the end-of-day sweep
+// writes AUTO_CHECKOUT_SOURCE so attendance history and dashboards can label
+// it as automatic instead of a real pickup.
+export const AUTO_CHECKOUT_SOURCE = "auto_end_of_day";
+
 export async function autoCheckoutChild(
   childId: string,
   at: Date,
-  actorAccountId: string
+  actorAccountId: string,
+  source: string | null = null
 ): Promise<Row> {
   const id = uid();
   await queryRun(
-    `INSERT INTO check_in (id, child_id, account_id, type, is_edit, recorded_at)
-     VALUES (?, ?, ?, 'out', 0, ?)`,
+    `INSERT INTO check_in (id, child_id, account_id, type, is_edit, recorded_at, source)
+     VALUES (?, ?, ?, 'out', 0, ?, ?)`,
     id,
     childId,
     actorAccountId,
-    at.toISOString()
+    at.toISOString(),
+    source
   );
   return (await queryGet("SELECT * FROM check_in WHERE id = ?", id))!;
 }
@@ -1429,61 +1439,144 @@ export async function autoCheckoutStaff(
   return (await queryGet("SELECT * FROM staff_status WHERE id = ?", id))!;
 }
 
-// The auto check-out sweep: everyone still checked-in 3h after today's closing
-// time is checked out with actor=system and a fresh timestamp. Runs anywhere
-// attendance is shown so the data is always correct after hours.
+// KID-2447: tell the center's admins/owners and the assigned classroom
+// teachers which children the end-of-day sweep checked out. One durable row
+// per recipient (activity `attendance`), with a per-center/day ref so a
+// repeated sweep never re-notifies. Best-effort: a notification failure is
+// logged and never rolls back the checkouts.
+async function notifyAutoCheckout(
+  instituteId: string,
+  children: Row[],
+  at: Date,
+  day: string
+): Promise<void> {
+  try {
+    if (children.length === 0) return;
+    const childIds = children.map((c) => String(c.id));
+    const placeholders = childIds.map(() => "?").join(", ");
+    const [admins, teachers] = await Promise.all([
+      queryAll(
+        `SELECT DISTINCT a.id FROM account a
+         JOIN staff s ON s.id = a.staff_id
+         WHERE s.institute_id = ? AND s.active = 1 AND a.role IN ('admin', 'owner')`,
+        instituteId
+      ),
+      queryAll(
+        `SELECT DISTINCT a.id FROM account a
+         JOIN staff s ON s.id = a.staff_id
+         JOIN staff_room sr ON sr.staff_id = s.id
+         JOIN child c ON c.room_id = sr.room_id
+         WHERE s.institute_id = ? AND s.active = 1
+           AND a.role IN ('staff', 'carer')
+           AND c.id IN (${placeholders})`,
+        instituteId,
+        ...childIds
+      ),
+    ]);
+    const names = children
+      .map((c) => `${c.first_name ?? ""} ${c.last_name ?? ""}`.trim())
+      .filter(Boolean);
+    await emitNotifications({
+      instituteId,
+      accountIds: [...admins, ...teachers].map((r) => String(r.id)),
+      activity: "attendance",
+      kind: "auto_checkout",
+      payload: {
+        childNames: names,
+        count: names.length,
+        checkoutDate: day,
+        autoSource: AUTO_CHECKOUT_SOURCE,
+      },
+      ref: `auto-checkout-${instituteId}-${day}`,
+      createdAt: at.toISOString(),
+    });
+  } catch (err) {
+    console.error(`KID-2447 auto-checkout notification failed (institute=${instituteId}):`, err);
+  }
+}
+
+// The auto check-out sweep. KID-2447: children still checked-in when today's
+// working hours END are checked out with actor=system and the distinct
+// `auto_end_of_day` source. Staff keep the historical +3h grace cutoff. The
+// center's config is read here, at run time, so a mid-day hours change takes
+// effect on the next sweep. Runs on every attendance surface load and from
+// the scheduled /api/attendance/sweep route.
 export async function runAutoCheckoutSweep(
   instituteId: string,
   now = new Date()
 ): Promise<{ children: Row[]; staff: Row[]; busOff: Row[]; at: string; reason: string | null; cutoff: string | null }> {
   const { week, timeZone } = await getCenterSchedule(instituteId);
-  const cutoff = closeCutoff(week, now, timeZone);
+  // KID-2447: the child cutoff is the end of working hours (no grace).
+  const childCutoff = endOfWorkingHoursCutoff(week, now, timeZone);
+  // Staff keep the legacy close + 3h cutoff.
+  const staffCutoff = closeCutoff(week, now, timeZone);
   const stamp = now.toISOString();
-  if (!cutoff || now < cutoff) {
+  if (!childCutoff && !staffCutoff) {
     return {
       children: [],
       staff: [],
       busOff: [],
       at: stamp,
-      reason: cutoff ? "before cutoff" : "no working hours configured for today",
-      cutoff: cutoff ? cutoff.toISOString() : null,
+      reason: "no working hours configured for today",
+      cutoff: null,
+    };
+  }
+  const childDue = !!childCutoff && now >= childCutoff;
+  const staffDue = !!staffCutoff && now >= staffCutoff;
+  if (!childDue && !staffDue) {
+    return {
+      children: [],
+      staff: [],
+      busOff: [],
+      at: stamp,
+      reason: "before cutoff",
+      cutoff: (childCutoff ?? staffCutoff)?.toISOString() ?? null,
     };
   }
   const actor = await systemAccountId();
   // KID-2437: the attendance day is the center-local one, not the UTC date.
   const today = zonedDateKey(now, timeZone);
   const range = centerDayRange("check_in.recorded_at", today, timeZone);
-  const dueChildren = await queryAll(
-    `SELECT c.id, c.first_name, c.last_name,
-            (SELECT recorded_at FROM check_in WHERE child_id = c.id AND ${range.sql} AND type='in' ORDER BY recorded_at DESC, id DESC LIMIT 1) AS checked_in_at
-     FROM child c
-     WHERE c.institute_id = ? AND c.active = 1
-       AND (SELECT type FROM check_in WHERE child_id = c.id AND ${range.sql} ORDER BY recorded_at DESC, id DESC LIMIT 1) = 'in'`,
-    ...range.args,
-    instituteId,
-    ...range.args
-  );
-  // KID-2448: a child whose latest bus transition is "on" is riding the bus,
-  // not on the premises. The morning on-bus state is not checked in anyway;
-  // the afternoon on-bus state is still checked in, so the end-of-day sweep
-  // must not close it (the child's own off-bus writes the check-out).
-  const busToday = await busStatusByChild(instituteId, today);
   const childrenOut: Row[] = [];
-  for (const child of dueChildren) {
-    if (String(busToday[String(child.id)]?.type ?? "") === "on") continue;
-    if (!child.checked_in_at || new Date(String(child.checked_in_at)) > cutoff) continue;
-    await autoCheckoutChild(String(child.id), now, actor);
-    childrenOut.push(child);
+  if (childDue) {
+    const dueChildren = await queryAll(
+      `SELECT c.id, c.first_name, c.last_name,
+              (SELECT recorded_at FROM check_in WHERE child_id = c.id AND ${range.sql} AND type='in' ORDER BY recorded_at DESC, id DESC LIMIT 1) AS checked_in_at
+       FROM child c
+       WHERE c.institute_id = ? AND c.active = 1
+         AND (SELECT type FROM check_in WHERE child_id = c.id AND ${range.sql} ORDER BY recorded_at DESC, id DESC LIMIT 1) = 'in'`,
+      ...range.args,
+      instituteId,
+      ...range.args
+    );
+    // KID-2448: a child whose latest bus transition is "on" is riding the bus,
+    // not on the premises. The morning on-bus state is not checked in anyway;
+    // the afternoon on-bus state is still checked in, so the end-of-day sweep
+    // must not close it (the child's own off-bus writes the check-out).
+    const busToday = await busStatusByChild(instituteId, today);
+    for (const child of dueChildren) {
+      if (String(busToday[String(child.id)]?.type ?? "") === "on") continue;
+      if (!child.checked_in_at) continue;
+      // KID-2447: after the end-of-day cutoff every child whose latest event
+      // today is still 'in' is due, even one checked in after closing. The
+      // idempotent guard is the ledger state itself: once the sweep writes the
+      // 'out' row, the same child is no longer 'in' on the next run.
+      await autoCheckoutChild(String(child.id), now, actor, AUTO_CHECKOUT_SOURCE);
+      childrenOut.push(child);
+    }
+    await notifyAutoCheckout(instituteId, childrenOut, now, today);
   }
-  const dueStaff = await queryAll(
-    "SELECT id, full_name, status_at FROM staff WHERE institute_id = ? AND active = 1 AND status = 'checkin'",
-    instituteId
-  );
   const staffOut: Row[] = [];
-  for (const staff of dueStaff) {
-    if (!staff.status_at || new Date(String(staff.status_at)) > cutoff) continue;
-    await autoCheckoutStaff(String(staff.id), now, actor);
-    staffOut.push(staff);
+  if (staffDue && staffCutoff) {
+    const dueStaff = await queryAll(
+      "SELECT id, full_name, status_at FROM staff WHERE institute_id = ? AND active = 1 AND status = 'checkin'",
+      instituteId
+    );
+    for (const staff of dueStaff) {
+      if (!staff.status_at || new Date(String(staff.status_at)) > staffCutoff) continue;
+      await autoCheckoutStaff(String(staff.id), now, actor);
+      staffOut.push(staff);
+    }
   }
   return {
     children: childrenOut,
@@ -1492,8 +1585,8 @@ export async function runAutoCheckoutSweep(
     // existing call site (attendance surfaces + the cron route) runs both.
     busOff: (await runBusAutoOffSweep(instituteId, now)).children,
     at: stamp,
-    reason: "close + 3h reached",
-    cutoff: cutoff.toISOString(),
+    reason: childDue ? "end of working hours reached" : "close + 3h reached",
+    cutoff: childCutoff?.toISOString() ?? staffCutoff?.toISOString() ?? null,
   };
 }
 
@@ -3871,6 +3964,13 @@ export function notificationViewCopy(
   if (kind === "pickup_time") {
     const time = String(payload.pickupTime ?? "");
     return { title: copy.pickupTimeTitle(childName, time), body: "" };
+  }
+  // KID-2447: end-of-working-hours auto check-out summary for admins/teachers.
+  if (kind === "auto_checkout") {
+    const names = Array.isArray(payload.childNames)
+      ? payload.childNames.map((n) => String(n)).join(", ")
+      : String(payload.childNames ?? "");
+    return { title: copy.autoCheckoutTitle(), body: copy.autoCheckoutBody(names) };
   }
   // KID-684: invoice-created parent notifications. The payload stays
   // locale-independent; the title names the child and the invoice, the body
