@@ -14,7 +14,6 @@ import { getInstitute } from "@/lib/store";
 import { enrolledChildCount } from "@/lib/billing";
 import { BILLING_PLANS, BILLING_DEFAULTS, getDaycareBilling, type DaycareBilling } from "@/lib/billing";
 import {
-  annualForBand,
   foundingYearOneForBand,
   getPricingBands,
   getPricingSettings,
@@ -42,11 +41,10 @@ export const dynamic = "force-dynamic";
 /** Friendly labels for the failures updateDaycareBillingAction redirects
  *  back with. */
 const ERRORS: Record<string, string> = {
-  "billing-plan-invalid": "Choose one of: demo, monthly or annual.",
+  "billing-plan-invalid": "Choose one of: demo or monthly.",
   "billing-monthly_rate_egp-invalid": "The monthly rate must be a number of at least zero.",
   "billing-per_child_rate_egp-invalid": "The incremental child rate must be a number of at least zero.",
   "billing-free_child_threshold-invalid": "The free-child threshold must be a number of at least zero.",
-  "billing-annual_amount_egp-invalid": "The annual amount must be a number of at least zero.",
   "billing-cycle-invalid": "Type the first billing month as a date (YYYY-MM-DD).",
   "billing-founding_started_at-invalid": "Type the founding start as a date (YYYY-MM-DD).",
   "billing-pilot_end_date-invalid": "Type the pilot end as a date (YYYY-MM-DD).",
@@ -83,7 +81,6 @@ export default async function DaycareBillingPage(
   const [bands, pricingSettings] = await Promise.all([getPricingBands(), getPricingSettings()]);
   const band = pricingBandForChildCount(childCount, bands);
   const standardMonthly = monthlyForBand(band, childCount);
-  const standardAnnual = annualForBand(band);
   const foundingMonthly = foundingYearOneForBand(band);
   const pilotCredit = pilotCreditAmount(
     pricingSettings,
@@ -224,12 +221,7 @@ export default async function DaycareBillingPage(
         <span className="small muted" style={{ marginLeft: 16 }}>
           {tr(dict, "platform.billingCyclePreview")}:{" "}
           <strong>
-            {billing.plan === "demo"
-              ? 0
-              : billing.plan === "annual"
-                ? (standardAnnual ?? 0)
-                : standardMonthly}{" "}
-            EGP
+            {billing.plan === "demo" ? 0 : standardMonthly} EGP
           </strong>
         </span>
         <span className="small muted" style={{ marginLeft: 16 }}>
@@ -246,10 +238,6 @@ export default async function DaycareBillingPage(
         </span>
         <span className="small muted" style={{ marginLeft: 16 }}>
           {tr(dict, "platform.billingV2StandardMonthly")}: <strong>{standardMonthly} EGP</strong>
-        </span>
-        <span className="small muted" style={{ marginLeft: 16 }}>
-          {tr(dict, "platform.billingV2Annual")}:{" "}
-          <strong>{standardAnnual === null ? tr(dict, "platform.billingV2Quote") : `${standardAnnual} EGP`}</strong>
         </span>
         {billing.foundingClient && foundingMonthly !== null ? (
           <span className="small muted" style={{ marginLeft: 16 }}>
@@ -319,18 +307,6 @@ export default async function DaycareBillingPage(
               defaultValue={billing.freeChildThreshold}
             />
             <span className="small muted">{tr(dict, "platform.billingThresholdHint")}</span>
-          </div>
-        </div>
-        <div className="row">
-          <div className="col field">
-            <label className="label">{tr(dict, "platform.billingAnnualAmount")}</label>
-            <input
-              className="input"
-              name="annualAmountEgp"
-              type="number"
-              min={0}
-              defaultValue={billing.annualAmountEgp}
-            />
           </div>
         </div>
         <div className="row">
@@ -470,7 +446,7 @@ export default async function DaycareBillingPage(
       <p className="small muted">
         {tr(dict, "platform.billingDefaultsHint")}:{" "}
         {BILLING_DEFAULTS.monthlyRateEgp} / {BILLING_DEFAULTS.perChildRateEgp} /{" "}
-        {BILLING_DEFAULTS.freeChildThreshold} / {BILLING_DEFAULTS.annualAmountEgp}
+        {BILLING_DEFAULTS.freeChildThreshold}
       </p>
     </div>
   );

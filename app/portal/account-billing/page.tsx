@@ -33,7 +33,6 @@ export const dynamic = "force-dynamic";
 const PLAN_LABEL: Record<DaycareBilling["plan"], string> = {
   demo: "planDemo",
   monthly: "planMonthly",
-  annual: "planAnnual",
 };
 
 const STATUS_LABEL: Record<DaycareInvoice["status"], string> = {
@@ -133,11 +132,6 @@ export default async function PortalAccountBillingPage(props: { searchParams?: P
               {tr(dict, "accountBilling.perChildRate")}: <strong>{billing.perChildRateEgp}</strong>
               <br />
               {tr(dict, "accountBilling.freeThreshold")}: <strong>{billing.freeChildThreshold}</strong>
-            </div>
-          )}
-          {billing.plan === "annual" && (
-            <div className="small" style={{ marginTop: 4 }}>
-              {tr(dict, "accountBilling.annualAmount")}: <strong>{billing.annualAmountEgp}</strong>
             </div>
           )}
           {billing.plan === "demo" && (

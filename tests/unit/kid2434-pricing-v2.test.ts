@@ -1,11 +1,8 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import {
-  ANNUAL_MULTIPLIER,
   PRICING_BAND_KEYS,
   PRICING_SETTINGS_DEFAULTS,
   STANDARD_PRICING_BANDS,
-  annualForBand,
-  annualForMonthly,
   bandRowTo,
   countFoundingClients,
   foundingDiscountPct,
@@ -13,7 +10,6 @@ import {
   foundingYearOneForBand,
   getPricingBands,
   getPricingSettings,
-  glideMaxNextAmount,
   monthlyForBand,
   pilotCreditAmount,
   pilotCreditEligible,
@@ -34,28 +30,16 @@ describe("the approved standard bands", () => {
   it("seeds all six bands with the KID-2433 amounts and ranges", async () => {
     const bands = await getPricingBands();
     expect(bands.map((b) => b.key)).toEqual(PRICING_BAND_KEYS);
-    expect(bands.map((b) => [b.minChildren, b.maxChildren, b.monthlyEgp, b.annualEgp])).toEqual([
-      [1, 15, 600, 6000],
-      [16, 30, 950, 9500],
-      [31, 50, 1400, 14000],
-      [51, 80, 1900, 19000],
-      [81, 120, 2500, 25000],
-      [121, null, 2500, null],
+    expect(bands.map((b) => [b.minChildren, b.maxChildren, b.monthlyEgp])).toEqual([
+      [1, 15, 600],
+      [16, 30, 950],
+      [31, 50, 1400],
+      [51, 80, 1900],
+      [81, 120, 2500],
+      [121, null, 2500],
     ]);
-    expect(bands[5]!.annualIsQuote).toBe(true);
     expect(bands[5]!.perChildOverageEgp).toBe(20);
     expect(bands.every((b) => b.busTrackingIncluded)).toBe(true);
-  });
-
-  it("annual is exactly 10x monthly on every standard band", async () => {
-    for (const band of await getPricingBands()) {
-      if (band.annualIsQuote) {
-        expect(band.annualEgp).toBeNull();
-      } else {
-        expect(band.annualEgp).toBe(annualForMonthly(band.monthlyEgp));
-        expect(band.annualEgp).toBe(band.monthlyEgp * ANNUAL_MULTIPLIER);
-      }
-    }
   });
 
   it("selects the band from the active-child count at every boundary", () => {
@@ -84,20 +68,15 @@ describe("the approved standard bands", () => {
     expect(monthlyForBand(band, 120)).toBe(2500);
     expect(monthlyForBand(band, 121)).toBe(2520);
     expect(monthlyForBand(band, 130)).toBe(2700);
-    expect(annualForBand(band)).toBeNull();
     expect(monthlyForBand(pricingBandForChildCount(30), 30)).toBe(950);
   });
 
-  it("updating a monthly amount recomputes annual to 10x (the rule is enforced)", async () => {
+  it("updates a monthly amount without storing an annual amount", async () => {
     const updated = await updatePricingBand("seed", { monthlyEgp: 700 });
-    expect(updated.annualEgp).toBe(7000);
+    expect(updated.monthlyEgp).toBe(700);
     const row = await queryGet("SELECT * FROM pricing_band WHERE key = 'seed'");
     expect(Number(row!.monthly_egp)).toBe(700);
-    expect(Number(row!.annual_egp)).toBe(7000);
-    // The database refuses a hand-written annual amount that is not 10x.
-    await expect(
-      queryRun("UPDATE pricing_band SET annual_egp = 1 WHERE key = 'core'")
-    ).rejects.toBeTruthy();
+    expect(row).not.toHaveProperty("annual_egp");
   });
 
   it("refuses a gapped or overlapping ladder and keeps the stored bands intact", async () => {
@@ -136,8 +115,6 @@ describe("the approved standard bands", () => {
       min_children: 16,
       max_children: 30,
       monthly_egp: 950,
-      annual_egp: 9500,
-      annual_is_quote: 0,
       per_child_overage_egp: 0,
       founding_monthly_egp: 810,
       bus_tracking_included: 1,
@@ -197,7 +174,7 @@ describe("founding cohort configuration", () => {
     expect(settings.foundingPilotRoomLimit).toBe(1);
     expect(settings.foundingPilotChildLimit).toBe(20);
     expect(settings.foundingPilotCreditDays).toBe(14);
-    expect(settings.foundingGlideMaxIncreasePct).toBe(20);
+    expect(settings.billingGraceDays).toBe(7);
   });
 
   it("opens for 90 days from launch, then closes, and closes early at the cap", () => {
@@ -224,12 +201,6 @@ describe("founding cohort configuration", () => {
     expect(pilotCreditAmount(settings, false)).toBe(0);
   });
 
-  it("caps the next 12-month increase at 20%", () => {
-    expect(glideMaxNextAmount(510, 20)).toBe(612);
-    expect(glideMaxNextAmount(600, 20)).toBe(720);
-    expect(glideMaxNextAmount(0, 20)).toBe(0);
-  });
-
   it("counts only daycares marked as founding clients", async () => {
     expect(await countFoundingClients()).toBe(0);
     const institute = await queryGet("SELECT id FROM institute LIMIT 1");
@@ -247,8 +218,6 @@ describe("schema", () => {
       "min_children",
       "max_children",
       "monthly_egp",
-      "annual_egp",
-      "annual_is_quote",
       "per_child_overage_egp",
       "founding_monthly_egp",
       "bus_tracking_included",

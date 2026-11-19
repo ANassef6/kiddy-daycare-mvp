@@ -60,7 +60,6 @@ const DATA: ContractDraftData = {
   monthlyRateEgp: 500,
   perChildRateEgp: 50,
   freeChildThreshold: 10,
-  annualAmountEgp: 24000,
   currency: "EGP",
   termStart: "2026-12-01",
   proposedDate: "2026-11-08",
