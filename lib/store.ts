@@ -112,6 +112,13 @@ export async function createBranch(
     name,
     address ?? null
   );
+  // KID-2435 v3: every branch is its own subscription. Create its
+  // branch_billing row in the same step (the group defaults seed it), and — if
+  // the group already has the founding status and a slot is free — enroll the
+  // new branch in its own 12-month founding term.
+  const { ensureBranchBillingRows, enrollBranchInFounding } = await import("./billing");
+  await ensureBranchBillingRows();
+  await enrollBranchInFounding(id);
   return (await queryGet("SELECT * FROM branch WHERE id = ?", id))!;
 }
 
@@ -805,13 +812,13 @@ export async function createDaycare(data: {
   timeZone?: string;
   /** KID-244: the subscription the operator picked at creation — the billing
    *  row is written in the same logical step, so a daycare never exists
-   *  without one. Defaults apply per field (demo / 500 / 50 / 10 / 24000). */
+   *  without one. KID-2435 v3 removed the annual product: demo or monthly. */
   billing?: {
     plan?: BillingPlan;
+    bandKey?: string;
     monthlyRateEgp?: number;
     perChildRateEgp?: number;
     freeChildThreshold?: number;
-    annualAmountEgp?: number;
   };
   ownerEmail: string;
   ownerPassword: string;
@@ -869,10 +876,10 @@ export async function createDaycare(data: {
   const createdAt = institute.created_at ? new Date(String(institute.created_at)) : new Date();
   await updateDaycareBilling(instituteId, {
     plan: data.billing?.plan ?? "demo",
+    bandKey: data.billing?.bandKey,
     monthlyRateEgp: data.billing?.monthlyRateEgp,
     perChildRateEgp: data.billing?.perChildRateEgp,
     freeChildThreshold: data.billing?.freeChildThreshold,
-    annualAmountEgp: data.billing?.annualAmountEgp,
     firstCycleStart: Number.isNaN(createdAt.getTime())
       ? undefined
       : nextMonthStart(createdAt),
@@ -885,9 +892,20 @@ export async function createDaycare(data: {
   };
 }
 
-/** KID-199.3: enable/disable a daycare (platform operator action, KID-199.4 UI). */
-export async function setInstituteActive(instituteId: string, active: boolean): Promise<void> {
-  await queryRun("UPDATE institute SET active = ? WHERE id = ?", active ? 1 : 0, instituteId);
+/** KID-199.3: enable/disable a daycare (platform operator action, KID-199.4 UI).
+ *  KID-2435 v3: a disable records WHY. Only a manual disable blocks login now;
+ *  billing produces read-only access instead (lib/billing isInstituteReadOnly). */
+export async function setInstituteActive(
+  instituteId: string,
+  active: boolean,
+  reason: "manual" | "billing" | null = active ? null : "manual"
+): Promise<void> {
+  await queryRun(
+    "UPDATE institute SET active = ?, disabled_reason = ? WHERE id = ?",
+    active ? 1 : 0,
+    active ? null : reason,
+    instituteId
+  );
 }
 
 /** KID-152: read-only tenant check for the deploy gate — the measurement QA

@@ -96,6 +96,7 @@ export default async function DaycareInvoicesPage(
                 <th className="label" style={{ textAlign: dir === "rtl" ? "right" : "left", padding: 8 }}>
                   {tr(dict, "platform.invoiceCycle")}
                 </th>
+                <th className="label" style={{ padding: 8 }}>{tr(dict, "platform.invoiceBranch")}</th>
                 <th className="label" style={{ padding: 8 }}>{tr(dict, "platform.invoicePeak")}</th>
                 <th className="label" style={{ padding: 8 }}>{tr(dict, "platform.invoiceBillable")}</th>
                 <th className="label" style={{ padding: 8 }}>{tr(dict, "platform.invoiceFlat")}</th>
@@ -115,6 +116,21 @@ export default async function DaycareInvoicesPage(
                     <div className="small muted">
                       {tr(dict, "platform.invoicePlan")}: {inv.plan}
                     </div>
+                    {inv.bandKey ? (
+                      <div className="small muted">
+                        {tr(dict, "platform.invoiceBand")}: {inv.bandName} ·{" "}
+                        {tr(dict, "platform.invoiceStandard")}: {inv.standardAmountEgp}
+                        {inv.foundingApplied
+                          ? ` · ${tr(dict, "platform.invoiceFoundingDiscount")}: ${inv.appliedMonthlyRate}${inv.glideCapped ? " (cap)" : ""}`
+                          : ""}
+                        {inv.pilotCreditEgp > 0
+                          ? ` · ${tr(dict, "platform.invoicePilotCredit")}: ${inv.pilotCreditEgp}`
+                          : ""}
+                      </div>
+                    ) : null}
+                  </td>
+                  <td className="small" style={{ padding: 8 }}>
+                    {inv.branchName || "—"}
                   </td>
                   <td className="small" style={{ padding: 8 }}>
                     {inv.maxActiveChildren}

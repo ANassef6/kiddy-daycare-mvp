@@ -741,11 +741,28 @@ export async function linkInviteAction(formData: FormData) {
 
 // ---- Daily-loop actions (check-in/out, reports, newsfeed, messaging, consents, incidents) ----
 
-async function authAccount(): Promise<SessionCookie> {
+async function authAccount(opts: { allowReadOnly?: boolean } = {}): Promise<SessionCookie> {
   const cookie = (await cookies()).get(SESSION_COOKIE)?.value;
   if (!cookie) throw new Error("not signed in");
   const session = verifyToken(decodeURIComponent(cookie)) as SessionCookie | null;
   if (!session?.accountId) throw new Error("not signed in");
+  // KID-2435 v3: a failed payment (past the grace window) or an ended paid
+  // month makes the account READ-ONLY. The same gate covers every server
+  // action because each one authenticates through this helper. Self-service
+  // actions (language, password, payment proof, name lookup) opt out; the
+  // platform operator is always exempt — it manages billing.
+  if (!opts.allowReadOnly && !isPlatformOperatorRole(session.role)) {
+    let readOnly = false;
+    try {
+      const { isAccountReadOnly } = await import("@/lib/billing");
+      readOnly = await isAccountReadOnly(session.accountId);
+    } catch (err) {
+      // Fail open exactly like the tenancy gate: a broken read must not lock
+      // every write out.
+      console.error("KID-2435 read-only gate failed open:", err);
+    }
+    if (readOnly) redirect(session.role === "parent" ? "/child" : "/portal/dashboard");
+  }
   return session;
 }
 
@@ -1046,22 +1063,20 @@ export async function createDaycareAction(formData: FormData) {
 
 // KID-244: the billing settings a NEW daycare starts with. Parsed at the
 // form boundary here, validated (and defaulted) again by the store, so a
-// malformed POST can never write a raw un-validated money value. When
-// monthly/annual is picked the rate fields are editable and prefilled with
-// the platform defaults (500/50/10, 24000 EGP); a missing/garbage rate falls
-// back to the default rather than writing a bad number.
+// malformed POST can never write a raw un-validated money value. KID-2435 v3
+// removed the annual product: only demo and monthly are accepted. The legacy
+// rate fields stay for historic contract data; the invoice engine prices from
+// pricing_band.
 function billingFormNumbers(formData: FormData): {
-  plan: "demo" | "monthly" | "annual";
+  plan: "demo" | "monthly";
+  bandKey?: string;
   monthlyRateEgp?: number;
   perChildRateEgp?: number;
   freeChildThreshold?: number;
-  annualAmountEgp?: number;
 } {
   const planRaw = String(formData.get("billingPlan") ?? "demo").trim();
-  const plan = (["demo", "monthly", "annual"] as const).includes(
-    planRaw as "demo" | "monthly" | "annual"
-  )
-    ? (planRaw as "demo" | "monthly" | "annual")
+  const plan = (["demo", "monthly"] as const).includes(planRaw as "demo" | "monthly")
+    ? (planRaw as "demo" | "monthly")
     : "demo";
   const num = (key: string, fallback: number): number => {
     const n = Number(String(formData.get(key) ?? "").trim());
@@ -1069,10 +1084,12 @@ function billingFormNumbers(formData: FormData): {
   };
   return {
     plan,
+    // KID-2435: the band chosen with the monthly plan. "" keeps automatic
+    // cycle-peak selection; the store rejects an unknown key.
+    bandKey: String(formData.get("billingBand") ?? "").trim(),
     monthlyRateEgp: num("billingMonthlyRate", 500),
     perChildRateEgp: num("billingPerChildRate", 50),
     freeChildThreshold: num("billingFreeThreshold", 10),
-    annualAmountEgp: num("billingAnnualAmount", 24000),
   };
 }
 
@@ -1087,8 +1104,7 @@ export async function updateDaycareBillingAction(formData: FormData) {
   if (!inst) redirect("/platform?error=missing-id");
   const back = `/platform/daycares/${instituteId}/billing`;
   const planRaw = String(formData.get("plan") ?? "").trim();
-  const plan =
-    planRaw === "monthly" || planRaw === "annual" || planRaw === "demo" ? planRaw : "";
+  const plan = planRaw === "monthly" || planRaw === "demo" ? planRaw : "";
   if (!plan) redirect(`${back}?error=billing-plan-invalid`);
   const number = (key: string): number => Number(String(formData.get(key) ?? "").trim());
   const firstCycleStart = String(formData.get("firstCycleStart") ?? "").trim();
@@ -1099,18 +1115,28 @@ export async function updateDaycareBillingAction(formData: FormData) {
       monthlyRateEgp: number("monthlyRateEgp"),
       perChildRateEgp: number("perChildRateEgp"),
       freeChildThreshold: number("freeChildThreshold"),
-      annualAmountEgp: number("annualAmountEgp"),
       firstCycleStart: /^\d{4}-\d{2}-\d{2}$/.test(firstCycleStart) ? firstCycleStart : undefined,
+      foundingClient: String(formData.get("foundingClient") ?? "") === "1",
+      foundingStartedAt: String(formData.get("foundingStartedAt") ?? "").trim(),
+      pilotEndDate: String(formData.get("pilotEndDate") ?? "").trim(),
+      // KID-2435 v3: the last day of the paid month; empty clears it.
+      cancelAt: String(formData.get("cancelAt") ?? "").trim(),
+      // KID-2435: "" is automatic band selection; the store validates a key.
+      bandKey: String(formData.get("bandKey") ?? "").trim(),
     });
   } catch (err) {
     const reason = String((err as Error)?.message ?? "");
     const known = [
       "billing-plan-invalid",
+      "billing-band-invalid",
       "billing-monthly_rate_egp-invalid",
       "billing-per_child_rate_egp-invalid",
       "billing-free_child_threshold-invalid",
-      "billing-annual_amount_egp-invalid",
       "billing-cycle-invalid",
+      "billing-founding_started_at-invalid",
+      "billing-pilot_end_date-invalid",
+      "billing-cancel_at-invalid",
+      "founding-cap-reached",
     ];
     console.error("KID-244 updateDaycareBillingAction failed:", err);
     redirect(`${back}?error=${known.includes(reason) ? reason : "unknown"}`);
@@ -1127,6 +1153,201 @@ export async function updateDaycareBillingAction(formData: FormData) {
   });
   revalidatePath("/platform");
   redirect(`${back}?saved=1`);
+}
+
+// KID-2435 v3: the per-branch billing save action. Same guard and error
+// channel as the group action; the branch must belong to the daycare in the
+// form so one daycare's operator surface can never write another's row.
+export async function updateBranchBillingAction(formData: FormData) {
+  const operator = await requirePlatformOperator();
+  const instituteId = String(formData.get("instituteId") ?? "");
+  const branchId = String(formData.get("branchId") ?? "");
+  if (!instituteId) redirect("/platform?error=missing-id");
+  const branch = await queryGet(
+    "SELECT id FROM branch WHERE id = ? AND institute_id = ?",
+    branchId,
+    instituteId
+  );
+  if (!branch) redirect(`/platform/daycares/${instituteId}/billing?error=unknown`);
+  const back = `/platform/daycares/${instituteId}/billing`;
+  const planRaw = String(formData.get("plan") ?? "").trim();
+  const plan = planRaw === "monthly" || planRaw === "demo" ? planRaw : "";
+  if (!plan) redirect(`${back}?error=billing-plan-invalid`);
+  const number = (key: string): number => Number(String(formData.get(key) ?? "").trim());
+  const firstCycleStart = String(formData.get("firstCycleStart") ?? "").trim();
+  const { updateBranchBilling } = await import("@/lib/billing");
+  try {
+    await updateBranchBilling(branchId, {
+      plan,
+      monthlyRateEgp: number("monthlyRateEgp"),
+      perChildRateEgp: number("perChildRateEgp"),
+      freeChildThreshold: number("freeChildThreshold"),
+      firstCycleStart: /^\d{4}-\d{2}-\d{2}$/.test(firstCycleStart) ? firstCycleStart : undefined,
+      foundingClient: String(formData.get("foundingClient") ?? "") === "1",
+      foundingStartedAt: String(formData.get("foundingStartedAt") ?? "").trim(),
+      pilotEndDate: String(formData.get("pilotEndDate") ?? "").trim(),
+      cancelAt: String(formData.get("cancelAt") ?? "").trim(),
+      // KID-2435: "" is automatic band selection; the store validates a key.
+      bandKey: String(formData.get("bandKey") ?? "").trim(),
+    });
+  } catch (err) {
+    const reason = String((err as Error)?.message ?? "");
+    const known = [
+      "billing-plan-invalid",
+      "billing-band-invalid",
+      "billing-monthly_rate_egp-invalid",
+      "billing-per_child_rate_egp-invalid",
+      "billing-free_child_threshold-invalid",
+      "billing-cycle-invalid",
+      "billing-founding_started_at-invalid",
+      "billing-pilot_end_date-invalid",
+      "billing-cancel_at-invalid",
+      "founding-cap-reached",
+    ];
+    console.error("KID-2435 updateBranchBillingAction failed:", err);
+    redirect(`${back}?error=${known.includes(reason) ? reason : "unknown"}`);
+  }
+  await recordAuditEvent({
+    instituteId,
+    actorAccountId: operator.accountId,
+    action: "update",
+    entityType: "billing_settings",
+    entityId: branchId,
+    summary: `Updated branch billing settings (${plan})`,
+    metadata: { plan, branchId },
+  });
+  revalidatePath("/platform");
+  redirect(`${back}?saved=1`);
+}
+
+/** KID-2435 v3: the daycare owner cancels the subscription. Cancellation
+ *  takes effect at the end of the paid month — the current calendar month —
+ *  and no later cycle is billed. Data is never deleted. `intent=resume`
+ *  clears a pending cancellation before that date. */
+export async function cancelDaycareSubscriptionAction(formData: FormData) {
+  const me = await authAccount({ allowReadOnly: true });
+  if (!isOwnerRole(me.role)) redirect("/portal/dashboard");
+  const instituteId = await resolveTenantInstituteId();
+  if (!instituteId) redirect("/portal/account-billing");
+  const { getDaycareBilling, updateDaycareBilling, cycleEndDate } = await import("@/lib/billing");
+  const billing = await getDaycareBilling(String(instituteId));
+  if (billing.plan === "demo") redirect("/portal/account-billing?cancel=demo");
+  const resume = String(formData.get("intent") ?? "") === "resume";
+  const cancelAt = resume
+    ? ""
+    : billing.cancelAt || cycleEndDate(new Date().toISOString().slice(0, 7));
+  try {
+    await updateDaycareBilling(String(instituteId), { cancelAt });
+  } catch (err) {
+    console.error("KID-2435 cancellation update failed:", err);
+    redirect("/portal/account-billing?cancel=error");
+  }
+  await recordAuditEvent({
+    instituteId: String(instituteId),
+    actorAccountId: me.accountId,
+    action: "update",
+    entityType: "billing_settings",
+    entityId: String(instituteId),
+    summary: resume ? "Cancelled the pending cancellation" : `Cancelled at ${cancelAt}`,
+    metadata: { cancelAt: cancelAt || null },
+  });
+  revalidatePath("/portal/account-billing");
+  redirect(`/portal/account-billing?cancel=${resume ? "resumed" : "1"}`);
+}
+
+function pricingFormNumber(formData: FormData, key: string): number | undefined {
+  const raw = String(formData.get(key) ?? "").trim();
+  if (raw === "") return undefined;
+  return Number(raw);
+}
+
+export async function updatePricingBandAction(formData: FormData) {
+  const operator = await requirePlatformOperator();
+  const key = String(formData.get("key") ?? "").trim();
+  if (!key) redirect("/platform/pricing?error=pricing-band-unknown");
+  const back = "/platform/pricing";
+  const { updatePricingBand } = await import("@/lib/pricing");
+  try {
+    await updatePricingBand(key, {
+      name: String(formData.get("name") ?? ""),
+      minChildren: pricingFormNumber(formData, "minChildren"),
+      maxChildren:
+        formData.get("maxChildren") === null ||
+        String(formData.get("maxChildren") ?? "").trim() === ""
+          ? null
+          : pricingFormNumber(formData, "maxChildren"),
+      monthlyEgp: pricingFormNumber(formData, "monthlyEgp"),
+      perChildOverageEgp: pricingFormNumber(formData, "perChildOverageEgp"),
+      foundingMonthlyEgp:
+        formData.get("foundingMonthlyEgp") === null ||
+        String(formData.get("foundingMonthlyEgp") ?? "").trim() === ""
+          ? null
+          : pricingFormNumber(formData, "foundingMonthlyEgp"),
+      // KID-2435: bus tracking is always included; the tick is gone.
+      busTrackingIncluded: true,
+    });
+  } catch (err) {
+    const reason = String((err as Error)?.message ?? "");
+    const known = [
+      "pricing-band-unknown",
+      "pricing-band-invalid",
+      "pricing-band-ladder",
+    ];
+    console.error("KID-2434 updatePricingBandAction failed:", err);
+    redirect(`${back}?error=${known.includes(reason) ? reason : "unknown"}`);
+  }
+  await recordAuditEvent({
+    actorAccountId: operator.accountId,
+    action: "update",
+    entityType: "pricing_band",
+    entityId: key,
+    summary: `Updated pricing band (${key})`,
+    metadata: { key },
+  });
+  revalidatePath("/platform/pricing");
+  revalidatePath("/platform");
+  redirect(`${back}?saved=band`);
+}
+
+export async function updatePricingSettingsAction(formData: FormData) {
+  const operator = await requirePlatformOperator();
+  const back = "/platform/pricing";
+  const number = (key: string): number | undefined => pricingFormNumber(formData, key);
+  const checked = (key: string): boolean => String(formData.get(key) ?? "") === "1";
+  const { updatePricingSettings } = await import("@/lib/pricing");
+  try {
+    await updatePricingSettings({
+      demoTrialDays: number("demoTrialDays"),
+      demoRoomLimit: number("demoRoomLimit"),
+      demoChildLimit: number("demoChildLimit"),
+      // KID-2435: branded app and bus tracking are always on for demo.
+      demoBrandedApp: true,
+      demoBusTracking: true,
+      foundingEnabled: checked("foundingEnabled"),
+      foundingCap: number("foundingCap"),
+      foundingOfferDays: number("foundingOfferDays"),
+      foundingLaunchDate: String(formData.get("foundingLaunchDate") ?? "").trim(),
+      foundingPilotFeeEgp: number("foundingPilotFeeEgp"),
+      foundingPilotDays: number("foundingPilotDays"),
+      foundingPilotRoomLimit: number("foundingPilotRoomLimit"),
+      foundingPilotChildLimit: number("foundingPilotChildLimit"),
+      foundingPilotCreditDays: number("foundingPilotCreditDays"),
+      billingGraceDays: number("billingGraceDays"),
+    });
+  } catch (err) {
+    const reason = String((err as Error)?.message ?? "");
+    console.error("KID-2434 updatePricingSettingsAction failed:", err);
+    redirect(`${back}?error=${reason === "pricing-setting-invalid" ? reason : "unknown"}`);
+  }
+  await recordAuditEvent({
+    actorAccountId: operator.accountId,
+    action: "update",
+    entityType: "pricing_config",
+    summary: "Updated demo and founding-cohort pricing policy",
+  });
+  revalidatePath("/platform/pricing");
+  revalidatePath("/platform");
+  redirect(`${back}?saved=settings`);
 }
 
 // ---------------------------------------------------------------------------
@@ -1300,9 +1521,9 @@ const KID372_TENANT_REFUSAL = "/login?error=wrong-tenant";
 // Anonymous is not a guard: a POST with no session is bounced to /login
 // (same treatment requirePlatformOperator gives non-operators) instead of
 // surfacing as a thrown "not signed in" digest.
-async function requireAuthSession(): Promise<SessionCookie> {
+async function requireAuthSession(opts: { allowReadOnly?: boolean } = {}): Promise<SessionCookie> {
   try {
-    return await authAccount();
+    return await authAccount(opts);
   } catch (err) {
     if (err instanceof Error && err.message === "not signed in") redirect("/login");
     throw err;
@@ -1409,7 +1630,7 @@ async function resolveNewsfeedRecipients(
 export async function saveLanguageAction(formData: FormData) {
   const locale = String(formData.get("locale") ?? "");
   if (locale !== "en" && locale !== "ar") redirect("/");
-  const me = await authAccount();
+  const me = await authAccount({ allowReadOnly: true });
   const { setAccountLanguage } = await import("@/lib/auth");
   const account = await (await import("@/lib/auth")).getAccount(me.accountId);
   if (account) {
@@ -2091,7 +2312,8 @@ async function bestEffortParentGoTrueSignUp(email: string, password: string): Pr
 // clears must_change_password so the temp-password banner disappears.
 export async function changePasswordAction(formData: FormData) {
   await ensureSchema();
-  const me = await authAccount();
+  // Account security stays available in read-only mode.
+  const me = await authAccount({ allowReadOnly: true });
   const account = await getAccount(me.accountId);
   if (!account) redirect("/login");
 
@@ -3119,7 +3341,8 @@ export async function accountName(accountId: string): Promise<string> {
 }
 
 export async function createSupportTicketAction(formData: FormData) {
-  const me = await authAccount();
+  // Contacting the platform stays available in read-only mode.
+  const me = await authAccount({ allowReadOnly: true });
   // KID-112: support tickets are parent-only (family/pickup denied).
   await assertFamilyAction(me, "createSupportTicket");
   const instituteId = await requireInstitute();
@@ -3825,7 +4048,8 @@ export async function uploadPaymentProofAction(formData: FormData) {
 // history afterwards. A replacement upload before payment replaces the whole
 // proof snapshot (three columns move together — lib/billing.ts writer).
 export async function uploadDaycareInvoiceProofAction(formData: FormData) {
-  const me = await requireAuthSession();
+  // Paying an overdue invoice is how read-only is lifted — always allowed.
+  const me = await requireAuthSession({ allowReadOnly: true });
   // KID-1178/F-06: invoice proof uploads — per-account budget.
   if (!(await throttle("upload", RATE_LIMIT_RULES.uploadAccount, me.accountId)).ok) {
     throttledRedirect();

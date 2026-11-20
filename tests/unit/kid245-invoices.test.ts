@@ -21,7 +21,8 @@ import {
   dueDateForCycleEnd,
   generateDueInvoices,
   getInvoice,
-  invoiceBreakdown,
+  cyclePricing,
+  isInstituteReadOnly,
   listInvoices,
   markInvoicePaid,
   newestEndedCycleMonth,
@@ -32,6 +33,7 @@ import {
   type DaycareBilling,
 } from "@/lib/billing";
 import { enrolledChildCount } from "@/lib/billing";
+import { PRICING_SETTINGS_DEFAULTS, STANDARD_PRICING_BANDS } from "@/lib/pricing";
 import { queryAll, queryGet, queryRun, type Row } from "@/lib/db";
 import { dictionaries, keysOf } from "@/lib/i18n";
 import { PLATFORM_CONTACT_EMAIL } from "@/lib/site";
@@ -120,41 +122,36 @@ describe("pure date/cycle helpers", () => {
   });
 });
 
-describe("the board-confirmed formula (invoiceBreakdown)", () => {
+describe("the pricing-v2 formula (cyclePricing)", () => {
   const monthly: DaycareBilling = {
     ...BILLING_DEFAULTS,
     plan: "monthly",
     firstCycleStart: "",
   };
+  const price = (peak: number, plan: DaycareBilling["plan"] = "monthly") =>
+    cyclePricing({
+      plan,
+      peakChildren: peak,
+      cycleMonth: "2026-03",
+      billing: { ...monthly, plan },
+      bands: STANDARD_PRICING_BANDS,
+      settings: PRICING_SETTINGS_DEFAULTS,
+    });
 
-  it("exactly 10 children bills the flat rate only; 11 adds the first 50", () => {
-    expect(invoiceBreakdown(monthly, 10).totalAmount).toBe(500);
-    expect(invoiceBreakdown(monthly, 11).totalAmount).toBe(550);
-    expect(invoiceBreakdown(monthly, 11).billableChildren).toBe(1);
+  it("selects the standard band from the peak: 15 -> Seed 600, 16 -> Core 950", () => {
+    expect(price(15).grossAmount).toBe(600);
+    expect(price(16).grossAmount).toBe(950);
+    expect(price(31).grossAmount).toBe(1400);
+    expect(price(81).grossAmount).toBe(2500);
   });
 
-  it("20 peak children bills 500 + 10x50 = 1000 EGP — never flat-rate-times-all", () => {
-    const b = invoiceBreakdown(monthly, 20);
-    expect(b.maxActiveChildren).toBe(20);
+  it("Enterprise+ adds 20 EGP for each child above 120", () => {
+    const b = price(130);
+    expect(b.band.key).toBe("enterprise_plus");
     expect(b.billableChildren).toBe(10);
-    expect(b.flatRateAmount).toBe(500);
-    expect(b.incrementalRate).toBe(50);
-    expect(b.incrementalAmount).toBe(500);
-    expect(b.totalAmount).toBe(1000);
-  });
-
-  it("respects operator-configured thresholds and rates", () => {
-    const custom: DaycareBilling = { ...monthly, freeChildThreshold: 5, monthlyRateEgp: 700, perChildRateEgp: 25 };
-    expect(invoiceBreakdown(custom, 7).totalAmount).toBe(750);
-    expect(invoiceBreakdown(custom, 5).totalAmount).toBe(700);
-  });
-
-  it("the annual plan bills the configured annual amount regardless of the roster", () => {
-    const annual: DaycareBilling = { ...BILLING_DEFAULTS, plan: "annual", firstCycleStart: "" };
-    const b = invoiceBreakdown(annual, 87);
-    expect(b.totalAmount).toBe(24000);
-    expect(b.billableChildren).toBe(0);
-    expect(b.maxActiveChildren).toBe(87);
+    expect(b.incrementalRate).toBe(20);
+    expect(b.incrementalAmount).toBe(200);
+    expect(b.grossAmount).toBe(2700);
   });
 });
 
@@ -203,11 +200,13 @@ describe("invoice generation", () => {
     expect(inv.cycleMonth).toBe("2026-03");
     expect(inv.plan).toBe("monthly");
     expect(inv.maxActiveChildren).toBe(20);
-    expect(inv.billableChildren).toBe(10);
-    expect(inv.flatRateAmount).toBe(500);
-    expect(inv.incrementalRate).toBe(50);
-    expect(inv.incrementalAmount).toBe(500);
-    expect(inv.totalAmount).toBe(1000);
+    expect(inv.billableChildren).toBe(0);
+    expect(inv.flatRateAmount).toBe(950);
+    expect(inv.incrementalRate).toBe(0);
+    expect(inv.incrementalAmount).toBe(0);
+    expect(inv.totalAmount).toBe(950);
+    expect(inv.bandKey).toBe("core");
+    expect(inv.standardMonthlyEgp).toBe(950);
     expect(inv.currency).toBe("EGP");
     expect(inv.dueDate).toBe("2026-04-05"); // the 5th of the following month
     expect(inv.status).toBe("pending");
@@ -252,46 +251,24 @@ describe("invoice generation", () => {
     expect(await listInvoices(res.instituteId)).toHaveLength(0);
   });
 
-  it("the annual plan bills one invoice per 12-month cycle, due the 5th after the block", async () => {
-    const res = await store.createDaycare({
-      name: "Annual Grove",
-      ownerEmail: `annual-${Math.random().toString(36).slice(2, 8)}@annualgrove.test`,
-      ownerPassword: "annual-owner-1",
-      ownerFullName: "Annual Owner",
-      billing: { plan: "annual" },
-    });
-    await updateDaycareBilling(res.instituteId, { firstCycleStart: "2026-02-01" });
-    await seedChildren(res.instituteId, 40, "2026-01-01 09:00:00");
-
-    // The 12-month block has not ended — nothing yet, even mid-block.
-    expect(await generateDueInvoices(utcDate(2026, 9, 1))).toBe(0);
-    expect(await listInvoices(res.instituteId)).toHaveLength(0);
-
-    // The block 2026-02..2027-01 ends 2027-01-31; the invoice is due 2027-02-05.
-    expect(await generateDueInvoices(utcDate(2027, 2, 3))).toBe(1);
-    const first = (await listInvoices(res.instituteId))[0]!;
-    expect(first.cycleMonth).toBe("2026-02");
-    expect(first.totalAmount).toBe(24000);
-    expect(first.billableChildren).toBe(0);
-    expect(first.dueDate).toBe("2027-02-05");
-
-    // The NEXT block (2027-02..2028-01) gets its own single invoice.
-    expect(await generateDueInvoices(utcDate(2028, 2, 10))).toBe(1);
-    expect((await listInvoices(res.instituteId)).map((i) => i.cycleMonth).sort()).toEqual([
-      "2026-02",
-      "2027-02",
-    ]);
-  });
-
   it("the bootstrap sweep generates and enforces in one pass", async () => {
     const iid = await newMonthlyDaycare("2026-03-01");
     await seedChildren(iid, 11, "2026-02-01 09:00:00");
-    const res = await runBillingSweep(utcDate(2026, 4, 6));
-    expect(res.generated).toBe(1);
-    const inv = (await listInvoices(iid))[0]!;
-    expect(inv.status).toBe("overdue"); // due 2026-04-05, now 2026-04-06
-    expect(res.disabled).toBe(1);
-    expect(Number((await store.getInstitute(iid))!.active)).toBe(0);
+    // KID-2435 v3: due 2026-04-05, then 7 days' grace. Still pending and
+    // active on 2026-04-06; overdue only after the grace window closes.
+    const inGrace = await runBillingSweep(utcDate(2026, 4, 6));
+    expect(inGrace.generated).toBe(1);
+    expect((await listInvoices(iid))[0]!.status).toBe("pending");
+    expect(inGrace.overdue).toBe(0);
+    expect(Number((await store.getInstitute(iid))!.active)).toBe(1);
+    expect(await isInstituteReadOnly(iid)).toBe(false);
+
+    const afterGrace = await runBillingSweep(utcDate(2026, 4, 13));
+    expect(afterGrace.overdue).toBe(1);
+    expect((await listInvoices(iid))[0]!.status).toBe("overdue");
+    // KID-2435 v3: read-only, never a hard disable. Data stays available.
+    expect(Number((await store.getInstitute(iid))!.active)).toBe(1);
+    expect(await isInstituteReadOnly(iid)).toBe(true);
   });
 
   it("the lazy bootstrap actually runs the sweep (lib/bootstrap.ts wiring)", async () => {
@@ -314,56 +291,60 @@ describe("invoice generation", () => {
   });
 });
 
-describe("overdue enforcement and re-enable", () => {
-  it("an unpaid invoice past its due date becomes overdue and disables the daycare", async () => {
+describe("overdue enforcement and read-only recovery", () => {
+  it("an unpaid invoice past its due date becomes overdue and makes the account read-only", async () => {
     const iid = await newMonthlyDaycare("2026-03-01");
     await seedChildren(iid, 5, "2026-02-01 09:00:00");
     await generateDueInvoices(utcDate(2026, 4, 1));
     expect(Number((await store.getInstitute(iid))!.active)).toBe(1);
+    expect(await isInstituteReadOnly(iid)).toBe(false);
 
-    const disabled = await runBillingSweep(utcDate(2026, 4, 6)).then((r) => r.disabled);
-    expect(disabled).toBe(1);
+    const overdue = await runBillingSweep(utcDate(2026, 4, 13)).then((r) => r.overdue);
+    expect(overdue).toBe(1);
     const inv = (await listInvoices(iid))[0]!;
     expect(inv.status).toBe("overdue");
-    expect(Number((await store.getInstitute(iid))!.active)).toBe(0);
+    // KID-2435 v3: read-only, not a disabled account. Data is never deleted.
+    expect(Number((await store.getInstitute(iid))!.active)).toBe(1);
+    expect(await isInstituteReadOnly(iid)).toBe(true);
     // Idempotent: a re-run (next warm instance) changes nothing.
-    expect((await runBillingSweep(utcDate(2026, 4, 7))).disabled).toBe(0);
-    expect(Number((await store.getInstitute(iid))!.active)).toBe(0);
+    expect((await runBillingSweep(utcDate(2026, 4, 14))).overdue).toBe(0);
+    expect(await isInstituteReadOnly(iid)).toBe(true);
   });
 
-  it("marking the invoice paid flips the daycare back to active", async () => {
+  it("marking the invoice paid lifts read-only without touching active", async () => {
     const iid = await newMonthlyDaycare("2026-03-01");
     await seedChildren(iid, 5, "2026-02-01 09:00:00");
-    await runBillingSweep(utcDate(2026, 4, 6));
-    expect(Number((await store.getInstitute(iid))!.active)).toBe(0);
+    await runBillingSweep(utcDate(2026, 4, 13));
+    expect(await isInstituteReadOnly(iid)).toBe(true);
     const inv = (await listInvoices(iid))[0]!;
 
-    await markInvoicePaid(inv.id, { paidAt: "2026-04-07T10:00:00.000Z" });
+    await markInvoicePaid(inv.id, { paidAt: "2026-04-14T10:00:00.000Z" });
     const paid = await getInvoice(inv.id);
     expect(paid!.status).toBe("paid");
-    expect(paid!.paidAt.slice(0, 10)).toBe("2026-04-07");
+    expect(paid!.paidAt.slice(0, 10)).toBe("2026-04-14");
     expect(Number((await store.getInstitute(iid))!.active)).toBe(1);
+    expect(await isInstituteReadOnly(iid)).toBe(false);
 
     // Idempotent: paying twice is a no-op, never an error.
     await markInvoicePaid(inv.id);
     expect((await getInvoice(inv.id))!.status).toBe("paid");
   });
 
-  it("the daycare stays disabled while any OTHER overdue invoice remains", async () => {
+  it("the account stays read-only while any OTHER overdue invoice remains", async () => {
     const iid = await newMonthlyDaycare("2026-02-01");
     await seedChildren(iid, 5, "2026-01-01 09:00:00");
     await generateDueInvoices(utcDate(2026, 4, 1)); // cycles 2026-02 + 2026-03
-    await runBillingSweep(utcDate(2026, 4, 6));
-    expect(Number((await store.getInstitute(iid))!.active)).toBe(0);
+    await runBillingSweep(utcDate(2026, 4, 13));
+    expect(await isInstituteReadOnly(iid)).toBe(true);
 
     const invoices = await listInvoices(iid);
     expect(invoices).toHaveLength(2);
-    // Paying one of two overdue invoices does not restore access…
+    // Paying one of two overdue invoices does not restore writes…
     await markInvoicePaid(invoices[0]!.id);
-    expect(Number((await store.getInstitute(iid))!.active)).toBe(0);
+    expect(await isInstituteReadOnly(iid)).toBe(true);
     // …paying the last one does.
     await markInvoicePaid(invoices[1]!.id);
-    expect(Number((await store.getInstitute(iid))!.active)).toBe(1);
+    expect(await isInstituteReadOnly(iid)).toBe(false);
   });
 });
 
@@ -373,7 +354,7 @@ describe("manual amount override (superadmin)", () => {
     await seedChildren(iid, 20, "2026-02-01 09:00:00", 5, "2026-03-15");
     await generateDueInvoices(utcDate(2026, 4, 1));
     const inv = (await listInvoices(iid))[0]!;
-    expect(inv.totalAmount).toBe(1000);
+    expect(inv.totalAmount).toBe(950);
 
     await updateInvoiceAmount(inv.id, { totalAmountEgp: 700, note: "goodwill discount" });
     const row = await queryGet("SELECT * FROM daycare_invoice WHERE id = ?", inv.id);
@@ -381,7 +362,7 @@ describe("manual amount override (superadmin)", () => {
     expect(String(row!.manual_adjustment)).toBe("goodwill discount");
     // The formula fields keep their snapshot — the override is explicit.
     expect(Number(row!.max_active_children)).toBe(20);
-    expect(Number(row!.flat_rate_amount)).toBe(500);
+    expect(Number(row!.flat_rate_amount)).toBe(950);
     // The override persists on a fresh read of the typed row.
     expect((await getInvoice(inv.id))!.totalAmount).toBe(700);
   });
@@ -398,7 +379,7 @@ describe("manual amount override (superadmin)", () => {
     await markInvoicePaid(inv.id);
     await expect(updateInvoiceAmount(inv.id, { totalAmountEgp: 1 })).rejects.toThrow("invoice-paid-locked");
     await expect(updateInvoiceAmount(inv.id, { note: "late edit" })).rejects.toThrow("invoice-paid-locked");
-    expect((await getInvoice(inv.id))!.totalAmount).toBe(600); // 12 children: 500 + 2x50
+    expect((await getInvoice(inv.id))!.totalAmount).toBe(600); // 12 children -> Seed band
   });
 });
 
@@ -447,11 +428,11 @@ describe("the login gate distinguishes billing from manual disable (EN + AR)", (
     expect(res.error).toContain(PLATFORM_CONTACT_EMAIL);
   });
 
-  it("paying the overdue invoice restores the login (redirect, no error)", async () => {
+  it("a read-only account still signs in; paying lifts read-only", async () => {
+    // KID-2435 v3: billing no longer disables the institute. An overdue
+    // invoice makes the account read-only, so login still succeeds.
     await overdueInvoiceFor(sunshineIid);
-    await queryRun("UPDATE institute SET active = 0 WHERE id = ?", sunshineIid);
-    await markInvoicePaid("inv-kid245");
-    expect(Number((await store.getInstitute(sunshineIid))!.active)).toBe(1);
+    expect(await isInstituteReadOnly(sunshineIid)).toBe(true);
 
     let digest = "";
     try {
@@ -462,6 +443,10 @@ describe("the login gate distinguishes billing from manual disable (EN + AR)", (
     // The seeded owner lands on the portal dashboard — signed in, not blocked.
     expect(digest).toContain("NEXT_REDIRECT");
     expect(digest).toContain("/portal/dashboard");
+
+    await markInvoicePaid("inv-kid245");
+    expect(await isInstituteReadOnly(sunshineIid)).toBe(false);
+    expect(Number((await store.getInstitute(sunshineIid))!.active)).toBe(1);
   });
 
   it("isTenancyBillingBlocked reads the overdue-invoice signature, not the flag alone", async () => {
@@ -530,19 +515,27 @@ describe("schema", () => {
     ]) {
       expect(names).toContain(col);
     }
-    // A cycle is billed once: the unique (institute_id, cycle_month) index
-    // rejects a second insert for the same cycle.
-    await queryRun(
-      `INSERT INTO daycare_invoice (id, institute_id, cycle_month, due_date, status, total_amount)
-       VALUES ('dup-1', ?, '2026-03', '2026-04-05', 'pending', 500)`,
+    // KID-2435 v3: a BRANCH is billed once per cycle — the unique
+    // (branch_id, cycle_month) index rejects a second insert for the same
+    // branch and cycle. (Another branch of the same group is a separate
+    // subscription and may share the month.)
+    const branch = await queryGet(
+      "SELECT id FROM branch WHERE institute_id = ? ORDER BY created_at, id LIMIT 1",
       iid
+    );
+    await queryRun(
+      `INSERT INTO daycare_invoice (id, institute_id, branch_id, cycle_month, due_date, status, total_amount)
+       VALUES ('dup-1', ?, ?, '2026-03', '2026-04-05', 'pending', 500)`,
+      iid,
+      branch!.id
     );
     let dupRejected = false;
     try {
       await queryRun(
-        `INSERT INTO daycare_invoice (id, institute_id, cycle_month, due_date, status, total_amount)
-         VALUES ('dup-2', ?, '2026-03', '2026-04-05', 'pending', 500)`,
-        iid
+        `INSERT INTO daycare_invoice (id, institute_id, branch_id, cycle_month, due_date, status, total_amount)
+         VALUES ('dup-2', ?, ?, '2026-03', '2026-04-05', 'pending', 500)`,
+        iid,
+        branch!.id
       );
     } catch {
       dupRejected = true;

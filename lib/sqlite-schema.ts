@@ -21,6 +21,9 @@ export function sqliteSchema(db: any): void {
     -- timezone for every working-hours comparison (wall-clock and calendar).
     timezone TEXT NOT NULL DEFAULT 'Africa/Cairo',
     active INTEGER NOT NULL DEFAULT 1,
+    -- KID-2435 v3: 'manual' or NULL. Billing no longer hard-disables (it
+    -- yields read-only access); mirror of supabase/migrations/0049.
+    disabled_reason TEXT,
     subdomain TEXT,
     -- KID-1329: mirror of supabase/migrations/0042 — the center-level
     -- "Allow parents to check in/out" toggle. 0 = off, anything else = on.
@@ -612,21 +615,55 @@ export function sqliteSchema(db: any): void {
   -- these same defaults in the block below.
   CREATE TABLE IF NOT EXISTS daycare_billing (
     institute_id TEXT PRIMARY KEY REFERENCES institute(id) ON DELETE CASCADE,
-    plan TEXT NOT NULL DEFAULT 'demo' CHECK (plan IN ('demo', 'monthly', 'annual')),
+    plan TEXT NOT NULL DEFAULT 'demo' CHECK (plan IN ('demo', 'monthly')),
     monthly_rate_egp INTEGER NOT NULL DEFAULT 500,
     per_child_rate_egp INTEGER NOT NULL DEFAULT 50,
     free_child_threshold INTEGER NOT NULL DEFAULT 10,
-    annual_amount_egp INTEGER NOT NULL DEFAULT 24000,
     first_cycle_start TEXT,
+    founding_client INTEGER NOT NULL DEFAULT 0,
+    founding_started_at TEXT,
+    pilot_end_date TEXT,
+    -- KID-2435 v3: last day of the paid month (mirror of 0049). NULL = active.
+    cancel_at TEXT,
+    -- KID-2435: the contracted band, or '' for automatic (cycle-peak) band
+    -- selection (mirror of 0052).
+    band_key TEXT NOT NULL DEFAULT '',
     updated_at TEXT NOT NULL DEFAULT (datetime('now'))
   );
   CREATE INDEX IF NOT EXISTS idx_daycare_billing_plan ON daycare_billing (plan);
 
+  -- KID-2435 v3: mirror of supabase/migrations/0050_kid2435_branch_billing.sql
+  -- — the branch is the subscription record (pricing plan v3, billing rule
+  -- 12). One row per branch with its own plan, cycle, founding status, pilot
+  -- dates and cancellation date. daycare_billing stays as the group-level
+  -- defaults row the create form and owner portal read.
+  CREATE TABLE IF NOT EXISTS branch_billing (
+    branch_id TEXT PRIMARY KEY REFERENCES branch(id) ON DELETE CASCADE,
+    institute_id TEXT NOT NULL REFERENCES institute(id) ON DELETE CASCADE,
+    plan TEXT NOT NULL DEFAULT 'demo' CHECK (plan IN ('demo', 'monthly', 'annual')),
+    monthly_rate_egp INTEGER NOT NULL DEFAULT 500,
+    per_child_rate_egp INTEGER NOT NULL DEFAULT 50,
+    free_child_threshold INTEGER NOT NULL DEFAULT 10,
+    first_cycle_start TEXT,
+    founding_client INTEGER NOT NULL DEFAULT 0,
+    founding_started_at TEXT,
+    pilot_end_date TEXT,
+    cancel_at TEXT,
+    -- KID-2435: the contracted band, or '' for automatic (cycle-peak) band
+    -- selection (mirror of 0052).
+    band_key TEXT NOT NULL DEFAULT '',
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+  CREATE INDEX IF NOT EXISTS idx_branch_billing_institute ON branch_billing (institute_id);
+  CREATE INDEX IF NOT EXISTS idx_branch_billing_plan ON branch_billing (plan);
+  CREATE INDEX IF NOT EXISTS idx_branch_billing_founding ON branch_billing (founding_client);
+  CREATE INDEX IF NOT EXISTS idx_branch_billing_band ON branch_billing (band_key);
+
   -- KID-245: mirror of supabase/migrations/0028_daycare_invoice.sql — one
   -- invoice per billed cycle, (institute_id, cycle_month) unique so the lazy
   -- generator stays idempotent. cycle_month is the FIRST month of the billed
-  -- cycle (YYYY-MM): the month itself for monthly plans, the first month of a
-  -- 12-month block for annual. Amounts are integers in EGP; the formula
+  -- cycle (YYYY-MM). Billing is monthly only (KID-2435 v3); the plan CHECK
+  -- keeps 'annual' so historic rows still read. Amounts are integers in EGP; the formula
   -- fields snapshot the configuration the invoice was computed with, and
   -- total_amount is manually overridable before payment (manual_adjustment
   -- carries the operator's note). Lifecycle: pending -> overdue (past
@@ -634,6 +671,9 @@ export function sqliteSchema(db: any): void {
   CREATE TABLE IF NOT EXISTS daycare_invoice (
     id TEXT PRIMARY KEY,
     institute_id TEXT NOT NULL REFERENCES institute(id) ON DELETE CASCADE,
+    -- KID-2435 v3: the branch subscription this invoice belongs to (mirror of
+    -- 0050). Nullable for legacy rows the migration backfills to Main.
+    branch_id TEXT REFERENCES branch(id) ON DELETE CASCADE,
     cycle_month TEXT NOT NULL,
     plan TEXT NOT NULL DEFAULT 'monthly' CHECK (plan IN ('demo', 'monthly', 'annual')),
     max_active_children INTEGER NOT NULL DEFAULT 0,
@@ -654,14 +694,81 @@ export function sqliteSchema(db: any): void {
     payment_proof_url TEXT,
     payment_proof_uploaded_at TEXT,
     payment_reference TEXT,
+    -- KID-2435: pricing-v2 snapshot (mirror of migration 0047). The historic
+    -- formula columns stay; these record the configured band and founding/
+    -- glide/credit values the invoice was issued with.
+    band_key TEXT NOT NULL DEFAULT '',
+    band_name TEXT NOT NULL DEFAULT '',
+    standard_monthly_egp INTEGER NOT NULL DEFAULT 0,
+    standard_amount_egp INTEGER NOT NULL DEFAULT 0,
+    applied_monthly_rate_exact REAL NOT NULL DEFAULT 0,
+    applied_monthly_rate INTEGER NOT NULL DEFAULT 0,
+    founding_applied INTEGER NOT NULL DEFAULT 0,
+    founding_term_index INTEGER NOT NULL DEFAULT 0,
+    glide_capped INTEGER NOT NULL DEFAULT 0,
+    pilot_credit_egp INTEGER NOT NULL DEFAULT 0,
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
   );
-  CREATE UNIQUE INDEX IF NOT EXISTS uq_daycare_invoice_cycle
-    ON daycare_invoice (institute_id, cycle_month);
+  CREATE UNIQUE INDEX IF NOT EXISTS uq_daycare_invoice_branch_cycle
+    ON daycare_invoice (branch_id, cycle_month);
   CREATE INDEX IF NOT EXISTS idx_daycare_invoice_status_due
     ON daycare_invoice (status, due_date);
   CREATE INDEX IF NOT EXISTS idx_daycare_invoice_institute
     ON daycare_invoice (institute_id, cycle_month DESC);
+  CREATE INDEX IF NOT EXISTS idx_daycare_invoice_branch
+    ON daycare_invoice (branch_id, cycle_month DESC);
+
+  -- KID-2434/2435: mirror of the pricing-band migrations — the six
+  -- operator-editable standard monthly bands plus the demo and founding-
+  -- cohort policy. KID-2435 v3 dropped the annual product entirely. The seed
+  -- rows are the approved KID-2433 monthly values.
+  CREATE TABLE IF NOT EXISTS pricing_band (
+    key TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    min_children INTEGER NOT NULL CHECK (min_children >= 1),
+    max_children INTEGER CHECK (max_children IS NULL OR max_children >= min_children),
+    monthly_egp INTEGER NOT NULL CHECK (monthly_egp >= 0),
+    per_child_overage_egp INTEGER NOT NULL DEFAULT 0 CHECK (per_child_overage_egp >= 0),
+    founding_monthly_egp INTEGER CHECK (founding_monthly_egp IS NULL OR founding_monthly_egp >= 0),
+    bus_tracking_included INTEGER NOT NULL DEFAULT 1,
+    sort_order INTEGER NOT NULL DEFAULT 0,
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+  CREATE INDEX IF NOT EXISTS idx_pricing_band_order ON pricing_band (sort_order);
+
+  CREATE TABLE IF NOT EXISTS pricing_config (
+    key TEXT PRIMARY KEY,
+    value TEXT NOT NULL,
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+
+  INSERT OR IGNORE INTO pricing_band
+    (key, name, min_children, max_children, monthly_egp,
+     per_child_overage_egp, founding_monthly_egp, bus_tracking_included, sort_order)
+  VALUES
+    ('seed', 'Seed', 1, 15, 600, 0, 510, 1, 1),
+    ('core', 'Core', 16, 30, 950, 0, 810, 1, 2),
+    ('standard', 'Standard', 31, 50, 1400, 0, 1190, 1, 3),
+    ('plus', 'Plus', 51, 80, 1900, 0, 1620, 1, 4),
+    ('enterprise', 'Enterprise', 81, 120, 2500, 0, 2130, 1, 5),
+    ('enterprise_plus', 'Enterprise+', 121, NULL, 2500, 20, NULL, 1, 6);
+
+  INSERT OR IGNORE INTO pricing_config (key, value) VALUES
+    ('demo.trial_days', '30'),
+    ('demo.room_limit', '1'),
+    ('demo.child_limit', '20'),
+    ('demo.branded_app', '1'),
+    ('demo.bus_tracking', '1'),
+    ('founding.enabled', '1'),
+    ('founding.cap', '10'),
+    ('founding.offer_days', '90'),
+    ('founding.launch_date', ''),
+    ('founding.pilot_fee_egp', '350'),
+    ('founding.pilot_days', '30'),
+    ('founding.pilot_room_limit', '1'),
+    ('founding.pilot_child_limit', '20'),
+    ('founding.pilot_credit_days', '14'),
+    ('billing.grace_days', '7');
 
   -- KID-258 A1 (KID-264): mirror of supabase/migrations/
   -- 0029_enhancement_request.sql — the daycare owner's "Enhancements
@@ -821,6 +928,19 @@ export function sqliteSchema(db: any): void {
   if (!instCols.some((c) => c.name === "allow_parent_check_inout")) {
     db.exec("ALTER TABLE institute ADD COLUMN allow_parent_check_inout INTEGER NOT NULL DEFAULT 1");
   }
+  // KID-2435 v3: mirror of supabase/migrations/0049. Billing no longer
+  // hard-disables an account; record why a row is inactive and re-enable the
+  // rows the overdue sweep disabled under the old rule.
+  if (!instCols.some((c) => c.name === "disabled_reason")) {
+    db.exec("ALTER TABLE institute ADD COLUMN disabled_reason TEXT");
+    db.exec("UPDATE institute SET disabled_reason = 'manual' WHERE active = 0");
+    db.exec(`UPDATE institute SET disabled_reason = 'billing'
+      WHERE active = 0 AND EXISTS (
+        SELECT 1 FROM daycare_invoice di
+        WHERE di.institute_id = institute.id AND di.status = 'overdue'
+      )`);
+    db.exec("UPDATE institute SET active = 1, disabled_reason = NULL WHERE disabled_reason = 'billing'");
+  }
   // KID-2437: mirror of supabase/migrations/0046_kid2437_institute_timezone.sql.
   // Existing centers backfill to Africa/Cairo (all current tenants are
   // Egyptian) and keep their stored opening hours as center-local wall clock.
@@ -894,6 +1014,89 @@ export function sqliteSchema(db: any): void {
   if (!invoiceCols.some((c) => c.name === "payment_reference")) {
     db.exec("ALTER TABLE daycare_invoice ADD COLUMN payment_reference TEXT");
   }
+  // KID-2435: mirror of migration 0047 — the pricing-v2 snapshot columns for
+  // databases created before they existed.
+  for (const [col, ddl] of [
+    ["band_key", "TEXT NOT NULL DEFAULT ''"],
+    ["band_name", "TEXT NOT NULL DEFAULT ''"],
+    ["standard_monthly_egp", "INTEGER NOT NULL DEFAULT 0"],
+    ["standard_amount_egp", "INTEGER NOT NULL DEFAULT 0"],
+    ["applied_monthly_rate_exact", "REAL NOT NULL DEFAULT 0"],
+    ["applied_monthly_rate", "INTEGER NOT NULL DEFAULT 0"],
+    ["founding_applied", "INTEGER NOT NULL DEFAULT 0"],
+    ["founding_term_index", "INTEGER NOT NULL DEFAULT 0"],
+    ["glide_capped", "INTEGER NOT NULL DEFAULT 0"],
+    ["pilot_credit_egp", "INTEGER NOT NULL DEFAULT 0"],
+  ]) {
+    if (!invoiceCols.some((c) => c.name === col)) {
+      db.exec(`ALTER TABLE daycare_invoice ADD COLUMN ${col} ${ddl}`);
+    }
+  }
+  const billingCols = db.prepare("PRAGMA table_info(daycare_billing)").all() as { name: string }[];
+  if (!billingCols.some((c) => c.name === "founding_client")) {
+    db.exec("ALTER TABLE daycare_billing ADD COLUMN founding_client INTEGER NOT NULL DEFAULT 0");
+  }
+  if (!billingCols.some((c) => c.name === "founding_started_at")) {
+    db.exec("ALTER TABLE daycare_billing ADD COLUMN founding_started_at TEXT");
+  }
+  if (!billingCols.some((c) => c.name === "pilot_end_date")) {
+    db.exec("ALTER TABLE daycare_billing ADD COLUMN pilot_end_date TEXT");
+  }
+  // KID-2435 v3: mirror of supabase/migrations/0049 — cancellation date.
+  if (!billingCols.some((c) => c.name === "cancel_at")) {
+    db.exec("ALTER TABLE daycare_billing ADD COLUMN cancel_at TEXT");
+  }
+  // KID-2435: mirror of 0052 — the operator-selected contracted band.
+  if (!billingCols.some((c) => c.name === "band_key")) {
+    db.exec("ALTER TABLE daycare_billing ADD COLUMN band_key TEXT NOT NULL DEFAULT ''");
+  }
+  const branchBillingCols = db.prepare("PRAGMA table_info(branch_billing)").all() as { name: string }[];
+  if (!branchBillingCols.some((c) => c.name === "band_key")) {
+    db.exec("ALTER TABLE branch_billing ADD COLUMN band_key TEXT NOT NULL DEFAULT ''");
+  }
+  db.exec(
+    "CREATE INDEX IF NOT EXISTS idx_branch_billing_band ON branch_billing (band_key)"
+  );
+  // KID-2435: mirror of 0052 — bus tracking and branded app are always on.
+  db.exec("UPDATE pricing_band SET bus_tracking_included = 1");
+  db.exec(
+    "UPDATE pricing_config SET value = '1' WHERE key IN ('demo.branded_app', 'demo.bus_tracking')"
+  );
+  // KID-2435 v3: mirror of 0050 — the branch is the subscription record.
+  // Add the invoice branch anchor for databases created before it, move the
+  // unique rule from (institute_id, cycle_month) to (branch_id, cycle_month),
+  // give every institute a branch, and backfill one branch_billing row per
+  // branch (the first branch copies today's group row).
+  if (!invoiceCols.some((c) => c.name === "branch_id")) {
+    db.exec("ALTER TABLE daycare_invoice ADD COLUMN branch_id TEXT REFERENCES branch(id) ON DELETE CASCADE");
+  }
+  db.exec("DROP INDEX IF EXISTS uq_daycare_invoice_cycle");
+  db.exec(
+    "CREATE UNIQUE INDEX IF NOT EXISTS uq_daycare_invoice_branch_cycle ON daycare_invoice (branch_id, cycle_month)"
+  );
+  db.exec(
+    "CREATE INDEX IF NOT EXISTS idx_daycare_invoice_branch ON daycare_invoice (branch_id, cycle_month DESC)"
+  );
+  db.exec(`INSERT OR IGNORE INTO branch (id, institute_id, name)
+    SELECT 'main-' || id, id, 'Main' FROM institute
+    WHERE NOT EXISTS (SELECT 1 FROM branch b WHERE b.institute_id = institute.id)`);
+  db.exec(`INSERT OR IGNORE INTO branch_billing
+      (branch_id, institute_id, plan, monthly_rate_egp, per_child_rate_egp,
+       free_child_threshold, first_cycle_start, founding_client,
+       founding_started_at, pilot_end_date, cancel_at, band_key, updated_at)
+    SELECT br.id, br.institute_id, COALESCE(db.plan, 'demo'),
+      COALESCE(db.monthly_rate_egp, 500), COALESCE(db.per_child_rate_egp, 50),
+      COALESCE(db.free_child_threshold, 10),
+      COALESCE(db.first_cycle_start, strftime('%Y-%m-01', br.created_at, 'start of month', '+1 month')),
+      COALESCE(db.founding_client, 0), db.founding_started_at, db.pilot_end_date,
+      db.cancel_at, COALESCE(db.band_key, ''), COALESCE(db.updated_at, datetime('now'))
+    FROM branch br
+    LEFT JOIN daycare_billing db ON db.institute_id = br.institute_id
+    WHERE NOT EXISTS (SELECT 1 FROM branch_billing bb WHERE bb.branch_id = br.id)`);
+  db.exec(`UPDATE daycare_invoice SET branch_id = (
+      SELECT br.id FROM branch br WHERE br.institute_id = daycare_invoice.institute_id
+      ORDER BY br.created_at, br.id LIMIT 1)
+    WHERE branch_id IS NULL`);
   const obsCols = db.prepare("PRAGMA table_info(learning_observation)").all() as { name: string }[];
   if (!obsCols.some((c) => c.name === "age_group")) {
     db.exec("ALTER TABLE learning_observation ADD COLUMN age_group TEXT");

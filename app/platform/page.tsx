@@ -11,7 +11,7 @@ import { redirect } from "next/navigation";
 import { requireSession } from "@/lib/require";
 import { isPlatformOperatorEmail, isPlatformOperatorRole, PLATFORM_THEME_KEYS } from "@/lib/platform";
 import { listInstitutesForPlatform } from "@/lib/store";
-import { BILLING_DEFAULTS } from "@/lib/billing";
+import { getPricingBands } from "@/lib/pricing";
 import { listContractDraftStatus } from "@/lib/contract";
 import PushNotificationsCard from "@/components/PushNotificationsCard";
 import {
@@ -27,6 +27,8 @@ import { tr } from "@/lib/i18n";
 import { apexDomain, daycarePublicUrl, subdomainUrl } from "@/lib/subdomain";
 import ColorField from "./color-field";
 import CopyUrlButton from "./copy-url-button";
+import { BillingPlanFields } from "./daycares/[id]/billing/billing-plan-fields";
+import { PricingReference } from "./pricing-reference";
 
 export const dynamic = "force-dynamic";
 
@@ -74,6 +76,8 @@ export default async function PlatformDaycaresPage(
   }
   const { dict, dir } = await i18nForAccount(session.accountId);
   const institutes = await listInstitutesForPlatform();
+  // KID-2435: the band reference and the plan/band pickers on the create form.
+  const bands = await getPricingBands();
   // KID-746: the contract status per daycare (draft awaiting review / signed)
   // in ONE query — the queue card and the per-row badge read the same map.
   const contractStatus = await listContractDraftStatus();
@@ -108,11 +112,11 @@ export default async function PlatformDaycaresPage(
   // store throws, with their friendly wording.
   const entryError = searchParams.error ? (ENTRY_ERRORS[searchParams.error] ?? "") : "";
   const billingErrorKeys: Record<string, string> = {
-    "billing-plan-invalid": "Choose one of: demo, monthly or annual.",
+    "billing-plan-invalid": "Choose one of: demo or monthly.",
+    "billing-band-invalid": "Choose one of the pricing bands.",
     "billing-monthly_rate_egp-invalid": "The monthly rate must be a number of at least zero.",
     "billing-per_child_rate_egp-invalid": "The incremental child rate must be a number of at least zero.",
     "billing-free_child_threshold-invalid": "The free-child threshold must be a number of at least zero.",
-    "billing-annual_amount_egp-invalid": "The annual amount must be a number of at least zero.",
     "billing-cycle-invalid": "Type the first billing month as a date (YYYY-MM-DD).",
   };
   const createError =
@@ -131,6 +135,10 @@ export default async function PlatformDaycaresPage(
         {/* KID-2442: the self-service password reset for any account. */}
         <a href="/platform/password-reset" style={{ fontWeight: 700 }}>
           {tr(dict, "platform.passwordResetLink")} →
+        </a>
+        {" · "}
+        <a href="/platform/pricing" style={{ fontWeight: 700 }}>
+          {tr(dict, "platform.pricingTitle")} →
         </a>
       </p>
 
@@ -490,38 +498,18 @@ export default async function PlatformDaycaresPage(
               <option value="custom">{tr(dict, "platform.themeCustom")}</option>
             </select>
           </div>
-          {/* KID-244: the billing plan the new daycare starts on, plus the
-              editable rate options (prefilled with the platform defaults;
-              the raw values are re-validated by the store). */}
-          <div className="col field">
-            <label className="label">{tr(dict, "platform.billingPlan")}</label>
-            <select className="input" name="billingPlan" defaultValue="demo">
-              {["demo", "monthly", "annual"].map((p) => (
-                <option key={p} value={p}>
-                  {tr(dict, `platform.billingPlan${p[0]!.toUpperCase()}${p.slice(1)}`)}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="col field">
-            <label className="label">{tr(dict, "platform.billingMonthlyRate")}</label>
-            <input className="input" name="billingMonthlyRate" type="number" min={0} defaultValue={BILLING_DEFAULTS.monthlyRateEgp} />
-          </div>
         </div>
-        <div className="row">
-          <div className="col field">
-            <label className="label">{tr(dict, "platform.billingPerChildRate")}</label>
-            <input className="input" name="billingPerChildRate" type="number" min={0} defaultValue={BILLING_DEFAULTS.perChildRateEgp} />
-          </div>
-          <div className="col field">
-            <label className="label">{tr(dict, "platform.billingFreeThreshold")}</label>
-            <input className="input" name="billingFreeThreshold" type="number" min={0} defaultValue={BILLING_DEFAULTS.freeChildThreshold} />
-          </div>
-          <div className="col field">
-            <label className="label">{tr(dict, "platform.billingAnnualAmount")}</label>
-            <input className="input" name="billingAnnualAmount" type="number" min={0} defaultValue={BILLING_DEFAULTS.annualAmountEgp} />
-          </div>
-        </div>
+        {/* KID-2435: choose demo or monthly; monthly also asks for the band.
+            The reference above shows the counts and prices. */}
+        <PricingReference bands={bands} dict={dict} />
+        <BillingPlanFields
+          dict={dict}
+          bands={bands}
+          defaultPlan="demo"
+          defaultBandKey=""
+          planName="billingPlan"
+          bandName="billingBand"
+        />
         <div className="row">
           {/* KID-227: native pickers beside the hex fields, synced both ways
               (ColorField); the hex input keeps the submitted name, and the

@@ -173,11 +173,10 @@ export type ContractDraftData = {
   ownerName: string;
   ownerEmail: string;
   providerNoticeEmail: string;
-  plan: "demo" | "monthly" | "annual";
+  plan: "demo" | "monthly";
   monthlyRateEgp: number;
   perChildRateEgp: number;
   freeChildThreshold: number;
-  annualAmountEgp: number;
   currency: string;
   termStart: string;
   proposedDate: string;
@@ -192,7 +191,7 @@ const egp = (n: number): string => Number(n ?? 0).toLocaleString("en-US");
 /** Term phrases per plan, exactly as the pack's Sunshine issued contract
  *  worded them (sunshine-contract-en / -ar). Values live per-language because
  *  the Arabic version prevails and both copies are read by humans. */
-function termValues(plan: "demo" | "monthly" | "annual", locale: "ar" | "en") {
+function termValues(plan: "demo" | "monthly", locale: "ar" | "en") {
   if (plan === "demo") {
     return locale === "en"
       ? {
@@ -208,14 +207,9 @@ function termValues(plan: "demo" | "monthly" | "annual", locale: "ar" | "en") {
           DEMO_CONVERSION_PLAN: "[مطلوب للتأكيد من الرئيس التنفيذي]",
         };
   }
-  if (plan === "monthly") {
-    return locale === "en"
-      ? { INITIAL_TERM: "One month", RENEWAL_TERM: "Successive monthly terms", DEMO_PERIOD: "N/A", DEMO_CONVERSION_PLAN: "N/A" }
-      : { INITIAL_TERM: "شهر واحد", RENEWAL_TERM: "فترات شهرية متتالية", DEMO_PERIOD: "لا ينطبق", DEMO_CONVERSION_PLAN: "لا ينطبق" };
-  }
   return locale === "en"
-    ? { INITIAL_TERM: "Twelve months", RENEWAL_TERM: "Successive twelve-month terms", DEMO_PERIOD: "N/A", DEMO_CONVERSION_PLAN: "N/A" }
-    : { INITIAL_TERM: "اثنا عشر شهرًا", RENEWAL_TERM: "فترات متتالية كل اثني عشر شهرًا", DEMO_PERIOD: "لا ينطبق", DEMO_CONVERSION_PLAN: "لا ينطبق" };
+    ? { INITIAL_TERM: "One month", RENEWAL_TERM: "Successive monthly terms", DEMO_PERIOD: "N/A", DEMO_CONVERSION_PLAN: "N/A" }
+    : { INITIAL_TERM: "شهر واحد", RENEWAL_TERM: "فترات شهرية متتالية", DEMO_PERIOD: "لا ينطبق", DEMO_CONVERSION_PLAN: "لا ينطبق" };
 }
 
 /** Every template variable mapped to its platform value (or the pack's own
@@ -256,7 +250,6 @@ export function contractDraftValues(
     MONTHLY_RATE_EGP: egp(data.monthlyRateEgp),
     PER_CHILD_RATE_EGP: egp(data.perChildRateEgp),
     FREE_CHILD_THRESHOLD: String(data.freeChildThreshold),
-    ANNUAL_AMOUNT_EGP: egp(data.annualAmountEgp),
     CURRENCY: data.currency,
     TERM_START: data.termStart || "-",
     EFFECTIVE_DATE: effective,
@@ -412,7 +405,6 @@ export async function generateDaycareContractDrafts(input: {
       monthlyRateEgp: billing.monthlyRateEgp,
       perChildRateEgp: billing.perChildRateEgp,
       freeChildThreshold: billing.freeChildThreshold,
-      annualAmountEgp: billing.annualAmountEgp,
       // The platform bills in EGP only (daycare_billing EGP columns; KID-489).
       currency: "EGP",
       termStart: billing.firstCycleStart,

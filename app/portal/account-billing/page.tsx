@@ -22,18 +22,17 @@ import { resolveTenantInstituteId } from "@/lib/tenant";
 import { i18nForAccount } from "@/lib/i18n-session";
 import { tr } from "@/lib/i18n";
 import { getInstitute } from "@/lib/store";
-import { getDaycareBilling, listInvoices, type DaycareInvoice, type DaycareBilling } from "@/lib/billing";
+import { getDaycareBilling, isInstituteReadOnly, listInvoices, type DaycareInvoice, type DaycareBilling } from "@/lib/billing";
 import { getPlatformInstapayUrl } from "@/lib/platform-settings";
 import { recordToolUsage } from "@/lib/tool-usage";
 import { signedUrlsForRefs } from "@/lib/storage";
-import { uploadDaycareInvoiceProofAction } from "@/lib/actions";
+import { cancelDaycareSubscriptionAction, uploadDaycareInvoiceProofAction } from "@/lib/actions";
 
 export const dynamic = "force-dynamic";
 
 const PLAN_LABEL: Record<DaycareBilling["plan"], string> = {
   demo: "planDemo",
   monthly: "planMonthly",
-  annual: "planAnnual",
 };
 
 const STATUS_LABEL: Record<DaycareInvoice["status"], string> = {
@@ -48,7 +47,9 @@ const STATUS_TONE: Record<DaycareInvoice["status"], string> = {
   overdue: "badge-red",
 };
 
-export default async function PortalAccountBillingPage(props: { searchParams?: Promise<{ proof?: string; proofError?: string }> }) {
+export default async function PortalAccountBillingPage(props: {
+  searchParams?: Promise<{ proof?: string; proofError?: string; cancel?: string }>;
+}) {
   const searchParams = await props.searchParams;
   const session = await requireSession();
   if (!isOwnerRole(session.role)) {
@@ -104,6 +105,19 @@ export default async function PortalAccountBillingPage(props: { searchParams?: P
   const awaitingPayment = overdue.length + dueSoon.length > 0;
 
   const planName = tr(dict, `accountBilling.${PLAN_LABEL[billing.plan]}`);
+  // KID-2435 v3: read-only is derived from the ledger/cancellation, never
+  // from a hard account disable.
+  const readOnly = await isInstituteReadOnly(String(instituteId));
+  const cancelNotice =
+    searchParams?.cancel === "1"
+      ? tr(dict, "accountBilling.cancelDone")
+      : searchParams?.cancel === "resumed"
+        ? tr(dict, "accountBilling.cancelResumed")
+        : searchParams?.cancel === "demo"
+          ? tr(dict, "accountBilling.cancelDemo")
+          : searchParams?.cancel === "error"
+            ? tr(dict, "accountBilling.cancelError")
+            : "";
 
   return (
     <div dir={dir}>
@@ -135,11 +149,6 @@ export default async function PortalAccountBillingPage(props: { searchParams?: P
               {tr(dict, "accountBilling.freeThreshold")}: <strong>{billing.freeChildThreshold}</strong>
             </div>
           )}
-          {billing.plan === "annual" && (
-            <div className="small" style={{ marginTop: 4 }}>
-              {tr(dict, "accountBilling.annualAmount")}: <strong>{billing.annualAmountEgp}</strong>
-            </div>
-          )}
           {billing.plan === "demo" && (
             <div className="small muted" style={{ marginTop: 4 }}>
               {tr(dict, "accountBilling.demoNote")}
@@ -147,6 +156,40 @@ export default async function PortalAccountBillingPage(props: { searchParams?: P
           )}
           <div className="small muted mt-1">{tr(dict, "accountBilling.ratesReadOnly")}</div>
         </div>
+      </div>
+
+      {readOnly && (
+        <div className="card mb-4 banner-error" role="status">
+          {tr(dict, "accountBilling.readOnlyNote")}
+        </div>
+      )}
+
+      <div className="card mb-4">
+        <div className="label mb-1">{tr(dict, "accountBilling.cancelCard")}</div>
+        {billing.cancelAt ? (
+          <div className="small">
+            {tr(dict, "accountBilling.cancelActive", { date: billing.cancelAt })}
+          </div>
+        ) : (
+          <div className="small muted">{tr(dict, "accountBilling.cancelNone")}</div>
+        )}
+        <div className="small muted mt-1">{tr(dict, "accountBilling.cancelNote")}</div>
+        {cancelNotice && (
+          <div className="small mt-1" style={{ fontWeight: 600 }}>
+            {cancelNotice}
+          </div>
+        )}
+        {billing.plan === "monthly" && (
+          <form action={cancelDaycareSubscriptionAction} style={{ marginTop: 8 }}>
+            <input type="hidden" name="intent" value={billing.cancelAt ? "resume" : "cancel"} />
+            <button className="btn" type="submit">
+              {tr(
+                dict,
+                billing.cancelAt ? "accountBilling.resumeButton" : "accountBilling.cancelButton"
+              )}
+            </button>
+          </form>
+        )}
       </div>
 
       <div className="card mb-4">

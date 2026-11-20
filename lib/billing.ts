@@ -12,13 +12,21 @@
 //     following month;
 //   - the billed child count is the PEAK number of children active at any
 //     point during the cycle (not the end-of-month count);
-//   - monthly total = flat rate + max(0, peak - freeChildThreshold) x rate
-//     (board-confirmed on KID-243: only children from #11 onward add 50 EGP);
-//   - annual: one invoice per 12-month block at annual_amount_egp;
+//   - KID-2435 pricing v3: the band is selected from the cycle's peak child
+//     count and the configured band monthly amount is billed (Enterprise+ =
+//     2,500 + 20/child above 120). There is no annual product: no annual
+//     price, term, renewal or proration;
+//   - founding cohort: the founding monthly rate for the first 12 months,
+//     then the standard band amount from month 13. One step, no glide;
+//     plus the configured pilot-fee credit on the first invoice;
+//   - the legacy per-daycare flat/per-child columns no longer price an invoice;
 //   - demo: no invoices at all;
-//   - an invoice past its due date and unpaid makes the daycare overdue ->
-//     institute.active = 0 (the existing KID-199.3 disable), which blocks
-//     every user at login; marking the invoice paid re-activates the daycare;
+//   - a failed payment gets a 7-day grace window (pricing_config
+//     billing.grace_days). After it, the unpaid invoice is overdue and the
+//     account becomes READ-ONLY (isInstituteReadOnly) — never disabled and
+//     never deleted. Paying the last overdue invoice lifts the state;
+//   - a cancellation takes effect at the end of the paid month: no later
+//     cycle is billed, and access becomes read-only the next day;
 //   - the operator can override an invoice's total (with a note) before
 //     payment; paid invoices are locked.
 //
@@ -35,10 +43,21 @@
 // date afterwards like every other setting.
 
 import { queryAll, queryGet, queryRun, uid, type Row } from "./db";
+import {
+  countFoundingClients,
+  foundingTermIndex,
+  getPricingBands,
+  getPricingSettings,
+  monthlyForBand,
+  pilotCreditEligible,
+  pricingBandForChildCount,
+  type PricingBand,
+  type PricingSettings,
+} from "./pricing";
 
-export type BillingPlan = "demo" | "monthly" | "annual";
+export type BillingPlan = "demo" | "monthly";
 
-export const BILLING_PLANS: BillingPlan[] = ["demo", "monthly", "annual"];
+export const BILLING_PLANS: BillingPlan[] = ["demo", "monthly"];
 
 /** The platform defaults — every create-daycare form field is prefilled and
  *  editable; a stored row that predates a new column reads these too. */
@@ -47,7 +66,11 @@ export const BILLING_DEFAULTS = {
   monthlyRateEgp: 500,
   perChildRateEgp: 50,
   freeChildThreshold: 10,
-  annualAmountEgp: 24000,
+  foundingClient: false,
+  foundingStartedAt: "",
+  pilotEndDate: "",
+  cancelAt: "",
+  bandKey: "",
 };
 
 export type DaycareBilling = {
@@ -55,11 +78,32 @@ export type DaycareBilling = {
   monthlyRateEgp: number;
   perChildRateEgp: number;
   freeChildThreshold: number;
-  annualAmountEgp: number;
   /** ISO date (YYYY-MM-DD) of the first billed month, or "" when the row has
    *  no stored cycle start — the UI then treats the signup month as free and
    *  the invoicing engine (Finance/2) falls back to institute.created_at. */
   firstCycleStart: string;
+  /** KID-2434: founding-cohort enrolment and pilot dates (configuration only;
+   *  the year-1 amount comes from the pricing band table). */
+  foundingClient: boolean;
+  foundingStartedAt: string;
+  pilotEndDate: string;
+  /** KID-2435 v3: last day of the paid month, or "" when the subscription is
+   *  not cancelled. Cancellation takes effect the day after this date: the
+   *  engine bills no later cycle and the account becomes read-only. */
+  cancelAt: string;
+  /** KID-2435: the operator-selected contracted band. "" keeps the automatic
+   *  cycle-peak band selection; a set value pins the subscription to that band
+   *  (used when an operator sells a band before the roster exists). */
+  bandKey: string;
+};
+
+/** KID-2435 v3: one subscription per branch (pricing plan v3, rule 12). The
+ *  branch row carries the plan, cycle, founding status, pilot dates and
+ *  cancellation date; the invoice engine bills from these rows only. */
+export type BranchBilling = DaycareBilling & {
+  branchId: string;
+  branchName: string;
+  instituteId: string;
 };
 
 /** The 1st of the month after `date` (the signup month is free). Pure; also
@@ -68,6 +112,15 @@ export function nextMonthStart(date: Date): string {
   return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + 1, 1))
     .toISOString()
     .slice(0, 10);
+}
+
+/** KID-2435 v3: billing always starts on the 1st of a month. Accepts any
+ *  stored date shape and returns "YYYY-MM-01" ("" when the value is not a
+ *  date). Demo covers the gap between signing and that date, so the engine
+ *  never prorates. */
+export function monthStart(value: unknown): string {
+  const iso = datePart(value);
+  return iso ? `${iso.slice(0, 7)}-01` : "";
 }
 
 function mapPlan(raw: unknown): BillingPlan {
@@ -86,8 +139,18 @@ export function rowToBilling(row: Row): DaycareBilling {
     monthlyRateEgp: clampInt(row.monthly_rate_egp ?? row.monthlyRateEgp, BILLING_DEFAULTS.monthlyRateEgp),
     perChildRateEgp: clampInt(row.per_child_rate_egp ?? row.perChildRateEgp, BILLING_DEFAULTS.perChildRateEgp),
     freeChildThreshold: clampInt(row.free_child_threshold ?? row.freeChildThreshold, BILLING_DEFAULTS.freeChildThreshold),
-    annualAmountEgp: clampInt(row.annual_amount_egp ?? row.annualAmountEgp, BILLING_DEFAULTS.annualAmountEgp),
-    firstCycleStart: String((row.first_cycle_start ?? row.firstCycleStart ?? "")).slice(0, 10),
+    // KID-2435 v3: the first billed cycle always starts on the 1st and the
+    // annual product is gone. datePart inside monthStart normalises Postgres
+    // Date objects and SQLite text, so the staging "Thu Oct 01" bug cannot
+    // return.
+    firstCycleStart: monthStart(row.first_cycle_start ?? row.firstCycleStart),
+    foundingClient: Number(row.founding_client ?? (row.foundingClient ? 1 : 0)) === 1,
+    // Supabase returns DATE columns as Date objects: datePart normalises both
+    // shapes (the staging-only "Thu Oct 01" bug, KID-2435).
+    foundingStartedAt: datePart(row.founding_started_at ?? row.foundingStartedAt),
+    pilotEndDate: datePart(row.pilot_end_date ?? row.pilotEndDate),
+    cancelAt: datePart(row.cancel_at ?? row.cancelAt),
+    bandKey: String(row.band_key ?? row.bandKey ?? ""),
   };
 }
 
@@ -107,17 +170,125 @@ export async function getDaycareBilling(instituteId: string): Promise<DaycareBil
   };
 }
 
-/** The monthly invoice amount for a daycare with `childCount` enrolled
- *  children (billing engine v1, already used by the settings UI preview):
- *  - demo bills 0, always.
- *  - annual bills the day rate — represented here as the flat annual amount
- *    (the actual billing is once per cycle in Finance/2).
- *  - monthly bills the flat rate; each child ABOVE the free threshold is the
- *    incremental rate — child #11 is the first charged child for the
- *    default threshold of 10. */
+export function rowToBranchBilling(row: Row): BranchBilling {
+  return {
+    ...rowToBilling(row),
+    branchId: String(row.branch_id ?? ""),
+    branchName: String(row.branch_name ?? ""),
+    instituteId: String(row.institute_id ?? ""),
+  };
+}
+
+/** KID-2435 v3: ensure every institute has a branch and every branch has a
+ *  subscription row. Older demo data (seed.ts wrote no branch) and institutes
+ *  created before 0050 get a "Main" branch that copies the group settings.
+ *  Idempotent: running it on every sweep changes nothing. */
+export async function ensureBranchBillingRows(): Promise<void> {
+  await queryRun(
+    `INSERT INTO branch (id, institute_id, name)
+     SELECT 'main-' || i.id, i.id, 'Main'
+     FROM institute i
+     WHERE NOT EXISTS (SELECT 1 FROM branch b WHERE b.institute_id = i.id)`
+  );
+  const missing = await queryAll(
+    `SELECT br.id AS branch_id, br.institute_id, br.created_at,
+            db.plan, db.monthly_rate_egp, db.per_child_rate_egp, db.free_child_threshold,
+            db.first_cycle_start, db.founding_client, db.founding_started_at,
+            db.pilot_end_date, db.cancel_at, db.band_key
+     FROM branch br
+     LEFT JOIN daycare_billing db ON db.institute_id = br.institute_id
+     LEFT JOIN branch_billing bb ON bb.branch_id = br.id
+     WHERE bb.branch_id IS NULL`
+  );
+  for (const row of missing) {
+    const created = datePart(row.created_at);
+    const firstCycle = monthStart(row.first_cycle_start) ||
+      (created ? nextMonthStart(new Date(`${created}T00:00:00Z`)) : nextMonthStart(new Date()));
+    const primary = await queryGet(
+      `SELECT id FROM branch WHERE institute_id = ? ORDER BY created_at, id LIMIT 1`,
+      String(row.institute_id)
+    );
+    // The institute's first branch inherits the group's founding status and
+    // pilot dates. A later branch starts non-founding; enrollBranchInFounding
+    // gives it the one new slot the founder approved when it is added.
+    const isPrimary = String(primary?.id ?? "") === String(row.branch_id);
+    await queryRun(
+      `INSERT INTO branch_billing
+         (branch_id, institute_id, plan, monthly_rate_egp, per_child_rate_egp,
+          free_child_threshold, first_cycle_start, founding_client,
+          founding_started_at, pilot_end_date, cancel_at, band_key)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+       ON CONFLICT (branch_id) DO NOTHING`,
+      String(row.branch_id),
+      String(row.institute_id),
+      mapPlan(row.plan),
+      clampInt(row.monthly_rate_egp, BILLING_DEFAULTS.monthlyRateEgp),
+      clampInt(row.per_child_rate_egp, BILLING_DEFAULTS.perChildRateEgp),
+      clampInt(row.free_child_threshold, BILLING_DEFAULTS.freeChildThreshold),
+      firstCycle || null,
+      isPrimary && Number(row.founding_client ?? 0) === 1 ? 1 : 0,
+      isPrimary ? datePart(row.founding_started_at) || null : null,
+      isPrimary ? datePart(row.pilot_end_date) || null : null,
+      datePart(row.cancel_at) || null,
+      String(row.band_key ?? "")
+    );
+  }
+}
+
+/** Every branch subscription of one daycare, in branch creation order. */
+export async function listBranchBillings(instituteId: string): Promise<BranchBilling[]> {
+  await ensureBranchBillingRows();
+  const rows = await queryAll(
+    `SELECT bb.*, br.name AS branch_name
+     FROM branch_billing bb
+     JOIN branch br ON br.id = bb.branch_id
+     WHERE bb.institute_id = ?
+     ORDER BY br.created_at, br.id`,
+    instituteId
+  );
+  return rows.map(rowToBranchBilling);
+}
+
+export async function getBranchBilling(branchId: string): Promise<BranchBilling | undefined> {
+  await ensureBranchBillingRows();
+  const row = await queryGet(
+    `SELECT bb.*, br.name AS branch_name
+     FROM branch_billing bb
+     JOIN branch br ON br.id = bb.branch_id
+     WHERE bb.branch_id = ?`,
+    branchId
+  );
+  return row ? rowToBranchBilling(row) : undefined;
+}
+
+/** Active children on one branch. Legacy rows (and the seed fixture) have a
+ *  NULL branch_id; the institute's first branch counts those, so a daycare
+ *  that never assigned a branch is still billed. */
+export async function enrolledChildCountForBranch(
+  instituteId: string,
+  branchId: string,
+  includeUnassigned = false
+): Promise<number> {
+  const row = includeUnassigned
+    ? await queryGet(
+        `SELECT COUNT(*) AS n FROM child
+         WHERE institute_id = ? AND status = 'active' AND (branch_id = ? OR branch_id IS NULL)`,
+        instituteId,
+        branchId
+      )
+    : await queryGet(
+        "SELECT COUNT(*) AS n FROM child WHERE institute_id = ? AND branch_id = ? AND status = 'active'",
+        instituteId,
+        branchId
+      );
+  return Number(row?.n ?? 0);
+}
+
+/** Legacy v1 preview helper, kept only for the historic KID-244 unit tests and
+ *  old contract snapshots. The invoice engine (and the operator billing page)
+ *  uses `cyclePricing`/the pricing_band configuration instead. */
 export function cycleAmountEgp(b: DaycareBilling, childCount: number): number {
   if (b.plan === "demo") return 0;
-  if (b.plan === "annual") return b.annualAmountEgp;
   const extra = Math.max(0, Math.round(Number(childCount) || 0) - b.freeChildThreshold);
   return b.monthlyRateEgp + extra * b.perChildRateEgp;
 }
@@ -138,8 +309,14 @@ export type BillingPatch = Partial<{
   monthlyRateEgp: number;
   perChildRateEgp: number;
   freeChildThreshold: number;
-  annualAmountEgp: number;
   firstCycleStart: string;
+  foundingClient: boolean;
+  foundingStartedAt: string;
+  pilotEndDate: string;
+  cancelAt: string;
+  /** KID-2435: "" keeps automatic cycle-peak band selection; any configured
+   *  band key pins the subscription to that band. */
+  bandKey: string;
   touchedAt: string;
 }>;
 
@@ -147,8 +324,18 @@ const NUMERIC_FIELDS = [
   ["monthlyRateEgp", "monthly_rate_egp"],
   ["perChildRateEgp", "per_child_rate_egp"],
   ["freeChildThreshold", "free_child_threshold"],
-  ["annualAmountEgp", "annual_amount_egp"],
 ] as const;
+
+/** KID-2435: validate the operator-selected band. "" is valid (automatic
+ *  cycle-peak selection); any other value must be a configured band key, so a
+ *  malformed POST can never pin a subscription to a band that does not exist. */
+async function normalizeBandKey(bandKey: unknown): Promise<string> {
+  const key = String(bandKey ?? "").trim();
+  if (!key) return "";
+  const bands = await getPricingBands();
+  if (!bands.some((b) => b.key === key)) throw new Error("billing-band-invalid");
+  return key;
+}
 
 /** Writes (upserts) a daycare's billing settings. Validates up front — an
  *  unknown plan or a negative amount throws a named error the action surfaces
@@ -163,8 +350,58 @@ export async function updateDaycareBilling(instituteId: string, patch: BillingPa
     if (value === undefined) continue;
     if (!Number.isFinite(Number(value)) || Number(value) < 0) throw new Error(`billing-${column}-invalid`);
   }
-  if (patch.firstCycleStart !== undefined && !/^\d{4}-\d{2}-\d{2}$/.test(patch.firstCycleStart)) {
-    throw new Error("billing-cycle-invalid");
+  // KID-2435 v3: billing starts on the 1st of a month. An operator who types
+  // mid-month gets the 1st of that month, never a prorated cycle.
+  let firstCycle = "";
+  if (patch.firstCycleStart !== undefined) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(patch.firstCycleStart)) {
+      throw new Error("billing-cycle-invalid");
+    }
+    firstCycle = monthStart(patch.firstCycleStart);
+  }
+  for (const [key, column] of [
+    ["foundingStartedAt", "founding_started_at"],
+    ["pilotEndDate", "pilot_end_date"],
+    ["cancelAt", "cancel_at"],
+  ] as const) {
+    const value = patch[key];
+    if (value !== undefined && value !== "" && !/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+      throw new Error(`billing-${column}-invalid`);
+    }
+  }
+  const bandKey =
+    patch.bandKey !== undefined ? await normalizeBandKey(patch.bandKey) : undefined;
+  // KID-2435: the founding cohort cap is a data-layer rule, not just a label
+  // on /platform/pricing. KID-2435 v3 counts BRANCH subscriptions: the group
+  // write flags every branch that is not flagged yet, and those new slots
+  // must fit under the cap. An already-flagged branch can still be edited.
+  if (patch.foundingClient === true) {
+    const [current, branches] = await Promise.all([
+      queryGet(
+        "SELECT founding_client FROM daycare_billing WHERE institute_id = ?",
+        instituteId
+      ),
+      queryAll(
+        "SELECT founding_client FROM branch_billing WHERE institute_id = ?",
+        instituteId
+      ),
+    ]);
+    if (branches.length > 0) {
+      const newSlots = branches.filter((b) => Number(b.founding_client ?? 0) !== 1).length;
+      if (newSlots > 0) {
+        const [settings, signed] = await Promise.all([
+          getPricingSettings(),
+          countFoundingClients(),
+        ]);
+        if (signed + newSlots > settings.foundingCap) throw new Error("founding-cap-reached");
+      }
+    } else if (Number(current?.founding_client ?? 0) !== 1) {
+      const [settings, signed] = await Promise.all([
+        getPricingSettings(),
+        countFoundingClients(),
+      ]);
+      if (signed >= settings.foundingCap) throw new Error("founding-cap-reached");
+    }
   }
   const sets: string[] = [];
   const values: unknown[] = [];
@@ -179,7 +416,27 @@ export async function updateDaycareBilling(instituteId: string, patch: BillingPa
   }
   if (patch.firstCycleStart !== undefined) {
     sets.push("first_cycle_start = ?");
-    values.push(patch.firstCycleStart);
+    values.push(firstCycle);
+  }
+  if (patch.foundingClient !== undefined) {
+    sets.push("founding_client = ?");
+    values.push(patch.foundingClient ? 1 : 0);
+  }
+  if (patch.foundingStartedAt !== undefined) {
+    sets.push("founding_started_at = ?");
+    values.push(patch.foundingStartedAt || null);
+  }
+  if (patch.pilotEndDate !== undefined) {
+    sets.push("pilot_end_date = ?");
+    values.push(patch.pilotEndDate || null);
+  }
+  if (patch.cancelAt !== undefined) {
+    sets.push("cancel_at = ?");
+    values.push(patch.cancelAt || null);
+  }
+  if (bandKey !== undefined) {
+    sets.push("band_key = ?");
+    values.push(bandKey);
   }
   sets.push("updated_at = ?");
   values.push(patch.touchedAt ?? new Date().toISOString());
@@ -201,6 +458,160 @@ export async function updateDaycareBilling(instituteId: string, patch: BillingPa
     ...values,
     ...values.filter((_, i) => !conflictCols.has(setCols[i]!)),
   );
+  // KID-2435 v3: the group row is the default every branch copies. An edit
+  // here reaches every existing branch subscription in the same statement,
+  // so the owner portal and the invoice engine never disagree.
+  const hasBranches = await queryGet(
+    "SELECT 1 AS x FROM branch_billing WHERE institute_id = ? LIMIT 1",
+    instituteId
+  );
+  if (hasBranches) {
+    await queryRun(
+      `UPDATE branch_billing SET ${sets.join(", ")} WHERE institute_id = ?`,
+      ...values,
+      instituteId
+    );
+  }
+}
+
+/** KID-2435 v3: write one branch subscription (the operator's per-branch
+ *  surface). Validates and enforces the founding cap exactly like the group
+ *  writer; the branch's own band and 12-month term come from this row. */
+export async function updateBranchBilling(branchId: string, patch: BillingPatch): Promise<void> {
+  await ensureBranchBillingRows();
+  const branch = await queryGet(
+    "SELECT id, institute_id, created_at FROM branch WHERE id = ?",
+    branchId
+  );
+  if (!branch) throw new Error("billing-branch-not-found");
+  if (patch.plan !== undefined && !(BILLING_PLANS as string[]).includes(patch.plan)) {
+    throw new Error("billing-plan-invalid");
+  }
+  for (const [key, column] of NUMERIC_FIELDS) {
+    const value = patch[key];
+    if (value === undefined) continue;
+    if (!Number.isFinite(Number(value)) || Number(value) < 0) throw new Error(`billing-${column}-invalid`);
+  }
+  let firstCycle = "";
+  if (patch.firstCycleStart !== undefined) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(patch.firstCycleStart)) {
+      throw new Error("billing-cycle-invalid");
+    }
+    firstCycle = monthStart(patch.firstCycleStart);
+  }
+  for (const [key, column] of [
+    ["foundingStartedAt", "founding_started_at"],
+    ["pilotEndDate", "pilot_end_date"],
+    ["cancelAt", "cancel_at"],
+  ] as const) {
+    const value = patch[key];
+    if (value !== undefined && value !== "" && !/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+      throw new Error(`billing-${column}-invalid`);
+    }
+  }
+  const bandKey =
+    patch.bandKey !== undefined ? await normalizeBandKey(patch.bandKey) : undefined;
+  if (patch.foundingClient === true) {
+    const current = await queryGet(
+      "SELECT founding_client FROM branch_billing WHERE branch_id = ?",
+      branchId
+    );
+    if (Number(current?.founding_client ?? 0) !== 1) {
+      const [settings, signed] = await Promise.all([
+        getPricingSettings(),
+        countFoundingClients(),
+      ]);
+      if (signed >= settings.foundingCap) throw new Error("founding-cap-reached");
+    }
+  }
+  const sets: string[] = [];
+  const values: unknown[] = [];
+  if (patch.plan !== undefined) {
+    sets.push("plan = ?");
+    values.push(patch.plan);
+  }
+  for (const [key, column] of NUMERIC_FIELDS) {
+    if (patch[key] === undefined) continue;
+    sets.push(`${column} = ?`);
+    values.push(Math.round(Number(patch[key])));
+  }
+  if (patch.firstCycleStart !== undefined) {
+    sets.push("first_cycle_start = ?");
+    values.push(firstCycle || null);
+  }
+  if (patch.foundingClient !== undefined) {
+    sets.push("founding_client = ?");
+    values.push(patch.foundingClient ? 1 : 0);
+  }
+  if (patch.foundingStartedAt !== undefined) {
+    sets.push("founding_started_at = ?");
+    values.push(patch.foundingStartedAt || null);
+  }
+  if (patch.pilotEndDate !== undefined) {
+    sets.push("pilot_end_date = ?");
+    values.push(patch.pilotEndDate || null);
+  }
+  if (patch.cancelAt !== undefined) {
+    sets.push("cancel_at = ?");
+    values.push(patch.cancelAt || null);
+  }
+  if (bandKey !== undefined) {
+    sets.push("band_key = ?");
+    values.push(bandKey);
+  }
+  sets.push("updated_at = ?");
+  values.push(patch.touchedAt ?? new Date().toISOString());
+  const setCols = sets.map((s) => s.split(" = ")[0]!);
+  // SQLite and Postgres both bind every placeholder, including the conflict
+  // branch — so the update clause uses excluded.<column>, not the `?` sets.
+  const updateSets = setCols
+    .filter((c) => c !== "updated_at")
+    .map((c) => `${c} = excluded.${c}`);
+  if (updateSets.length === 0) updateSets.push("updated_at = excluded.updated_at");
+  await queryRun(
+    `INSERT INTO branch_billing (branch_id, institute_id, ${setCols.join(", ")})
+     VALUES (?, ?, ${sets.map(() => "?").join(", ")})
+     ON CONFLICT (branch_id) DO UPDATE SET ${updateSets.join(", ")}`,
+    branchId,
+    String(branch.institute_id),
+    ...values
+  );
+  // The owner portal and the group preview read daycare_billing. Keep the
+  // group row equal to the institute's first branch so a per-branch edit of
+  // Main is visible there too; a later group edit still fans out to all.
+  const primary = await queryGet(
+    `SELECT id FROM branch WHERE institute_id = ? ORDER BY created_at, id LIMIT 1`,
+    String(branch.institute_id)
+  );
+  if (String(primary?.id ?? "") === branchId) {
+    await queryRun(
+      `UPDATE daycare_billing SET ${sets.join(", ")} WHERE institute_id = ?`,
+      ...values,
+      String(branch.institute_id)
+    );
+  }
+}
+
+/** KID-2435 v3 (answered 19 Nov 2026): a new branch that joins a group that
+ *  already has the founding status uses ONE new slot and gets the founding
+ *  rate for 12 months from its own start. Called when a branch is added; a
+ *  full cohort leaves the branch on the standard rate (the caller does not
+ *  fail, because the branch itself is valid). */
+export async function enrollBranchInFounding(branchId: string): Promise<void> {
+  const branch = await getBranchBilling(branchId);
+  if (!branch || branch.foundingClient) return;
+  const group = await getDaycareBilling(branch.instituteId);
+  if (!group.foundingClient) return;
+  const [settings, signed] = await Promise.all([getPricingSettings(), countFoundingClients()]);
+  if (signed >= settings.foundingCap) return;
+  await queryRun(
+    `UPDATE branch_billing
+     SET founding_client = 1, founding_started_at = ?, pilot_end_date = NULL, updated_at = ?
+     WHERE branch_id = ? AND founding_client = 0`,
+    branch.firstCycleStart || null,
+    new Date().toISOString(),
+    branchId
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -213,6 +624,9 @@ export type InvoiceStatus = (typeof INVOICE_STATUSES)[number];
 export type DaycareInvoice = {
   id: string;
   instituteId: string;
+  /** KID-2435 v3: the branch subscription this invoice belongs to. */
+  branchId: string;
+  branchName: string;
   /** First month of the billed cycle, YYYY-MM (the month itself for monthly
    *  plans, the first month of a 12-month block for annual). */
   cycleMonth: string;
@@ -223,6 +637,19 @@ export type DaycareInvoice = {
   incrementalRate: number;
   incrementalAmount: number;
   totalAmount: number;
+  /** KID-2435: pricing-v2 snapshot. The configured band and amounts used to
+   *  compute this invoice, frozen at issue time so a later operator edit of
+   *  /platform/pricing never rewrites an issued invoice. */
+  bandKey: string;
+  bandName: string;
+  standardMonthlyEgp: number;
+  standardAmountEgp: number;
+  appliedMonthlyRateExact: number;
+  appliedMonthlyRate: number;
+  foundingApplied: boolean;
+  foundingTermIndex: number;
+  glideCapped: boolean;
+  pilotCreditEgp: number;
   currency: string;
   /** YYYY-MM-DD — the 5th of the month after the cycle ends. */
   dueDate: string;
@@ -296,6 +723,18 @@ export function dueDateForCycleEnd(cycleEndIso: string): string {
   return `${addCycleMonths(end.slice(0, 7), 1)}-05`;
 }
 
+/** "YYYY-MM-DD" shifted by n days (UTC). */
+export function addDaysIso(dateIso: string, days: number): string {
+  const day = dayNumberOf(dateIso);
+  return dateOfDayNumber(day + Math.round(Number(days) || 0));
+}
+
+/** KID-2435 v3: the last day of the payment grace window. An invoice is not
+ *  treated as failed until this date has passed. `dueDate` + `graceDays`. */
+export function graceEndDate(dueDateIso: string, graceDays: number): string {
+  return addDaysIso(dueDateIso, Math.max(0, Math.round(Number(graceDays) || 0)));
+}
+
 /** The newest month whose cycle has fully ended STRICTLY before `today` —
  *  generation happens the day after the cycle closes, so the peak is never
  *  measured from a partially elapsed month. */
@@ -309,24 +748,15 @@ export function newestEndedCycleMonth(todayIsoStr: string): string {
 }
 
 /** The cycle months a plan still needs invoices for, from the first billed
- *  month through every cycle that has already ended by `today`. Monthly:
- *  one month per calendar month. Annual: the FIRST month of every 12-month
- *  block. */
+ *  month through every cycle that has already ended by `today`. Billing is
+ *  monthly only (KID-2435 v3): one month per calendar month. */
 export function pendingCycleMonths(
   plan: BillingPlan,
   firstCycleMonth: string,
   today: string
 ): string[] {
   const months: string[] = [];
-  if (plan === "annual") {
-    for (let k = 0; k < 600; k++) {
-      const blockStart = addCycleMonths(firstCycleMonth, 12 * k);
-      const blockEnd = cycleEndDate(addCycleMonths(firstCycleMonth, 12 * k + 11));
-      if (!(blockEnd < today)) break;
-      months.push(blockStart);
-    }
-    return months;
-  }
+  if (plan === "demo") return months;
   const newestEnded = newestEndedCycleMonth(today);
   if (newestEnded < firstCycleMonth) return [];
   for (let m = firstCycleMonth; m <= newestEnded; m = addCycleMonths(m, 1)) {
@@ -335,45 +765,115 @@ export function pendingCycleMonths(
   return months;
 }
 
-// ----- the amount formula (pure; the acceptance-criteria arithmetic) -----
+// ----- the amount formula (pure; KID-2435 pricing v2) -----
 
-export type InvoiceBreakdown = {
+export type CyclePricing = {
+  band: PricingBand;
   maxActiveChildren: number;
   billableChildren: number;
+  /** The band's standard monthly price (Enterprise+ includes its overage). */
+  standardMonthlyEgp: number;
+  /** The standard amount for THIS cycle before founding: the band monthly
+   *  price (including Enterprise+ overage). */
+  standardAmountEgp: number;
+  appliedMonthlyRateExact: number;
+  appliedMonthlyRate: number;
+  foundingApplied: boolean;
+  foundingTermIndex: number;
+  /** Retained for the invoice snapshot. Always false in v3: there is no
+   *  glide cap, the founding rate steps to standard once at month 13. */
+  glideCapped: boolean;
   flatRateAmount: number;
   incrementalRate: number;
   incrementalAmount: number;
-  totalAmount: number;
+  /** The amount due before any pilot credit (the credit is a generation-time
+   *  adjustment, not part of the configured price). */
+  grossAmount: number;
 };
 
-/** KID-245, board-confirmed on KID-243: only children ABOVE the free
- *  threshold add money — flat 500 + rate 50 at a peak of 20 bills
- *  500 + 10x50 = 1000 EGP, never the flat rate times every child. Annual
- *  bills the configured annual amount regardless of the roster; its
- *  breakdown records the measured peak for information only. */
-export function invoiceBreakdown(b: DaycareBilling, peakChildren: number): InvoiceBreakdown {
-  const maxActive = Math.max(0, Math.round(Number(peakChildren) || 0));
-  if (b.plan === "annual") {
-    return {
-      maxActiveChildren: maxActive,
-      billableChildren: 0,
-      flatRateAmount: 0,
-      incrementalRate: 0,
-      incrementalAmount: 0,
-      totalAmount: b.annualAmountEgp,
-    };
+/** KID-2435: price one monthly billing cycle from the approved v3 bands and
+ *  the founding-cohort policy.
+ *
+ *  - The band is selected from the cycle's measured peak child count (the
+ *    founder's confirmed snapshot).
+ *  - Standard monthly is the band amount; Enterprise+ adds 20 EGP per child
+ *    above 120.
+ *  - A founding client pays the founding monthly rate for the first 12
+ *    months, then the standard band amount from month 13. One step, no glide.
+ *  - There is no annual product; the engine never computes an annual amount.
+ */
+export function cyclePricing(params: {
+  plan: BillingPlan;
+  peakChildren: number;
+  cycleMonth: string;
+  billing: DaycareBilling;
+  bands: PricingBand[];
+  settings: PricingSettings;
+  /** The founding rate already frozen by the first invoice of term 0. A
+   *  founding client keeps the rate set at signing for months 1-12 even if
+   *  the band grows; month 13 jumps to the standard band amount. */
+  termRateExact?: number | null;
+}): CyclePricing {
+  const { plan, cycleMonth, billing, bands } = params;
+  const maxActive = Math.max(0, Math.round(Number(params.peakChildren) || 0));
+  // KID-2435: an operator-selected band pins the subscription. An empty
+  // band_key keeps the approved automatic rule (the cycle peak selects it).
+  const pinnedBand = billing.bandKey
+    ? bands.find((b) => b.key === billing.bandKey)
+    : undefined;
+  const band = pinnedBand ?? pricingBandForChildCount(maxActive, bands);
+  const standardMonthly = monthlyForBand(band, maxActive);
+  const cycleStart = cycleStartDate(cycleMonth);
+  const foundingStart = billing.foundingStartedAt || billing.firstCycleStart || "";
+  const termIndex = foundingStart ? foundingTermIndex(foundingStart, cycleStart) : 0;
+  const foundingYearOne = band.foundingMonthlyEgp;
+  const foundingCandidate =
+    plan !== "demo" && billing.foundingClient && foundingYearOne !== null;
+
+  let exact = standardMonthly;
+  if (foundingCandidate && termIndex === 0) {
+    exact =
+      params.termRateExact !== undefined && params.termRateExact !== null
+        ? params.termRateExact
+        : foundingYearOne;
   }
-  const billable = Math.max(0, maxActive - b.freeChildThreshold);
-  const incrementalAmount = billable * b.perChildRateEgp;
+
+  const foundingApplied = foundingCandidate && termIndex === 0;
+  const grossAmount = Math.round(exact);
+
+  let billableChildren = 0;
+  let flatRateAmount = grossAmount;
+  let incrementalRate = 0;
+  let incrementalAmount = 0;
+  const atStandard = Math.abs(exact - standardMonthly) < 1e-9;
+  if (band.maxChildren === null && band.perChildOverageEgp > 0 && atStandard) {
+    const included = Math.max(0, band.minChildren - 1);
+    billableChildren = Math.max(0, maxActive - included);
+    flatRateAmount = band.monthlyEgp;
+    incrementalRate = band.perChildOverageEgp;
+    incrementalAmount = billableChildren * incrementalRate;
+  } else if (band.maxChildren === null) {
+    billableChildren = Math.max(0, maxActive - Math.max(0, band.minChildren - 1));
+  }
+
   return {
+    band,
     maxActiveChildren: maxActive,
-    billableChildren: billable,
-    flatRateAmount: b.monthlyRateEgp,
-    incrementalRate: b.perChildRateEgp,
+    billableChildren,
+    standardMonthlyEgp: standardMonthly,
+    standardAmountEgp: standardMonthly,
+    appliedMonthlyRateExact: exact,
+    appliedMonthlyRate: Math.round(exact),
+    foundingApplied,
+    foundingTermIndex: termIndex,
+    glideCapped: false,
+    flatRateAmount,
+    incrementalRate,
     incrementalAmount,
-    totalAmount: b.monthlyRateEgp + incrementalAmount,
+    grossAmount,
   };
 }
+
 
 // ----- peak measurement -----
 
@@ -392,12 +892,19 @@ export function invoiceBreakdown(b: DaycareBilling, peakChildren: number): Invoi
 export async function peakActiveChildren(
   instituteId: string,
   cycleStartIso: string,
-  cycleEndIso: string
+  cycleEndIso: string,
+  branchId?: string,
+  includeUnassigned = false
 ): Promise<number> {
-  const rows = await queryAll(
-    "SELECT created_at, status, active, last_date FROM child WHERE institute_id = ?",
-    instituteId
-  );
+  let sql = "SELECT created_at, status, active, last_date FROM child WHERE institute_id = ?";
+  const args: unknown[] = [instituteId];
+  if (branchId) {
+    // KID-2435 v3: a child counts on the branch it is enrolled in. The
+    // institute's first branch also owns legacy rows with no branch_id.
+    sql += includeUnassigned ? " AND (branch_id = ? OR branch_id IS NULL)" : " AND branch_id = ?";
+    args.push(branchId);
+  }
+  const rows = await queryAll(sql, ...args);
   const startDay = dayNumberOf(cycleStartIso);
   const endDay = dayNumberOf(cycleEndIso);
   const events: Array<[number, number]> = [];
@@ -444,6 +951,8 @@ export function invoiceRowTo(row: Row): DaycareInvoice {
   return {
     id: String(row.id ?? ""),
     instituteId: String(row.institute_id ?? ""),
+    branchId: String(row.branch_id ?? ""),
+    branchName: String(row.branch_name ?? ""),
     cycleMonth: String(row.cycle_month ?? ""),
     plan: mapPlan(row.plan),
     maxActiveChildren: clampInt(row.max_active_children, 0),
@@ -452,6 +961,16 @@ export function invoiceRowTo(row: Row): DaycareInvoice {
     incrementalRate: clampInt(row.incremental_rate, 0),
     incrementalAmount: clampInt(row.incremental_amount, 0),
     totalAmount: clampInt(row.total_amount, 0),
+    bandKey: String(row.band_key ?? ""),
+    bandName: String(row.band_name ?? ""),
+    standardMonthlyEgp: clampInt(row.standard_monthly_egp, 0),
+    standardAmountEgp: clampInt(row.standard_amount_egp, 0),
+    appliedMonthlyRateExact: Number(row.applied_monthly_rate_exact ?? 0) || 0,
+    appliedMonthlyRate: clampInt(row.applied_monthly_rate, 0),
+    foundingApplied: Number(row.founding_applied ?? 0) === 1,
+    foundingTermIndex: clampInt(row.founding_term_index, 0),
+    glideCapped: Number(row.glide_capped ?? 0) === 1,
+    pilotCreditEgp: clampInt(row.pilot_credit_egp, 0),
     currency: String(row.currency ?? "EGP"),
     dueDate: String(row.due_date ?? "").slice(0, 10),
     status: ((INVOICE_STATUSES as readonly string[]).includes(status) ? status : "pending") as InvoiceStatus,
@@ -471,11 +990,29 @@ export async function getInvoice(invoiceId: string): Promise<DaycareInvoice | un
   return row ? invoiceRowTo(row) : undefined;
 }
 
-/** One daycare's invoice history, newest cycle first (the /platform list). */
+/** One daycare's invoice history across all its branches, newest cycle first
+ *  (the /platform list and the owner portal). */
 export async function listInvoices(instituteId: string): Promise<DaycareInvoice[]> {
   const rows = await queryAll(
-    "SELECT * FROM daycare_invoice WHERE institute_id = ? ORDER BY cycle_month DESC, id DESC",
+    `SELECT di.*, br.name AS branch_name
+     FROM daycare_invoice di
+     LEFT JOIN branch br ON br.id = di.branch_id
+     WHERE di.institute_id = ?
+     ORDER BY di.cycle_month DESC, br.name, di.id DESC`,
     instituteId
+  );
+  return rows.map(invoiceRowTo);
+}
+
+/** One branch subscription's invoice history (the engine's idempotence read). */
+export async function listBranchInvoices(branchId: string): Promise<DaycareInvoice[]> {
+  const rows = await queryAll(
+    `SELECT di.*, br.name AS branch_name
+     FROM daycare_invoice di
+     LEFT JOIN branch br ON br.id = di.branch_id
+     WHERE di.branch_id = ?
+     ORDER BY di.cycle_month DESC, di.id DESC`,
+    branchId
   );
   return rows.map(invoiceRowTo);
 }
@@ -494,82 +1031,171 @@ export async function hasOverdueInvoice(instituteId: string): Promise<boolean> {
 // ----- generation -----
 
 /** Every invoice the current date requires but the ledger does not have yet.
- *  Idempotent: the (institute_id, cycle_month) unique index turns a re-run
+ *  Idempotent: the (branch_id, cycle_month) unique index turns a re-run
  *  (another warm instance, a retry) into a no-op. Returns the count of
- *  invoices actually inserted. */
+ *  invoices actually inserted.
+ *
+ *  KID-2435 v3: the BRANCH is the subscription record. Each branch resolves
+ *  its own band from its own cycle peak and is invoiced separately. A branch
+ *  with no active children is billed 0 — it is not invoiced until its first
+ *  active child. The amount comes from the operator-editable bands and
+ *  founding-cohort policy, never from the legacy per-daycare columns. */
 export async function generateDueInvoices(now: Date = new Date()): Promise<number> {
-    const today = todayIso(now);
-    const configs = await queryAll(
-      `SELECT b.institute_id, b.plan, b.monthly_rate_egp, b.per_child_rate_egp,
-              b.free_child_threshold, b.annual_amount_egp, b.first_cycle_start,
-              i.name AS institute_name
-       FROM daycare_billing b
-       JOIN institute i ON i.id = b.institute_id`
-    );
-    let generated = 0;
-    for (const cfg of configs) {
-      const settings = rowToBilling(cfg);
-      const instituteId = String(cfg.institute_id);
-      const daycareName = String(cfg.institute_name ?? "");
-    // Demo never bills (KID-244); a config without a first cycle cannot
+  const today = todayIso(now);
+  await ensureBranchBillingRows();
+  const [bands, pricingSettings] = await Promise.all([
+    getPricingBands(),
+    getPricingSettings(),
+  ]);
+  const configs = await queryAll(
+    `SELECT bb.branch_id, bb.institute_id, bb.plan, bb.monthly_rate_egp,
+            bb.per_child_rate_egp, bb.free_child_threshold, bb.first_cycle_start,
+            bb.founding_client, bb.founding_started_at, bb.pilot_end_date,
+            bb.cancel_at, bb.band_key,
+            br.name AS branch_name,
+            i.name AS institute_name,
+            (SELECT b2.id FROM branch b2
+              WHERE b2.institute_id = bb.institute_id
+              ORDER BY b2.created_at, b2.id LIMIT 1) AS primary_branch_id
+     FROM branch_billing bb
+     JOIN branch br ON br.id = bb.branch_id
+     JOIN institute i ON i.id = bb.institute_id`
+  );
+  let generated = 0;
+  for (const cfg of configs) {
+    const billing = rowToBranchBilling(cfg);
+    const branchId = billing.branchId;
+    const instituteId = String(cfg.institute_id);
+    const daycareName = String(cfg.institute_name ?? "");
+    // Demo never bills (KID-244); a subscription without a first cycle cannot
     // define a billing calendar.
-    if (settings.plan === "demo" || !settings.firstCycleStart) continue;
-    const firstMonth = settings.firstCycleStart.slice(0, 7);
+    if (billing.plan === "demo" || !billing.firstCycleStart || !branchId) continue;
+    const firstMonth = billing.firstCycleStart.slice(0, 7);
     if (!isCycleMonth(firstMonth)) continue;
+    const isPrimary = String(cfg.primary_branch_id ?? "") === branchId;
 
-    const existing = new Set(
-      (
-        await queryAll(
-          "SELECT cycle_month FROM daycare_invoice WHERE institute_id = ?",
-          instituteId
-        )
-      ).map((r) => String(r.cycle_month))
+    const existing = (await listBranchInvoices(branchId)).sort((a, b) =>
+      a.cycleMonth.localeCompare(b.cycleMonth)
     );
-    const missing = pendingCycleMonths(settings.plan, firstMonth, today).filter(
-      (m) => !existing.has(m)
+    const existingMonths = new Set(existing.map((i) => i.cycleMonth));
+    // KID-2435 v3: cancellation covers the paid month only. A cycle that
+    // starts AFTER `cancel_at` is never billed, so a cancelled subscription
+    // stops at the end of the month it paid for.
+    const missing = pendingCycleMonths(billing.plan, firstMonth, today)
+      .filter((m) => !existingMonths.has(m))
+      .filter((m) => !billing.cancelAt || cycleStartDate(m) <= billing.cancelAt);
+    if (missing.length === 0) continue;
+
+    // KID-2435 v3: the founding rate is fixed at the first invoice of term 0
+    // and holds for months 1-12. Month 13 uses the standard band amount.
+    let foundingYearOneRate: number | null = null;
+    for (const invoice of existing) {
+      if (invoice.foundingTermIndex === 0 && invoice.appliedMonthlyRateExact > 0) {
+        foundingYearOneRate = invoice.appliedMonthlyRateExact;
+        break;
+      }
+    }
+
+    // KID-2435 pilot credit: 350 (configured) against the first invoice when
+    // the branch signed within the configured window after pilot end. A
+    // first invoice smaller than the credit carries the remainder to the NEXT
+    // invoice only; after that it expires. The balance never goes negative.
+    const creditEligible = pilotCreditEligible(
+      billing.pilotEndDate,
+      billing.foundingStartedAt || billing.firstCycleStart,
+      pricingSettings.foundingPilotCreditDays
     );
+    let creditRemaining = creditEligible
+      ? Math.max(0, pricingSettings.foundingPilotFeeEgp)
+      : 0;
+    for (const invoice of existing.slice(0, 2)) {
+      creditRemaining = Math.max(0, creditRemaining - invoice.pilotCreditEgp);
+    }
+    if (existing.length >= 2) creditRemaining = 0;
+    let invoiceOrdinal = existing.length;
+    let firstInvoiceCycle = existing[0]?.cycleMonth ?? "";
 
     for (const cycleMonth of missing) {
       const start = cycleStartDate(cycleMonth);
-      // Monthly cycles span their single month; annual blocks span 12 months
-      // from the block's first month.
-      const end =
-        settings.plan === "annual"
-          ? cycleEndDate(addCycleMonths(cycleMonth, 11))
-          : cycleEndDate(cycleMonth);
-      const breakdown = invoiceBreakdown(
-        settings,
-        await peakActiveChildren(instituteId, start, end)
-      );
+      const end = cycleEndDate(cycleMonth);
+      const peak = await peakActiveChildren(instituteId, start, end, branchId, isPrimary);
+      // Billing rule 12 (answered 19 Nov 2026): a branch with no active
+      // children shows 0 — do not bill it until its first active child. No
+      // zero-value invoice is written; the cycle is re-checked on the sweep
+      // after the first child is enrolled.
+      if (peak === 0) continue;
+      const pricing = cyclePricing({
+        plan: billing.plan,
+        peakChildren: peak,
+        cycleMonth,
+        billing,
+        bands,
+        settings: pricingSettings,
+        termRateExact: foundingYearOneRate,
+      });
+      if (pricing.foundingApplied && foundingYearOneRate === null) {
+        foundingYearOneRate = pricing.appliedMonthlyRateExact;
+      }
+
+      if (!firstInvoiceCycle) firstInvoiceCycle = cycleMonth;
+      const creditExpiryMonth = addCycleMonths(firstInvoiceCycle, 3);
+      let pilotCredit = 0;
+      if (
+        creditRemaining > 0 &&
+        invoiceOrdinal < 2 &&
+        (invoiceOrdinal === 0 || cycleMonth <= creditExpiryMonth)
+      ) {
+        pilotCredit = Math.min(creditRemaining, pricing.grossAmount);
+        creditRemaining -= pilotCredit;
+      }
+      if (invoiceOrdinal === 1) creditRemaining = 0;
+      const totalAmount = Math.max(0, pricing.grossAmount - pilotCredit);
+
       const dueDate = dueDateForCycleEnd(end);
       const res = await queryRun(
         `INSERT INTO daycare_invoice
-           (id, institute_id, cycle_month, plan, max_active_children, billable_children,
-            flat_rate_amount, incremental_rate, incremental_amount, total_amount, currency,
-            due_date, status)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'EGP', ?, 'pending')
-         ON CONFLICT (institute_id, cycle_month) DO NOTHING`,
+           (id, institute_id, branch_id, cycle_month, plan, max_active_children,
+            billable_children, flat_rate_amount, incremental_rate, incremental_amount,
+            total_amount, currency, due_date, status, band_key, band_name,
+            standard_monthly_egp, standard_amount_egp, applied_monthly_rate_exact,
+            applied_monthly_rate, founding_applied, founding_term_index,
+            glide_capped, pilot_credit_egp)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'EGP', ?, 'pending',
+                 ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+         ON CONFLICT (branch_id, cycle_month) DO NOTHING`,
         uid(),
         instituteId,
+        branchId,
         cycleMonth,
-        settings.plan,
-        breakdown.maxActiveChildren,
-        breakdown.billableChildren,
-        breakdown.flatRateAmount,
-        breakdown.incrementalRate,
-        breakdown.incrementalAmount,
-        breakdown.totalAmount,
-        dueDate
+        billing.plan,
+        pricing.maxActiveChildren,
+        pricing.billableChildren,
+        pricing.flatRateAmount,
+        pricing.incrementalRate,
+        pricing.incrementalAmount,
+        totalAmount,
+        dueDate,
+        pricing.band.key,
+        pricing.band.name,
+        pricing.standardMonthlyEgp,
+        pricing.standardAmountEgp,
+        pricing.appliedMonthlyRateExact,
+        pricing.appliedMonthlyRate,
+        pricing.foundingApplied ? 1 : 0,
+        pricing.foundingTermIndex,
+        pricing.glideCapped ? 1 : 0,
+        pilotCredit
       );
       if (res.rowCount > 0) {
         generated += 1;
+        invoiceOrdinal += 1;
         // KID-246: the creation notification — the in-app slice is derived by
         // recentActivityFeed (ownerBillingFeedForInstance, lib/store.ts) from
         // the ledger itself; email is this one best-effort, pref-honoring
         // attempt through the existing Supabase GoTrue path (no SMTP).
         await emailInvoiceOwners(instituteId, daycareName, {
           cycleMonth,
-          totalAmount: breakdown.totalAmount,
+          totalAmount,
           currency: "EGP",
           dueDate,
         });
@@ -619,40 +1245,80 @@ async function emailInvoiceOwners(
 
 // ----- enforcement, payment, overrides -----
 
-/** KID-245 enforcement: every pending invoice whose due date has passed
- *  becomes overdue, and every daycare still ACTIVE that carries an unpaid
- *  overdue invoice is disabled (the existing KID-199.3 setInstituteActive —
- *  all of its users are then blocked at login). Returns how many daycares
- *  were flipped. Idempotent: an already-disabled daycare is not re-written. */
+/** KID-245 + KID-2435 v3 enforcement: every pending invoice whose due date
+ *  plus the configured grace window has passed becomes overdue. The account
+ *  then becomes READ-ONLY (billing rule 9) — never disabled, never deleted.
+ *  Returns how many invoices crossed into overdue in this pass. Idempotent:
+ *  an already-overdue invoice is not rewritten. */
 export async function applyOverdueEnforcement(now: Date = new Date()): Promise<number> {
   const today = todayIso(now);
-  await queryRun(
+  // KID-2435 v3: a failed payment gets the configured grace window (default
+  // 7 days) before the invoice becomes overdue and the account turns
+  // read-only. Data is never deleted; access is only restricted, never wiped.
+  const { billingGraceDays } = await getPricingSettings();
+  const graceCutoff = addDaysIso(today, -Math.max(0, billingGraceDays));
+  const res = await queryRun(
     "UPDATE daycare_invoice SET status = 'overdue' WHERE status = 'pending' AND due_date < ?",
-    today
+    graceCutoff
   );
-  // Only institutes that are still active need the flip — the typical sweep
-  // is a single cheap SELECT returning nothing.
-  const active = await queryAll(
-    `SELECT DISTINCT di.institute_id
-     FROM daycare_invoice di
-     JOIN institute i ON i.id = di.institute_id
-     WHERE di.status = 'overdue' AND i.active = 1`
-  );
-  let disabled = 0;
-  // store.ts imports this module statically, so setInstituteActive must be
-  // reached dynamically (same pattern lib/actions.ts uses for its gates).
-  const { setInstituteActive } = await import("./store");
-  for (const row of active) {
-    await setInstituteActive(String(row.institute_id), false);
-    disabled += 1;
-  }
-  return disabled;
+  return res.rowCount;
 }
 
-/** KID-245: mark an invoice paid. Flips the invoice to `paid` (paid_at), and
- *  re-activates the daycare — the billing block lifts — as soon as no OTHER
- *  unpaid overdue invoice remains. Marking an already-paid invoice paid
- *  again is a no-op. */
+/** KID-2435 v3: true when the daycare's subscription is in its read-only
+ *  state — an unpaid invoice past the grace window, or a cancellation whose
+ *  paid month has ended. Data stays available; every write is refused.
+ *  Billing no longer disables the institute, so this is the single source of
+ *  truth for the read-only state (login and the write gate both use it). */
+export async function isInstituteReadOnly(
+  instituteId: string,
+  now: Date = new Date()
+): Promise<boolean> {
+  if (await hasOverdueInvoice(instituteId)) return true;
+  const today = todayIso(now);
+  // KID-2435 v3: cancellation is per branch. If every billed branch is past
+  // its own paid month, the group has no active subscription and turns
+  // read-only. Cancelling one branch of a multi-branch group leaves the
+  // other branches (and the account) writable.
+  const branches = (await listBranchBillings(instituteId)).filter((b) => b.plan === "monthly");
+  if (branches.length > 0) {
+    return branches.every((b) => !!b.cancelAt && today > b.cancelAt);
+  }
+  const billing = await getDaycareBilling(instituteId);
+  return !!billing.cancelAt && today > billing.cancelAt;
+}
+
+/** The account-level read-only check used by the server-action write gate.
+ *  Read-only when any institute the account belongs to is read-only. */
+export async function isAccountReadOnly(
+  accountId: string,
+  now: Date = new Date()
+): Promise<boolean> {
+  const rows = await queryAll(
+    `SELECT DISTINCT i.id
+     FROM institute i
+     JOIN staff s ON s.institute_id = i.id
+     JOIN account a ON a.staff_id = s.id
+     WHERE a.id = ?
+     UNION
+     SELECT DISTINCT i.id
+     FROM institute i
+     JOIN child c ON c.institute_id = i.id
+     JOIN family_member fm ON fm.child_id = c.id
+     WHERE fm.account_id = ?`,
+    accountId,
+    accountId
+  );
+  for (const row of rows) {
+    if (await isInstituteReadOnly(String(row.id), now)) return true;
+  }
+  return false;
+}
+
+/** KID-245: mark an invoice paid. Flips the invoice to `paid` (paid_at). The
+ *  read-only state lifts automatically once no OTHER unpaid overdue invoice
+ *  remains (isInstituteReadOnly reads the ledger). Billing never flips
+ *  institute.active, so paying an invoice can never undo a manual disable.
+ *  Marking an already-paid invoice paid again is a no-op. */
 export async function markInvoicePaid(
   invoiceId: string,
   opts: { paidAt?: string } = {}
@@ -666,14 +1332,6 @@ export async function markInvoicePaid(
     paidAt,
     invoiceId
   );
-  const remaining = await queryGet(
-    "SELECT id FROM daycare_invoice WHERE institute_id = ? AND status = 'overdue' LIMIT 1",
-    String(row.institute_id)
-  );
-  if (!remaining) {
-    const { setInstituteActive } = await import("./store");
-    await setInstituteActive(String(row.institute_id), true);
-  }
 }
 
 /** KID-245: the operator's manual override of an invoice's payable amount
@@ -733,8 +1391,8 @@ export async function setDaycareInvoicePaymentProof(
  *  are the caller's concern — the sweep itself throws loudly. */
 export async function runBillingSweep(
   now: Date = new Date()
-): Promise<{ generated: number; disabled: number }> {
+): Promise<{ generated: number; overdue: number }> {
   const generated = await generateDueInvoices(now);
-  const disabled = await applyOverdueEnforcement(now);
-  return { generated, disabled };
+  const overdue = await applyOverdueEnforcement(now);
+  return { generated, overdue };
 }
