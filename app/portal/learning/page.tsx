@@ -52,7 +52,17 @@ export default async function PortalLearningPage() {
       <div className="subtitle">{t("learning.centerSubtitle")}</div>
       <div className="mb-4 row" style={{ gap: 8, alignItems: "center" }}>
         {/* KID-53 #4: observation modal with curriculum-goals picker */}
-        <ObservationModalTrigger childChoices={children as any} areas={areas} byName={byName} locale={locale} dict={dict} />
+        <ObservationModalTrigger
+          childChoices={(children as any[]).map((c) => ({
+            id: String(c.id),
+            first_name: String(c.first_name ?? ""),
+            last_name: String(c.last_name ?? ""),
+          }))}
+          areas={areas}
+          byName={byName}
+          locale={locale}
+          dict={dict}
+        />
         <a className="small" href="/portal/learning/curriculum">{t("learning.viewCurriculum")} →</a>
       </div>
 
