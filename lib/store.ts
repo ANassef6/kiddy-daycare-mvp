@@ -1823,6 +1823,28 @@ export async function runBusAutoOffSweep(
 }
 
 // ---------- Child status log (mood/diaper/sleep/sick; timestamped, multi-entry) ----------
+// KID-2454: status logging is deliberately append-only (multiple diaper/mood
+// entries per day are by design), but a double-tap must not create a second
+// identical entry, and sleep cannot restart without a wake-up in between.
+// The chip quick-forms submit sleep labels in the staff member's language, so
+// the guard recognizes the canonical tokens plus the shipped en/ar labels that
+// historical rows already contain.
+const CHILD_STATUS_FELL_ASLEEP = ["fellAsleep", "Fell asleep", "خلد إلى النوم"];
+const CHILD_STATUS_WOKE_UP = ["wokeUp", "Woke up", "استيقظ"];
+const CHILD_STATUS_DUPLICATE_WINDOW_MS = 60_000;
+
+export type ChildStatusGuardReason = "sleep-state" | "duplicate";
+
+export class ChildStatusGuardError extends Error {
+  readonly reason: ChildStatusGuardReason;
+
+  constructor(reason: ChildStatusGuardReason) {
+    super(reason);
+    this.name = "ChildStatusGuardError";
+    this.reason = reason;
+  }
+}
+
 export async function logChildStatus(data: {
   childId: string;
   kind: string;
@@ -1831,6 +1853,54 @@ export async function logChildStatus(data: {
   accountId?: string;
   recordedAt?: string;
 }): Promise<Row> {
+  const recordedAt = data.recordedAt ? new Date(data.recordedAt) : new Date();
+  const recordedAtIso = recordedAt.toISOString();
+  const dayStartIso = `${recordedAtIso.slice(0, 10)}T00:00:00.000Z`;
+
+  // Guard 1 — sleep state: a second "fell asleep" with no wake-up in between
+  // is a duplicate, not a new event. "Woke up" is always allowed (the child
+  // may arrive asleep or have partial history).
+  if (data.kind === "sleep" && CHILD_STATUS_FELL_ASLEEP.includes(data.value)) {
+    const sleepValues = [...CHILD_STATUS_FELL_ASLEEP, ...CHILD_STATUS_WOKE_UP];
+    const latestSleep = await queryGet(
+      `SELECT value FROM child_status
+        WHERE child_id = ? AND kind = 'sleep' AND recorded_at >= ?
+          AND value IN (${sleepValues.map(() => "?").join(", ")})
+        ORDER BY recorded_at DESC, id DESC LIMIT 1`,
+      data.childId,
+      dayStartIso,
+      ...sleepValues
+    );
+    if (latestSleep && CHILD_STATUS_FELL_ASLEEP.includes(String(latestSleep.value))) {
+      throw new ChildStatusGuardError("sleep-state");
+    }
+  }
+
+  // Guard 2 — identical-entry debounce: the same child/kind/value as the most
+  // recent entry, within 60 seconds, is an accidental re-submit. The note is
+  // intentionally ignored so adding/removing a note cannot bypass the guard.
+  const latestEntry = await queryGet(
+    `SELECT kind, value, recorded_at FROM child_status
+      WHERE child_id = ?
+      ORDER BY recorded_at DESC, id DESC LIMIT 1`,
+    data.childId
+  );
+  if (
+    latestEntry &&
+    String(latestEntry.kind) === data.kind &&
+    String(latestEntry.value) === data.value
+  ) {
+    const lastAt = new Date(latestEntry.recorded_at as string | Date).getTime();
+    const attemptedAt = recordedAt.getTime();
+    if (
+      Number.isFinite(lastAt) &&
+      attemptedAt >= lastAt &&
+      attemptedAt - lastAt < CHILD_STATUS_DUPLICATE_WINDOW_MS
+    ) {
+      throw new ChildStatusGuardError("duplicate");
+    }
+  }
+
   const id = uid();
   await queryRun(
     `INSERT INTO child_status (id, child_id, kind, value, note, recorded_by_account_id, recorded_at)
@@ -1841,7 +1911,7 @@ export async function logChildStatus(data: {
     data.value,
     data.note ?? null,
     data.accountId ?? null,
-    data.recordedAt ? new Date(data.recordedAt).toISOString() : new Date().toISOString()
+    recordedAtIso
   );
   return (await queryGet("SELECT * FROM child_status WHERE id = ?", id))!;
 }
