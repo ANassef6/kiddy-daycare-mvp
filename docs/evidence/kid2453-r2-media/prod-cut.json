@@ -1,0 +1,53 @@
+{
+  "issue": "KID-2453",
+  "recordedAt": "2026-11-20T17:35:00Z",
+  "signOff": {
+    "interactionId": "623c8fb1-7ad0-4665-989c-9a89dd6e019f",
+    "outcome": "accepted",
+    "resolvedAt": "2026-11-20T16:39:52.608Z"
+  },
+  "pr": "https://github.com/ANassef6/kiddy-daycare-mvp/pull/74",
+  "cutBranch": "kid2453-prod-cut",
+  "cutBase": "e096b1f",
+  "cherryPicked": ["4bbf9b1", "86ec0c7", "00441fa", "79ecd2b", "c6c3d92"],
+  "mergeCommit": "f943afa",
+  "deployment": {
+    "id": "dpl_FgYPTapUh7RoBZ1WsCDojZQrmq1e",
+    "target": "production",
+    "state": "READY",
+    "commit": "f943afa"
+  },
+  "bucket": {
+    "name": "kiddy-media-prod",
+    "location": "WEUR",
+    "publicDomain": false,
+    "corsOrigins": ["https://kiddyapp.net", "https://*.kiddyapp.net", "https://kiddy-one.vercel.app"]
+  },
+  "envKeys": ["R2_ACCOUNT_ID", "R2_ACCESS_KEY_ID", "R2_SECRET_ACCESS_KEY", "R2_BUCKET"],
+  "migration": {
+    "sourcePublicStorageUrls": 6,
+    "sourceDataUris": 4,
+    "migrated": 10,
+    "failures": 0,
+    "supabaseCopiesKept": true
+  },
+  "liveChecks": {
+    "childPageSignedR2Urls": 3,
+    "childPhotoBytes": 1885611,
+    "newsfeedSignedR2Urls": 6,
+    "driveSignedR2Urls": 8,
+    "billingSignedR2Urls": 2,
+    "rawR2RefsInHtml": 0,
+    "crossTenantChild": 404,
+    "unauthenticatedChildRedirect": "/login",
+    "unsignedR2Get": 400,
+    "expiredSignedGet": 403
+  },
+  "incident": {
+    "preExisting": true,
+    "symptom": "/platform 500: column \"annual_egp\" of relation \"pricing_band\" does not exist",
+    "cause": "schema_migrations missing 0045/0047/0048/0049/0050 while their effects were present; 0045 replayed against the post-0048 schema",
+    "repair": "recorded the five verified files in schema_migrations; next cold start applied 0052",
+    "followUp": "make each migration file and its ledger insert transactional (KID-2435 runner)"
+  }
+}
