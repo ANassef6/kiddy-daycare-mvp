@@ -141,8 +141,15 @@ describe("KID-2450 media limit helpers", () => {
       ext: "webp",
       kind: "image",
     });
-    expect(validateMediaAttachment({ type: "video/mp4", size: 800 }, MAX_NEWSFEED_ATTACHMENT_BYTES).ext).toBe("mp4");
-    expect(validateMediaAttachment({ type: "application/pdf", size: 800 }, MAX_NEWSFEED_ATTACHMENT_BYTES).kind).toBe("pdf");
+    expect(validateMediaAttachment({ type: "video/mp4", size: 800 }, MAX_NEWSFEED_ATTACHMENT_BYTES)).toMatchObject({
+      ok: true,
+      ext: "mp4",
+      kind: "video",
+    });
+    expect(validateMediaAttachment({ type: "application/pdf", size: 800 }, MAX_NEWSFEED_ATTACHMENT_BYTES)).toMatchObject({
+      ok: true,
+      kind: "pdf",
+    });
     expect(validateMediaAttachment({ type: "application/msword", size: 800 }, MAX_NEWSFEED_ATTACHMENT_BYTES)).toEqual({
       ok: false,
       code: "type",

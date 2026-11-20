@@ -2249,17 +2249,30 @@ export async function sendMessage(data: {
   recipientAccountId: string;
   body: string;
   threadId?: string | null;
+  attachmentUrl?: string | null;
+  attachmentName?: string | null;
 }): Promise<Row> {
   const id = uid();
   await queryRun(
-    "INSERT INTO message (id, institute_id, sender_account_id, recipient_account_id, body, thread_id) VALUES (?, ?, ?, ?, ?, ?)",
+    "INSERT INTO message (id, institute_id, sender_account_id, recipient_account_id, body, thread_id, attachment_url, attachment_name) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
     id,
     data.instituteId,
     data.senderAccountId,
     data.recipientAccountId,
     data.body,
-    data.threadId ?? null
+    data.threadId ?? null,
+    data.attachmentUrl ?? null,
+    data.attachmentName ?? null
   );
+  // KID-2455: a new message wakes an archived thread for its recipient. The
+  // archive is view organization only — it never blocks delivery.
+  if (data.threadId) {
+    await queryRun(
+      "UPDATE message_thread_participant SET archived_at = NULL WHERE thread_id = ? AND account_id = ?",
+      data.threadId,
+      data.recipientAccountId
+    );
+  }
   // KID-474: the durable in-app notification rides the same write — the
   // recipient (any role) gets a row for their unread badge and center, and
   // message rows never duplicate thanks to the stable per-message ref.
@@ -2598,9 +2611,15 @@ export async function threadParticipantIds(threadId: string): Promise<string[]> 
 export async function threadForViewer(threadId: string, viewerId: string): Promise<Row | undefined> {
   // KID-2449: the creator's role tells the reply guard whether the parent may
   // reply regardless of room assignment (staff/admin-initiated threads).
+  // KID-2455: the viewer's own archive flag travels with the thread so the
+  // open-thread view can offer the matching archive/unarchive control.
   const thread = await queryGet(
-    `SELECT t.*, (SELECT role FROM account WHERE id = t.created_by_account_id) AS creator_role
+    `SELECT t.*,
+            (SELECT role FROM account WHERE id = t.created_by_account_id) AS creator_role,
+            (SELECT archived_at FROM message_thread_participant
+              WHERE thread_id = t.id AND account_id = ?) AS archived_at
      FROM message_thread t WHERE t.id = ?`,
+    viewerId,
     threadId
   );
   if (!thread) return undefined;
@@ -2620,18 +2639,46 @@ export async function threadMessages(threadId: string): Promise<Row[]> {
   );
 }
 
-export async function threadsForAccount(accountId: string): Promise<Row[]> {
+export async function threadsForAccount(
+  accountId: string,
+  opts?: { archived?: boolean }
+): Promise<Row[]> {
+  // KID-2455: the Active/Archived toggle filters on the viewer's participant
+  // row. `archived` omitted keeps every thread (callers that need the whole
+  // list, such as the scoping policy, still get it).
+  const archivedFilter =
+    opts?.archived === true
+      ? "AND p.archived_at IS NOT NULL"
+      : opts?.archived === false
+        ? "AND p.archived_at IS NULL"
+        : "";
   return queryAll(
     `SELECT t.*, t.title AS thread_title,
             (SELECT role FROM account WHERE id = t.created_by_account_id) AS creator_role,
+            p.archived_at AS archived_at,
             (SELECT body FROM message WHERE thread_id = t.id ORDER BY created_at DESC LIMIT 1) AS last_message,
             (SELECT created_at FROM message WHERE thread_id = t.id ORDER BY created_at DESC LIMIT 1) AS last_at,
             (SELECT COUNT(*) FROM message WHERE thread_id = t.id AND recipient_account_id = ? AND read = 0) AS unread_count
      FROM message_thread t
      JOIN message_thread_participant p ON p.thread_id = t.id
-     WHERE p.account_id = ?
+     WHERE p.account_id = ? ${archivedFilter}
      ORDER BY last_at DESC`,
     accountId,
+    accountId
+  );
+}
+
+/** KID-2455: per-viewer archive. The participant row is the scope check, so a
+ *  caller can only change their own archive state for a thread they belong to. */
+export async function setThreadArchived(
+  threadId: string,
+  accountId: string,
+  archived: boolean
+): Promise<void> {
+  await queryRun(
+    "UPDATE message_thread_participant SET archived_at = ? WHERE thread_id = ? AND account_id = ?",
+    archived ? new Date().toISOString() : null,
+    threadId,
     accountId
   );
 }
@@ -2641,8 +2688,11 @@ export async function threadsForAccount(accountId: string): Promise<Row[]> {
  *  staff); staff/admin-initiated threads are always visible and replyable, so a
  *  conversation the centre opened with the parent cannot trap the reply.
  */
-export async function threadsForAccountScoped(accountId: string): Promise<Row[]> {
-  const threads = await threadsForAccount(accountId);
+export async function threadsForAccountScoped(
+  accountId: string,
+  opts?: { archived?: boolean }
+): Promise<Row[]> {
+  const threads = await threadsForAccount(accountId, opts);
   const staff = await classroomStaffForParent(accountId);
   const allowedIds = new Set(staff.map((s) => String(s.id)));
   const { parentMayUseThread } = await import("./parent-thread-policy");

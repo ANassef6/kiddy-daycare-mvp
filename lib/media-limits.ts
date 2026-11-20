@@ -72,6 +72,33 @@ export function isPhotoMime(mime: string | undefined | null): boolean {
   return !!PHOTO_MIME_EXT[String(mime ?? "").toLowerCase()];
 }
 
+// KID-2455: message rows store only the attachment name (plus its URL), so the
+// bubble decides inline image vs file chip from the name's extension. The URL
+// is checked first: a legacy data URI carries the mime type directly.
+const IMAGE_EXTENSIONS = new Set(["jpg", "jpeg", "png", "webp", "gif", "heic", "heif", "avif"]);
+const VIDEO_EXTENSIONS = new Set(["mp4", "mov", "webm", "m4v", "3gp", "ogv"]);
+
+export function attachmentKind(
+  name: string | undefined | null,
+  url?: string | null
+): MediaKind {
+  const stored = String(url ?? "");
+  if (stored.startsWith("data:")) {
+    return mediaKind(stored.slice(5, stored.indexOf(";") > -1 ? stored.indexOf(";") : undefined));
+  }
+  const ext = String(name ?? "")
+    .split("?")[0]
+    .split("#")[0]
+    .split(".")
+    .pop()
+    ?.toLowerCase();
+  if (!ext) return "other";
+  if (IMAGE_EXTENSIONS.has(ext)) return "image";
+  if (VIDEO_EXTENSIONS.has(ext)) return "video";
+  if (ext === "pdf") return "pdf";
+  return "other";
+}
+
 export function isBrandingMime(mime: string | undefined | null): boolean {
   return !!BRANDING_MIME_EXT[String(mime ?? "").toLowerCase()];
 }
