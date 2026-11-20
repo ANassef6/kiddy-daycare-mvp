@@ -1,0 +1,20 @@
+R2 verified: 10 objects present
+delete kiddy-private copies: 200 [{"name":"child/mud3euq6-j2xfy0jt/photo-1790106980841.jpg","bucket_id":"kiddy-private","owner":"","owner_id":"","version":"f761ad6f-07c3-4fe2-84a7-8b4b9fbd4208","id":"9638f34e-707b-4c30-a2ea-c4af432d5f04","updated_at":"2026-11-20T17:46:06.274Z","created_at":"2026-11-20T17:46:06.274Z","last_accessed_
+delete kiddy-public originals: 200 [{"name":"child/mud3euq6-j2xfy0jt/photo-1790106980841.jpg","bucket_id":"kiddy-public","owner":"","owner_id":"","version":"830c0eea-80f6-4874-bd83-e3a2c61b237a","id":"4f4fbd16-c355-4b5e-91b2-cdca33f4fe28","updated_at":"2026-09-22T19:56:21.362Z","created_at":"2026-09-22T19:56:21.362Z","last_accessed_a
+STILL PRESENT kiddy-private child/mud3euq6-j2xfy0jt/photo-1790106980841.jpg 400
+STILL PRESENT kiddy-private child/mulike3f-9vjrqlio/photo-1790616117620.jpeg 400
+STILL PRESENT kiddy-private staff/mtnfwlrm-h742f9yj/photo-1789762860524.png 400
+STILL PRESENT kiddy-private staff/mubchxos-bks4o4f9/photo-1790001296776.jpg 400
+STILL PRESENT kiddy-private payments/mtnfwlhn-jokgnsiw/mu5o2mkf-eky2sd6a/proof-1794059360058-2d2cb1bf-c747-42c1-8f75-d65e65092eba.png 400
+STILL PRESENT kiddy-private payments/mtnfwlhn-jokgnsiw/mw6nf0yr-px1jwjnp/proof-1794071327727-af21aad7-8406-4acf-abcb-7c4784efd679.jpg 400
+STILL PRESENT kiddy-private legacy/drive_file/mu7eioq0-608cev8p/aadca359-7d89-4248-88f8-34f56f787448.txt 400
+STILL PRESENT kiddy-private legacy/drive_file/mu8iy92h-gpgfkfmu/e2f751fe-dd90-464c-87ec-4b296282bbe7.txt 400
+STILL PRESENT kiddy-private legacy/newsfeed_post/mu7ei78e-pxgvk6np/24393780-8751-415d-996c-55ad58c82650.txt 400
+STILL PRESENT kiddy-private legacy/newsfeed_post/mulhl4fd-2xxwh1e8/d32f14f3-19ce-40c1-9065-12f739d91332.jpg 400
+STILL PRESENT kiddy-public child/mud3euq6-j2xfy0jt/photo-1790106980841.jpg 400
+STILL PRESENT kiddy-public child/mulike3f-9vjrqlio/photo-1790616117620.jpeg 400
+STILL PRESENT kiddy-public staff/mtnfwlrm-h742f9yj/photo-1789762860524.png 400
+STILL PRESENT kiddy-public staff/mubchxos-bks4o4f9/photo-1790001296776.jpg 400
+STILL PRESENT kiddy-public payments/mtnfwlhn-jokgnsiw/mu5o2mkf-eky2sd6a/proof-1794059360058-2d2cb1bf-c747-42c1-8f75-d65e65092eba.png 400
+STILL PRESENT kiddy-public payments/mtnfwlhn-jokgnsiw/mw6nf0yr-px1jwjnp/proof-1794071327727-af21aad7-8406-4acf-abcb-7c4784efd679.jpg 400
+KID-2453 Supabase retirement: deleted private=10 public=6 stillPresent=16

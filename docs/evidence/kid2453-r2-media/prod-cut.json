@@ -66,5 +66,18 @@
     "cause": "schema_migrations missing 0045/0047/0048/0049/0050 while their effects were present; 0045 replayed against the post-0048 schema",
     "repair": "recorded the five verified files in schema_migrations; next cold start applied 0052",
     "followUp": "make each migration file and its ledger insert transactional (KID-2435 runner)"
+  },
+  "retirement": {
+    "interactionId": "d6e6e3e6-d4d2-4d59-89a2-937e0b0aed53",
+    "acceptedAt": "2026-11-20T17:47:57.190Z",
+    "deletedPrivateCopies": 10,
+    "deletedPublicOriginals": 6,
+    "kept": "kiddy-public/branding (public branding, not media)",
+    "postRetirementSignedR2Urls": {
+      "child": 3,
+      "newsfeed": 6,
+      "drive": 8
+    },
+    "rawR2RefsInHtml": 0
   }
 }
