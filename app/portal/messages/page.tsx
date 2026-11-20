@@ -20,6 +20,9 @@ import { sendMessageAction, sendComposerAction, replyThreadAction } from "@/lib/
 import { i18nForAccount } from "@/lib/i18n-session";
 import { tr } from "@/lib/i18n";
 import { recordToolUsage } from "@/lib/tool-usage";
+import MediaUploadForm from "@/components/MediaUploadForm";
+import { mediaUploadLabels } from "@/lib/media-i18n";
+import { MAX_MESSAGE_ATTACHMENT_BYTES, MAX_VIDEO_DURATION_SECONDS } from "@/lib/media-limits";
 
 export const dynamic = "force-dynamic";
 
@@ -167,7 +170,14 @@ export default async function PortalMessagesPage(
 
         <div className="card">
           {composing ? (
-            <form action={sendComposerAction}>
+            <MediaUploadForm
+              action={sendComposerAction}
+              maxImageBytes={MAX_MESSAGE_ATTACHMENT_BYTES}
+              maxVideoBytes={MAX_MESSAGE_ATTACHMENT_BYTES}
+              maxVideoSeconds={MAX_VIDEO_DURATION_SECONDS}
+              maxFileBytes={MAX_MESSAGE_ATTACHMENT_BYTES}
+              labels={mediaUploadLabels(dict)}
+            >
               <div className="row" style={{ justifyContent: "space-between", alignItems: "center" }}>
                 <h4 className="subtitle">{t("messages.title")}</h4>
                 <Link className="btn btn-ghost small" href="/portal/messages" aria-label={t("messages.closeComposer")}>✕</Link>
@@ -218,7 +228,7 @@ export default async function PortalMessagesPage(
                 <textarea className="textarea" name="body" required placeholder={t("messages.writeMessage")} rows={4} />
               </div>
               <button className="btn btn-primary" type="submit">{t("common.send")}</button>
-            </form>
+            </MediaUploadForm>
           ) : thread && threadId ? (
             <>
               <h4 className="subtitle">

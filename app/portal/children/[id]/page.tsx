@@ -39,6 +39,9 @@ import DailyReportDateNav from "@/components/DailyReportDateNav";
 import Attribution from "@/components/Attribution";
 import { curriculumTree, ensureCurriculumSeeded } from "@/lib/curriculum";
 import ObservationModalTrigger from "@/components/ObservationModalTrigger";
+import MediaUploadForm from "@/components/MediaUploadForm";
+import { mediaUploadLabels } from "@/lib/media-i18n";
+import { MAX_PHOTO_UPLOAD_BYTES } from "@/lib/media-limits";
 import { queryGet } from "@/lib/db";
 import { CONTACT_RELATIONSHIP_LABELS } from "@/lib/contact-relationship";
 import { i18nForAccount } from "@/lib/i18n-session";
@@ -205,6 +208,8 @@ export default async function PortalChildPage(
   const inviteActivationUrl = String(searchParams.activationUrl ?? "").trim();
   const inviteDetail = String(searchParams.inviteDetail ?? "").trim();
   const relationshipError = searchParams.error === "relationship";
+  // KID-2450: server-side photo cap refusal (old clients / direct posts).
+  const photoError = searchParams.error === "photoType" || searchParams.error === "photoSize";
   // KID-733: the Add-a-child flow reports its parent-login outcome here
   // (created = fresh login, linked = the guardian email already had a parent
   // account and it was connected to this child) — the same banner the children
@@ -245,6 +250,11 @@ export default async function PortalChildPage(
           <p className="small" style={{ margin: 0 }}>
             {t("profile.contactRelationshipInvalid")}
           </p>
+        </div>
+      )}
+      {photoError && (
+        <div role="alert" className="card mt-3" style={{ borderLeft: "4px solid #b91c1c" }}>
+          <p className="small" style={{ margin: 0 }}>{t("profile.photoError")}</p>
         </div>
       )}
       {inviteStatus && (
@@ -307,13 +317,18 @@ export default async function PortalChildPage(
             {status.lastEvent ? cap(status.lastEvent.type) : t("profile.notReportedYet")}
           </p>
         </div>
-        <form action={uploadPhotoAction} style={{ display: "flex", gap: 8, alignItems: "center" }}>
+        <MediaUploadForm
+          action={uploadPhotoAction}
+          maxImageBytes={MAX_PHOTO_UPLOAD_BYTES}
+          labels={mediaUploadLabels(dict)}
+          style={{ display: "flex", gap: 8, alignItems: "center" }}
+        >
           <input type="hidden" name="entityType" value="child" />
           <input type="hidden" name="entityId" value={child.id as string} />
           <input type="file" name="file" accept="image/*" required id={`photo-${child.id}`} style={{ display: "none" }} />
           <label htmlFor={`photo-${child.id}`} className="btn btn-ghost" style={{ cursor: "pointer", fontSize: 13 }}>{child.photo_url ? t("profile.changePhoto") : t("profile.addPhoto")}</label>
           <button className="btn btn-primary" type="submit" style={{ fontSize: 13 }}>{t("profile.save")}</button>
-        </form>
+        </MediaUploadForm>
         <Link href={`/portal/children/${child.id}/development`} className="btn btn-ghost" style={{ fontSize: 13 }}>{t("profile.development")}</Link>
       </div>
       <div style={{ marginTop: 18 }}>

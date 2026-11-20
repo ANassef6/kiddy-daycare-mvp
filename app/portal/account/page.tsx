@@ -8,6 +8,9 @@ import { saveNotificationPrefsAction, uploadAccountPhotoAction } from "@/lib/act
 import Avatar from "@/components/Avatar";
 import LanguageSettingsCard from "@/components/LanguageSettingsCard";
 import ChangePasswordCard from "@/components/ChangePasswordCard";
+import MediaUploadForm from "@/components/MediaUploadForm";
+import { mediaUploadLabels } from "@/lib/media-i18n";
+import { MAX_PHOTO_UPLOAD_BYTES } from "@/lib/media-limits";
 
 export const dynamic = "force-dynamic";
 
@@ -23,7 +26,7 @@ const NOTIFICATION_LABEL_KEYS: Record<string, string> = {
   events: "account.notifEvents",
 };
 
-export default async function PortalAccountPage({ searchParams }: { searchParams: Promise<{ saved?: string; pw?: string }> }) {
+export default async function PortalAccountPage({ searchParams }: { searchParams: Promise<{ saved?: string; pw?: string; error?: string }> }) {
   const session = await requireSession();
   const { locale, dict } = await i18nForAccount(session.accountId);
   const profile = await accountProfile(session.accountId);
@@ -47,6 +50,12 @@ export default async function PortalAccountPage({ searchParams }: { searchParams
       <h1 className="title">{tr(dict, "account.settingsTitle")}</h1>
       <p className="subtitle">{tr(dict, "account.settingsSubtitle")}</p>
 
+      {(search.error === "photoType" || search.error === "photoSize") && (
+        <div role="alert" className="card mb-4" style={{ borderLeft: "4px solid #b91c1c" }}>
+          <p className="small" style={{ margin: 0 }}>{tr(dict, "account.photoError")}</p>
+        </div>
+      )}
+
       <div className="card mb-4">
         <div className="row" style={{ alignItems: "center", gap: 16 }}>
           <Avatar src={await storageSrcFor(profile.photoUrl)} name={displayName} size={64} />
@@ -56,11 +65,18 @@ export default async function PortalAccountPage({ searchParams }: { searchParams
             <div className="small muted" style={{ textTransform: "capitalize" }}>{session.role}</div>
           </div>
           {profile.staffId && (
-            <form action={uploadAccountPhotoAction} encType="multipart/form-data" className="row" style={{ gap: 8, alignItems: "center" }}>
+            <MediaUploadForm
+              action={uploadAccountPhotoAction}
+              encType="multipart/form-data"
+              className="row"
+              style={{ gap: 8, alignItems: "center" }}
+              maxImageBytes={MAX_PHOTO_UPLOAD_BYTES}
+              labels={mediaUploadLabels(dict)}
+            >
               <input type="hidden" name="staffId" value={profile.staffId} />
               <input type="file" name="file" accept="image/*" required style={{ maxWidth: 180 }} />
               <button className="btn btn-ghost small" type="submit">{tr(dict, "account.uploadPhoto")}</button>
-            </form>
+            </MediaUploadForm>
           )}
         </div>
       </div>

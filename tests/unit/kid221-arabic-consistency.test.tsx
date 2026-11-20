@@ -313,7 +313,7 @@ describe("KID-221: Arabic staff/admin pages render without English UI strings", 
       name: "/portal/newsfeed",
       render: async () => {
         const { default: Page } = await import("@/app/portal/newsfeed/page");
-        return renderToStaticMarkup((await Page()) as never);
+        return renderToStaticMarkup((await Page({ searchParams: Promise.resolve({}) })) as never);
       },
     },
     {

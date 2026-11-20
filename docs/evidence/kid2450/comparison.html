@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>KID-2450 — before / after media compression</title>
+<style>
+  :root { color-scheme: light; }
+  body { font-family: system-ui, sans-serif; margin: 0; padding: 24px; background: #f8fafc; color: #0f172a; }
+  h1 { font-size: 20px; margin: 0 0 6px; }
+  p { margin: 0 0 18px; color: #475569; max-width: 760px; }
+  .sample { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 16px; margin-bottom: 18px; }
+  .sample h2 { font-size: 15px; margin: 0 0 10px; }
+  .pair { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  figure { margin: 0; }
+  img { width: 100%; height: auto; border-radius: 8px; display: block; background: #e2e8f0; }
+  figcaption { font-size: 12px; color: #475569; margin-top: 6px; }
+  table { border-collapse: collapse; font-size: 13px; margin-top: 8px; width: 100%; }
+  th, td { border-bottom: 1px solid #e2e8f0; padding: 6px 8px; text-align: start; }
+  @media (max-width: 700px) { .pair { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+  <h1>KID-2450 — client-side media compression</h1>
+  <p>
+    Same sample source, prepared with the client algorithm: longest edge 1280px,
+    WebP at ~80% quality (JPEG fallback), stepping down toward a 400 KB target.
+    Generated from <code>comparison.json</code> for the founder’s staging review.
+  </p>
+
+  <section class="sample">
+    <h2>Phone photo — landscape (4032 × 3024)</h2>
+    <div class="pair">
+      <figure><img src="phone-landscape-before.jpg" alt="Before compression" /><figcaption>Before — 2.2 MB JPEG</figcaption></figure>
+      <figure><img src="phone-landscape-after.webp" alt="After compression" /><figcaption>After — 23 KB WebP (1280 × 960)</figcaption></figure>
+    </div>
+  </section>
+
+  <section class="sample">
+    <h2>Phone photo — portrait (3024 × 4032)</h2>
+    <div class="pair">
+      <figure><img src="phone-portrait-before.jpg" alt="Before compression" /><figcaption>Before — 2.1 MB JPEG</figcaption></figure>
+      <figure><img src="phone-portrait-after.webp" alt="After compression" /><figcaption>After — 25 KB WebP (960 × 1280)</figcaption></figure>
+    </div>
+  </section>
+
+  <section class="sample">
+    <h2>Already-small photo (1200 × 900)</h2>
+    <div class="pair">
+      <figure><img src="small-already-ok-before.jpg" alt="Before compression" /><figcaption>Before — 209 KB JPEG</figcaption></figure>
+      <figure><img src="small-already-ok-after.webp" alt="After compression" /><figcaption>After — 97 KB WebP (no upscale, same 1200 × 900)</figcaption></figure>
+    </div>
+  </section>
+
+  <table>
+    <thead><tr><th>Sample</th><th>Before</th><th>After</th><th>Saved</th></tr></thead>
+    <tbody>
+      <tr><td>phone-landscape</td><td>2,278,144 B (4032×3024)</td><td>23,232 B (1280×960)</td><td>99.0%</td></tr>
+      <tr><td>phone-portrait</td><td>2,131,078 B (3024×4032)</td><td>25,996 B (960×1280)</td><td>98.8%</td></tr>
+      <tr><td>small-already-ok</td><td>213,781 B (1200×900)</td><td>99,082 B (1200×900)</td><td>53.7%</td></tr>
+    </tbody>
+  </table>
+</body>
+</html>

@@ -134,6 +134,13 @@ export function securityHeaders(mode) {
 }
 
 const nextConfig = {
+  experimental: {
+    // KID-2450: media uploads ride server actions. The framework default is
+    // 1 MB; the client caps every file at 4 MB (Vercel's own request-body
+    // ceiling is 4.5 MB), so 5 MB gives multipart overhead room without
+    // inviting requests the platform would reject.
+    serverActions: { bodySizeLimit: "5mb" },
+  },
   async rewrites() {
     return [
       {

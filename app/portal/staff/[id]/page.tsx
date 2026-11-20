@@ -11,6 +11,9 @@ import { uploadPhotoAction, updateStaffInfoAction, linkStaffLoginAction } from "
 import Avatar from "@/components/Avatar";
 import ResendActivationButton from "@/components/ResendActivationButton";
 import ChildProfileTabs from "@/components/ChildProfileTabs";
+import MediaUploadForm from "@/components/MediaUploadForm";
+import { mediaUploadLabels } from "@/lib/media-i18n";
+import { MAX_PHOTO_UPLOAD_BYTES } from "@/lib/media-limits";
 import { StaffStatusForm } from "@/components/StaffStatusForm";
 import { i18nForAccount } from "@/lib/i18n-session";
 import { tr, fmtDateFor, fmtDateTimeFor, type Dict, type Locale } from "@/lib/i18n";
@@ -44,6 +47,8 @@ export default async function StaffProfilePage({ params, searchParams }: { param
   const session = await requireSession();
   const { dict, locale } = await i18nForAccount(session.accountId);
   const iid = await resolveTenantInstituteId();
+  // KID-2450: server-side photo cap refusal (old clients / direct posts).
+  const photoError = search.error === "photoType" || search.error === "photoSize";
 
   // KID-105 #13: staff can only view their own profile.
   if (!isAdminRole(session.role)) {
@@ -90,18 +95,30 @@ export default async function StaffProfilePage({ params, searchParams }: { param
   return (
     <div>
       <Link className="small muted" href="/portal/staff">← {tr(dict, "nav.staff")}</Link>
+      {photoError && (
+        <div role="alert" className="card mt-3" style={{ borderLeft: "4px solid #b91c1c" }}>
+          <p className="small" style={{ margin: 0 }}>{tr(dict, "profile.photoError")}</p>
+        </div>
+      )}
       <div className="row mt-2" style={{ alignItems: "center", gap: 12 }}>
         <Avatar src={await storageSrcFor(staff.photo_url)} name={staff.full_name} size={52} />
         <div style={{ flex: 1 }}>
           <h1 className="title" style={{ margin: 0 }}>{staff.full_name}</h1>
           <div className="subtitle">{roleLabel(dict, staff.role)} · {email ?? tr(dict, "staff.noLoginYet")} · {(rooms as any[]).map((r: any) => r.name).join(", ") || tr(dict, "staff.noRooms")}{staffUnactivated && email ? (<> · <ResendActivationButton email={email} /></>) : null}</div>
         </div>
-        <form action={uploadPhotoAction} encType="multipart/form-data" className="row" style={{ gap: 8, alignItems: "center" }}>
+        <MediaUploadForm
+          action={uploadPhotoAction}
+          encType="multipart/form-data"
+          className="row"
+          style={{ gap: 8, alignItems: "center" }}
+          maxImageBytes={MAX_PHOTO_UPLOAD_BYTES}
+          labels={mediaUploadLabels(dict)}
+        >
           <input type="hidden" name="entityType" value="staff" />
           <input type="hidden" name="entityId" value={String(staff.id)} />
           <input type="file" name="file" accept="image/*" required style={{ maxWidth: 180 }} />
           <button className="btn btn-ghost small" type="submit">{tr(dict, "account.uploadPhoto")}</button>
-        </form>
+        </MediaUploadForm>
       </div>
 
       <div className="mt-3">
