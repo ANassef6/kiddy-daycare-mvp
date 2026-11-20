@@ -1,6 +1,6 @@
 # KID-2453 — Media storage on Cloudflare R2 (private, presigned)
 
-Status: **complete — staging verified and production cut over.** Live cloudflare
+Status: **complete — staging verified and production cut over.** Live Cloudflare
 R2 uploads, signed reads, expiry, cross-tenant refusal and the legacy migration
 passed on staging and again on production. The raw-REF hydration fix (commit
 `c6c3d92`) is live on both environments. Production cutover ran after the founder
