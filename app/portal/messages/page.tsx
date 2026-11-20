@@ -26,6 +26,7 @@ import MessageComposerForm from "@/components/MessageComposerForm";
 import MessageAttachment from "@/components/MessageAttachment";
 import { mediaUploadLabels } from "@/lib/media-i18n";
 import { MAX_MESSAGE_ATTACHMENT_BYTES, MAX_VIDEO_DURATION_SECONDS } from "@/lib/media-limits";
+import { formatParticipantNames } from "@/lib/thread-display";
 
 export const dynamic = "force-dynamic";
 
@@ -96,7 +97,10 @@ export default async function PortalMessagesPage(
     (c: any) => matchesSearch(String(c.other_name ?? "")) || matchesSearch(String(c.last_message ?? ""))
   );
   const visibleThreads = (onlyUnread ? threads.filter((t: any) => Number(t.unread_count ?? 0) > 0) : threads).filter(
-    (th: any) => matchesSearch(String(th.thread_title ?? th.title ?? "")) || matchesSearch(String(th.last_message ?? ""))
+    (th: any) =>
+      matchesSearch(String(th.thread_title ?? th.title ?? "")) ||
+      matchesSearch(String(th.last_message ?? "")) ||
+      ((th.participant_names as string[] | undefined) ?? []).some((name) => matchesSearch(name))
   );
 
   // KID-2453: message attachments are private objects now — resolve the REF in
@@ -190,6 +194,10 @@ export default async function PortalMessagesPage(
           {visibleThreads.map((th: any) => {
             const unread = Number(th.unread_count ?? 0);
             const active = threadId === String(th.id);
+            const isGroup = Number(th.is_group) === 1;
+            const participantNames = (th.participant_names as string[] | undefined) ?? [];
+            const otherName = !isGroup ? participantNames[0] : undefined;
+            const groupNames = isGroup ? formatParticipantNames(participantNames) : "";
             const threadLink = showArchived
               ? listQuery({ thread: String(th.id) })
               : `/portal/messages?thread=${th.id}`;
@@ -200,9 +208,20 @@ export default async function PortalMessagesPage(
                 style={unread > 0 ? { background: "color-mix(in srgb, var(--brand-primary) 10%, transparent)", fontWeight: 700 } : active ? { background: "#f1f5f9" } : undefined}
               >
                 <Link href={threadLink} style={{ color: "var(--color-text)", flex: 1 }}>
-                  <span className="small muted">{Number(th.is_group) ? t("messages.groupOfAll") : t("messages.groupOfTwo")} · </span>
-                  <strong className="small">{th.thread_title ?? th.title ?? t("common.thread")}</strong>
+                  {otherName ? (
+                    <strong className="small">{otherName}</strong>
+                  ) : (
+                    <>
+                      <span className="small muted">{isGroup ? t("messages.groupOfAll") : t("messages.groupOfTwo")} · </span>
+                      <strong className="small">{th.thread_title ?? th.title ?? t("common.thread")}</strong>
+                    </>
+                  )}
                   {unread > 0 && <span className="badge badge-red" style={{ marginInlineStart: 6 }}>{unread}</span>}
+                  {groupNames && (
+                    <div className="muted small" style={{ maxWidth: 180, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      {groupNames}
+                    </div>
+                  )}
                   <div className="muted small" style={{ maxWidth: 180, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                     {th.last_message ?? "—"}
                   </div>

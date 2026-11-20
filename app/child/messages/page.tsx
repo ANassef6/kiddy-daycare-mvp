@@ -23,6 +23,7 @@ import { recordToolUsage } from "@/lib/tool-usage";
 import { storageSrcFor } from "@/lib/storage";
 import { mediaUploadLabels } from "@/lib/media-i18n";
 import { MAX_MESSAGE_ATTACHMENT_BYTES, MAX_VIDEO_DURATION_SECONDS } from "@/lib/media-limits";
+import { formatParticipantNames } from "@/lib/thread-display";
 
 export const dynamic = "force-dynamic";
 
@@ -294,6 +295,10 @@ export default async function ParentMessagesPage(
           )}
           {threads.map((th: any) => {
             const unread = Number(th.unread_count ?? 0);
+            const isGroup = Number(th.is_group) === 1;
+            const participantNames = (th.participant_names as string[] | undefined) ?? [];
+            const otherName = !isGroup ? participantNames[0] : undefined;
+            const groupNames = isGroup ? formatParticipantNames(participantNames) : "";
             return (
               <div
                 key={th.id}
@@ -311,12 +316,22 @@ export default async function ParentMessagesPage(
                   href={showArchived ? listQuery({ thread: String(th.id) }) : `/child/messages?thread=${th.id}`}
                   style={{ color: "var(--color-text)", flex: 1 }}
                 >
-                  <strong className="small">{th.thread_title ?? th.title ?? t("common.thread")}</strong>{" "}
-                  <span className="badge">{Number(th.is_group) ? t("common.group") : t("common.private")}</span>
+                  <strong className="small">
+                    {otherName ?? (th.thread_title ?? th.title ?? t("common.thread"))}
+                  </strong>{" "}
+                  <span className="badge">{isGroup ? t("common.group") : t("common.private")}</span>
                   {unread > 0 && (
                     <span className="badge badge-red" style={{ marginLeft: 6 }}>
                       {unread}
                     </span>
+                  )}
+                  {groupNames && (
+                    <div
+                      className="muted small"
+                      style={{ maxWidth: 300, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
+                    >
+                      {groupNames}
+                    </div>
                   )}
                   <div
                     className="muted small"
