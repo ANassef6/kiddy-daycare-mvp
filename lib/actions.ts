@@ -26,6 +26,17 @@ import { isValidTimeZone } from "@/lib/timezone";
 import { parsePaymentLink } from "@/lib/instapay";
 import { validatePaymentProof, paymentProofFilename } from "@/lib/payment-proof";
 import { validateContract, contractStorageFilename } from "@/lib/contract";
+import {
+  MAX_DRIVE_FILE_BYTES,
+  MAX_MESSAGE_ATTACHMENT_BYTES,
+  MAX_NEWSFEED_ATTACHMENT_BYTES,
+  MAX_VIDEO_DURATION_SECONDS,
+  mediaKind,
+  validateBrandingFile,
+  validateMediaAttachment,
+  validatePhotoFile,
+} from "@/lib/media-limits";
+import { mp4DurationSeconds } from "@/lib/video-duration";
 import { configuredReportDate, todayIso } from "@/lib/report-dates";
 // KID-1178/F-06: brute-force + abuse throttling (see lib/rate-limit.ts).
 import {
@@ -1013,17 +1024,24 @@ export async function createDaycareAction(formData: FormData) {
     // URL is persisted to logo_url so the branding reads it from row data.
     const logoFile = formData.get("logo");
     if (logoFile instanceof File && logoFile.size > 0) {
-      const logoUrl = await uploadBrandingFile(logoFile, res.instituteId, "logo");
-      if (logoUrl) {
-        const { updateInstitute, addMedia } = await import("@/lib/store");
-        await updateInstitute(res.instituteId, { logo_url: logoUrl });
-        await addMedia({
-          instituteId: res.instituteId,
-          url: logoUrl,
-          kind: "logo",
-          caption: "Daycare logo",
-          accountId: res.ownerAccountId,
-        });
+      // KID-2450: client compresses the logo; reject a bypassing old client
+      // without failing the daycare creation itself (log it, never silent).
+      const logo = validateBrandingFile(logoFile);
+      if (!logo.ok) {
+        console.error("KID-2450 create-daycare logo refused:", logo.code);
+      } else {
+        const logoUrl = await uploadBrandingFile(logoFile, res.instituteId, "logo");
+        if (logoUrl) {
+          const { updateInstitute, addMedia } = await import("@/lib/store");
+          await updateInstitute(res.instituteId, { logo_url: logoUrl });
+          await addMedia({
+            instituteId: res.instituteId,
+            url: logoUrl,
+            kind: "logo",
+            caption: "Daycare logo",
+            accountId: res.ownerAccountId,
+          });
+        }
       }
     }
     // KID-746: auto-generate the AR + EN contract drafts on successful
@@ -3221,10 +3239,19 @@ export async function addDriveFileAction(formData: FormData) {
     let kind = String(formData.get("kind") ?? "file");
     let sizeBytes: number | undefined;
     if (uploaded instanceof File && uploaded.size > 0) {
+      // KID-2450: server mirror of the drive's client cap (any type, 4 MB,
+      // videos also <= 60s for MP4/MOV).
+      if (uploaded.size > MAX_DRIVE_FILE_BYTES) redirect("/portal/drive?error=attachment");
       filename = filename || uploaded.name || "upload";
       sizeBytes = uploaded.size;
       const buf = Buffer.from(await uploaded.arrayBuffer());
       const mime = uploaded.type || "application/octet-stream";
+      if (mediaKind(mime) === "video") {
+        const seconds = mp4DurationSeconds(buf);
+        if (seconds !== null && seconds > MAX_VIDEO_DURATION_SECONDS) {
+          redirect("/portal/drive?error=attachment");
+        }
+      }
       if (kind === "file") {
         if (mime.startsWith("image/")) kind = "photo";
         else if (mime === "application/pdf") kind = "pdf";
@@ -3414,7 +3441,6 @@ export async function sendMessageAction(formData: FormData) {
 // "whole" = parents + staff of the room, "children" = parents only, "staff" =
 // staff only. Group on: one shared thread, every reply stays visible to all.
 // Group off: one private thread per recipient.
-const MAX_ATTACHMENT_BYTES = 1_500_000;
 
 export async function sendComposerAction(formData: FormData) {
   const me = await authAccount();
@@ -3450,10 +3476,17 @@ export async function sendComposerAction(formData: FormData) {
   let attachmentUrl: string | undefined;
   let attachmentName: string | undefined;
   if (attachment instanceof File && attachment.size > 0) {
-    if (!attachment.name || attachment.size > MAX_ATTACHMENT_BYTES) {
+    if (!attachment.name || attachment.size > MAX_MESSAGE_ATTACHMENT_BYTES) {
       redirect(`/portal/messages?error=attachment&preserve=${encodeURIComponent(String(formData.get("body") ?? ""))}`);
     }
     const bytes = Buffer.from(await attachment.arrayBuffer());
+    // KID-2450: client-side video guard mirrored at the server boundary.
+    if (mediaKind(attachment.type) === "video") {
+      const seconds = mp4DurationSeconds(bytes);
+      if (seconds !== null && seconds > MAX_VIDEO_DURATION_SECONDS) {
+        redirect(`/portal/messages?error=attachment&preserve=${encodeURIComponent(String(formData.get("body") ?? ""))}`);
+      }
+    }
     attachmentUrl = `data:${attachment.type || "application/octet-stream"};base64,${bytes.toString("base64")}`;
     attachmentName = attachment.name;
   }
@@ -3697,6 +3730,12 @@ export async function uploadBrandingImageAction(formData: FormData) {
   const file = formData.get("file") as File | null;
   const kind = String(formData.get("kind") ?? "logo"); // "logo" | "brandImage"
   if (!file || file.size === 0) redirect("/portal/settings");
+  // KID-2450: the same brand-image cap the client enforces (type + 4 MB),
+  // so an old client cannot bypass the compressed upload boundary.
+  const branding = validateBrandingFile(file);
+  if (!branding.ok) {
+    redirect(`/portal/settings?error=${branding.code === "size" ? "upload-size" : "upload-type"}`);
+  }
 
   // KID-199.4r: shares the storage path with the /platform daycare creation.
   // KID-493: upload feedback is honest now — missing storage or a failed
@@ -3736,8 +3775,14 @@ export async function uploadPhotoAction(formData: FormData) {
     redirect(entityType === "child" ? "/portal/children" : "/portal/staff");
   }
   if (entityType === "child") await assertChildInScope(entityId, me);
+  const photoBack = entityType === "child" ? `/portal/children/${entityId}` : `/portal/staff/${entityId}`;
+  // KID-2450: mirror the client's photo cap at the server boundary.
+  const photo = validatePhotoFile(file);
+  if (!photo.ok) {
+    redirect(`${photoBack}?error=${photo.code === "size" ? "photoSize" : "photoType"}`);
+  }
 
-  const ext = file.name.split(".").pop() || "jpg";
+  const ext = photo.ext;
   // KID-1177: child/staff photos are sensitive — the object part is
   // unchanged (the per-scope folder + file name), but it goes to the
   // kiddy-private bucket and the row keeps the private REF, not a public URL
@@ -3805,8 +3850,13 @@ export async function uploadAccountPhotoAction(formData: FormData) {
   if (!myStaffId || myStaffId !== staffId) {
     redirect("/portal/account");
   }
+  // KID-2450: the account photo carries the same server-side cap.
+  const photo = validatePhotoFile(file);
+  if (!photo.ok) {
+    redirect(`/portal/account?error=${photo.code === "size" ? "photoSize" : "photoType"}`);
+  }
 
-  const ext = file.name.split(".").pop() || "jpg";
+  const ext = photo.ext;
   // KID-1177: same private-bucket treatment as every other photo.
   const photoPath = `staff/${staffId}/photo-${Date.now()}.${ext}`;
 
@@ -4227,8 +4277,18 @@ export async function createNewsfeedWithAttachmentAction(formData: FormData) {
   const body = String(formData.get("body") ?? "");
   let mediaUrl: string | undefined;
   const attachment = formData.get("attachment");
-  if (attachment instanceof File && attachment.size > 0 && attachment.size <= 2_500_000) {
+  if (attachment instanceof File && attachment.size > 0) {
+    // KID-2450: the client prepares the photo/video first; this is the
+    // server mirror (type + byte cap + MP4/MOV duration) for old clients.
+    const media = validateMediaAttachment(attachment, MAX_NEWSFEED_ATTACHMENT_BYTES);
+    if (!media.ok) redirect("/portal/newsfeed?error=attachment");
     const buf = Buffer.from(await attachment.arrayBuffer());
+    if (media.kind === "video") {
+      const seconds = mp4DurationSeconds(buf);
+      if (seconds !== null && seconds > MAX_VIDEO_DURATION_SECONDS) {
+        redirect("/portal/newsfeed?error=attachment");
+      }
+    }
     const mime = attachment.type || "application/octet-stream";
     mediaUrl = `data:${mime};base64,${buf.toString("base64")}`;
   }

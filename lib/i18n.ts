@@ -311,9 +311,11 @@ export const en = {
     postUpdate: "Post an update",
     writeHere: "Click here and write…",
     attachmentDevice: "Attachment (from your device)",
-    attachmentLimit: "Max ~2.5 MB. Stored with the post.",
+    attachmentLimit:
+      "Photos are compressed automatically. Videos: 60 seconds max, under 2.5 MB.",
+    errorAttachment:
+      "The attachment was not posted. Photos are compressed automatically; videos must be 60 seconds or less and under 2.5 MB.",
   },
-  // KID-368 (DEF-004): /child/events strings.
   events: {
     title: "Events",
     subtitle: "Daycare events and recent videos for your family.",
@@ -353,6 +355,23 @@ export const en = {
     kindPdf: "PDF",
     kindPhoto: "Photo",
     kindVideo: "Video",
+    errorAttachment:
+      "The file was not uploaded. Photos are compressed automatically; videos must be 60 seconds or less and under 4 MB. Nothing was saved.",
+  },
+  // KID-2450: shared client-side media preparation copy (photos + video caps).
+  media: {
+    preparing: "Preparing your file…",
+    optimizing: "Optimizing photo…",
+    prepared: "Photo optimized — saved {saved}.",
+    imageTooLarge:
+      "This photo is still larger than {limit} after compression. Choose a smaller photo.",
+    videoTooLarge: "This video is larger than {limit}. Choose a shorter or smaller video.",
+    videoTooLong: "This video is {seconds} seconds long. The limit is {limit} seconds.",
+    fileTooLarge: "This file is larger than {limit}.",
+    compressFailed: "We could not prepare this file. Please try again or choose a different file.",
+    uploadType:
+      "Only JPEG, PNG, WebP, GIF or HEIC photos can be uploaded. Nothing was saved.",
+    uploadSize: "This photo is too large to upload. Nothing was saved.",
   },
   // KID-368 (DEF-004): /child/forms strings. The form-template kind labels
   // mirror the portal form builder's enum (form | survey | list) with a safe
@@ -425,7 +444,8 @@ export const en = {
     audStaff: "Staff only",
     attachment: "Attachment (optional)",
     errorNorecipients: "Pick at least one recipient or classroom channel.",
-    errorAttachment: "Attachment failed: the file must be under 1.5 MB. Nothing was sent.",
+    errorAttachment:
+      "Attachment failed: photos are compressed automatically; videos must be 60 seconds or less and under 1.5 MB. Nothing was sent.",
     groupMessage: "Make it group message",
     groupHint:
       "On: every reply stays in this thread for all to see. Off: each recipient gets a private thread.",
@@ -594,6 +614,10 @@ export const en = {
       "Image storage (Supabase Storage) is not configured, so the image could not be uploaded. Nothing was saved.",
     uploadFailedError:
       "The image upload failed. Your previous logo and brand image are unchanged.",
+    uploadTypeError:
+      "Only JPEG, PNG, WebP, GIF, HEIC or SVG images can be uploaded. Nothing was saved.",
+    uploadSizeError:
+      "The image is still larger than 4 MB after compression. Nothing was saved.",
     daycareName: "Daycare name",
     primaryColor: "Primary color",
     accentColor: "Accent color",
@@ -635,6 +659,8 @@ export const en = {
     english: "English",
     arabic: "العربية",
     uploadPhoto: "Upload photo",
+    photoError:
+      "The photo was not saved. Use a JPEG, PNG, WebP, GIF or HEIC image under 4 MB.",
     notificationPrefs: "Notification preferences",
     notificationPrefsHint: "Choose how (email / in-app) and for which activities you get notified.",
     prefsSaved: "Preferences saved.",
@@ -727,6 +753,8 @@ export const en = {
     today: "Today:",
     changePhoto: "Change photo",
     addPhoto: "Add photo",
+    photoError:
+      "The photo was not saved. Use a JPEG, PNG, WebP, GIF or HEIC image under 4 MB.",
     save: "Save",
     development: "Development",
     todaysDailyReport: "Today's daily report",
@@ -2603,7 +2631,10 @@ export const ar = {
     postUpdate: "انشر تحديثًا",
     writeHere: "اضغط هنا واكتب…",
     attachmentDevice: "مرفق (من جهازك)",
-    attachmentLimit: "بحد أقصى ~2.5 ميجابايت. يُحفظ مع المنشور.",
+    attachmentLimit:
+      "تُضغط الصور تلقائيًا. الفيديو: 60 ثانية كحد أقصى، وأقل من 2.5 ميجابايت.",
+    errorAttachment:
+      "لم يُنشر المرفق. تُضغط الصور تلقائيًا، ويجب ألا يزيد الفيديو عن 60 ثانية وأقل من 2.5 ميجابايت.",
   },
   events: {
     title: "الفعاليات",
@@ -2641,6 +2672,21 @@ export const ar = {
     kindPdf: "PDF",
     kindPhoto: "صورة",
     kindVideo: "فيديو",
+    errorAttachment:
+      "لم يُرفع الملف. تُضغط الصور تلقائيًا، ويجب ألا يزيد الفيديو عن 60 ثانية وأقل من 4 ميجابايت. لم يُحفظ شيء.",
+  },
+  // KID-2450: النصوص المشتركة لتجهيز الوسائط قبل الرفع (الصور وحدود الفيديو).
+  media: {
+    preparing: "جارٍ تجهيز الملف…",
+    optimizing: "جارٍ ضغط الصورة…",
+    prepared: "تم ضغط الصورة — وُفّر {saved}.",
+    imageTooLarge: "ما زالت الصورة أكبر من {limit} بعد الضغط. اختر صورة أصغر.",
+    videoTooLarge: "حجم الفيديو أكبر من {limit}. اختر فيديو أقصر أو أصغر.",
+    videoTooLong: "مدة الفيديو {seconds} ثانية. الحد الأقصى {limit} ثانية.",
+    fileTooLarge: "حجم الملف أكبر من {limit}.",
+    compressFailed: "تعذّر تجهيز الملف. حاول مرة أخرى أو اختر ملفًا مختلفًا.",
+    uploadType: "تُقبل صور JPEG أو PNG أو WebP أو GIF أو HEIC فقط. لم يُحفظ شيء.",
+    uploadSize: "الصورة أكبر من الحد المسموح. لم يُحفظ شيء.",
   },
   forms: {
     title: "النماذج والاستبيانات",
@@ -2707,7 +2753,8 @@ export const ar = {
     audStaff: "الموظفون فقط",
     attachment: "مرفق (اختياري)",
     errorNorecipients: "اختر مستلمًا واحدًا على الأقل أو قناة فصل.",
-    errorAttachment: "فشل المرفق: يجب أن يكون حجم الملف أقل من 1.5 ميجابايت. لم يتم الإرسال.",
+    errorAttachment:
+      "فشل المرفق: تُضغط الصور تلقائيًا، ويجب ألا يزيد الفيديو عن 60 ثانية وأقل من 1.5 ميجابايت. لم يتم الإرسال.",
     groupMessage: "اجعلها رسالة جماعية",
     groupHint:
       "عند التفعيل: كل رد يبقى في هذه المحادثة ليراها الجميع. عند الإلغاء: كل مستلم يحصل على محادثة خاصة.",
@@ -2867,6 +2914,9 @@ export const ar = {
       "لم يتم إعداد وحدة تخزين الصور (Supabase Storage)، ولذلك لم يتم رفع الصورة. لم يُحفظ أي تغيير.",
     uploadFailedError:
       "فشل رفع الصورة. لم يتغير شعارك السابق ولا صورة علامتك.",
+    uploadTypeError:
+      "تُقبل صور JPEG أو PNG أو WebP أو GIF أو HEIC أو SVG فقط. لم يُحفظ شيء.",
+    uploadSizeError: "ما زالت الصورة أكبر من 4 ميجابايت بعد الضغط. لم يُحفظ شيء.",
     daycareName: "اسم الحضانة",
     primaryColor: "اللون الأساسي",
     accentColor: "اللون المميز",
@@ -2908,6 +2958,8 @@ export const ar = {
     english: "English",
     arabic: "العربية",
     uploadPhoto: "رفع صورة",
+    photoError:
+      "لم تُحفظ الصورة. استخدم صورة JPEG أو PNG أو WebP أو GIF أو HEIC بحجم أقل من 4 ميجابايت.",
     notificationPrefs: "تفضيلات الإشعارات",
     notificationPrefsHint: "اختر كيف (بريد إلكتروني / داخل التطبيق) وأي الأنشطة تتلقى عنها إشعارات.",
     prefsSaved: "تم حفظ التفضيلات.",
@@ -2999,6 +3051,8 @@ export const ar = {
     today: "اليوم:",
     changePhoto: "تغيير الصورة",
     addPhoto: "إضافة صورة",
+    photoError:
+      "لم تُحفظ الصورة. استخدم صورة JPEG أو PNG أو WebP أو GIF أو HEIC بحجم أقل من 4 ميجابايت.",
     save: "حفظ",
     development: "التطوّر",
     todaysDailyReport: "التقرير اليومي لليوم",

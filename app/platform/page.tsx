@@ -25,6 +25,9 @@ import { getPlatformInstapayUrl, getPlatformSetting, PLATFORM_INSTAPAY_KEY } fro
 import { i18nForAccount } from "@/lib/i18n-session";
 import { tr } from "@/lib/i18n";
 import { apexDomain, daycarePublicUrl, subdomainUrl } from "@/lib/subdomain";
+import MediaUploadForm from "@/components/MediaUploadForm";
+import { mediaUploadLabels } from "@/lib/media-i18n";
+import { MAX_PHOTO_UPLOAD_BYTES } from "@/lib/media-limits";
 import ColorField from "./color-field";
 import CopyUrlButton from "./copy-url-button";
 import { BillingPlanFields } from "./daycares/[id]/billing/billing-plan-fields";
@@ -440,7 +443,12 @@ export default async function PlatformDaycaresPage(
         </table>
       </div>
 
-      <form className="card" action={createDaycareAction}>
+      <MediaUploadForm
+        className="card"
+        action={createDaycareAction}
+        maxImageBytes={MAX_PHOTO_UPLOAD_BYTES}
+        labels={mediaUploadLabels(dict)}
+      >
         <h3 className="subtitle">{tr(dict, "platform.createTitle")}</h3>
         <p className="small muted">{tr(dict, "platform.createHint")}</p>
         <div className="row">
@@ -536,7 +544,7 @@ export default async function PlatformDaycaresPage(
           </div>
         </div>
         <button className="btn btn-primary" type="submit">{tr(dict, "platform.create")}</button>
-      </form>
+      </MediaUploadForm>
     </div>
   );
 }

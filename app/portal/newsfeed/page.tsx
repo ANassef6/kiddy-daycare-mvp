@@ -3,6 +3,9 @@ import { resolveTenantInstituteId } from "@/lib/tenant";
 import { listNewsfeed, listChildren, listRooms, staffRooms } from "@/lib/store";
 import { createNewsfeedWithAttachmentAction, commentAction, toggleLikeAction } from "@/lib/actions";
 import RecipientsPicker from "@/components/RecipientsPicker";
+import MediaUploadForm from "@/components/MediaUploadForm";
+import { mediaUploadLabels } from "@/lib/media-i18n";
+import { MAX_NEWSFEED_ATTACHMENT_BYTES, MAX_VIDEO_DURATION_SECONDS } from "@/lib/media-limits";
 import Avatar from "@/components/Avatar";
 import { queryGet } from "@/lib/db";
 import { i18nForAccount } from "@/lib/i18n-session";
@@ -14,8 +17,12 @@ export const dynamic = "force-dynamic";
 // KID-221: the staff newsfeed composer and post cards were English-only
 // inside the translated shell (heading, composer labels, like/comment rows,
 // timestamps). Localized like the rest of the Home group.
-export default async function PortalNewsfeedPage() {
+export default async function PortalNewsfeedPage(props: {
+  searchParams?: Promise<{ error?: string }>;
+}) {
+  const searchParams = props.searchParams;
   const session = await requireSession();
+  const params = (await searchParams) ?? {};
   const { locale, dict } = await i18nForAccount(session.accountId);
   const t = (key: string, vars?: Record<string, string | number>) => tr(dict, key, vars);
   const iid = await resolveTenantInstituteId();
@@ -40,9 +47,23 @@ export default async function PortalNewsfeedPage() {
     <div>
       <h1 className="title">{t("parent.newsfeedTitle")}</h1>
 
+      {params.error === "attachment" && (
+        <div role="alert" className="card mb-4" style={{ borderLeft: "4px solid #b91c1c" }}>
+          <p className="small" style={{ margin: 0 }}>{t("newsfeed.errorAttachment")}</p>
+        </div>
+      )}
+
       <details className="card mb-4" open>
         <summary style={{ cursor: "pointer", fontWeight: 700 }}>{t("newsfeed.composerTitle")}</summary>
-        <form className="mt-3" action={createNewsfeedWithAttachmentAction} encType="multipart/form-data">
+        <MediaUploadForm
+          className="mt-3"
+          action={createNewsfeedWithAttachmentAction}
+          encType="multipart/form-data"
+          maxImageBytes={MAX_NEWSFEED_ATTACHMENT_BYTES}
+          maxVideoBytes={MAX_NEWSFEED_ATTACHMENT_BYTES}
+          maxVideoSeconds={MAX_VIDEO_DURATION_SECONDS}
+          labels={mediaUploadLabels(dict)}
+        >
         <div className="field"><label className="label">{t("newsfeed.postUpdate")}</label><textarea className="textarea" name="body" required placeholder={t("newsfeed.writeHere")} /></div>
         <div className="row" style={{ alignItems: "flex-end" }}>
           {/* #1 recipients picker with pre-defined channels */}
@@ -64,7 +85,7 @@ export default async function PortalNewsfeedPage() {
           </div>
         </div>
         <div className="mt-2"><button className="btn btn-primary" type="submit">{t("learning.post")}</button></div>
-        </form>
+        </MediaUploadForm>
       </details>
 
       {posts.map((post: any) => (
