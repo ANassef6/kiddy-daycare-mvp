@@ -218,8 +218,16 @@ rules as `scripts/migrate-media-to-r2.ts`:
 | **Total** | **10** | **migrated=10, failures=0** |
 
 Each object was PUT to R2, HEADed for the exact byte length, and only then did
-the row change to `r2-private:<key>`. The Supabase copies were kept. Raw log:
-`prod-migration.log`.
+the row change to `r2-private:<key>`. Raw log: `prod-migration.log`.
+
+The Supabase copies were kept, and the 10 objects were also written to the
+private `kiddy-private` bucket at the same keys. That makes the code's real
+dual-read fallback work: if R2 is unset or a signing call fails, an
+`r2-private:<key>` row resolves from Supabase `kiddy-private` at `<key>`. A
+Supabase signed GET of the migrated child photo returned exactly `1,885,611`
+bytes. Raw log: `prod-supabase-backup.log`. (Six originals were in the public
+`kiddy-public` bucket, so a same-key private copy was needed for the fallback;
+the four former `data:` URIs had no stored copy at all.)
 
 ### Live production checks
 

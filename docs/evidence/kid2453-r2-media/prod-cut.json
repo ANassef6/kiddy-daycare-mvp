@@ -9,7 +9,13 @@
   "pr": "https://github.com/ANassef6/kiddy-daycare-mvp/pull/74",
   "cutBranch": "kid2453-prod-cut",
   "cutBase": "e096b1f",
-  "cherryPicked": ["4bbf9b1", "86ec0c7", "00441fa", "79ecd2b", "c6c3d92"],
+  "cherryPicked": [
+    "4bbf9b1",
+    "86ec0c7",
+    "00441fa",
+    "79ecd2b",
+    "c6c3d92"
+  ],
   "mergeCommit": "f943afa",
   "deployment": {
     "id": "dpl_FgYPTapUh7RoBZ1WsCDojZQrmq1e",
@@ -21,15 +27,25 @@
     "name": "kiddy-media-prod",
     "location": "WEUR",
     "publicDomain": false,
-    "corsOrigins": ["https://kiddyapp.net", "https://*.kiddyapp.net", "https://kiddy-one.vercel.app"]
+    "corsOrigins": [
+      "https://kiddyapp.net",
+      "https://*.kiddyapp.net",
+      "https://kiddy-one.vercel.app"
+    ]
   },
-  "envKeys": ["R2_ACCOUNT_ID", "R2_ACCESS_KEY_ID", "R2_SECRET_ACCESS_KEY", "R2_BUCKET"],
+  "envKeys": [
+    "R2_ACCOUNT_ID",
+    "R2_ACCESS_KEY_ID",
+    "R2_SECRET_ACCESS_KEY",
+    "R2_BUCKET"
+  ],
   "migration": {
     "sourcePublicStorageUrls": 6,
     "sourceDataUris": 4,
     "migrated": 10,
     "failures": 0,
-    "supabaseCopiesKept": true
+    "supabaseCopiesKept": true,
+    "supabasePrivateBackups": 10
   },
   "liveChecks": {
     "childPageSignedR2Urls": 3,
@@ -41,7 +57,8 @@
     "crossTenantChild": 404,
     "unauthenticatedChildRedirect": "/login",
     "unsignedR2Get": 400,
-    "expiredSignedGet": 403
+    "expiredSignedGet": 403,
+    "supabaseDualReadBytes": 1885611
   },
   "incident": {
     "preExisting": true,
