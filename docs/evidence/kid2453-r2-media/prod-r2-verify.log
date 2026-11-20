@@ -1,0 +1,7 @@
+signed PUT: 200
+HEAD: 0 bytes, cache=?
+unsigned GET: 400 <?xml version="1.0" encoding="UTF-8"?><Error><Code>InvalidArgument</Code><Messag
+presigned GET: 200 bytes=54 match=true cache=private, max-age=120
+expired signed GET: 403 <?xml version="1.0" encoding="UTF-8"?><Error><Code>ExpiredRequest</Code><Message
+presigned PUT: 200
+HEAD after delete: 404

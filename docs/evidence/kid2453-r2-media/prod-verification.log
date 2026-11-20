@@ -1,0 +1,12 @@
+operator login: /platform (kiddyapp.net)
+enter as admin: sunshine.kiddyapp.net/portal/dashboard
+child page: status=200 path=/portal/children/mud3euq6-j2xfy0jt r2refs=0 signedR2Urls=3
+newsfeed: r2refs=0 signedR2Urls=6
+drive: r2refs=0 signedR2Urls=8
+cross-tenant child page: status=404 r2refs=0 signedR2Urls=0
+unauthenticated child page: status=200 final=/login r2refs=0 signedR2Urls=0
+consoleErrors=3 badResponses=1
+HTTP 404 https://sunshine.kiddyapp.net/portal/children/mva172bn-kcycrbih
+CONSOLE Failed to load resource: the server responded with a status of 404 ()
+CONSOLE Failed to load resource: the server responded with a status of 404 ()
+CONSOLE Failed to load resource: the server responded with a status of 404 ()

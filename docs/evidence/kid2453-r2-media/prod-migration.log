@@ -1,0 +1,11 @@
+migrated child.photo_url mud3euq6-j2xfy0jt -> r2-private:child/mud3euq6-j2xfy0jt/photo-1790106980841.jpg (1885611 bytes)
+migrated child.photo_url mulike3f-9vjrqlio -> r2-private:child/mulike3f-9vjrqlio/photo-1790616117620.jpeg (172082 bytes)
+migrated staff.photo_url mtnfwlrm-h742f9yj -> r2-private:staff/mtnfwlrm-h742f9yj/photo-1789762860524.png (70 bytes)
+migrated staff.photo_url mubchxos-bks4o4f9 -> r2-private:staff/mubchxos-bks4o4f9/photo-1790001296776.jpg (31795 bytes)
+migrated child_billing.payment_proof_url mu5o2mkf-eky2sd6a -> r2-private:payments/mtnfwlhn-jokgnsiw/mu5o2mkf-eky2sd6a/proof-1794059360058-2d2cb1bf-c747-42c1-8f75-d65e65092eba.png (179 bytes)
+migrated child_billing.payment_proof_url mw6nf0yr-px1jwjnp -> r2-private:payments/mtnfwlhn-jokgnsiw/mw6nf0yr-px1jwjnp/proof-1794071327727-af21aad7-8406-4acf-abcb-7c4784efd679.jpg (2475581 bytes)
+migrated drive_file.url mu7eioq0-608cev8p -> r2-private:legacy/drive_file/mu7eioq0-608cev8p/aadca359-7d89-4248-88f8-34f56f787448.txt (29 bytes)
+migrated drive_file.url mu8iy92h-gpgfkfmu -> r2-private:legacy/drive_file/mu8iy92h-gpgfkfmu/e2f751fe-dd90-464c-87ec-4b296282bbe7.txt (36 bytes)
+migrated newsfeed_post.media_url mu7ei78e-pxgvk6np -> r2-private:legacy/newsfeed_post/mu7ei78e-pxgvk6np/24393780-8751-415d-996c-55ad58c82650.txt (38 bytes)
+migrated newsfeed_post.media_url mulhl4fd-2xxwh1e8 -> r2-private:legacy/newsfeed_post/mulhl4fd-2xxwh1e8/d32f14f3-19ce-40c1-9065-12f739d91332.jpg (2168802 bytes)
+KID-2453 prod migration: migrated=10 queued=10 already=0 skipped=0 failures=0
