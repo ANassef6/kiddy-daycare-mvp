@@ -3821,24 +3821,11 @@ export async function uploadPhotoAction(formData: FormData) {
   }
   const entityType = String(formData.get("entityType") ?? ""); // "child" | "staff"
   const entityId = String(formData.get("entityId") ?? "");
-  const file = formData.get("file") as File | null;
-  if (!file || file.size === 0 || !entityType || !entityId) {
+  if (!entityType || !entityId) {
     redirect(entityType === "child" ? "/portal/children" : "/portal/staff");
   }
   if (entityType === "child") await assertChildInScope(entityId, me);
   const photoBack = entityType === "child" ? `/portal/children/${entityId}` : `/portal/staff/${entityId}`;
-  // KID-2450: mirror the client's photo cap at the server boundary.
-  const photo = validatePhotoFile(file);
-  if (!photo.ok) {
-    redirect(`${photoBack}?error=${photo.code === "size" ? "photoSize" : "photoType"}`);
-  }
-
-  const ext = photo.ext;
-  // KID-1177: child/staff photos are sensitive — the object part is
-  // unchanged (the per-scope folder + file name), but it goes to the
-  // kiddy-private bucket and the row keeps the private REF, not a public URL
-  // (render sites mint signed URLs from it via lib/storage.ts storageSrcFor).
-  const photoPath = `${entityType}/${entityId}/photo-${Date.now()}.${ext}`;
   const photoInstituteId = String(
     (
       await queryGet(
@@ -3851,16 +3838,33 @@ export async function uploadPhotoAction(formData: FormData) {
   );
 
   // KID-2453: prefer the presigned direct upload (the REF was HEAD-verified
-  // against the same caps); the multipart file remains the fallback.
+  // against the same caps); the multipart file remains the fallback. The
+  // direct path submits only `fileRef`, so the file check must come after.
   const presignedPhoto = await takeUploadedRef(formData, {
     purpose: "photo",
     instituteId: photoInstituteId,
     field: "fileRef",
   });
+  let file: File | null = null;
+  let photoPath = "";
+  if (!presignedPhoto.ok) {
+    file = formData.get("file") as File | null;
+    if (!file || file.size === 0) redirect(`${photoBack}?error=photoType`);
+    // KID-2450: mirror the client's photo cap at the server boundary.
+    const photo = validatePhotoFile(file);
+    if (!photo.ok) {
+      redirect(`${photoBack}?error=${photo.code === "size" ? "photoSize" : "photoType"}`);
+    }
+    // KID-1177: child/staff photos are sensitive — the object part is
+    // unchanged (the per-scope folder + file name), but it goes to the
+    // kiddy-private bucket and the row keeps the private REF, not a public URL
+    // (render sites mint signed URLs from it via lib/storage.ts storageSrcFor).
+    photoPath = `${entityType}/${entityId}/photo-${Date.now()}.${photo.ext}`;
+  }
 
   if (storageAdminConfigured()) {
     let storedRef: string | null = presignedPhoto.ok ? presignedPhoto.ref : null;
-    if (!storedRef) {
+    if (!storedRef && file) {
       const uploaded = await uploadPrivateObject(photoPath, file, file.type);
       if (!uploaded.error) storedRef = uploaded.ref;
     }
@@ -3911,8 +3915,7 @@ export async function uploadAccountPhotoAction(formData: FormData) {
     throttledRedirect();
   }
   const staffId = String(formData.get("staffId") ?? "");
-  const file = formData.get("file") as File | null;
-  if (!file || file.size === 0 || !staffId) {
+  if (!staffId) {
     redirect("/portal/account");
   }
   // Staff may only update their own linked profile.
@@ -3920,15 +3923,6 @@ export async function uploadAccountPhotoAction(formData: FormData) {
   if (!myStaffId || myStaffId !== staffId) {
     redirect("/portal/account");
   }
-  // KID-2450: the account photo carries the same server-side cap.
-  const photo = validatePhotoFile(file);
-  if (!photo.ok) {
-    redirect(`/portal/account?error=${photo.code === "size" ? "photoSize" : "photoType"}`);
-  }
-
-  const ext = photo.ext;
-  // KID-1177: same private-bucket treatment as every other photo.
-  const photoPath = `staff/${staffId}/photo-${Date.now()}.${ext}`;
   const accountInstituteId = String(
     (await queryGet("SELECT institute_id FROM staff WHERE id = ?", staffId))?.institute_id ?? ""
   );
@@ -3937,10 +3931,23 @@ export async function uploadAccountPhotoAction(formData: FormData) {
     instituteId: accountInstituteId,
     field: "fileRef",
   });
+  let file: File | null = null;
+  let photoPath = "";
+  if (!presignedPhoto.ok) {
+    file = formData.get("file") as File | null;
+    if (!file || file.size === 0) redirect("/portal/account?error=photoType");
+    // KID-2450: the account photo carries the same server-side cap.
+    const photo = validatePhotoFile(file);
+    if (!photo.ok) {
+      redirect(`/portal/account?error=${photo.code === "size" ? "photoSize" : "photoType"}`);
+    }
+    // KID-1177: same private-bucket treatment as every other photo.
+    photoPath = `staff/${staffId}/photo-${Date.now()}.${photo.ext}`;
+  }
 
   if (storageAdminConfigured()) {
     let storedRef: string | null = presignedPhoto.ok ? presignedPhoto.ref : null;
-    if (!storedRef) {
+    if (!storedRef && file) {
       const uploaded = await uploadPrivateObject(photoPath, file, file.type);
       if (!uploaded.error) storedRef = uploaded.ref;
     }
@@ -4116,10 +4123,21 @@ export async function uploadPaymentProofAction(formData: FormData) {
     console.error("KID-492 refused a payment-proof upload with no family link:", me.email);
     redirect(KID372_TENANT_REFUSAL);
   }
+  // KID-2453: a direct upload submits only `fileRef`, so check the REF first
+  // and validate the multipart file only for the fallback path.
+  const presigned = await takeUploadedRef(formData, {
+    purpose: "proof",
+    instituteId: String(billing!.institute_id),
+    field: "fileRef",
+  });
+  let proofExt = "";
   // Boundary validation — before any storage or DB write.
-  if (!file || file.size === 0) redirect(`${back}?error=proofType`);
-  const proof = validatePaymentProof(file);
-  if (!proof.ok) redirect(`${back}?error=proof${proof.code === "size" ? "Size" : "Type"}`);
+  if (!presigned.ok) {
+    if (!file || file.size === 0) redirect(`${back}?error=proofType`);
+    const proof = validatePaymentProof(file);
+    if (!proof.ok) redirect(`${back}?error=proof${proof.code === "size" ? "Size" : "Type"}`);
+    proofExt = proof.ext;
+  }
   // Storage upload into the per-invoice folder, following the existing
   // path pattern; a random suffix keeps the object unguessable.
   // KID-1177: proofs are financial documents — they live in kiddy-private
@@ -4129,19 +4147,14 @@ export async function uploadPaymentProofAction(formData: FormData) {
     console.error("KID-492 payment proof upload: no storage configured; nothing stored");
     redirect(`${back}?error=proofUpload`);
   }
-  const filename = paymentProofFilename(
-    String(billing!.institute_id),
-    billingId,
-    proof.ext,
-    crypto.randomUUID()
-  );
-  const presigned = await takeUploadedRef(formData, {
-    purpose: "proof",
-    instituteId: String(billing!.institute_id),
-    field: "fileRef",
-  });
   let storedRef: string | null = presigned.ok ? presigned.ref : null;
-  if (!storedRef) {
+  if (!storedRef && file) {
+    const filename = paymentProofFilename(
+      String(billing!.institute_id),
+      billingId,
+      proofExt,
+      crypto.randomUUID()
+    );
     const uploaded = await uploadPrivateObject(filename, file, file.type);
     if (uploaded.error) {
       console.error("KID-492 payment proof storage upload failed:", uploaded.error.message);
@@ -4216,10 +4229,21 @@ export async function uploadDaycareInvoiceProofAction(formData: FormData) {
     console.error("KID-737 refused a payment-proof upload for invoice status:", status);
     redirect(`${back}?proofError=paid`);
   }
+  // KID-2453: a direct upload submits only `fileRef`, so check the REF first
+  // and validate the multipart file only for the fallback path.
+  const presigned = await takeUploadedRef(formData, {
+    purpose: "proof",
+    instituteId: String(invoice!.institute_id),
+    field: "fileRef",
+  });
+  let proofExt = "";
   // Boundary validation — before any storage or DB write.
-  if (!file || file.size === 0) redirect(`${back}?proofError=proofType`);
-  const proof = validatePaymentProof(file);
-  if (!proof.ok) redirect(`${back}?proofError=proof${proof.code === "size" ? "Size" : "Type"}`);
+  if (!presigned.ok) {
+    if (!file || file.size === 0) redirect(`${back}?proofError=proofType`);
+    const proof = validatePaymentProof(file);
+    if (!proof.ok) redirect(`${back}?proofError=proof${proof.code === "size" ? "Size" : "Type"}`);
+    proofExt = proof.ext;
+  }
   // Storage upload into the per-invoice folder under the same payments/
   // root the parent proofs use; the random suffix keeps the object
   // unguessable to another daycare.
@@ -4228,19 +4252,14 @@ export async function uploadDaycareInvoiceProofAction(formData: FormData) {
     console.error("KID-737 payment proof upload: no storage configured; nothing stored");
     redirect(`${back}?proofError=proofUpload`);
   }
-  const filename = paymentProofFilename(
-    String(invoice!.institute_id),
-    invoiceId,
-    proof.ext,
-    crypto.randomUUID()
-  );
-  const presigned = await takeUploadedRef(formData, {
-    purpose: "proof",
-    instituteId: String(invoice!.institute_id),
-    field: "fileRef",
-  });
   let storedRef: string | null = presigned.ok ? presigned.ref : null;
-  if (!storedRef) {
+  if (!storedRef && file) {
+    const filename = paymentProofFilename(
+      String(invoice!.institute_id),
+      invoiceId,
+      proofExt,
+      crypto.randomUUID()
+    );
     const uploaded = await uploadPrivateObject(filename, file, file.type);
     if (uploaded.error) {
       console.error("KID-737 payment proof storage upload failed:", uploaded.error.message);
