@@ -1,0 +1,11 @@
+backup ok child.photo_url mud3euq6-j2xfy0jt 1885611 bytes
+backup ok child.photo_url mulike3f-9vjrqlio 172082 bytes
+backup ok staff.photo_url mtnfwlrm-h742f9yj 70 bytes
+backup ok staff.photo_url mubchxos-bks4o4f9 31795 bytes
+backup ok child_billing.payment_proof_url mu5o2mkf-eky2sd6a 179 bytes
+backup ok child_billing.payment_proof_url mw6nf0yr-px1jwjnp 2475581 bytes
+backup ok drive_file.url mu7eioq0-608cev8p 29 bytes
+backup ok drive_file.url mu8iy92h-gpgfkfmu 36 bytes
+backup ok newsfeed_post.media_url mu7ei78e-pxgvk6np 38 bytes
+backup ok newsfeed_post.media_url mulhl4fd-2xxwh1e8 2168802 bytes
+KID-2453 Supabase private backup: ok=10 failures=0
