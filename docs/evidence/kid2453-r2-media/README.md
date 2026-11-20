@@ -81,8 +81,12 @@ REF formats (both accepted forever):
 | `npx vitest run tests/unit/kid2450-media-compression.test.ts` | 13 passed. |
 | `npx vitest run tests/unit/kid489-payment-proof.test.tsx` | 24 passed. |
 | `npx vitest run tests/unit/kid737,745,746,850` | 66 passed. |
+| Local S3-compatible round trip (aws4fetch + real HTTP server) | PUT → HEAD (15 bytes, `image/png`) → signed GET with `X-Amz-Expires=120` → 200 + exact bytes → DELETE → HEAD 404; presigned PUT also carried `X-Amz-Signature` and the signed `Content-Type`. |
 
-These pin the local contract. They do **not** prove a live R2 round trip.
+These pin the local contract. They do **not** prove a live Cloudflare R2 round
+trip: the Cloudflare account currently answers every R2 API call with
+`10042 Please enable R2 through the Cloudflare Dashboard.` (R2 is not enabled
+on the account, and enabling it is a dashboard/payment action for a human).
 
 ## Staging verification checklist (pending credentials)
 
