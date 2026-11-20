@@ -2696,7 +2696,7 @@ export async function threadsForAccount(
       : opts?.archived === false
         ? "AND p.archived_at IS NULL"
         : "";
-  return queryAll(
+  const threads = await queryAll(
     `SELECT t.*, t.title AS thread_title,
             (SELECT role FROM account WHERE id = t.created_by_account_id) AS creator_role,
             p.archived_at AS archived_at,
@@ -2710,6 +2710,35 @@ export async function threadsForAccount(
     accountId,
     accountId
   );
+  // KID-2455: the conversation row names the other participants. One batched
+  // read serves every thread on the page (no per-thread query), and the viewer
+  // is left out because they already know who they are.
+  if (threads.length > 0) {
+    const ids = threads.map((t) => String(t.id));
+    const participantRows = await queryAll(
+      `SELECT p.thread_id, a.full_name
+       FROM message_thread_participant p
+       JOIN account a ON a.id = p.account_id
+       WHERE p.thread_id IN (${ids.map(() => "?").join(", ")})
+         AND p.account_id <> ?
+       ORDER BY a.full_name ASC`,
+      ...ids,
+      accountId
+    );
+    const namesByThread = new Map<string, string[]>();
+    for (const row of participantRows) {
+      const name = String(row.full_name ?? "").trim();
+      if (!name) continue;
+      const key = String(row.thread_id);
+      const list = namesByThread.get(key) ?? [];
+      list.push(name);
+      namesByThread.set(key, list);
+    }
+    for (const thread of threads) {
+      thread.participant_names = namesByThread.get(String(thread.id)) ?? [];
+    }
+  }
+  return threads;
 }
 
 /** KID-2455: per-viewer archive. The participant row is the scope check, so a

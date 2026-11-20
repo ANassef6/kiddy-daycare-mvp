@@ -255,3 +255,93 @@ describe("KID-2455 thread archive", () => {
     expect(ownerRow!.archived_at).toBeNull();
   });
 });
+
+describe("KID-2455 participant names in conversation rows", () => {
+  it("returns the other participant for a 1:1 thread and the group participant list", async () => {
+    const oneToOne = await store.createMessageThread({
+      instituteId: iid,
+      isGroup: false,
+      createdBy: ownerAcc,
+      participantIds: [parentA],
+    });
+    const nuran = await createAccount({
+      email: "nouran-2455@test",
+      password: "x",
+      fullName: "Nouran Hassan",
+      role: "parent",
+    });
+    const group = await store.createMessageThread({
+      instituteId: iid,
+      title: "Circle time",
+      isGroup: true,
+      createdBy: ownerAcc,
+      participantIds: [parentA, String(nuran.id)],
+    });
+
+    const rows = await store.threadsForAccount(ownerAcc, { archived: false });
+    const one = rows.find((t: Row) => String(t.id) === String(oneToOne.id))!;
+    const grouped = rows.find((t: Row) => String(t.id) === String(group.id))!;
+    expect(one.participant_names).toEqual(["Parent A"]);
+    expect(grouped.participant_names).toEqual(["Nouran Hassan", "Parent A"]);
+    expect(grouped.participant_names).not.toContain("Nassef");
+  });
+
+  it("staff list shows the other party's name instead of the generic thread title", async () => {
+    const thread = await store.createMessageThread({
+      instituteId: iid,
+      isGroup: false,
+      createdBy: ownerAcc,
+      participantIds: [parentA],
+    });
+    await store.setThreadArchived(String(thread.id), ownerAcc, true);
+    asAccount(ownerAcc, "owner");
+    const PortalMessagesPage = (await import("@/app/portal/messages/page")).default;
+    const html = renderToStaticMarkup(
+      await PortalMessagesPage({ searchParams: Promise.resolve({ archived: "1" }) })
+    );
+    expect(html).toContain("Parent A");
+    expect(html).not.toContain("Group of 2");
+  });
+
+  it("staff search matches participant names, not only titles and message text", async () => {
+    const nuran = await createAccount({
+      email: "nouran-search-2455@test",
+      password: "x",
+      fullName: "Nouran Hassan",
+      role: "parent",
+    });
+    await store.createMessageThread({
+      instituteId: iid,
+      title: "Circle time",
+      isGroup: true,
+      createdBy: ownerAcc,
+      participantIds: [parentA, String(nuran.id)],
+    });
+    asAccount(ownerAcc, "owner");
+    const PortalMessagesPage = (await import("@/app/portal/messages/page")).default;
+    const matching = renderToStaticMarkup(
+      await PortalMessagesPage({ searchParams: Promise.resolve({ q: "Nouran" }) })
+    );
+    expect(matching).toContain("Circle time");
+    const missing = renderToStaticMarkup(
+      await PortalMessagesPage({ searchParams: Promise.resolve({ q: "Nobody Here" }) })
+    );
+    expect(missing).not.toContain("Circle time");
+  });
+
+  it("parent inbox shows the other party's name for a 1:1 thread", async () => {
+    const thread = await store.createMessageThread({
+      instituteId: iid,
+      isGroup: false,
+      createdBy: staffAcc,
+      participantIds: [parentA],
+    });
+    await store.setThreadArchived(String(thread.id), parentA, true);
+    asAccount(parentA, "parent");
+    const ParentMessagesPage = (await import("@/app/child/messages/page")).default;
+    const html = renderToStaticMarkup(
+      await ParentMessagesPage({ searchParams: Promise.resolve({ archived: "1" }) })
+    );
+    expect(html).toContain("Room A Carer");
+  });
+});
