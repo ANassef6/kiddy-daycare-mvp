@@ -12,6 +12,9 @@ import LanguageSettingsCard from "@/components/LanguageSettingsCard";
 import { i18nForAccount } from "@/lib/i18n-session";
 import { tr } from "@/lib/i18n";
 import { WorkingHoursEditor } from "@/components/WorkingHoursEditor";
+import MediaUploadForm from "@/components/MediaUploadForm";
+import { mediaUploadLabels } from "@/lib/media-i18n";
+import { MAX_PHOTO_UPLOAD_BYTES } from "@/lib/media-limits";
 import { normalizeTimeZone } from "@/lib/timezone";
 import { timeZoneOptions } from "@/lib/timezone-options";
 
@@ -45,7 +48,11 @@ export default async function PortalSettingsPage(
       ? tr(dict, "settings.uploadStorageError")
       : searchParams?.error === "upload-failed"
         ? tr(dict, "settings.uploadFailedError")
-        : null;
+        : searchParams?.error === "upload-type"
+          ? tr(dict, "settings.uploadTypeError")
+          : searchParams?.error === "upload-size"
+            ? tr(dict, "settings.uploadSizeError")
+            : null;
 
   return (
     <div>
@@ -199,11 +206,16 @@ export default async function PortalSettingsPage(
             <div className="label">{tr(dict, "settings.logo")}</div>
             <div className="row" style={{ alignItems: "center", gap: 12 }}>
               <Avatar src={b.logoUrl} name={b.name} size={48} color={b.primaryColor} />
-              <form action={uploadBrandingImageAction} style={{ display: "flex", gap: 8, alignItems: "center" }}>
+              <MediaUploadForm
+                action={uploadBrandingImageAction}
+                maxImageBytes={MAX_PHOTO_UPLOAD_BYTES}
+                labels={mediaUploadLabels(dict)}
+                style={{ display: "flex", gap: 8, alignItems: "center" }}
+              >
                 <input type="hidden" name="kind" value="logo" />
                 <input type="file" name="file" accept="image/*" required style={{ fontSize: 13 }} />
                 <button className="btn btn-ghost" type="submit" style={{ fontSize: 13 }}>{tr(dict, "settings.upload")}</button>
-              </form>
+              </MediaUploadForm>
             </div>
           </div>
           <div className="col">
@@ -215,11 +227,16 @@ export default async function PortalSettingsPage(
               ) : (
                 <div style={{ width: 48, height: 48, borderRadius: 12, background: "#e2e8f0", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, color: "#64748b" }}>—</div>
               )}
-              <form action={uploadBrandingImageAction} style={{ display: "flex", gap: 8, alignItems: "center" }}>
+              <MediaUploadForm
+                action={uploadBrandingImageAction}
+                maxImageBytes={MAX_PHOTO_UPLOAD_BYTES}
+                labels={mediaUploadLabels(dict)}
+                style={{ display: "flex", gap: 8, alignItems: "center" }}
+              >
                 <input type="hidden" name="kind" value="brandImage" />
                 <input type="file" name="file" accept="image/*" required style={{ fontSize: 13 }} />
                 <button className="btn btn-ghost" type="submit" style={{ fontSize: 13 }}>{tr(dict, "settings.upload")}</button>
-              </form>
+              </MediaUploadForm>
             </div>
           </div>
         </div>

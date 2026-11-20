@@ -1,0 +1,65 @@
+{
+  "generatedAt": "2026-11-20T00:52:54.585Z",
+  "samples": [
+    {
+      "name": "phone-landscape",
+      "before": {
+        "file": "docs/evidence/kid2450/phone-landscape-before.jpg",
+        "bytes": 2278144,
+        "width": 4032,
+        "height": 3024,
+        "format": "jpeg"
+      },
+      "after": {
+        "file": "docs/evidence/kid2450/phone-landscape-after.webp",
+        "bytes": 23232,
+        "width": 1280,
+        "height": 960,
+        "format": "webp",
+        "quality": 0.8
+      },
+      "savedBytes": 2254912,
+      "savedPercent": 99
+    },
+    {
+      "name": "phone-portrait",
+      "before": {
+        "file": "docs/evidence/kid2450/phone-portrait-before.jpg",
+        "bytes": 2131078,
+        "width": 3024,
+        "height": 4032,
+        "format": "jpeg"
+      },
+      "after": {
+        "file": "docs/evidence/kid2450/phone-portrait-after.webp",
+        "bytes": 25996,
+        "width": 960,
+        "height": 1280,
+        "format": "webp",
+        "quality": 0.8
+      },
+      "savedBytes": 2105082,
+      "savedPercent": 98.8
+    },
+    {
+      "name": "small-already-ok",
+      "before": {
+        "file": "docs/evidence/kid2450/small-already-ok-before.jpg",
+        "bytes": 213781,
+        "width": 1200,
+        "height": 900,
+        "format": "jpeg"
+      },
+      "after": {
+        "file": "docs/evidence/kid2450/small-already-ok-after.webp",
+        "bytes": 99082,
+        "width": 1200,
+        "height": 900,
+        "format": "webp",
+        "quality": 0.8
+      },
+      "savedBytes": 114699,
+      "savedPercent": 53.7
+    }
+  ]
+}
