@@ -11,6 +11,7 @@ import { queryGet } from "@/lib/db";
 import { i18nForAccount } from "@/lib/i18n-session";
 import { fmtDateTimeFor, tr } from "@/lib/i18n";
 import { recordToolUsage } from "@/lib/tool-usage";
+import { signedUrlsForRefs } from "@/lib/storage";
 
 export const dynamic = "force-dynamic";
 
@@ -33,6 +34,7 @@ export default async function PortalNewsfeedPage(props: {
     iid ? listChildren(iid, { accountId: session.accountId }) : Promise.resolve([]),
     iid ? listRooms(iid) : Promise.resolve([]),
   ]);
+  const mediaSrcs = await signedUrlsForRefs(posts.map((p: any) => String(p.media_url ?? "")));
   // KID-53 #1: staff recipients are limited to their assigned classrooms.
   let assignedRoomIds: string[] = [];
   if (session.role === "staff" || session.role === "carer") {
@@ -63,6 +65,7 @@ export default async function PortalNewsfeedPage(props: {
           maxVideoBytes={MAX_NEWSFEED_ATTACHMENT_BYTES}
           maxVideoSeconds={MAX_VIDEO_DURATION_SECONDS}
           labels={mediaUploadLabels(dict)}
+          directUpload={{ purpose: "newsfeed", fileField: "attachment" }}
         >
         <div className="field"><label className="label">{t("newsfeed.postUpdate")}</label><textarea className="textarea" name="body" required placeholder={t("newsfeed.writeHere")} /></div>
         <div className="row" style={{ alignItems: "flex-end" }}>
@@ -117,7 +120,7 @@ export default async function PortalNewsfeedPage(props: {
               ))}
             </div>
           )}
-          {post.media_url && <img src={post.media_url} alt="" style={{ width: "100%", maxHeight: 360, objectFit: "cover", borderRadius: 8, marginTop: 10 }} />}
+          {post.media_url && <img src={mediaSrcs.get(String(post.media_url)) ?? ""} alt="" style={{ width: "100%", maxHeight: 360, objectFit: "cover", borderRadius: 8, marginTop: 10 }} />}
           <div className="small muted mt-2">{t("parent.newsfeedMeta", { likes: post.like_count, comments: post.comment_count })}</div>
           {post.comments?.map((c: any) => (
             <div className="small mt-1" key={c.id}><strong>{c.full_name}:</strong> {c.body}</div>

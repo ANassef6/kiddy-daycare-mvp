@@ -18,6 +18,7 @@ import MessagesLoadError from "@/components/MessagesLoadError";
 import { i18nForAccount } from "@/lib/i18n-session";
 import { fmtTimeFor, getDictionary, tr, type Dict, type Locale } from "@/lib/i18n";
 import { recordToolUsage } from "@/lib/tool-usage";
+import { storageSrcFor } from "@/lib/storage";
 
 export const dynamic = "force-dynamic";
 
@@ -190,6 +191,9 @@ export default async function ParentMessagesPage(
 
   const retryHref = threadId ? `/child/messages?thread=${threadId}` : "/child/messages";
 
+  const threadAttachmentSrc = thread?.attachment_url
+    ? await storageSrcFor(String(thread.attachment_url))
+    : null;
   return (
     <div>
       <h1 className="title">
@@ -260,9 +264,9 @@ export default async function ParentMessagesPage(
           <p className="muted small">
             {(thread.participant_ids as string[] ?? []).map((pid) => threadNames[pid] ?? pid).join(", ")}
           </p>
-          {thread.attachment_url && (
+          {threadAttachmentSrc && (
             <p className="small">
-              <a href={String(thread.attachment_url)} download={String(thread.attachment_name ?? "")}>
+              <a href={threadAttachmentSrc} download={String(thread.attachment_name ?? "")}>
                 📎 {thread.attachment_name ?? t("messages.attachment")}
               </a>
             </p>

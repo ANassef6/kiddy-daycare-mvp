@@ -322,6 +322,7 @@ export default async function PortalChildPage(
           maxImageBytes={MAX_PHOTO_UPLOAD_BYTES}
           labels={mediaUploadLabels(dict)}
           style={{ display: "flex", gap: 8, alignItems: "center" }}
+          directUpload={{ purpose: "photo", entityType: "child", entityId: child.id as string }}
         >
           <input type="hidden" name="entityType" value="child" />
           <input type="hidden" name="entityId" value={child.id as string} />
@@ -733,7 +734,9 @@ function learningTab(child: any, areas: any[], observations: any[], byName: stri
         <h3 className="subtitle">{t("profile.logObservation")}</h3>
         <p className="small muted">{t("profile.learningHint")}</p>
         <ObservationModalTrigger
-          childChoices={[child]}
+          childChoices={[
+            { id: String(child.id), first_name: String(child.first_name ?? ""), last_name: String(child.last_name ?? "") },
+          ]}
           areas={areas}
           byName={byName}
           defaultChildId={String(child.id)}
