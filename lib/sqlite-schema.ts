@@ -262,6 +262,8 @@ export function sqliteSchema(db: any): void {
     body TEXT NOT NULL,
     read INTEGER NOT NULL DEFAULT 0,
     thread_id TEXT,
+    attachment_url TEXT,
+    attachment_name TEXT,
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
   );
 
@@ -280,6 +282,7 @@ export function sqliteSchema(db: any): void {
   CREATE TABLE IF NOT EXISTS message_thread_participant (
     thread_id TEXT NOT NULL REFERENCES message_thread(id) ON DELETE CASCADE,
     account_id TEXT NOT NULL REFERENCES account(id) ON DELETE CASCADE,
+    archived_at TEXT,
     PRIMARY KEY (thread_id, account_id)
   );
 
@@ -1192,6 +1195,24 @@ export function sqliteSchema(db: any): void {
     }
     if (threadCols.length > 0 && !threadCols.some((c) => c.name === "attachment_name")) {
       db.exec("ALTER TABLE message_thread ADD COLUMN attachment_name TEXT");
+    }
+  } catch {}
+  // KID-2455: mirror of supabase/migrations/0053_kid2455_message_attachments_archive.sql.
+  // Each message can carry one attachment; the archive flag is per viewer on
+  // the participant row so one participant never hides a thread for another.
+  try {
+    const msgAttachmentCols = db.prepare("PRAGMA table_info(message)").all() as { name: string }[];
+    if (msgAttachmentCols.length > 0 && !msgAttachmentCols.some((c) => c.name === "attachment_url")) {
+      db.exec("ALTER TABLE message ADD COLUMN attachment_url TEXT");
+    }
+    if (msgAttachmentCols.length > 0 && !msgAttachmentCols.some((c) => c.name === "attachment_name")) {
+      db.exec("ALTER TABLE message ADD COLUMN attachment_name TEXT");
+    }
+  } catch {}
+  try {
+    const participantCols = db.prepare("PRAGMA table_info(message_thread_participant)").all() as { name: string }[];
+    if (participantCols.length > 0 && !participantCols.some((c) => c.name === "archived_at")) {
+      db.exec("ALTER TABLE message_thread_participant ADD COLUMN archived_at TEXT");
     }
   } catch {}
   // KID-112: invite carries the relationship role; legacy free-text
