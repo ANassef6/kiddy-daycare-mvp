@@ -448,6 +448,14 @@ export const en = {
     audChildren: "Children only",
     audStaff: "Staff only",
     attachment: "Attachment (optional)",
+    attachFile: "Attach file",
+    downloadAttachment: "Download attachment",
+    active: "Active",
+    archived: "Archived",
+    archive: "Archive",
+    unarchive: "Unarchive",
+    noArchived: "No archived conversations.",
+    selectArchived: "Choose an archived conversation to open it.",
     errorNorecipients: "Pick at least one recipient or classroom channel.",
     errorAttachment:
       "Attachment failed: photos are compressed automatically; videos must be 60 seconds or less and under 1.5 MB. Nothing was sent.",
@@ -478,6 +486,10 @@ export const en = {
       "No staff are available to message yet. Your daycare has not assigned a teacher to your child's classroom — ask the front desk who you should speak to.",
     sendFailedRecipient:
       "Your message was not sent. You can only message staff assigned to your child's classroom. Pick a recipient below and try again.",
+    sendFailedThread:
+      "Your reply was not sent. You can only reply in threads with staff assigned to your child's classroom, or in a thread a staff member started with you.",
+    threadReplyBlocked:
+      "You cannot reply in this thread. Start a new message with staff assigned to your child's classroom instead.",
     sendFailedGeneric: "Your message was not sent. Check the details and try again.",
     // KID-534 (KID-482 D-2): a transient read failure used to throw during
     // render and surface as a server-side 500. The page now degrades to this
@@ -2776,6 +2788,14 @@ export const ar = {
     audChildren: "الأطفال فقط",
     audStaff: "الموظفون فقط",
     attachment: "مرفق (اختياري)",
+    attachFile: "إرفاق ملف",
+    downloadAttachment: "تنزيل المرفق",
+    active: "النشطة",
+    archived: "المؤرشفة",
+    archive: "أرشفة",
+    unarchive: "إلغاء الأرشفة",
+    noArchived: "لا توجد محادثات مؤرشفة.",
+    selectArchived: "اختر محادثة مؤرشفة لفتحها.",
     errorNorecipients: "اختر مستلمًا واحدًا على الأقل أو قناة فصل.",
     errorAttachment:
       "فشل المرفق: تُضغط الصور تلقائيًا، ويجب ألا يزيد الفيديو عن 60 ثانية وأقل من 1.5 ميجابايت. لم يتم الإرسال.",
@@ -2802,6 +2822,10 @@ export const ar = {
       "لا يوجد موظف متاح للمراسلة بعد. لم تُعيّن الحضانة معلّمًا لفصل طفلك — اسأل الاستقبال عمّن يمكنك التحدث إليه.",
     sendFailedRecipient:
       "لم تُرسل رسالتك. يمكنك مراسلة الموظفين المعيّنين في فصل طفلك فقط. اختر مستلمًا بالأسفل وحاول مرة أخرى.",
+    sendFailedThread:
+      "لم يُرسل ردك. يمكنك الرد في المحادثات مع الموظفين المعيّنين في فصل طفلك، أو في محادثة بدأها موظف معك.",
+    threadReplyBlocked:
+      "لا يمكنك الرد في هذه المحادثة. ابدأ رسالة جديدة مع الموظفين المعيّنين في فصل طفلك.",
     sendFailedGeneric: "لم تُرسل رسالتك. راجع التفاصيل وحاول مرة أخرى.",
     // KID-534 (KID-482 D-2) — mirror of the English recovery copy.
     loadFailedTitle: "تعذر تحميل بعض أجزاء محادثاتك",

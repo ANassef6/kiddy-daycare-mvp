@@ -16,20 +16,23 @@ import {
 import { getAccount } from "@/lib/auth";
 import { firstInstituteId } from "@/lib/helpers";
 import { fmtDateFor, fmtTimeFor } from "@/lib/i18n";
-import { sendMessageAction, sendComposerAction, replyThreadAction } from "@/lib/actions";
+import { sendMessageAction, sendComposerAction, replyThreadAction, setThreadArchivedAction } from "@/lib/actions";
 import { i18nForAccount } from "@/lib/i18n-session";
 import { storageSrcFor } from "@/lib/storage";
 import { tr } from "@/lib/i18n";
 import { recordToolUsage } from "@/lib/tool-usage";
 import MediaUploadForm from "@/components/MediaUploadForm";
+import MessageComposerForm from "@/components/MessageComposerForm";
+import MessageAttachment from "@/components/MessageAttachment";
 import { mediaUploadLabels } from "@/lib/media-i18n";
 import { MAX_MESSAGE_ATTACHMENT_BYTES, MAX_VIDEO_DURATION_SECONDS } from "@/lib/media-limits";
+import { formatParticipantNames } from "@/lib/thread-display";
 
 export const dynamic = "force-dynamic";
 
 export default async function PortalMessagesPage(
   props: {
-    searchParams: Promise<{ with?: string; thread?: string; compose?: string; unread?: string; q?: string; error?: string }>;
+    searchParams: Promise<{ with?: string; thread?: string; compose?: string; unread?: string; q?: string; error?: string; archived?: string }>;
   }
 ) {
   const searchParams = await props.searchParams;
@@ -40,19 +43,31 @@ export default async function PortalMessagesPage(
   if (!instituteId) return <p className="muted">{t("learning.noInstitute")}</p>;
   await recordToolUsage({ instituteId: String(instituteId ?? "") || null, accountId: session.accountId, toolKey: "messages", source: "portal", metadata: null });
 
+  const showArchived = searchParams.archived === "1";
   const [parents, channels, conversations, threads, totalUnread] = await Promise.all([
     parentAccountsScoped(instituteId, session.accountId),
     roomChannelsForAccount(instituteId, session.accountId),
     conversationsForAccount(session.accountId),
-    threadsForAccount(session.accountId),
+    threadsForAccount(session.accountId, { archived: showArchived }),
     unreadCountForAccount(session.accountId),
   ]);
   const me = await getAccount(session.accountId);
 
   const onlyUnread = searchParams.unread === "1";
   const threadId = searchParams.thread;
-  const withId = !threadId ? searchParams.with || (conversations[0]?.other_account_id as string) || parents[0]?.id : null;
-  const composing = searchParams.compose === "1" || (!threadId && !withId);
+  // Legacy 1:1 conversations have no participant row to archive, so the
+  // Archived view lists threads only.
+  const withId = !threadId && !showArchived ? searchParams.with || (conversations[0]?.other_account_id as string) || parents[0]?.id : null;
+  const composing = !showArchived && (searchParams.compose === "1" || (!threadId && !withId));
+  const listQuery = (overrides: Record<string, string | undefined>) => {
+    const params = new URLSearchParams();
+    for (const [key, value] of Object.entries({ q: searchParams.q, unread: onlyUnread ? "1" : undefined, archived: showArchived ? "1" : undefined, ...overrides })) {
+      if (value) params.set(key, value);
+    }
+    const query = params.toString();
+    return `/portal/messages${query ? `?${query}` : ""}`;
+  };
+  const returnTo = threadId ? listQuery({ thread: threadId }) : listQuery({});
 
   let thread: any = null;
   let threadRows: any[] = [];
@@ -78,11 +93,14 @@ export default async function PortalMessagesPage(
   // gone — the left column lists real threads and 1:1s only, reachable via
   // search and the composer.
   const matchesSearch = (text: string) => !searchQuery || text.toLowerCase().includes(searchQuery);
-  const visibleConversations = (onlyUnread ? conversations.filter((c: any) => Number(c.unread_count ?? 0) > 0) : conversations).filter(
+  const visibleConversations = (showArchived ? [] : onlyUnread ? conversations.filter((c: any) => Number(c.unread_count ?? 0) > 0) : conversations).filter(
     (c: any) => matchesSearch(String(c.other_name ?? "")) || matchesSearch(String(c.last_message ?? ""))
   );
   const visibleThreads = (onlyUnread ? threads.filter((t: any) => Number(t.unread_count ?? 0) > 0) : threads).filter(
-    (th: any) => matchesSearch(String(th.thread_title ?? th.title ?? "")) || matchesSearch(String(th.last_message ?? ""))
+    (th: any) =>
+      matchesSearch(String(th.thread_title ?? th.title ?? "")) ||
+      matchesSearch(String(th.last_message ?? "")) ||
+      ((th.participant_names as string[] | undefined) ?? []).some((name) => matchesSearch(name))
   );
 
   // KID-2453: message attachments are private objects now — resolve the REF in
@@ -90,6 +108,21 @@ export default async function PortalMessagesPage(
   const threadAttachmentSrc = thread?.attachment_url
     ? await storageSrcFor(String(thread.attachment_url))
     : null;
+  const attachmentSrcRows = async (rows: any[]) => {
+    const map: Record<string, string> = {};
+    for (const row of rows) {
+      if (!row.attachment_url) continue;
+      const src = await storageSrcFor(String(row.attachment_url));
+      if (src) map[String(row.id)] = src;
+    }
+    return map;
+  };
+  const threadAttachmentSrcById = await attachmentSrcRows(threadRows);
+  const legacyAttachmentSrcById = await attachmentSrcRows(legacyThread);
+  // KID-2455: new sends carry the attachment on each message row. The thread
+  // header copy still renders for older threads that only have a thread-level
+  // attachment, never twice.
+  const threadHasMessageAttachments = threadRows.some((m: any) => !!m.attachment_url);
   return (
     <div>
       <div className="row" style={{ alignItems: "center", justifyContent: "space-between" }}>
@@ -119,6 +152,22 @@ export default async function PortalMessagesPage(
       <div className="grid" style={{ gridTemplateColumns: "280px 1fr" }}>
         <div className="card">
           <h4 className="subtitle">{t("messages.conversations")}{totalUnread > 0 ? ` · ${t("messages.unreadCount", { count: totalUnread })}` : ""}</h4>
+          <div className="row" style={{ gap: 6, marginBottom: 8 }}>
+            <Link
+              className={`btn btn-ghost small${showArchived ? " muted" : ""}`}
+              href={listQuery({ archived: undefined })}
+              style={showArchived ? undefined : { fontWeight: 800 }}
+            >
+              {t("messages.active")}
+            </Link>
+            <Link
+              className={`btn btn-ghost small${showArchived ? "" : " muted"}`}
+              href={listQuery({ archived: "1" })}
+              style={showArchived ? { fontWeight: 800 } : undefined}
+            >
+              {t("messages.archived")}
+            </Link>
+          </div>
           <form method="get" action="/portal/messages" style={{ margin: "0 0 10px" }}>
             <input
               className="input"
@@ -129,27 +178,67 @@ export default async function PortalMessagesPage(
               aria-label={t("messages.searchConversations")}
             />
             {onlyUnread && <input type="hidden" name="unread" value="1" />}
+            {showArchived && <input type="hidden" name="archived" value="1" />}
           </form>
           {visibleThreads.length === 0 && visibleConversations.length === 0 && (
-            <p className="muted small">{searchQuery ? t("messages.noSearchResults") : onlyUnread ? t("messages.noUnread") : t("messages.noChatsYet")}</p>
+            <p className="muted small">
+              {searchQuery
+                ? t("messages.noSearchResults")
+                : showArchived
+                  ? t("messages.noArchived")
+                  : onlyUnread
+                    ? t("messages.noUnread")
+                    : t("messages.noChatsYet")}
+            </p>
           )}
           {visibleThreads.map((th: any) => {
             const unread = Number(th.unread_count ?? 0);
             const active = threadId === String(th.id);
+            const isGroup = Number(th.is_group) === 1;
+            const participantNames = (th.participant_names as string[] | undefined) ?? [];
+            const otherName = !isGroup ? participantNames[0] : undefined;
+            const groupNames = isGroup ? formatParticipantNames(participantNames) : "";
+            const threadLink = showArchived
+              ? listQuery({ thread: String(th.id) })
+              : `/portal/messages?thread=${th.id}`;
             return (
               <div
                 key={th.id}
                 className="list-item"
                 style={unread > 0 ? { background: "color-mix(in srgb, var(--brand-primary) 10%, transparent)", fontWeight: 700 } : active ? { background: "#f1f5f9" } : undefined}
               >
-                <Link href={`/portal/messages?thread=${th.id}`} style={{ color: "var(--color-text)", flex: 1 }}>
-                  <span className="small muted">{Number(th.is_group) ? t("messages.groupOfAll") : t("messages.groupOfTwo")} · </span>
-                  <strong className="small">{th.thread_title ?? th.title ?? t("common.thread")}</strong>
+                <Link href={threadLink} style={{ color: "var(--color-text)", flex: 1, minWidth: 0, overflow: "hidden" }}>
+                  {otherName ? (
+                    <strong className="small">{otherName}</strong>
+                  ) : (
+                    <>
+                      <span className="small muted">{isGroup ? t("messages.groupOfAll") : t("messages.groupOfTwo")} · </span>
+                      <strong className="small">{th.thread_title ?? th.title ?? t("common.thread")}</strong>
+                    </>
+                  )}
                   {unread > 0 && <span className="badge badge-red" style={{ marginInlineStart: 6 }}>{unread}</span>}
+                  {groupNames && (
+                    <div className="muted small" style={{ maxWidth: 180, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      {groupNames}
+                    </div>
+                  )}
                   <div className="muted small" style={{ maxWidth: 180, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                     {th.last_message ?? "—"}
                   </div>
                 </Link>
+                <form action={setThreadArchivedAction} style={{ margin: 0, flex: "0 0 auto" }}>
+                  <input type="hidden" name="threadId" value={String(th.id)} />
+                  <input type="hidden" name="archived" value={showArchived ? "0" : "1"} />
+                  <input type="hidden" name="returnTo" value={returnTo} />
+                  <button
+                    className="btn btn-ghost small"
+                    type="submit"
+                    title={showArchived ? t("messages.unarchive") : t("messages.archive")}
+                    aria-label={showArchived ? t("messages.unarchive") : t("messages.archive")}
+                  >
+                    {showArchived ? t("messages.unarchive") : t("messages.archive")}
+                  </button>
+                </form>
               </div>
             );
           })}
@@ -238,14 +327,24 @@ export default async function PortalMessagesPage(
             </MediaUploadForm>
           ) : thread && threadId ? (
             <>
-              <h4 className="subtitle">
-                {thread.thread_title ?? thread.title ?? t("common.thread")}{" "}
-                <span className="badge">{Number(thread.is_group) ? t("common.group") : t("common.private")}</span>
-              </h4>
+              <div className="row" style={{ justifyContent: "space-between", alignItems: "center", gap: 8 }}>
+                <h4 className="subtitle" style={{ margin: 0 }}>
+                  {thread.thread_title ?? thread.title ?? t("common.thread")}{" "}
+                  <span className="badge">{Number(thread.is_group) ? t("common.group") : t("common.private")}</span>
+                </h4>
+                <form action={setThreadArchivedAction} style={{ margin: 0, flex: "0 0 auto" }}>
+                  <input type="hidden" name="threadId" value={String(threadId)} />
+                  <input type="hidden" name="archived" value={thread.archived_at ? "0" : "1"} />
+                  <input type="hidden" name="returnTo" value={listQuery({ thread: String(threadId) })} />
+                  <button className="btn btn-ghost small" type="submit">
+                    {thread.archived_at ? t("messages.unarchive") : t("messages.archive")}
+                  </button>
+                </form>
+              </div>
               <p className="muted small">
                 {(thread.participant_ids as string[] ?? []).map((pid: string) => threadNames[pid] ?? pid).join(", ")}
               </p>
-              {threadAttachmentSrc && (
+              {threadAttachmentSrc && !threadHasMessageAttachments && (
                 <p className="small mt-1">
                   <a href={threadAttachmentSrc} download={String(thread.attachment_name ?? "")}>
                     📎 {thread.attachment_name ?? t("messages.attachment")}
@@ -263,17 +362,38 @@ export default async function PortalMessagesPage(
                     }}>
                       {m.sender_account_id !== session.accountId && <div style={{ fontWeight: 700, fontSize: 11 }}>{m.from_name}</div>}
                       {m.body}
+                      {threadAttachmentSrcById[String(m.id)] && (
+                        <MessageAttachment
+                          src={threadAttachmentSrcById[String(m.id)]}
+                          name={String(m.attachment_name ?? t("messages.attachment"))}
+                          url={m.attachment_url}
+                          downloadLabel={t("messages.downloadAttachment")}
+                        />
+                      )}
                       <div className="small" style={{ opacity: 0.75, marginTop: 2 }}>{fmtTimeFor(locale, m.created_at)}</div>
                     </div>
                   </div>
                 ))}
               </div>
-              <form action={replyThreadAction} className="row mt-3">
-                <input type="hidden" name="threadId" value={threadId} />
-                <input className="input" name="body" placeholder={t("messages.writeMessage")} required style={{ flex: 1 }} />
-                <button className="btn btn-primary" type="submit">{t("common.send")}</button>
-              </form>
+              <MessageComposerForm
+                action={replyThreadAction}
+                sendLabel={t("common.send")}
+                sendingLabel={t("messages.sending")}
+                placeholder={t("messages.writeMessage")}
+                threadId={threadId}
+                attachments={{
+                  maxImageBytes: MAX_MESSAGE_ATTACHMENT_BYTES,
+                  maxVideoBytes: MAX_MESSAGE_ATTACHMENT_BYTES,
+                  maxVideoSeconds: MAX_VIDEO_DURATION_SECONDS,
+                  maxFileBytes: MAX_MESSAGE_ATTACHMENT_BYTES,
+                  labels: mediaUploadLabels(dict),
+                  attachLabel: t("messages.attachFile"),
+                  directUpload: { purpose: "message", fileField: "attachment" },
+                }}
+              />
             </>
+          ) : showArchived && !threadId ? (
+            <p className="muted small">{t("messages.selectArchived")}</p>
           ) : (
             <>
               <h4 className="subtitle">
@@ -289,17 +409,36 @@ export default async function PortalMessagesPage(
                       padding: "8px 12px", borderRadius: 12, maxWidth: "75%",
                     }}>
                       {m.body}
+                      {legacyAttachmentSrcById[String(m.id)] && (
+                        <MessageAttachment
+                          src={legacyAttachmentSrcById[String(m.id)]}
+                          name={String(m.attachment_name ?? t("messages.attachment"))}
+                          url={m.attachment_url}
+                          downloadLabel={t("messages.downloadAttachment")}
+                        />
+                      )}
                       <div className="small" style={{ opacity: 0.75, marginTop: 2 }}>{fmtTimeFor(locale, m.created_at)}</div>
                     </div>
                   </div>
                 ))}
               </div>
               {withId && (
-                <form action={sendMessageAction} className="row mt-3">
-                  <input type="hidden" name="recipientId" value={withId} />
-                  <input className="input" name="body" placeholder={t("messages.writeMessage")} required style={{ flex: 1 }} />
-                  <button className="btn btn-primary" type="submit">{t("common.send")}</button>
-                </form>
+                <MessageComposerForm
+                  action={sendMessageAction}
+                  sendLabel={t("common.send")}
+                  sendingLabel={t("messages.sending")}
+                  placeholder={t("messages.writeMessage")}
+                  hiddenRecipientId={String(withId)}
+                  attachments={{
+                    maxImageBytes: MAX_MESSAGE_ATTACHMENT_BYTES,
+                    maxVideoBytes: MAX_MESSAGE_ATTACHMENT_BYTES,
+                    maxVideoSeconds: MAX_VIDEO_DURATION_SECONDS,
+                    maxFileBytes: MAX_MESSAGE_ATTACHMENT_BYTES,
+                    labels: mediaUploadLabels(dict),
+                    attachLabel: t("messages.attachFile"),
+                    directUpload: { purpose: "message", fileField: "attachment" },
+                  }}
+                />
               )}
               <p className="muted small mt-2">{t("common.thread")} {fmtDateFor(locale, new Date().toISOString())}.</p>
             </>

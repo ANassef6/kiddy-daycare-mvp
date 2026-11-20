@@ -10,15 +10,20 @@ import {
   conversation,
 } from "@/lib/store";
 import { parentMessageRecipients, pickRecipient, sumVisibleUnread } from "@/lib/parent-messaging";
+import { parentMayUseThread } from "@/lib/parent-thread-policy";
 import { getAccount } from "@/lib/auth";
 import { firstInstituteId } from "@/lib/helpers";
-import { sendParentMessageAction } from "@/lib/actions";
+import { sendParentMessageAction, setThreadArchivedAction } from "@/lib/actions";
 import MessageComposerForm from "@/components/MessageComposerForm";
+import MessageAttachment from "@/components/MessageAttachment";
 import MessagesLoadError from "@/components/MessagesLoadError";
 import { i18nForAccount } from "@/lib/i18n-session";
 import { fmtTimeFor, getDictionary, tr, type Dict, type Locale } from "@/lib/i18n";
 import { recordToolUsage } from "@/lib/tool-usage";
 import { storageSrcFor } from "@/lib/storage";
+import { mediaUploadLabels } from "@/lib/media-i18n";
+import { MAX_MESSAGE_ATTACHMENT_BYTES, MAX_VIDEO_DURATION_SECONDS } from "@/lib/media-limits";
+import { formatParticipantNames } from "@/lib/thread-display";
 
 export const dynamic = "force-dynamic";
 
@@ -73,11 +78,12 @@ const FALLBACK_I18N: { locale: Locale; dict: Dict } = { locale: "en", dict: getD
 
 export default async function ParentMessagesPage(
   props: {
-    searchParams: Promise<{ thread?: string; to?: string; error?: string }>;
+    searchParams: Promise<{ thread?: string; to?: string; error?: string; archived?: string }>;
   }
 ) {
   const searchParams = await props.searchParams;
   const session = await requireFamilyPage("/child/messages");
+  const showArchived = searchParams.archived === "1";
 
   const failed = new Set<string>();
 
@@ -118,9 +124,13 @@ export default async function ParentMessagesPage(
   const sendError =
     searchParams.error === "recipient"
       ? t("messages.sendFailedRecipient")
-      : searchParams.error
-        ? t("messages.sendFailedGeneric")
-        : "";
+      : searchParams.error === "thread-reply"
+        ? t("messages.sendFailedThread")
+        : searchParams.error === "attachment"
+          ? t("messages.errorAttachment")
+          : searchParams.error
+            ? t("messages.sendFailedGeneric")
+            : "";
 
   const mePart = await readPart("getAccount", () => getAccount(session.accountId));
   const me = mePart.ok ? mePart.value : null;
@@ -131,7 +141,7 @@ export default async function ParentMessagesPage(
   // thread the scoped list drops (a participant who is not classroom-assigned
   // staff) lit a badge that no click could open or clear.
   const threadsPart = await readPart("threadsForAccountScoped", () =>
-    threadsForAccountScoped(session.accountId)
+    threadsForAccountScoped(session.accountId, { archived: showArchived })
   );
   const threads = threadsPart.ok ? threadsPart.value : [];
   const totalUnread = threadsPart.ok ? sumVisibleUnread(threads) : 0;
@@ -182,18 +192,63 @@ export default async function ParentMessagesPage(
     }
   }
 
-  const directRows = !threadId && me && center ? await readPart("conversation", () => conversation(me!.id, String(center!.id))) : { ok: true, value: [] };
+  // KID-2449: a thread opened by staff/admin is replyable even when the parent
+  // has no classroom-assigned staff in their recipient list. The page and the
+  // action share `parentMayUseThread`, so an offered reply is an accepted one.
+  const allowedStaffIds = new Set(recipients.map((r: any) => String(r.id)));
+  const threadOtherIds = thread
+    ? ((thread.participant_ids as string[] | undefined) ?? []).filter((id) => id !== session.accountId)
+    : [];
+  const canReplyInThread = thread
+    ? parentMayUseThread({
+        viewerId: session.accountId,
+        participantIds: threadOtherIds,
+        creatorRole: thread.creator_role,
+        allowedStaffIds,
+      })
+    : false;
+  const threadReplyTarget = threadOtherIds[0] ?? (center ? String(center.id) : undefined);
+
+  const directRows = !threadId && !showArchived && me && center ? await readPart("conversation", () => conversation(me!.id, String(center!.id))) : { ok: true, value: [] };
   const direct = directRows.ok ? directRows.value : [];
   if (!directRows.ok) failed.add("conversation");
-  if (!threadId && center) {
+  if (!threadId && !showArchived && center) {
     await softWrite("markRead", () => markRead(String(center.id), session.accountId));
   }
 
-  const retryHref = threadId ? `/child/messages?thread=${threadId}` : "/child/messages";
+  const listQuery = (overrides: Record<string, string | undefined>) => {
+    const params = new URLSearchParams();
+    for (const [key, value] of Object.entries({
+      to: searchParams.to,
+      archived: showArchived ? "1" : undefined,
+      ...overrides,
+    })) {
+      if (value) params.set(key, value);
+    }
+    const query = params.toString();
+    return `/child/messages${query ? `?${query}` : ""}`;
+  };
 
-  const threadAttachmentSrc = thread?.attachment_url
-    ? await storageSrcFor(String(thread.attachment_url))
-    : null;
+  const retryHref = threadId
+    ? listQuery({ thread: threadId })
+    : showArchived
+      ? listQuery({})
+      : "/child/messages";
+
+  // KID-2453: attachments are private objects — resolve each REF in this
+  // authorized context before rendering the bubble.
+  const resolveAttachment = async (row: any): Promise<string | null> => {
+    if (!row?.attachment_url) return null;
+    const part = await readPart("storageSrcFor", () => storageSrcFor(String(row.attachment_url)));
+    return part.ok ? part.value : null;
+  };
+  const threadAttachmentSrc = await resolveAttachment(thread);
+  const attachmentSrcById: Record<string, string> = {};
+  for (const row of [...threadRows, ...direct]) {
+    const src = await resolveAttachment(row);
+    if (src) attachmentSrcById[String(row.id)] = src;
+  }
+  const threadHasMessageAttachments = threadRows.some((m: any) => !!m.attachment_url);
   return (
     <div>
       <h1 className="title">
@@ -216,11 +271,34 @@ export default async function ParentMessagesPage(
         </p>
       )}
 
-      {threadsPart.ok && threads.length > 0 && (
+      {threadsPart.ok && (
         <div className="card mb-4">
           <h4 className="subtitle">{t("messages.yourThreads")}</h4>
+          <div className="row" style={{ gap: 6, marginBottom: 8 }}>
+            <Link
+              className={`btn btn-ghost small${showArchived ? " muted" : ""}`}
+              href={listQuery({ archived: undefined })}
+              style={showArchived ? undefined : { fontWeight: 800 }}
+            >
+              {t("messages.active")}
+            </Link>
+            <Link
+              className={`btn btn-ghost small${showArchived ? "" : " muted"}`}
+              href={listQuery({ archived: "1" })}
+              style={showArchived ? { fontWeight: 800 } : undefined}
+            >
+              {t("messages.archived")}
+            </Link>
+          </div>
+          {threads.length === 0 && (
+            <p className="muted small">{showArchived ? t("messages.noArchived") : t("messages.noMessagesSayHello")}</p>
+          )}
           {threads.map((th: any) => {
             const unread = Number(th.unread_count ?? 0);
+            const isGroup = Number(th.is_group) === 1;
+            const participantNames = (th.participant_names as string[] | undefined) ?? [];
+            const otherName = !isGroup ? participantNames[0] : undefined;
+            const groupNames = isGroup ? formatParticipantNames(participantNames) : "";
             return (
               <div
                 key={th.id}
@@ -235,15 +313,25 @@ export default async function ParentMessagesPage(
                 }
               >
                 <Link
-                  href={`/child/messages?thread=${th.id}`}
-                  style={{ color: "var(--color-text)", flex: 1 }}
+                  href={showArchived ? listQuery({ thread: String(th.id) }) : `/child/messages?thread=${th.id}`}
+                  style={{ color: "var(--color-text)", flex: 1, minWidth: 0, overflow: "hidden" }}
                 >
-                  <strong className="small">{th.thread_title ?? th.title ?? t("common.thread")}</strong>{" "}
-                  <span className="badge">{Number(th.is_group) ? t("common.group") : t("common.private")}</span>
+                  <strong className="small">
+                    {otherName ?? (th.thread_title ?? th.title ?? t("common.thread"))}
+                  </strong>{" "}
+                  <span className="badge">{isGroup ? t("common.group") : t("common.private")}</span>
                   {unread > 0 && (
                     <span className="badge badge-red" style={{ marginLeft: 6 }}>
                       {unread}
                     </span>
+                  )}
+                  {groupNames && (
+                    <div
+                      className="muted small"
+                      style={{ maxWidth: 300, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
+                    >
+                      {groupNames}
+                    </div>
                   )}
                   <div
                     className="muted small"
@@ -252,19 +340,42 @@ export default async function ParentMessagesPage(
                     {th.last_message ?? "—"}
                   </div>
                 </Link>
+                <form action={setThreadArchivedAction} style={{ margin: 0, flex: "0 0 auto" }}>
+                  <input type="hidden" name="threadId" value={String(th.id)} />
+                  <input type="hidden" name="archived" value={showArchived ? "0" : "1"} />
+                  <input type="hidden" name="returnTo" value={listQuery({})} />
+                  <button
+                    className="btn btn-ghost small"
+                    type="submit"
+                    title={showArchived ? t("messages.unarchive") : t("messages.archive")}
+                    aria-label={showArchived ? t("messages.unarchive") : t("messages.archive")}
+                  >
+                    {showArchived ? t("messages.unarchive") : t("messages.archive")}
+                  </button>
+                </form>
               </div>
             );
           })}
         </div>
       )}
 
-      {thread && threadId ? (
+      {showArchived && !threadId ? null : thread && threadId ? (
         <div className="card mb-4">
-          <h4 className="subtitle">{thread.thread_title ?? thread.title ?? t("common.thread")}</h4>
+          <div className="row" style={{ justifyContent: "space-between", alignItems: "center", gap: 8 }}>
+            <h4 className="subtitle" style={{ margin: 0 }}>{thread.thread_title ?? thread.title ?? t("common.thread")}</h4>
+            <form action={setThreadArchivedAction} style={{ margin: 0 }}>
+              <input type="hidden" name="threadId" value={String(threadId)} />
+              <input type="hidden" name="archived" value={thread.archived_at ? "0" : "1"} />
+              <input type="hidden" name="returnTo" value={listQuery({ thread: String(threadId) })} />
+              <button className="btn btn-ghost small" type="submit">
+                {thread.archived_at ? t("messages.unarchive") : t("messages.archive")}
+              </button>
+            </form>
+          </div>
           <p className="muted small">
             {(thread.participant_ids as string[] ?? []).map((pid) => threadNames[pid] ?? pid).join(", ")}
           </p>
-          {threadAttachmentSrc && (
+          {threadAttachmentSrc && !threadHasMessageAttachments && (
             <p className="small">
               <a href={threadAttachmentSrc} download={String(thread.attachment_name ?? "")}>
                 📎 {thread.attachment_name ?? t("messages.attachment")}
@@ -302,6 +413,14 @@ export default async function ParentMessagesPage(
                         <div style={{ fontWeight: 700, fontSize: 11 }}>{m.from_name}</div>
                       )}
                       {m.body}
+                      {attachmentSrcById[String(m.id)] && (
+                        <MessageAttachment
+                          src={attachmentSrcById[String(m.id)]}
+                          name={String(m.attachment_name ?? t("messages.attachment"))}
+                          url={m.attachment_url}
+                          downloadLabel={t("messages.downloadAttachment")}
+                        />
+                      )}
                       <div className="small" style={{ opacity: 0.75, marginTop: 2 }}>
                         {fmtTimeFor(locale, m.created_at)}
                       </div>
@@ -311,22 +430,32 @@ export default async function ParentMessagesPage(
               </>
             )}
           </div>
-          {/* KID-169: no recipient means nobody is assigned to the classroom, so
-              there is no reply target — say so instead of rendering a form that
-              can only fail. KID-534: recipients failed to load → no composer is
-              rendered and the recoverable state above explains why. */}
-          {canOfferRecipients && center ? (
+          {/* KID-2449: the reply target is the thread itself, so a staff/admin-
+              initiated thread stays replyable even when no classroom staff is
+              in the parent's recipient list. KID-534: recipients failed to
+              load → no composer is rendered and the recoverable state above
+              explains why. */}
+          {canOfferRecipients && canReplyInThread && threadReplyTarget ? (
             <MessageComposerForm
               action={sendParentMessageAction}
               sendLabel={t("common.send")}
               sendingLabel={t("messages.sending")}
               placeholder={t("messages.writeMessage")}
-              hiddenRecipientId={String(center.id)}
+              hiddenRecipientId={String(threadReplyTarget)}
               threadId={threadId}
+              attachments={{
+                maxImageBytes: MAX_MESSAGE_ATTACHMENT_BYTES,
+                maxVideoBytes: MAX_MESSAGE_ATTACHMENT_BYTES,
+                maxVideoSeconds: MAX_VIDEO_DURATION_SECONDS,
+                maxFileBytes: MAX_MESSAGE_ATTACHMENT_BYTES,
+                labels: mediaUploadLabels(dict),
+                attachLabel: t("messages.attachFile"),
+                directUpload: { purpose: "message", fileField: "attachment" },
+              }}
             />
           ) : canOfferRecipients ? (
-            <p className="muted small mt-3" data-testid="messages-no-staff">
-              {t("messages.noClassroomStaff")}
+            <p className="muted small mt-3" data-testid="messages-thread-blocked">
+              {t("messages.threadReplyBlocked")}
             </p>
           ) : null}
           <p className="mt-2">
@@ -364,6 +493,14 @@ export default async function ParentMessagesPage(
                       }}
                     >
                       {m.body}
+                      {attachmentSrcById[String(m.id)] && (
+                        <MessageAttachment
+                          src={attachmentSrcById[String(m.id)]}
+                          name={String(m.attachment_name ?? t("messages.attachment"))}
+                          url={m.attachment_url}
+                          downloadLabel={t("messages.downloadAttachment")}
+                        />
+                      )}
                       <div className="small" style={{ opacity: 0.75, marginTop: 2 }}>
                         {fmtTimeFor(locale, m.created_at)}
                       </div>
@@ -388,6 +525,15 @@ export default async function ParentMessagesPage(
                 label: String(r.full_name ?? "?"),
               }))}
               defaultRecipientId={String(center.id)}
+              attachments={{
+                maxImageBytes: MAX_MESSAGE_ATTACHMENT_BYTES,
+                maxVideoBytes: MAX_MESSAGE_ATTACHMENT_BYTES,
+                maxVideoSeconds: MAX_VIDEO_DURATION_SECONDS,
+                maxFileBytes: MAX_MESSAGE_ATTACHMENT_BYTES,
+                labels: mediaUploadLabels(dict),
+                attachLabel: t("messages.attachFile"),
+                directUpload: { purpose: "message", fileField: "attachment" },
+              }}
             />
           ) : canOfferRecipients ? (
             <p className="muted" data-testid="messages-no-staff">
