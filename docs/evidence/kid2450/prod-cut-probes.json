@@ -1,0 +1,29 @@
+{
+  "recordedAt": "2026-11-20T02:32:00Z",
+  "signOff": {
+    "interactionId": "c3d2968d-c7cd-4665-ae88-a6bcb083f8db",
+    "outcome": "accepted",
+    "resolvedAt": "2026-11-20T02:04:12.872Z"
+  },
+  "pr": "https://github.com/ANassef6/kiddy-daycare-mvp/pull/72",
+  "cutBranch": "kid2450-prod-cut",
+  "cutBase": "fc46a43",
+  "cherryPicked": "1eabc5d -> d81f891 (amended to 350505e with the test-only type fix)",
+  "mergeCommit": "693c4cd",
+  "deployment": {
+    "status": "success",
+    "checks": {
+      "Vercel - kiddy": "success",
+      "Vercel - kiddy-staging": "success",
+      "audit": "pass"
+    },
+    "productionDeployment": "https://vercel.com/kiddy2/kiddy/CDHDNpkXA5ovr3snAy6Tba1UhJpR",
+    "stagingDeployment": "https://vercel.com/kiddy2/kiddy-staging/5eSQhK95suECtsTA3ACNqUEZ4mMK"
+  },
+  "probes": [
+    { "url": "https://kiddyapp.net/login", "status": 200 },
+    { "url": "https://kiddyapp.net/platform/pricing", "status": 307, "location": "https://kiddyapp.net/login", "before": "404" },
+    { "url": "https://kiddyapp.net/api/attendance/sweep", "status": 401 },
+    { "url": "https://kiddy-staging-orcin.vercel.app/login", "status": 200 }
+  ]
+}
