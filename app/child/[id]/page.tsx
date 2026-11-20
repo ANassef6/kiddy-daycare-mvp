@@ -153,6 +153,8 @@ export default async function ChildDetailPage(
   const proofHrefs = await signedUrlsForRefs(
     invoices.map((b) => String(b.payment_proof_url ?? ""))
   );
+  // KID-2453: newsfeed attachments may be private R2 refs now.
+  const feedMediaSrcs = await signedUrlsForRefs(feed.map((p: any) => String(p.media_url ?? "")));
 
   const meal = safeJson(report?.meal);
   const sleep = report?.sleep ? String(report.sleep) : "";
@@ -385,7 +387,7 @@ export default async function ChildDetailPage(
               </form>
             </div>
             <p className="mt-2">{post.body}</p>
-            {post.media_url && <img src={post.media_url} alt="" style={{ width: "100%", maxHeight: 360, objectFit: "cover", borderRadius: 8, marginTop: 10 }} />}
+            {post.media_url && <img src={feedMediaSrcs.get(String(post.media_url)) ?? ""} alt="" style={{ width: "100%", maxHeight: 360, objectFit: "cover", borderRadius: 8, marginTop: 10 }} />}
           </div>
         ))
       )}

@@ -30,6 +30,7 @@ import {
   mediaKind,
   targetDimensions,
 } from "@/lib/media-limits";
+import { directUploadFile } from "@/lib/media-upload-client";
 
 export type MediaUploadLabels = {
   preparing: string;
@@ -57,6 +58,16 @@ type Props = {
   labels: MediaUploadLabels;
   /** Optional aria label for the status region. */
   busyLabel?: string;
+  /** KID-2453: when R2 is configured, stream the prepared file straight to
+   *  private storage and submit its REF instead of the bytes. Falls back to
+   *  the multipart field on any failure. */
+  directUpload?: {
+    purpose: "photo" | "proof" | "contract" | "drive" | "newsfeed" | "message";
+    entityType?: string;
+    entityId?: string;
+    /** The file input's name. Defaults to "file". */
+    fileField?: string;
+  };
 };
 
 function fill(template: string, vars: Record<string, string | number>): string {
@@ -167,6 +178,7 @@ export default function MediaUploadForm({
   compressImages = true,
   labels,
   busyLabel,
+  directUpload,
 }: Props) {
   const formRef = useRef<HTMLFormElement>(null);
   const [busy, setBusy] = useState(false);
@@ -209,6 +221,27 @@ export default function MediaUploadForm({
   async function prepare(formData: FormData): Promise<Prepared> {
     const out = new FormData();
     let saved = 0;
+    const targetField = directUpload?.fileField ?? "file";
+    // KID-2453: replace the prepared bytes with its private REF when the
+    // direct-upload ticket succeeds; the multipart field stays the fallback.
+    const appendFile = async (key: string, file: File) => {
+      if (directUpload && key === targetField) {
+        setStatus(labels.preparing);
+        const direct = await directUploadFile({
+          file,
+          purpose: directUpload.purpose,
+          entityType: directUpload.entityType,
+          entityId: directUpload.entityId,
+        });
+        if (direct.ok) {
+          out.append(`${targetField}Ref`, direct.ref);
+          out.append(`${targetField}Name`, file.name);
+          return;
+        }
+        console.warn("KID-2453 direct upload unavailable, using the server path:", direct.reason);
+      }
+      out.append(key, file, file.name);
+    };
     for (const [key, value] of formData.entries()) {
       if (!(value instanceof File) || value.size === 0) {
         out.append(key, value);
@@ -223,7 +256,7 @@ export default function MediaUploadForm({
             return { ok: false, error: `${value.name}: ${fill(labels.imageTooLarge, { limit: formatBytes(maxImageBytes) })}` };
           }
           if (prepared.size < value.size) saved += value.size - prepared.size;
-          out.append(key, prepared, prepared.name);
+          await appendFile(key, prepared);
           continue;
         }
         if (kind === "video") {
@@ -241,14 +274,14 @@ export default function MediaUploadForm({
               })}`,
             };
           }
-          out.append(key, value, value.name);
+          await appendFile(key, value);
           continue;
         }
         const ceiling = maxFileBytes ?? maxVideoBytes;
         if (value.size > ceiling) {
           return { ok: false, error: `${value.name}: ${fill(labels.fileTooLarge, { limit: formatBytes(ceiling) })}` };
         }
-        out.append(key, value, value.name);
+        await appendFile(key, value);
       } catch {
         return { ok: false, error: `${value.name}: ${labels.compressFailed}` };
       }

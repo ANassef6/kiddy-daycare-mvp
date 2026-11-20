@@ -108,12 +108,10 @@ import { checkInRefusalMessage, pickupRefusalMessage } from "@/lib/policy-messag
 import { supabaseConfigured, getSupabase, isGoTrueAlreadyRegisteredError, isGoTrueServerError } from "@/lib/supabase";
 import {
   storageAdminConfigured,
-  getStorageAdmin,
-  PUBLIC_BUCKET,
-  PRIVATE_BUCKET,
-  privateRef,
-  publicUrl,
+  uploadPrivateObject,
+  uploadPublicObject,
 } from "@/lib/storage";
+import { takeUploadedRef } from "@/lib/media-upload";
 import { activationStepError } from "@/lib/activation";
 import { requestOrigin, publicOrigin, resetRedirectOrigin } from "@/lib/url";
 import { sendContactInvite, contactNameForInvite } from "@/lib/contact-invite";
@@ -871,18 +869,11 @@ async function uploadBrandingFile(
   const ext = file.name.split(".").pop() || "png";
   const filename = `branding/${instituteId}/${kind}-${Date.now()}.${ext}`;
   // KID-1177: branding is a genuinely PUBLIC asset (marketing pages render it
-  // for anonymous visitors) so it stays in kiddy-public — but the upload goes
-  // through the service-key client now, because 0041 removed the anonymous
-  // storage writes the old anon-key upload relied on.
+  // for anonymous visitors), so it never uses a signed URL. KID-2453: when R2
+  // has a public host configured the asset moves there; otherwise it stays in
+  // the Supabase public bucket.
   if (!storageAdminConfigured()) return null;
-  const { error } = await getStorageAdmin()
-    .storage.from(PUBLIC_BUCKET)
-    .upload(filename, file, { contentType: file.type, upsert: true });
-  if (error) {
-    console.error("KID-199.4r branding upload failed:", error.message);
-    return null;
-  }
-  return publicUrl(filename);
+  return uploadPublicObject(filename, file, file.type);
 }
 
 // KID-199.4: enable/disable a daycare account. The active flag already gates
@@ -3238,7 +3229,24 @@ export async function addDriveFileAction(formData: FormData) {
     let url = "";
     let kind = String(formData.get("kind") ?? "file");
     let sizeBytes: number | undefined;
-    if (uploaded instanceof File && uploaded.size > 0) {
+    // KID-2453: the browser may have already streamed the file to R2 and
+    // submitted only its verified private REF.
+    const presigned = await takeUploadedRef(formData, {
+      purpose: "drive",
+      instituteId,
+      field: "fileRef",
+    });
+    if (presigned.ok) {
+      url = presigned.ref;
+      sizeBytes = presigned.size;
+      filename = filename || String(formData.get("fileRefName") ?? "").trim() || "upload";
+      const mime = presigned.contentType;
+      if (kind === "file") {
+        if (mime.startsWith("image/")) kind = "photo";
+        else if (mime === "application/pdf") kind = "pdf";
+        else if (mime.startsWith("video/")) kind = "video";
+      }
+    } else if (uploaded instanceof File && uploaded.size > 0) {
       // KID-2450: server mirror of the drive's client cap (any type, 4 MB,
       // videos also <= 60s for MP4/MOV).
       if (uploaded.size > MAX_DRIVE_FILE_BYTES) redirect("/portal/drive?error=attachment");
@@ -3257,7 +3265,23 @@ export async function addDriveFileAction(formData: FormData) {
         else if (mime === "application/pdf") kind = "pdf";
         else if (mime.startsWith("video/")) kind = "video";
       }
-      url = `data:${mime};base64,${buf.toString("base64")}`;
+      // KID-2453: private object in the tenant's drive folder. The data-URI
+      // fallback keeps local development (no storage env) working.
+      if (storageAdminConfigured()) {
+        const ext = mime.split("/")[1]?.replace(/[^a-z0-9]+/gi, "").slice(0, 8) || "bin";
+        const uploadedObject = await uploadPrivateObject(
+          `drive/${instituteId}/${crypto.randomUUID()}.${ext}`,
+          uploaded,
+          mime
+        );
+        if (uploadedObject.error || !uploadedObject.ref) {
+          console.error("KID-2453 drive upload failed:", uploadedObject.error?.message ?? "no provider");
+          redirect("/portal/drive?error=attachment");
+        }
+        url = uploadedObject.ref;
+      } else {
+        url = `data:${mime};base64,${buf.toString("base64")}`;
+      }
     } else {
       // Back-compat: older form posts still carry url/sizeBytes
       url = String(formData.get("url") ?? "");
@@ -3475,7 +3499,17 @@ export async function sendComposerAction(formData: FormData) {
   const attachment = formData.get("attachment");
   let attachmentUrl: string | undefined;
   let attachmentName: string | undefined;
-  if (attachment instanceof File && attachment.size > 0) {
+  // KID-2453: direct-upload REF first; the multipart file is the fallback.
+  const presigned = await takeUploadedRef(formData, {
+    purpose: "message",
+    instituteId: String(instituteId ?? ""),
+    field: "attachmentRef",
+  });
+  if (presigned.ok) {
+    attachmentUrl = presigned.ref;
+    attachmentName =
+      String(formData.get("attachmentName") ?? "").trim().slice(0, 200) || "attachment";
+  } else if (attachment instanceof File && attachment.size > 0) {
     if (!attachment.name || attachment.size > MAX_MESSAGE_ATTACHMENT_BYTES) {
       redirect(`/portal/messages?error=attachment&preserve=${encodeURIComponent(String(formData.get("body") ?? ""))}`);
     }
@@ -3487,7 +3521,24 @@ export async function sendComposerAction(formData: FormData) {
         redirect(`/portal/messages?error=attachment&preserve=${encodeURIComponent(String(formData.get("body") ?? ""))}`);
       }
     }
-    attachmentUrl = `data:${attachment.type || "application/octet-stream"};base64,${bytes.toString("base64")}`;
+    if (storageAdminConfigured()) {
+      const ext = String(attachment.type || "application/octet-stream")
+        .split("/")[1]
+        ?.replace(/[^a-z0-9]+/gi, "")
+        .slice(0, 8) || "bin";
+      const uploadedObject = await uploadPrivateObject(
+        `messages/${String(instituteId ?? "")}/${crypto.randomUUID()}.${ext}`,
+        attachment,
+        attachment.type || "application/octet-stream"
+      );
+      if (uploadedObject.error || !uploadedObject.ref) {
+        console.error("KID-2453 message upload failed:", uploadedObject.error?.message ?? "no provider");
+        redirect(`/portal/messages?error=attachment&preserve=${encodeURIComponent(String(formData.get("body") ?? ""))}`);
+      }
+      attachmentUrl = uploadedObject.ref;
+    } else {
+      attachmentUrl = `data:${attachment.type || "application/octet-stream"};base64,${bytes.toString("base64")}`;
+    }
     attachmentName = attachment.name;
   }
 
@@ -3788,13 +3839,32 @@ export async function uploadPhotoAction(formData: FormData) {
   // kiddy-private bucket and the row keeps the private REF, not a public URL
   // (render sites mint signed URLs from it via lib/storage.ts storageSrcFor).
   const photoPath = `${entityType}/${entityId}/photo-${Date.now()}.${ext}`;
+  const photoInstituteId = String(
+    (
+      await queryGet(
+        entityType === "child"
+          ? "SELECT institute_id FROM child WHERE id = ?"
+          : "SELECT institute_id FROM staff WHERE id = ?",
+        entityId
+      )
+    )?.institute_id ?? ""
+  );
+
+  // KID-2453: prefer the presigned direct upload (the REF was HEAD-verified
+  // against the same caps); the multipart file remains the fallback.
+  const presignedPhoto = await takeUploadedRef(formData, {
+    purpose: "photo",
+    instituteId: photoInstituteId,
+    field: "fileRef",
+  });
 
   if (storageAdminConfigured()) {
-    const { error } = await getStorageAdmin()
-      .storage.from(PRIVATE_BUCKET)
-      .upload(photoPath, file, { contentType: file.type, upsert: true });
-    if (!error) {
-      const storedRef = privateRef(photoPath);
+    let storedRef: string | null = presignedPhoto.ok ? presignedPhoto.ref : null;
+    if (!storedRef) {
+      const uploaded = await uploadPrivateObject(photoPath, file, file.type);
+      if (!uploaded.error) storedRef = uploaded.ref;
+    }
+    if (storedRef) {
       if (entityType === "child") {
         await updateChildPhoto(entityId, storedRef);
         // KID-477: photo changes are attributed (no URL data on the trail).
@@ -3859,13 +3929,23 @@ export async function uploadAccountPhotoAction(formData: FormData) {
   const ext = photo.ext;
   // KID-1177: same private-bucket treatment as every other photo.
   const photoPath = `staff/${staffId}/photo-${Date.now()}.${ext}`;
+  const accountInstituteId = String(
+    (await queryGet("SELECT institute_id FROM staff WHERE id = ?", staffId))?.institute_id ?? ""
+  );
+  const presignedPhoto = await takeUploadedRef(formData, {
+    purpose: "photo",
+    instituteId: accountInstituteId,
+    field: "fileRef",
+  });
 
   if (storageAdminConfigured()) {
-    const { error } = await getStorageAdmin()
-      .storage.from(PRIVATE_BUCKET)
-      .upload(photoPath, file, { contentType: file.type, upsert: true });
-    if (!error) {
-      await updateStaffPhoto(staffId, privateRef(photoPath));
+    let storedRef: string | null = presignedPhoto.ok ? presignedPhoto.ref : null;
+    if (!storedRef) {
+      const uploaded = await uploadPrivateObject(photoPath, file, file.type);
+      if (!uploaded.error) storedRef = uploaded.ref;
+    }
+    if (storedRef) {
+      await updateStaffPhoto(staffId, storedRef);
     }
   }
   redirect("/portal/account");
@@ -4055,17 +4135,25 @@ export async function uploadPaymentProofAction(formData: FormData) {
     proof.ext,
     crypto.randomUUID()
   );
-  const { error } = await getStorageAdmin()
-    .storage.from(PRIVATE_BUCKET)
-    .upload(filename, file, { contentType: file.type, upsert: false });
-  if (error) {
-    console.error("KID-492 payment proof storage upload failed:", error.message);
-    redirect(`${back}?error=proofUpload`);
+  const presigned = await takeUploadedRef(formData, {
+    purpose: "proof",
+    instituteId: String(billing!.institute_id),
+    field: "fileRef",
+  });
+  let storedRef: string | null = presigned.ok ? presigned.ref : null;
+  if (!storedRef) {
+    const uploaded = await uploadPrivateObject(filename, file, file.type);
+    if (uploaded.error) {
+      console.error("KID-492 payment proof storage upload failed:", uploaded.error.message);
+      redirect(`${back}?error=proofUpload`);
+    }
+    storedRef = uploaded.ref;
   }
+  if (!storedRef) redirect(`${back}?error=proofUpload`);
   const reference = String(formData.get("paymentReference") ?? "").trim().slice(0, 200) || null;
   // Only now the row is touched — columns move together, status untouched.
   await setChildBillingPaymentProof(billingId, {
-    proofUrl: privateRef(filename),
+    proofUrl: storedRef,
     proofUploadedAt: new Date().toISOString(),
     reference,
   });
@@ -4146,19 +4234,27 @@ export async function uploadDaycareInvoiceProofAction(formData: FormData) {
     proof.ext,
     crypto.randomUUID()
   );
-  const { error } = await getStorageAdmin()
-    .storage.from(PRIVATE_BUCKET)
-    .upload(filename, file, { contentType: file.type, upsert: false });
-  if (error) {
-    console.error("KID-737 payment proof storage upload failed:", error.message);
-    redirect(`${back}?proofError=proofUpload`);
+  const presigned = await takeUploadedRef(formData, {
+    purpose: "proof",
+    instituteId: String(invoice!.institute_id),
+    field: "fileRef",
+  });
+  let storedRef: string | null = presigned.ok ? presigned.ref : null;
+  if (!storedRef) {
+    const uploaded = await uploadPrivateObject(filename, file, file.type);
+    if (uploaded.error) {
+      console.error("KID-737 payment proof storage upload failed:", uploaded.error.message);
+      redirect(`${back}?proofError=proofUpload`);
+    }
+    storedRef = uploaded.ref;
   }
+  if (!storedRef) redirect(`${back}?proofError=proofUpload`);
   const reference = String(formData.get("paymentReference") ?? "").trim().slice(0, 200) || null;
   // Only now the row is touched — the three proof columns move together,
   // the status column is untouched.
   const { setDaycareInvoicePaymentProof } = await import("@/lib/billing");
   await setDaycareInvoicePaymentProof(invoiceId, {
-    proofUrl: privateRef(filename),
+    proofUrl: storedRef,
     proofUploadedAt: new Date().toISOString(),
     reference,
   });
@@ -4209,18 +4305,18 @@ export async function uploadDaycareContractAction(formData: FormData) {
     redirect(`${back}?error=contractUpload`);
   }
   const filename = contractStorageFilename(instituteId, contract.ext, crypto.randomUUID());
-  const { error } = await getStorageAdmin()
-    .storage.from(PRIVATE_BUCKET)
-    .upload(filename, file, { contentType: file.type, upsert: false });
-  if (error) {
-    console.error("KID-745 contract storage upload failed:", error.message);
+  // KID-2453: the operator surface has no tenant session, so this stays a
+  // server-side upload — through the adapter, which prefers R2 when set.
+  const uploaded = await uploadPrivateObject(filename, file, file.type);
+  if (uploaded.error || !uploaded.ref) {
+    console.error("KID-745 contract storage upload failed:", uploaded.error?.message ?? "no provider");
     redirect(`${back}?error=contractUpload`);
   }
   // Only now the row is touched — replace-or-create, the three signed
   // columns + uploader move together, the draft columns stay untouched.
   const { setDaycareContractSigned } = await import("@/lib/contract");
   await setDaycareContractSigned(instituteId, {
-    signedUrl: privateRef(filename),
+    signedUrl: uploaded.ref,
     signedFileName: String(file.name ?? "").slice(0, 200),
     signedUploadedAt: new Date().toISOString(),
     uploadedByAccountId: operator.accountId,
@@ -4277,7 +4373,15 @@ export async function createNewsfeedWithAttachmentAction(formData: FormData) {
   const body = String(formData.get("body") ?? "");
   let mediaUrl: string | undefined;
   const attachment = formData.get("attachment");
-  if (attachment instanceof File && attachment.size > 0) {
+  // KID-2453: direct-upload REF first; the multipart file is the fallback.
+  const presigned = await takeUploadedRef(formData, {
+    purpose: "newsfeed",
+    instituteId: String(instituteId ?? ""),
+    field: "attachmentRef",
+  });
+  if (presigned.ok) {
+    mediaUrl = presigned.ref;
+  } else if (attachment instanceof File && attachment.size > 0) {
     // KID-2450: the client prepares the photo/video first; this is the
     // server mirror (type + byte cap + MP4/MOV duration) for old clients.
     const media = validateMediaAttachment(attachment, MAX_NEWSFEED_ATTACHMENT_BYTES);
@@ -4290,7 +4394,20 @@ export async function createNewsfeedWithAttachmentAction(formData: FormData) {
       }
     }
     const mime = attachment.type || "application/octet-stream";
-    mediaUrl = `data:${mime};base64,${buf.toString("base64")}`;
+    if (storageAdminConfigured()) {
+      const uploadedObject = await uploadPrivateObject(
+        `newsfeed/${String(instituteId ?? "")}/${crypto.randomUUID()}.${media.ext}`,
+        attachment,
+        mime
+      );
+      if (uploadedObject.error || !uploadedObject.ref) {
+        console.error("KID-2453 newsfeed upload failed:", uploadedObject.error?.message ?? "no provider");
+        redirect("/portal/newsfeed?error=attachment");
+      }
+      mediaUrl = uploadedObject.ref;
+    } else {
+      mediaUrl = `data:${mime};base64,${buf.toString("base64")}`;
+    }
   }
 
   // KID-53 #1 / KID-104 #6: pre-defined recipient channels scoped by role.

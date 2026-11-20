@@ -72,6 +72,7 @@ export default async function PortalAccountPage({ searchParams }: { searchParams
               style={{ gap: 8, alignItems: "center" }}
               maxImageBytes={MAX_PHOTO_UPLOAD_BYTES}
               labels={mediaUploadLabels(dict)}
+              directUpload={{ purpose: "photo", entityType: "staff", entityId: profile.staffId }}
             >
               <input type="hidden" name="staffId" value={profile.staffId} />
               <input type="file" name="file" accept="image/*" required style={{ maxWidth: 180 }} />

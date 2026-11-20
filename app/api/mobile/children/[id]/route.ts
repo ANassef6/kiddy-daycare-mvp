@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireMobileSession, errorPayload, childSummary, serializeReport, isChildInFamily } from "@/lib/mobile-api";
 import { getChild, listContacts, newsfeedForChild, incidentsForChild, familyAccessForAccount } from "@/lib/store";
 import { queryGet } from "@/lib/db";
+import { signedUrlsForRefs } from "@/lib/storage";
 
 export const dynamic = "force-dynamic";
 
@@ -49,6 +50,11 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     incidentsForChild(childId),
   ]);
 
+  // KID-2453: private media refs resolve to short-lived signed URLs inside
+  // this authenticated response; the raw REF never leaves the server.
+  const mediaSrcs = await signedUrlsForRefs(
+    newsfeed.map((p: any) => String(p.media_url ?? ""))
+  );
   return NextResponse.json({
     ...summary,
     child: { ...summary.child, room_name: roomRow?.room_name ?? null },
@@ -65,7 +71,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       id: p.id,
       authorName: p.author_name,
       body: p.body,
-      mediaUrl: p.media_url,
+      mediaUrl: p.media_url ? mediaSrcs.get(String(p.media_url)) ?? null : null,
       createdAt: p.created_at,
     })),
     incidents: incidents.map((i: any) => ({

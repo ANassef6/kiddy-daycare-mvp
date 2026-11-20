@@ -39,7 +39,17 @@ import fs from "node:fs";
 import path from "node:path";
 import { ensureSchema, queryAll, queryGet, queryRun } from "../lib/db";
 import { generateDaycareContractDrafts, type DaycareContractRow } from "../lib/contract";
-import { isPrivateRef, privateRefPath, storageAdminConfigured as storageConfigured, getStorageAdmin, PRIVATE_REF_PREFIX } from "../lib/storage";
+import {
+  isPrivateRef,
+  isR2PrivateRef,
+  privateRefPath,
+  signedUrlForRef,
+  deletePrivateObject,
+  storageAdminConfigured as storageConfigured,
+  getStorageAdmin,
+  PRIVATE_REF_PREFIX,
+  R2_PRIVATE_REF_PREFIX,
+} from "../lib/storage";
 
 function loadDotEnv(): void {
   const file = path.join(process.cwd(), ".env.local");
@@ -54,7 +64,7 @@ function loadDotEnv(): void {
 
 function draftUrls(row: Record<string, unknown>): string[] {
   return [String(row.draft_url ?? ""), String(row.draft_url_ar ?? ""), String(row.draft_url_en ?? "")].filter(
-    (u) => u.startsWith("http") || u.startsWith(PRIVATE_REF_PREFIX)
+    (u) => u.startsWith("http") || u.startsWith(PRIVATE_REF_PREFIX) || u.startsWith(R2_PRIVATE_REF_PREFIX)
   );
 }
 
@@ -71,6 +81,13 @@ function isCleanDraft(body: string): boolean {
  *  service-key client (the only reader allowed at kiddy-private). */
 async function fetchDraft(ref: string): Promise<{ ok: true; body: string } | { ok: false; note: string }> {
   try {
+    if (isR2PrivateRef(ref)) {
+      const signed = await signedUrlForRef(ref);
+      if (!signed) return { ok: false, note: "R2 signed URL failed" };
+      const res = await fetch(signed, { redirect: "follow" });
+      if (!res.ok) return { ok: false, note: `R2 HTTP ${res.status}` };
+      return { ok: true, body: await res.text() };
+    }
     if (isPrivateRef(ref)) {
       if (!process.env.SUPABASE_SERVICE_ROLE_KEY || !process.env.NEXT_PUBLIC_SUPABASE_URL) {
         return { ok: false, note: "private ref but no service-key config" };
@@ -186,8 +203,12 @@ async function main(): Promise<number> {
           const { error } = await getStorageAdmin().storage.from("kiddy-public").remove(publicPaths);
           if (error) errors.push(`public: ${error.message}`);
         }
-        const privatePaths = storedRefs.filter(isPrivateRef).map(privateRefPath);
-        if (privatePaths.length > 0) {
+        const r2Paths = storedRefs.filter(isR2PrivateRef).map(privateRefPath);
+        for (const key of r2Paths) await deletePrivateObject(key);
+        const privatePaths = storedRefs
+          .filter((ref) => isPrivateRef(ref) && !isR2PrivateRef(ref))
+          .map(privateRefPath);
+        if (privatePaths.length > 0 && process.env.SUPABASE_SERVICE_ROLE_KEY && process.env.NEXT_PUBLIC_SUPABASE_URL) {
           const { error } = await getStorageAdmin().storage.from("kiddy-private").remove(privatePaths);
           if (error) errors.push(`private: ${error.message}`);
         }

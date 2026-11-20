@@ -5,6 +5,7 @@ import { i18nForAccount } from "@/lib/i18n-session";
 import { tr } from "@/lib/i18n";
 import { recordToolUsage } from "@/lib/tool-usage";
 import type { Row } from "@/lib/db";
+import { signedUrlsForRefs } from "@/lib/storage";
 
 export const dynamic = "force-dynamic";
 
@@ -36,6 +37,7 @@ export default async function ParentDrivePage() {
     families.map(async (c: any) => ({ childId: c.id, files: await driveFilesFor(c.institute_id, c.id) }))
   );
   const files = dedupeById(all.flatMap((f: any) => f.files));
+  const fileSrcs = await signedUrlsForRefs(files.map((f: any) => String(f.url ?? "")));
 
   return (
     <div>
@@ -46,7 +48,7 @@ export default async function ParentDrivePage() {
         <div className="list-item" key={f.id}>
           <div>
             <div style={{ fontWeight: 600 }}>
-              <a href={f.url} target="_blank" rel="noreferrer">{f.filename}</a>
+              <a href={fileSrcs.get(String(f.url ?? "")) ?? ""} target="_blank" rel="noreferrer">{f.filename}</a>
             </div>
             <div className="muted small" dir="auto">
               {driveKindLabel(String(f.kind ?? "file"), t)}{f.size_bytes ? ` · ${(f.size_bytes / 1024).toFixed(0)} KB` : ""}
@@ -54,7 +56,7 @@ export default async function ParentDrivePage() {
               {f.description ? ` · ${f.description}` : ""}
             </div>
           </div>
-          <a className="btn btn-ghost small" href={f.url} target="_blank" rel="noreferrer">{t("drive.open")}</a>
+          <a className="btn btn-ghost small" href={fileSrcs.get(String(f.url ?? "")) ?? ""} target="_blank" rel="noreferrer">{t("drive.open")}</a>
         </div>
       ))}
     </div>

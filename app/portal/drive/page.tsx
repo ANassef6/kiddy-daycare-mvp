@@ -8,6 +8,7 @@ import { tr, type Dict } from "@/lib/i18n";
 import MediaUploadForm from "@/components/MediaUploadForm";
 import { mediaUploadLabels } from "@/lib/media-i18n";
 import { MAX_DRIVE_FILE_BYTES, MAX_VIDEO_DURATION_SECONDS } from "@/lib/media-limits";
+import { signedUrlsForRefs } from "@/lib/storage";
 
 export const dynamic = "force-dynamic";
 
@@ -26,6 +27,9 @@ export default async function PortalDrivePage(props: {
     listDriveFiles(instituteId, session.accountId),
     listChildren(instituteId, { accountId: session.accountId }),
   ]);
+  // KID-2453: private refs resolve to short-lived signed URLs here, in the
+  // authorized render context; data: URIs and legacy URLs pass through.
+  const fileSrcs = await signedUrlsForRefs(files.map((f: any) => String(f.url ?? "")));
 
   return (
     <div>
@@ -48,6 +52,7 @@ export default async function PortalDrivePage(props: {
           maxVideoSeconds={MAX_VIDEO_DURATION_SECONDS}
           maxFileBytes={MAX_DRIVE_FILE_BYTES}
           labels={mediaUploadLabels(dict)}
+          directUpload={{ purpose: "drive" }}
         >
           <div className="row">
             <div className="col field"><label className="label">{tr(dict, "driveAdmin.fileNameLabel")}</label><input className="input" name="filename" placeholder={tr(dict, "driveAdmin.fileNamePlaceholder")} /></div>
@@ -77,13 +82,13 @@ export default async function PortalDrivePage(props: {
         {files.map((f: any) => (
           <div className="list-item" key={f.id}>
             <div>
-              <div style={{ fontWeight: 600 }}><a href={f.url} target="_blank" rel="noreferrer">{f.filename}</a></div>
+              <div style={{ fontWeight: 600 }}><a href={fileSrcs.get(String(f.url ?? "")) ?? ""} target="_blank" rel="noreferrer">{f.filename}</a></div>
               <div className="muted small">
                 {kindLabel(dict, f.kind)}{f.size_bytes ? ` · ${tr(dict, "driveAdmin.kb", { kb: (f.size_bytes / 1024).toFixed(0) })}` : ""} ·{" "}
                 {f.first_name ? `${f.first_name} ${f.last_name}` : tr(dict, "driveAdmin.sharedWithAll")}{f.description ? ` — ${f.description}` : ""} · {tr(dict, "driveAdmin.by", { name: f.uploaded_by ?? "—" })}
               </div>
             </div>
-            <a className="btn btn-ghost small" href={f.url} target="_blank" rel="noreferrer">{tr(dict, "drive.open")}</a>
+            <a className="btn btn-ghost small" href={fileSrcs.get(String(f.url ?? "")) ?? ""} target="_blank" rel="noreferrer">{tr(dict, "drive.open")}</a>
           </div>
         ))}
       </div>
