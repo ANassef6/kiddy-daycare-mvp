@@ -15,6 +15,21 @@ import type { HeadResult, PrivateObjectStore, SignedPut, StorageError } from "./
 
 const DEFAULT_PUT_TTL_SECONDS = 15 * 60;
 
+/** KID-2453 delivery rule: a private object is never stored cacheable by a
+ *  shared cache. The signed GET below overrides this with a browser-only
+ *  `private` directive so the reader's own device may reuse it briefly. */
+export const PRIVATE_OBJECT_CACHE_CONTROL = "private, max-age=0, no-store";
+/** Genuinely public branding objects only. Upload paths stamp the filename
+ *  with a timestamp, so the object body never changes under one key. */
+export const PUBLIC_OBJECT_CACHE_CONTROL = "public, max-age=31536000, immutable";
+
+/** Browser-cache-only response header for signed private reads. `private`
+ *  keeps Cloudflare's shared edge cache and any intermediary from storing the
+ *  object; R2 egress is free, so skipping shared cache costs nothing. */
+export function privateSignedGetCacheControl(ttlSeconds: number): string {
+  return `private, max-age=${Math.max(1, Math.floor(ttlSeconds))}`;
+}
+
 function env(name: string): string {
   return (process.env[name] ?? "").trim();
 }
@@ -85,6 +100,10 @@ export async function r2SignedGet(key: string, ttlSeconds: number): Promise<stri
     // Set the expiry BEFORE signing: the signer keeps an existing
     // X-Amz-Expires (otherwise it defaults to 24h).
     url.searchParams.set("X-Amz-Expires", String(Math.max(1, Math.floor(ttlSeconds))));
+    // Signed response override: the object is delivered straight from the R2
+    // bucket domain (no Worker proxy), and only the reader's browser may cache
+    // it. The signature covers this parameter, so it cannot be stripped.
+    url.searchParams.set("response-cache-control", privateSignedGetCacheControl(ttlSeconds));
     const signed = await signer("GET", url.toString()).sign();
     return signed.url.toString();
   } catch (err) {
@@ -104,11 +123,19 @@ export async function r2SignedPut(
   const url = new URL(objectUrl);
   url.searchParams.set("X-Amz-Expires", String(expiresIn));
   try {
-    const signed = await signer("PUT", url.toString(), { "content-type": contentType }).sign();
+    const signed = await signer("PUT", url.toString(), {
+      "content-type": contentType,
+      // Signed header, so the object keeps a non-cacheable baseline metadata
+      // even if a future read path forgets the response override.
+      "cache-control": PRIVATE_OBJECT_CACHE_CONTROL,
+    }).sign();
     return {
       url: signed.url.toString(),
-      // Content-Type is part of the signature, so the client must send it.
-      headers: { "Content-Type": contentType },
+      // These headers are part of the request the client must send.
+      headers: {
+        "Content-Type": contentType,
+        "Cache-Control": PRIVATE_OBJECT_CACHE_CONTROL,
+      },
       expiresIn,
     };
   } catch (err) {
@@ -120,7 +147,8 @@ export async function r2SignedPut(
 export async function r2PutObject(
   key: string,
   body: BodyInit | Buffer,
-  contentType: string
+  contentType: string,
+  cacheControl: string = PRIVATE_OBJECT_CACHE_CONTROL
 ): Promise<StorageError | null> {
   const objectUrl = r2ObjectUrl(key);
   if (!objectUrl) return { message: "R2 is not configured" };
@@ -128,7 +156,7 @@ export async function r2PutObject(
     const signed = await new AwsV4Signer({
       method: "PUT",
       url: objectUrl,
-      headers: { "content-type": contentType },
+      headers: { "content-type": contentType, "cache-control": cacheControl },
       body: body as BodyInit,
       accessKeyId: env("R2_ACCESS_KEY_ID"),
       secretAccessKey: env("R2_SECRET_ACCESS_KEY"),

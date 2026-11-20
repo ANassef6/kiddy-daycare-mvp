@@ -69,6 +69,9 @@ describe("KID-2453: storage provider and REF compatibility", () => {
     expect(String(url)).toContain("child/c-3/photo.webp");
     expect(String(url)).toContain("X-Amz-Signature=");
     expect(String(url)).toContain("X-Amz-Expires=600");
+    expect(decodeURIComponent(String(url)).replace(/\+/g, " ")).toContain(
+      "response-cache-control=private, max-age=600"
+    );
     expect(String(url)).not.toContain("r2-private:");
   });
 
@@ -115,6 +118,7 @@ describe("KID-2453: presigned upload tickets enforce the same caps", () => {
     expect(ticket.ref.startsWith("r2-private:photos/inst-1/child/child-9/")).toBe(true);
     expect(ticket.url).toContain("X-Amz-Signature=");
     expect(ticket.headers["Content-Type"]).toBe("image/jpeg");
+    expect(ticket.headers["Cache-Control"]).toBe("private, max-age=0, no-store");
   });
 
   it("refuses oversize and wrong-type tickets before signing anything", async () => {

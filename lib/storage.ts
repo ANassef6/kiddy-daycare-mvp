@@ -33,6 +33,7 @@ import {
   supabaseStorageConfigured,
 } from "./storage/supabase";
 import {
+  PUBLIC_OBJECT_CACHE_CONTROL,
   r2Configured,
   r2DeleteObject,
   r2HeadObject,
@@ -132,7 +133,8 @@ export async function uploadPublicObject(
 ): Promise<string | null> {
   const publicBase = r2PublicUrl(path);
   if (r2Configured() && publicBase) {
-    const error = await r2PutObject(path, body, contentType);
+    // Branding-only key: safe to cache at the shared edge with a long TTL.
+    const error = await r2PutObject(path, body, contentType, PUBLIC_OBJECT_CACHE_CONTROL);
     if (!error) return publicBase;
     console.error("KID-2453 R2 public upload failed, falling back to Supabase:", error.message);
   }
