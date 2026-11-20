@@ -1,0 +1,42 @@
+# KID-2453 verification transcript (2026-11-20, staging)
+
+## Live R2 round trip against kiddy-media-staging
+PUT 200 OK
+HEAD 200 len null type text/plain cc private, max-age=0, no-store
+unsigned GET 400
+presigned GET 200 cache-control: private, max-age=120 match: true
+expiry-without-signature GET 400
+presigned PUT 200
+DELETE 204
+HEAD after delete 404
+
+## Signed URL expiry (TTL 1s, fetched after 3s)
+403 ExpiredRequest
+
+## Migration
+Before (Child A): r2-private:photos/... (already on R2)
+Legacy fixture: kiddy-private:child/mwmgz4gn-s71wfgue/legacy-photo.png (Supabase signed URL rendered first)
+Command: node --env-file=<staging+R2> --import tsx scripts/migrate-media-to-r2.ts
+Result: KID-2453 media migration: migrated=1 queued=1 already=1 skipped=0 failures=0
+After (Child B): r2-private:child/mwmgz4gn-s71wfgue/legacy-photo.png | r2 size 21430 type image/png
+
+## Staging uploads (deployment 79ecd2b)
+Child photo: POST /api/media/presign 200; PUT R2 200; signed GET 200
+Drive: PUT R2 200; drive_file row r2-private; signed GET 200
+Newsfeed: PUT R2 200; newsfeed_post row r2-private; signed GET 200
+Message: PUT R2 200; message_thread row r2-private; signed GET 200
+Payment proof: upload 200; child_billing row r2-private; signed GET 200; reference KID-2453-STAGING
+
+## Auth-negative
+Unauthenticated child page: status 200 after redirect to /login; no media URL; no raw REF
+Cross-tenant child page (Billing Test Daycare owner): status 404; no media URL; no raw REF
+Unsigned R2 GET: 400 InvalidArgument Authorization
+
+## Raw REF in HTML
+Deployment 79ecd2b: 1 occurrence in the child page RSC payload (full child row passed to the observation modal)
+Fix c6c3d92 (picker gets id/first_name/last_name only)
+Local production build with staging DB + R2: count 0
+
+## Deploy quota
+POST /v13/deployments for c6c3d92 -> 402
+Resource is limited - try again in 1 day (more than 100, code: "api-deployments-free-per-day")
