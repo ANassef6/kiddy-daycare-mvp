@@ -207,7 +207,7 @@ export default async function PortalMessagesPage(
                 className="list-item"
                 style={unread > 0 ? { background: "color-mix(in srgb, var(--brand-primary) 10%, transparent)", fontWeight: 700 } : active ? { background: "#f1f5f9" } : undefined}
               >
-                <Link href={threadLink} style={{ color: "var(--color-text)", flex: 1 }}>
+                <Link href={threadLink} style={{ color: "var(--color-text)", flex: 1, minWidth: 0, overflow: "hidden" }}>
                   {otherName ? (
                     <strong className="small">{otherName}</strong>
                   ) : (
@@ -226,7 +226,7 @@ export default async function PortalMessagesPage(
                     {th.last_message ?? "—"}
                   </div>
                 </Link>
-                <form action={setThreadArchivedAction} style={{ margin: 0 }}>
+                <form action={setThreadArchivedAction} style={{ margin: 0, flex: "0 0 auto" }}>
                   <input type="hidden" name="threadId" value={String(th.id)} />
                   <input type="hidden" name="archived" value={showArchived ? "0" : "1"} />
                   <input type="hidden" name="returnTo" value={returnTo} />
@@ -332,7 +332,7 @@ export default async function PortalMessagesPage(
                   {thread.thread_title ?? thread.title ?? t("common.thread")}{" "}
                   <span className="badge">{Number(thread.is_group) ? t("common.group") : t("common.private")}</span>
                 </h4>
-                <form action={setThreadArchivedAction} style={{ margin: 0 }}>
+                <form action={setThreadArchivedAction} style={{ margin: 0, flex: "0 0 auto" }}>
                   <input type="hidden" name="threadId" value={String(threadId)} />
                   <input type="hidden" name="archived" value={thread.archived_at ? "0" : "1"} />
                   <input type="hidden" name="returnTo" value={listQuery({ thread: String(threadId) })} />

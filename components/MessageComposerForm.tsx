@@ -96,8 +96,12 @@ export default function MessageComposerForm({
           if (!(err instanceof Error) || !err.message.includes("NEXT_REDIRECT")) {
             console.error("KID-2455 message attachment send failed:", err);
             setError(attachments.labels.compressFailed);
-            setBusy(false);
           }
+        } finally {
+          // The redirect can keep this client component mounted on the same
+          // page, so `busy` must clear explicitly or the button stays on
+          // "Sending…" until a manual refresh.
+          setBusy(false);
         }
       });
     } catch (err) {
