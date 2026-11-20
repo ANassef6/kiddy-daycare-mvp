@@ -314,7 +314,7 @@ export default async function ParentMessagesPage(
               >
                 <Link
                   href={showArchived ? listQuery({ thread: String(th.id) }) : `/child/messages?thread=${th.id}`}
-                  style={{ color: "var(--color-text)", flex: 1 }}
+                  style={{ color: "var(--color-text)", flex: 1, minWidth: 0, overflow: "hidden" }}
                 >
                   <strong className="small">
                     {otherName ?? (th.thread_title ?? th.title ?? t("common.thread"))}
@@ -340,7 +340,7 @@ export default async function ParentMessagesPage(
                     {th.last_message ?? "—"}
                   </div>
                 </Link>
-                <form action={setThreadArchivedAction} style={{ margin: 0 }}>
+                <form action={setThreadArchivedAction} style={{ margin: 0, flex: "0 0 auto" }}>
                   <input type="hidden" name="threadId" value={String(th.id)} />
                   <input type="hidden" name="archived" value={showArchived ? "0" : "1"} />
                   <input type="hidden" name="returnTo" value={listQuery({})} />

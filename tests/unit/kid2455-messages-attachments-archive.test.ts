@@ -12,6 +12,7 @@ import { createAccount, createSessionToken } from "@/lib/auth";
 import { queryGet, queryRun, queryAll, type Row } from "@/lib/db";
 import { dictionaries, tr } from "@/lib/i18n";
 import { mustGet, seedFixture } from "../helpers";
+import { formatParticipantNames } from "@/lib/thread-display";
 
 const sessionCookie = { value: "" };
 vi.mock("next/headers", () => ({
@@ -257,6 +258,13 @@ describe("KID-2455 thread archive", () => {
 });
 
 describe("KID-2455 participant names in conversation rows", () => {
+  it("truncates long group participant lists in the row", () => {
+    expect(formatParticipantNames(["Nassef", "Nouran", "Omar", "Layla", "Ziad"])).toBe(
+      "Nassef, Nouran, +3"
+    );
+    expect(formatParticipantNames(["Nassef", "Nouran"])).toBe("Nassef, Nouran");
+  });
+
   it("returns the other participant for a 1:1 thread and the group participant list", async () => {
     const oneToOne = await store.createMessageThread({
       instituteId: iid,
