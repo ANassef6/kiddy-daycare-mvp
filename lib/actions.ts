@@ -112,7 +112,7 @@ import {
   uploadPrivateObject,
   uploadPublicObject,
 } from "@/lib/storage";
-import { takeUploadedRef } from "@/lib/media-upload";
+import { isAllowedPurposeMime, takeUploadedRef } from "@/lib/media-upload";
 import { activationStepError } from "@/lib/activation";
 import { requestOrigin, publicOrigin, resetRedirectOrigin } from "@/lib/url";
 import { sendContactInvite, contactNameForInvite } from "@/lib/contact-invite";
@@ -2553,9 +2553,13 @@ export async function saveChildStatusAction(formData: FormData) {
       // accidental double-tap. Send the staff member back to the same daily
       // view with a visible reason instead of silently dropping the submit.
       if (err instanceof ChildStatusGuardError) {
-        redirect(
-          `${dailyHref}&error=${err.reason === "sleep-state" ? "sleep_state" : "duplicate"}`
-        );
+        const code =
+          err.reason === "sleep-state"
+            ? "sleep_state"
+            : err.reason === "not-checked-in"
+              ? "not_checked_in"
+              : "duplicate";
+        redirect(`${dailyHref}&error=${code}`);
       }
       throw err;
     }
@@ -3444,6 +3448,77 @@ export async function setTicketStatusAction(formData: FormData) {
   redirect("/portal/support-inbox");
 }
 
+type ResolvedMessageAttachment =
+  | { ok: true; url: string | null; name: string | null }
+  | { ok: false };
+
+/**
+ * KID-2455: resolve the optional attachment carried by a message form.
+ *
+ * The direct-upload REF is verified first (tenant folder, HEAD size and MIME);
+ * the multipart file is the fallback. Both end at the same storage model as
+ * KID-182/KID-2453: a private REF when storage is configured, otherwise a data
+ * URL so local development keeps working. Any failure returns ok:false and the
+ * caller redirects with an explicit error — nothing is sent silently.
+ */
+async function resolveMessageAttachment(
+  formData: FormData,
+  instituteId: string
+): Promise<ResolvedMessageAttachment> {
+  const rawRef = String(formData.get("attachmentRef") ?? "").trim();
+  const presigned = await takeUploadedRef(formData, {
+    purpose: "message",
+    instituteId,
+    field: "attachmentRef",
+  });
+  if (presigned.ok) {
+    const name =
+      String(formData.get("attachmentName") ?? "").trim().slice(0, 200) || "attachment";
+    return { ok: true, url: presigned.ref, name };
+  }
+  // A submitted REF that fails verification must never fall through to "no
+  // attachment" — that would drop the file the sender believes they attached.
+  if (rawRef) return { ok: false };
+
+  const attachment = formData.get("attachment");
+  if (!(attachment instanceof File) || attachment.size === 0) {
+    return { ok: true, url: null, name: null };
+  }
+  const mime = attachment.type || "application/octet-stream";
+  if (!attachment.name || attachment.size > MAX_MESSAGE_ATTACHMENT_BYTES) {
+    return { ok: false };
+  }
+  if (!isAllowedPurposeMime("message", mime)) return { ok: false };
+  const bytes = Buffer.from(await attachment.arrayBuffer());
+  // KID-2450: client-side video guard mirrored at the server boundary.
+  if (mediaKind(mime) === "video") {
+    const seconds = mp4DurationSeconds(bytes);
+    if (seconds !== null && seconds > MAX_VIDEO_DURATION_SECONDS) return { ok: false };
+  }
+  if (storageAdminConfigured()) {
+    const ext =
+      String(mime)
+        .split("/")[1]
+        ?.replace(/[^a-z0-9]+/gi, "")
+        .slice(0, 8) || "bin";
+    const uploadedObject = await uploadPrivateObject(
+      `messages/${instituteId}/${crypto.randomUUID()}.${ext}`,
+      attachment,
+      mime
+    );
+    if (uploadedObject.error || !uploadedObject.ref) {
+      console.error("KID-2455 message upload failed:", uploadedObject.error?.message ?? "no provider");
+      return { ok: false };
+    }
+    return { ok: true, url: uploadedObject.ref, name: attachment.name };
+  }
+  return {
+    ok: true,
+    url: `data:${mime};base64,${bytes.toString("base64")}`,
+    name: attachment.name,
+  };
+}
+
 export async function sendMessageAction(formData: FormData) {
   const me = await authAccount();
   // KID-1178/F-06: per-account burst budget for message sends.
@@ -3455,9 +3530,19 @@ export async function sendMessageAction(formData: FormData) {
   await ensureSchema();
   const instituteId = await firstInstituteId();
   if (recipient && body && instituteId) {
+    const attachment = await resolveMessageAttachment(formData, String(instituteId));
+    if (!attachment.ok) redirect(`/portal/messages?with=${recipient}&error=attachment`);
     const { latestPairThread } = await import("@/lib/store");
     const threadId = await latestPairThread(me.accountId, recipient);
-    const message = await sendMessage({ instituteId, senderAccountId: me.accountId, recipientAccountId: recipient, body, threadId });
+    const message = await sendMessage({
+      instituteId,
+      senderAccountId: me.accountId,
+      recipientAccountId: recipient,
+      body,
+      threadId,
+      attachmentUrl: attachment.url,
+      attachmentName: attachment.name,
+    });
     // KID-477: one audit row per send — the thread link only, never the body.
     await recordAuditEvent({
       instituteId,
@@ -3506,53 +3591,14 @@ export async function sendComposerAction(formData: FormData) {
   }
   const groupMode = String(formData.get("groupMode") ?? "") === "on";
 
-  // Attachment (KID-182): single optional file, stored as a data-URL on the
-  // resulting thread(s). Oversized or unreadable attachments fail explicitly.
-  const attachment = formData.get("attachment");
-  let attachmentUrl: string | undefined;
-  let attachmentName: string | undefined;
-  // KID-2453: direct-upload REF first; the multipart file is the fallback.
-  const presigned = await takeUploadedRef(formData, {
-    purpose: "message",
-    instituteId: String(instituteId ?? ""),
-    field: "attachmentRef",
-  });
-  if (presigned.ok) {
-    attachmentUrl = presigned.ref;
-    attachmentName =
-      String(formData.get("attachmentName") ?? "").trim().slice(0, 200) || "attachment";
-  } else if (attachment instanceof File && attachment.size > 0) {
-    if (!attachment.name || attachment.size > MAX_MESSAGE_ATTACHMENT_BYTES) {
-      redirect(`/portal/messages?error=attachment&preserve=${encodeURIComponent(String(formData.get("body") ?? ""))}`);
-    }
-    const bytes = Buffer.from(await attachment.arrayBuffer());
-    // KID-2450: client-side video guard mirrored at the server boundary.
-    if (mediaKind(attachment.type) === "video") {
-      const seconds = mp4DurationSeconds(bytes);
-      if (seconds !== null && seconds > MAX_VIDEO_DURATION_SECONDS) {
-        redirect(`/portal/messages?error=attachment&preserve=${encodeURIComponent(String(formData.get("body") ?? ""))}`);
-      }
-    }
-    if (storageAdminConfigured()) {
-      const ext = String(attachment.type || "application/octet-stream")
-        .split("/")[1]
-        ?.replace(/[^a-z0-9]+/gi, "")
-        .slice(0, 8) || "bin";
-      const uploadedObject = await uploadPrivateObject(
-        `messages/${String(instituteId ?? "")}/${crypto.randomUUID()}.${ext}`,
-        attachment,
-        attachment.type || "application/octet-stream"
-      );
-      if (uploadedObject.error || !uploadedObject.ref) {
-        console.error("KID-2453 message upload failed:", uploadedObject.error?.message ?? "no provider");
-        redirect(`/portal/messages?error=attachment&preserve=${encodeURIComponent(String(formData.get("body") ?? ""))}`);
-      }
-      attachmentUrl = uploadedObject.ref;
-    } else {
-      attachmentUrl = `data:${attachment.type || "application/octet-stream"};base64,${bytes.toString("base64")}`;
-    }
-    attachmentName = attachment.name;
+  // Attachment (KID-182, per-message since KID-2455): one optional file on
+  // each message row. The thread row keeps a copy for legacy thread headers.
+  const resolvedAttachment = await resolveMessageAttachment(formData, String(instituteId));
+  if (!resolvedAttachment.ok) {
+    redirect(`/portal/messages?error=attachment&preserve=${encodeURIComponent(String(formData.get("body") ?? ""))}`);
   }
+  const attachmentUrl = resolvedAttachment.url ?? undefined;
+  const attachmentName = resolvedAttachment.name ?? undefined;
 
   // Resolve + scope-check: parents must be in the sender's classroom scope,
   // channels must be rooms in scope. KID-207: the scope is the composer's own
@@ -3602,7 +3648,15 @@ export async function sendComposerAction(formData: FormData) {
       attachmentName,
     });
     for (const rid of recipients) {
-      await sendMessage({ instituteId: String(instituteId), senderAccountId: me.accountId, recipientAccountId: rid, body, threadId: String(thread.id) });
+      await sendMessage({
+        instituteId: String(instituteId),
+        senderAccountId: me.accountId,
+        recipientAccountId: rid,
+        body,
+        threadId: String(thread.id),
+        attachmentUrl,
+        attachmentName,
+      });
     }
     // KID-477: one audit row per composer send (group blast = one row) —
     // channel/audience shape is recorded, message texts are not.
@@ -3634,7 +3688,15 @@ export async function sendComposerAction(formData: FormData) {
       attachmentUrl,
       attachmentName,
     });
-    await sendMessage({ instituteId: String(instituteId), senderAccountId: me.accountId, recipientAccountId: rid, body, threadId: String(thread.id) });
+    await sendMessage({
+      instituteId: String(instituteId),
+      senderAccountId: me.accountId,
+      recipientAccountId: rid,
+      body,
+      threadId: String(thread.id),
+      attachmentUrl,
+      attachmentName,
+    });
     if (!firstThread) firstThread = String(thread.id);
   }
   // KID-477: the private blast is one user action — one attributed row.
@@ -3675,9 +3737,23 @@ export async function replyThreadAction(formData: FormData) {
   const { threadForViewer, threadParticipantIds } = await import("@/lib/store");
   const thread = await threadForViewer(threadId, me.accountId);
   if (!thread) redirect("/portal/messages?error=thread");
+  const backTo = returnTo.startsWith("/") ? returnTo : `/portal/messages?thread=${threadId}`;
+  const attachment = await resolveMessageAttachment(formData, String(instituteId));
+  if (!attachment.ok) {
+    const separator = backTo.includes("?") ? "&" : "?";
+    redirect(`${backTo}${separator}error=attachment`);
+  }
   const others = (await threadParticipantIds(threadId)).filter((pid) => pid !== me.accountId);
   for (const rid of others) {
-    await sendMessage({ instituteId: String(instituteId), senderAccountId: me.accountId, recipientAccountId: rid, body, threadId });
+    await sendMessage({
+      instituteId,
+      senderAccountId: me.accountId,
+      recipientAccountId: rid,
+      body,
+      threadId,
+      attachmentUrl: attachment.url,
+      attachmentName: attachment.name,
+    });
   }
   // KID-477: a thread reply is one audit row (thread link, no body).
   if (others.length > 0) {
@@ -3709,6 +3785,17 @@ export async function sendParentMessageAction(formData: FormData) {
   await ensureSchema();
   const instituteId = await firstInstituteId();
   if (!instituteId) redirect("/child/messages");
+
+  // KID-2455: one optional attachment per message, resolved before any write so
+  // a bad file never leaves a body-only message behind.
+  const attachment = await resolveMessageAttachment(formData, String(instituteId));
+  if (!attachment.ok) {
+    redirect(
+      threadId
+        ? `/child/messages?thread=${encodeURIComponent(threadId)}&error=attachment`
+        : "/child/messages?error=attachment"
+    );
+  }
 
   // KID-144/KID-169: parents may only message staff assigned to their children's
   // classrooms. The allowed set comes from lib/parent-messaging.ts, the same

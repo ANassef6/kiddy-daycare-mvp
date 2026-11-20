@@ -213,10 +213,12 @@ export default async function PortalChildPage(
   // accidental double-tap; say why instead of dropping the submit silently.
   const statusError =
     searchParams.error === "sleep_state"
-      ? "sleep_state"
+      ? "profile.statusSleepStateError"
       : searchParams.error === "duplicate"
-        ? "duplicate"
-        : null;
+        ? "profile.statusDuplicateError"
+        : searchParams.error === "not_checked_in"
+          ? "profile.statusNotCheckedInError"
+          : null;
   // KID-2450: server-side photo cap refusal (old clients / direct posts).
   const photoError = searchParams.error === "photoType" || searchParams.error === "photoSize";
   // KID-733: the Add-a-child flow reports its parent-login outcome here
@@ -268,11 +270,7 @@ export default async function PortalChildPage(
           style={{ borderLeft: "4px solid #b91c1c" }}
         >
           <p className="small" style={{ margin: 0 }}>
-            {t(
-              statusError === "sleep_state"
-                ? "profile.statusSleepStateError"
-                : "profile.statusDuplicateError"
-            )}
+            {t(statusError)}
           </p>
         </div>
       )}

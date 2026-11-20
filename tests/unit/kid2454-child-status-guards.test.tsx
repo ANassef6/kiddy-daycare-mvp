@@ -92,6 +92,9 @@ beforeEach(async () => {
   const child = await store.createChild({ instituteId: iid, firstName: "Lina", lastName: "Kid2454" });
   childId = String(child.id);
   mockState.cookie = sessionCookieFor(ownerId, "owner", ownerEmail);
+  // The KID-2454 scope addition requires a same-day check-in before any status
+  // entry; every guard test below starts from an attended child.
+  await store.registerCheckInOut({ childId, accountId: ownerId, type: "in" });
 });
 
 afterEach(() => {
@@ -100,8 +103,12 @@ afterEach(() => {
 });
 
 function post(fields: Record<string, string>): FormData {
+  return postFor(childId, fields);
+}
+
+function postFor(id: string, fields: Record<string, string>): FormData {
   const form = new FormData();
-  form.set("childId", childId);
+  form.set("childId", id);
   for (const [k, v] of Object.entries(fields)) form.set(k, v);
   return form;
 }
@@ -164,12 +171,34 @@ describe("KID-2454 identical-entry debounce", () => {
   });
 });
 
+describe("KID-2454 check-in precondition (scope addition)", () => {
+  it("rejects a status entry for a child with no check-in today", async () => {
+    const iid = String((await queryGet("SELECT id FROM institute LIMIT 1"))!.id);
+    const absent = await store.createChild({ instituteId: iid, firstName: "No", lastName: "Attendance" });
+    const target = await targetOf(() =>
+      saveChildStatusAction(postFor(String(absent.id), { kind: "mood", value: "happy" }))
+    );
+    expect(queryOf(target).tab).toBe("daily");
+    expect(queryOf(target).error).toBe("not_checked_in");
+    const rows = await queryAll("SELECT id FROM child_status WHERE child_id = ?", String(absent.id));
+    expect(rows.length).toBe(0);
+  });
+
+  it("allows status entries after check-in, including post-checkout", async () => {
+    await targetOf(() => saveChildStatusAction(post({ kind: "diaper", value: "wet" })));
+    await store.registerCheckInOut({ childId, accountId: ownerId, type: "out" });
+    await targetOf(() => saveChildStatusAction(post({ kind: "diaper", value: "soiled" })));
+    expect(await statusCount()).toBe(2);
+  });
+});
+
 describe("KID-2454 error surfacing", () => {
   it("ships both messages in EN and AR", () => {
     for (const locale of ["en", "ar"] as const) {
       const dict = dictionaries[locale];
       expect(tr(dict, "profile.statusSleepStateError")).not.toMatch(/MISSING|^profile\./);
       expect(tr(dict, "profile.statusDuplicateError")).not.toMatch(/MISSING|^profile\./);
+      expect(tr(dict, "profile.statusNotCheckedInError")).not.toMatch(/MISSING|^profile\./);
     }
   });
 
@@ -189,6 +218,13 @@ describe("KID-2454 error surfacing", () => {
       })
     ).replace(/&quot;/g, '"');
     expect(dup).toContain(tr(dictionaries.en, "profile.statusDuplicateError"));
+    const absent = renderToStaticMarkup(
+      await ChildPage({
+        params: Promise.resolve({ id: childId }),
+        searchParams: Promise.resolve({ tab: "daily", error: "not_checked_in" }),
+      })
+    ).replace(/&quot;/g, '"');
+    expect(absent).toContain(tr(dictionaries.en, "profile.statusNotCheckedInError"));
   });
 
   it("renders the Arabic banner when the account language is Arabic", async () => {

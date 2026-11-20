@@ -1833,7 +1833,7 @@ const CHILD_STATUS_FELL_ASLEEP = ["fellAsleep", "Fell asleep", "خلد إلى ا
 const CHILD_STATUS_WOKE_UP = ["wokeUp", "Woke up", "استيقظ"];
 const CHILD_STATUS_DUPLICATE_WINDOW_MS = 60_000;
 
-export type ChildStatusGuardReason = "sleep-state" | "duplicate";
+export type ChildStatusGuardReason = "sleep-state" | "duplicate" | "not-checked-in";
 
 export class ChildStatusGuardError extends Error {
   readonly reason: ChildStatusGuardReason;
@@ -1855,7 +1855,24 @@ export async function logChildStatus(data: {
 }): Promise<Row> {
   const recordedAt = data.recordedAt ? new Date(data.recordedAt) : new Date();
   const recordedAtIso = recordedAt.toISOString();
-  const dayStartIso = `${recordedAtIso.slice(0, 10)}T00:00:00.000Z`;
+
+  // Guard 0 (KID-2454 scope addition): a status entry only makes sense for a
+  // child who attended today. Any check-in row for the center-local day
+  // satisfies it — including a child already checked out (late notes stay
+  // valid). Only a day with no check-in at all is refused.
+  const child = await getChild(data.childId);
+  const instituteId = String(child?.institute_id ?? "");
+  const timeZone = instituteId ? (await getCenterSchedule(instituteId)).timeZone : undefined;
+  const day = timeZone ? zonedDateKey(recordedAt, timeZone) : recordedAtIso.slice(0, 10);
+  const dayRange = timeZone
+    ? centerDayRange("recorded_at", day, timeZone)
+    : { sql: "date(recorded_at) = ?", args: [day] };
+  const attendance = await queryGet(
+    `SELECT id FROM check_in WHERE child_id = ? AND ${dayRange.sql} LIMIT 1`,
+    data.childId,
+    ...dayRange.args
+  );
+  if (!attendance) throw new ChildStatusGuardError("not-checked-in");
 
   // Guard 1 — sleep state: a second "fell asleep" with no wake-up in between
   // is a duplicate, not a new event. "Woke up" is always allowed (the child
@@ -1864,11 +1881,11 @@ export async function logChildStatus(data: {
     const sleepValues = [...CHILD_STATUS_FELL_ASLEEP, ...CHILD_STATUS_WOKE_UP];
     const latestSleep = await queryGet(
       `SELECT value FROM child_status
-        WHERE child_id = ? AND kind = 'sleep' AND recorded_at >= ?
+        WHERE child_id = ? AND kind = 'sleep' AND ${dayRange.sql}
           AND value IN (${sleepValues.map(() => "?").join(", ")})
         ORDER BY recorded_at DESC, id DESC LIMIT 1`,
       data.childId,
-      dayStartIso,
+      ...dayRange.args,
       ...sleepValues
     );
     if (latestSleep && CHILD_STATUS_FELL_ASLEEP.includes(String(latestSleep.value))) {
@@ -2232,17 +2249,30 @@ export async function sendMessage(data: {
   recipientAccountId: string;
   body: string;
   threadId?: string | null;
+  attachmentUrl?: string | null;
+  attachmentName?: string | null;
 }): Promise<Row> {
   const id = uid();
   await queryRun(
-    "INSERT INTO message (id, institute_id, sender_account_id, recipient_account_id, body, thread_id) VALUES (?, ?, ?, ?, ?, ?)",
+    "INSERT INTO message (id, institute_id, sender_account_id, recipient_account_id, body, thread_id, attachment_url, attachment_name) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
     id,
     data.instituteId,
     data.senderAccountId,
     data.recipientAccountId,
     data.body,
-    data.threadId ?? null
+    data.threadId ?? null,
+    data.attachmentUrl ?? null,
+    data.attachmentName ?? null
   );
+  // KID-2455: a new message wakes an archived thread for its recipient. The
+  // archive is view organization only — it never blocks delivery.
+  if (data.threadId) {
+    await queryRun(
+      "UPDATE message_thread_participant SET archived_at = NULL WHERE thread_id = ? AND account_id = ?",
+      data.threadId,
+      data.recipientAccountId
+    );
+  }
   // KID-474: the durable in-app notification rides the same write — the
   // recipient (any role) gets a row for their unread badge and center, and
   // message rows never duplicate thanks to the stable per-message ref.
@@ -2581,9 +2611,15 @@ export async function threadParticipantIds(threadId: string): Promise<string[]> 
 export async function threadForViewer(threadId: string, viewerId: string): Promise<Row | undefined> {
   // KID-2449: the creator's role tells the reply guard whether the parent may
   // reply regardless of room assignment (staff/admin-initiated threads).
+  // KID-2455: the viewer's own archive flag travels with the thread so the
+  // open-thread view can offer the matching archive/unarchive control.
   const thread = await queryGet(
-    `SELECT t.*, (SELECT role FROM account WHERE id = t.created_by_account_id) AS creator_role
+    `SELECT t.*,
+            (SELECT role FROM account WHERE id = t.created_by_account_id) AS creator_role,
+            (SELECT archived_at FROM message_thread_participant
+              WHERE thread_id = t.id AND account_id = ?) AS archived_at
      FROM message_thread t WHERE t.id = ?`,
+    viewerId,
     threadId
   );
   if (!thread) return undefined;
@@ -2603,18 +2639,46 @@ export async function threadMessages(threadId: string): Promise<Row[]> {
   );
 }
 
-export async function threadsForAccount(accountId: string): Promise<Row[]> {
+export async function threadsForAccount(
+  accountId: string,
+  opts?: { archived?: boolean }
+): Promise<Row[]> {
+  // KID-2455: the Active/Archived toggle filters on the viewer's participant
+  // row. `archived` omitted keeps every thread (callers that need the whole
+  // list, such as the scoping policy, still get it).
+  const archivedFilter =
+    opts?.archived === true
+      ? "AND p.archived_at IS NOT NULL"
+      : opts?.archived === false
+        ? "AND p.archived_at IS NULL"
+        : "";
   return queryAll(
     `SELECT t.*, t.title AS thread_title,
             (SELECT role FROM account WHERE id = t.created_by_account_id) AS creator_role,
+            p.archived_at AS archived_at,
             (SELECT body FROM message WHERE thread_id = t.id ORDER BY created_at DESC LIMIT 1) AS last_message,
             (SELECT created_at FROM message WHERE thread_id = t.id ORDER BY created_at DESC LIMIT 1) AS last_at,
             (SELECT COUNT(*) FROM message WHERE thread_id = t.id AND recipient_account_id = ? AND read = 0) AS unread_count
      FROM message_thread t
      JOIN message_thread_participant p ON p.thread_id = t.id
-     WHERE p.account_id = ?
+     WHERE p.account_id = ? ${archivedFilter}
      ORDER BY last_at DESC`,
     accountId,
+    accountId
+  );
+}
+
+/** KID-2455: per-viewer archive. The participant row is the scope check, so a
+ *  caller can only change their own archive state for a thread they belong to. */
+export async function setThreadArchived(
+  threadId: string,
+  accountId: string,
+  archived: boolean
+): Promise<void> {
+  await queryRun(
+    "UPDATE message_thread_participant SET archived_at = ? WHERE thread_id = ? AND account_id = ?",
+    archived ? new Date().toISOString() : null,
+    threadId,
     accountId
   );
 }
@@ -2624,8 +2688,11 @@ export async function threadsForAccount(accountId: string): Promise<Row[]> {
  *  staff); staff/admin-initiated threads are always visible and replyable, so a
  *  conversation the centre opened with the parent cannot trap the reply.
  */
-export async function threadsForAccountScoped(accountId: string): Promise<Row[]> {
-  const threads = await threadsForAccount(accountId);
+export async function threadsForAccountScoped(
+  accountId: string,
+  opts?: { archived?: boolean }
+): Promise<Row[]> {
+  const threads = await threadsForAccount(accountId, opts);
   const staff = await classroomStaffForParent(accountId);
   const allowedIds = new Set(staff.map((s) => String(s.id)));
   const { parentMayUseThread } = await import("./parent-thread-policy");
