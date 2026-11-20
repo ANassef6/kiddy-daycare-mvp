@@ -433,7 +433,7 @@ export async function generateDaycareContractDrafts(input: {
     // carry the platform's own commercial terms). A fill/upload failure is
     // contained BEFORE the row write: either both drafts are stored and one
     // row appears, or nothing moves.
-    const { storageAdminConfigured, getStorageAdmin, PRIVATE_BUCKET, privateRef } = await import("@/lib/storage");
+    const { storageAdminConfigured, uploadPrivateObject } = await import("@/lib/storage");
     if (!storageAdminConfigured()) {
       console.error(
         `KID-746 contract drafts skipped (storage unconfigured): daycare=${input.instituteId}`
@@ -442,18 +442,18 @@ export async function generateDaycareContractDrafts(input: {
     }
     const urls: { ar?: string; en?: string } = {};
     for (const draft of drafts) {
-      const { error } = await getStorageAdmin()
-        .storage.from(PRIVATE_BUCKET)
-        .upload(draft.filename, draft.text, { contentType: "text/html", upsert: false });
-      if (error) {
+      // KID-2453: goes through the storage adapter (R2 preferred, Supabase
+      // fallback) and returns the provider-correct private REF.
+      const uploaded = await uploadPrivateObject(draft.filename, draft.text, "text/html");
+      if (uploaded.error || !uploaded.ref) {
         console.error(
           `KID-746 contract draft upload failed (${draft.locale}):`,
-          error,
+          uploaded.error?.message ?? "no storage provider",
           `daycare=${input.instituteId}`
         );
         return { ok: false, reason: "storage-error" };
       }
-      urls[draft.locale] = privateRef(draft.filename);
+      urls[draft.locale] = uploaded.ref;
     }
     await setDaycareContractDraft(input.instituteId, {
       templateVersion: data.templateVersion,

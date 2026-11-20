@@ -6,6 +6,7 @@ import { i18nForAccount } from "@/lib/i18n-session";
 import { tr } from "@/lib/i18n";
 import { recordToolUsage } from "@/lib/tool-usage";
 import type { Row } from "@/lib/db";
+import { signedUrlsForRefs } from "@/lib/storage";
 
 export const dynamic = "force-dynamic";
 
@@ -25,6 +26,7 @@ export default async function ParentNewsfeedPage() {
   const posts = childIds.length
     ? allPosts.filter((p: any) => (p.tags || []).some((t: any) => childIds.includes(String(t.id))))
     : [];
+  const mediaSrcs = await signedUrlsForRefs(posts.map((p: any) => String(p.media_url ?? "")));
 
   return (
     <div>
@@ -59,7 +61,7 @@ export default async function ParentNewsfeedPage() {
               )}
               <p className="mt-2" dir="auto">{post.body}</p>
               {post.media_url && (
-                <img src={post.media_url} alt="" style={{ width: "100%", maxHeight: 360, objectFit: "cover", borderRadius: 8, marginTop: 10 }} />
+                <img src={mediaSrcs.get(String(post.media_url)) ?? ""} alt="" style={{ width: "100%", maxHeight: 360, objectFit: "cover", borderRadius: 8, marginTop: 10 }} />
               )}
               <div className="small muted mt-2">
                 {t("newsfeed.likesAndComments", { likes: post.like_count, comments: post.comment_count })}

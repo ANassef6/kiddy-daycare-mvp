@@ -113,6 +113,7 @@ export default async function StaffProfilePage({ params, searchParams }: { param
           style={{ gap: 8, alignItems: "center" }}
           maxImageBytes={MAX_PHOTO_UPLOAD_BYTES}
           labels={mediaUploadLabels(dict)}
+          directUpload={{ purpose: "photo", entityType: "staff", entityId: String(staff.id) }}
         >
           <input type="hidden" name="entityType" value="staff" />
           <input type="hidden" name="entityId" value={String(staff.id)} />

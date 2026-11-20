@@ -18,6 +18,7 @@ import { firstInstituteId } from "@/lib/helpers";
 import { fmtDateFor, fmtTimeFor } from "@/lib/i18n";
 import { sendMessageAction, sendComposerAction, replyThreadAction } from "@/lib/actions";
 import { i18nForAccount } from "@/lib/i18n-session";
+import { storageSrcFor } from "@/lib/storage";
 import { tr } from "@/lib/i18n";
 import { recordToolUsage } from "@/lib/tool-usage";
 import MediaUploadForm from "@/components/MediaUploadForm";
@@ -84,6 +85,11 @@ export default async function PortalMessagesPage(
     (th: any) => matchesSearch(String(th.thread_title ?? th.title ?? "")) || matchesSearch(String(th.last_message ?? ""))
   );
 
+  // KID-2453: message attachments are private objects now — resolve the REF in
+  // this authorized context; data: URIs and legacy URLs pass through.
+  const threadAttachmentSrc = thread?.attachment_url
+    ? await storageSrcFor(String(thread.attachment_url))
+    : null;
   return (
     <div>
       <div className="row" style={{ alignItems: "center", justifyContent: "space-between" }}>
@@ -177,6 +183,7 @@ export default async function PortalMessagesPage(
               maxVideoSeconds={MAX_VIDEO_DURATION_SECONDS}
               maxFileBytes={MAX_MESSAGE_ATTACHMENT_BYTES}
               labels={mediaUploadLabels(dict)}
+              directUpload={{ purpose: "message", fileField: "attachment" }}
             >
               <div className="row" style={{ justifyContent: "space-between", alignItems: "center" }}>
                 <h4 className="subtitle">{t("messages.title")}</h4>
@@ -238,9 +245,9 @@ export default async function PortalMessagesPage(
               <p className="muted small">
                 {(thread.participant_ids as string[] ?? []).map((pid: string) => threadNames[pid] ?? pid).join(", ")}
               </p>
-              {thread.attachment_url && (
+              {threadAttachmentSrc && (
                 <p className="small mt-1">
-                  <a href={String(thread.attachment_url)} download={String(thread.attachment_name ?? "")}>
+                  <a href={threadAttachmentSrc} download={String(thread.attachment_name ?? "")}>
                     📎 {thread.attachment_name ?? t("messages.attachment")}
                   </a>
                 </p>

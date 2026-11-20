@@ -99,6 +99,12 @@ vi.mock("@/lib/storage", () => {
         : null,
     storageSrcFor: async (stored: string | null | undefined) => (stored ? String(stored) : null),
     signedUrlsForRefs: async (refs: string[]) => new Map(refs.map((r) => [r, r] as const)),
+    uploadPrivateObject: async (path: string) => ({ error: null, path, ref: `kiddy-private:${path}` }),
+    uploadPublicObject: async (path: string) => `https://storage.test/kiddy-public/${path}`,
+    isR2PrivateRef: () => false,
+    headPrivateObject: async () => null,
+    deletePrivateObject: async () => undefined,
+    signedPrivateUpload: async () => null,
   };
 });
 

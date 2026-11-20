@@ -161,8 +161,13 @@ vi.mock("@/lib/storage", () => ({
   publicUrl: async (path: string) => `https://storage.test/kiddy-public/${path}`,
   uploadPrivateObject: async (path: string, body: unknown) => {
     const { error } = await kid1177.client().storage.from("kiddy-private").upload(path, body);
-    return { error, path };
+    return { error, path, ref: error ? null : `kiddy-private:${path}` };
   },
+  uploadPublicObject: async (path: string) => `https://storage.test/kiddy-public/${path}`,
+  isR2PrivateRef: () => false,
+  headPrivateObject: async () => null,
+  deletePrivateObject: async () => undefined,
+  signedPrivateUpload: async () => null,
   isPrivateRef: (value: unknown) => typeof value === "string" && value.startsWith(kid1177.PREFIX),
   privateRefPath: (value: string) => value.slice(kid1177.PREFIX.length),
   signedUrlForRef: kid1177.signedUrlForRef,

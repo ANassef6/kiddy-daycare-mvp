@@ -128,10 +128,13 @@ describe("KID-1177: migration 0041 records and implements the storage model", ()
 describe("KID-1177: the service-role key audit", () => {
   const SERVER_ALLOWLIST = [
     "lib/storage.ts", // storage writes + signed URLs (this task)
+    "lib/storage/supabase.ts", // KID-2453: split provider, still server-only
     "lib/invite-email.ts", // pre-existing: GoTrue admin invite
     "lib/contact-notify.ts", // pre-existing: GoTrue admin subscribe
     "lib/invoice-notify.ts", // pre-existing: GoTrue admin invoice mail
+    "lib/platform-accounts.ts", // KID-2442: GoTrue admin reset (server-only)
     "scripts/migrate-sensitive-objects.ts", // ops runner, never a bundle
+    "scripts/migrate-media-to-r2.ts", // KID-2453 ops runner, never a bundle
     "scripts/regenerate-contract-drafts.ts", // ops runner, never a bundle
   ];
   const SCAN_ROOTS = ["lib", "app", "components", "scripts", "supabase", "mobile"];
@@ -180,8 +183,9 @@ describe("KID-1177: the service-role key audit", () => {
     const actions = readFileSync("lib/actions.ts", "utf8");
     // Settings/branding + photo + both proof uploads + the contract upload.
     expect(actions.match(/storageAdminConfigured\(\)/g)?.length).toBeGreaterThanOrEqual(5);
-    // And lib/storage is the only module that consumes the key for storage.
-    expect(readFileSync("lib/storage.ts", "utf8")).toMatch(/SUPABASE_SERVICE_ROLE_KEY/);
+    // And the Supabase provider module is the only storage code that consumes
+    // the key (KID-2453 split it out of the lib/storage.ts facade).
+    expect(readFileSync("lib/storage/supabase.ts", "utf8")).toMatch(/SUPABASE_SERVICE_ROLE_KEY/);
   });
 });
 

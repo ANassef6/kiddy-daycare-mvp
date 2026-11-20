@@ -105,8 +105,13 @@ export const kid1177StorageMock = {
   publicUrl: async (path: string) => `https://storage.test/kiddy-public/${path}`,
   uploadPrivateObject: async (path: string, body: unknown) => {
     const { error } = await storage1177Client().storage.from("kiddy-private").upload(path, body);
-    return { error, path };
+    return { error, path, ref: error ? null : `${PREFIX}${path}` };
   },
+  uploadPublicObject: async (path: string) => `https://storage.test/kiddy-public/${path}`,
+  isR2PrivateRef: () => false,
+  headPrivateObject: async () => null,
+  deletePrivateObject: async () => undefined,
+  signedPrivateUpload: async () => null,
   isPrivateRef: (value: unknown) => typeof value === "string" && value.startsWith(PREFIX),
   privateRefPath: (value: string) => value.slice(PREFIX.length),
   SIGNED_URL_TTL_SECONDS: 3600,
