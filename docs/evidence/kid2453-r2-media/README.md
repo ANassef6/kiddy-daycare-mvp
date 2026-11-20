@@ -1,12 +1,12 @@
 # KID-2453 — Media storage on Cloudflare R2 (private, presigned)
 
-Status: **staging verified.** Live Cloudflare R2 uploads, signed reads, expiry,
-cross-tenant refusal and the legacy migration all passed against the staging
-project. One follow-up remains: the raw-REF hydration fix (commit `c6c3d92`) is
-pushed to `staging` but could not be redeployed the same day because Vercel
-returned `402 api-deployments-free-per-day` (100 deployments/day). Production
-storage cutover remains gated on a founder approval card. Supabase Storage stays
-readable (dual-read) until the founder spot-check and production cutover.
+Status: **staging verified and signed off.** Live Cloudflare R2 uploads, signed
+reads, expiry, cross-tenant refusal and the legacy migration all passed against
+the staging project. The raw-REF hydration fix (commit `c6c3d92`) is live on
+staging: the later `8ee1bae` push deployed successfully even though the explicit
+redeploy attempt on the previous day hit `402 api-deployments-free-per-day`.
+Production storage cutover remains gated on a founder approval card. Supabase
+Storage stays readable (dual-read) until production cutover is verified.
 
 ## Decision
 
@@ -142,13 +142,28 @@ Screenshots in this folder:
    `5.8.2`, which made Vercel's `npm install` fail with an `ERESOLVE` conflict
    against Vite 8. The versions were restored and the lockfile regenerated.
 
+## Staging redeploy of the raw-REF fix (2026-11-20, later)
+
+The explicit redeploy attempt was refused by the Vercel daily limit, but the
+next push to `staging` (the docs/evidence commit `8ee1bae`) built and deployed
+normally. The live staging production deployment is
+`dpl_2j8SdUKJ1BAwMWDADdHTdizv6MWB` (`kiddy-staging-orcin.vercel.app`, commit
+`8ee1bae`), which contains the raw-REF fix `c6c3d92`. HEAD `36af047` differs
+only by `verification.log`, so the deployed code matches the branch.
+
+Live re-check as the staging owner (`founder.owner@staging.kiddy.test`):
+
+| Check | Result |
+| --- | --- |
+| Child page `/portal/children/<id>` HTML | 0 occurrences of `r2-private:` |
+| Child page media | 3 signed `r2.cloudflarestorage.com` URLs rendered |
+| Learning page `/portal/learning` HTML | 0 occurrences of `r2-private:` |
+
+The founder accepted the staging sign-off card, so the staging half is closed.
+
 ## Remaining
 
-- Redeploy commit `c6c3d92` (raw-REF fix) to the staging Vercel project when the
-  daily deployment quota allows. The leak is not exploitable without R2
-  credentials, but it violates the "raw REF never reaches the browser" promise.
-- Founder spot-check on staging.
-- Production cutover: create the separate production bucket, set production
-  secrets, run the migration, repeat the positive/negative checks, and only
-  then retire Supabase Storage. **Do not change production storage or
-  production credentials until the founder approves a confirmation card.**
+- Production cutover: create the separate private production bucket, set the
+  production secrets, run the migration, repeat the positive/negative checks,
+  and only then retire Supabase Storage. **Do not change production storage or
+  production credentials until the founder approves the confirmation card.**

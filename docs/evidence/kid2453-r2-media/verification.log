@@ -40,3 +40,11 @@ Local production build with staging DB + R2: count 0
 ## Deploy quota
 POST /v13/deployments for c6c3d92 -> 402
 Resource is limited - try again in 1 day (more than 100, code: "api-deployments-free-per-day")
+
+## Staging redeploy check (2026-11-20, later)
+Deployment dpl_2j8SdUKJ1BAwMWDADdHTdizv6MWB (kiddy-staging-orcin.vercel.app)
+commit 8ee1bae (contains raw-REF fix c6c3d92); HEAD 36af047 differs only by this log.
+Owner login founder.owner@staging.kiddy.test
+/portal/children/<id>: r2-private: count 0; signed r2.cloudflarestorage.com URLs 3
+/portal/learning: r2-private: count 0
+Founder staging sign-off card f43d1c3b: accepted 2026-11-20T16:22:49Z
