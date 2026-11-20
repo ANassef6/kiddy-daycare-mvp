@@ -97,7 +97,7 @@ contains KID-2448's bus cycle). Conflicts were resolved by combining both
 features: the sweep keeps KID-2448's "child is on the bus" skip and KID-2447's
 close-instant cutoff, and the attendance roster shows both the `bus` and
 `auto_end_of_day` markers. KID-2447's migration shares the nullable
-`check_in.source` column with KID-2448's `0051_kid2448_bus_cycle.sql`; both are
+`check_in.source` column with KID-2448's `0054_kid2448_bus_cycle.sql`; both are
 idempotent.
 
 `vercel.json` is deliberately unchanged in production: Hobby projects reject

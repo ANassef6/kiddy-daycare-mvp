@@ -33,7 +33,7 @@ are derived from the strict event sequence:
 - `app/child/[id]/page.tsx`: parent badge uses the four wordings.
 - `app/api/export/route.ts`: attendance CSV carries
   `checked_in_source` / `checked_out_source`.
-- `supabase/migrations/0051_kid2448_bus_cycle.sql`: idempotent nullable
+- `supabase/migrations/0054_kid2448_bus_cycle.sql`: idempotent nullable
   `check_in.source`, mirrored in `lib/sqlite-schema.ts`.
 - EN + AR strings for the four states, the guard messages, and the four
   guardian notifications.
@@ -108,7 +108,7 @@ Evidence: `prod-cut-probes.json`, `prod-cut-bundle-checks.txt`.
 | `GET /portal/attendance`, `/child`, `/api/export` anonymous | 307 → `/login` (auth gate) | `prod-cut-probes.json` |
 | Production bundle carries the four EN bus states + guard | PASS | `prod-cut-bundle-checks.txt` |
 | Production bundle carries the four AR bus states | PASS | `prod-cut-bundle-checks.txt` |
-| Migration `0051` applies on first authenticated page load | Automatic, idempotent (`ADD COLUMN IF NOT EXISTS`) | `docs/CONTACT_AND_ACCOUNTS.md` runner notes |
+| Migration `0054` applies on first authenticated page load | Automatic, idempotent (`ADD COLUMN IF NOT EXISTS`) | `docs/CONTACT_AND_ACCOUNTS.md` runner notes |
 
 The signed-in attendance walk-through that produced the founder sign-off ran on
 the staging URL from the previous section. Production keeps the same commit and
@@ -118,7 +118,7 @@ the same migration; no data backfill is needed because `source` is nullable.
 
 KID-2447 (end-of-hours auto-checkout) is in flight on the same files. When both
 branches land, keep one copy of the `check_in.source` migration statement
-(`0050` + `0051` are both `ADD COLUMN IF NOT EXISTS`, so applying both is safe)
+(`0050` + `0054` are both `ADD COLUMN IF NOT EXISTS`, so applying both is safe)
 and keep one `checked_out_source` select/arg pair in `attendanceOn`. The
 KID-2448 skip line in the `runAutoCheckoutSweep` child loop applies unchanged to
 KID-2447's rewritten cutoff.

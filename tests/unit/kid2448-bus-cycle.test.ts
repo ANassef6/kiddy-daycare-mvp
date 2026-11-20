@@ -1,7 +1,7 @@
 // KID-2448: the bus transport attendance cycle (morning pair + afternoon pair).
 //
 // Pinned here:
-//   1. supabase/migrations/0051_kid2448_bus_cycle.sql adds the nullable
+//   1. supabase/migrations/0054_kid2448_bus_cycle.sql adds the nullable
 //      `check_in.source` marker (idempotent) and lib/sqlite-schema.ts mirrors it.
 //   2. The strict sequence: On bus -> Off bus -> On bus -> Off bus. A morning
 //      off-bus auto-checks the child IN (source 'bus'); an afternoon off-bus
@@ -115,11 +115,11 @@ beforeEach(async () => {
 });
 
 describe("KID-2448 migration mirror", () => {
-  it("0051 adds the nullable source marker and sqlite mirrors the column", async () => {
-    const sql = readFileSync("supabase/migrations/0051_kid2448_bus_cycle.sql", "utf8");
+  it("0054 adds the nullable source marker and sqlite mirrors the column", async () => {
+    const sql = readFileSync("supabase/migrations/0054_kid2448_bus_cycle.sql", "utf8");
     expect(sql).toContain("ALTER TABLE check_in ADD COLUMN IF NOT EXISTS source TEXT");
     const sqlite = readFileSync("lib/sqlite-schema.ts", "utf8");
-    expect(sqlite).toContain("0051_kid2448_bus_cycle");
+    expect(sqlite).toContain("0054_kid2448_bus_cycle");
     const cols = await queryAll("PRAGMA table_info(check_in)");
     expect(cols.some((c: Row) => String(c.name) === "source")).toBe(true);
   });

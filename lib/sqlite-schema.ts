@@ -168,7 +168,7 @@ export function sqliteSchema(db: any): void {
     -- 'auto_end_of_day' = written by the end-of-working-hours sweep with no
     -- pickup person (migration 0051_kid2447_auto_checkout_source.sql); 'bus' =
     -- a bus off-bus transition auto-checked the child in/out (migration
-    -- 0051_kid2448_bus_cycle.sql).
+    -- 0054_kid2448_bus_cycle.sql).
     source TEXT
   );
 
@@ -902,7 +902,7 @@ export function sqliteSchema(db: any): void {
   if (!roomCols.some((c) => c.name === "colour")) {
     db.exec("ALTER TABLE room ADD COLUMN colour TEXT NOT NULL DEFAULT '#3B82F6'");
   }
-  // KID-2447 + KID-2448: mirror of the two 0051 migrations that add the
+  // KID-2447 + KID-2448: mirror of the two migrations that add the
   // shared nullable check_in.source marker for databases created before it
   // existed.
   const checkInCols = db.prepare("PRAGMA table_info(check_in)").all() as { name: string }[];
