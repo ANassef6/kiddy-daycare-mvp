@@ -13,3 +13,9 @@ data/*
 
 # scripted probes (may contain env)
 .probe-*.mjs
+
+# KID-2452 Cloudflare
+.open-next
+.wrangler
+cloudflare-env.d.ts
+.dev.vars*
