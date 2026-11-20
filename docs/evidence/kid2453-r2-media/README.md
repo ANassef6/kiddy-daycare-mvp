@@ -1,11 +1,10 @@
 # KID-2453 — Media storage on Cloudflare R2 (private, presigned)
 
-Status: **complete — staging verified and production cut over.** Live cloudflare
+Status: **complete — staging verified and production cut over.** Live Cloudflare
 R2 uploads, signed reads, expiry, cross-tenant refusal and the legacy migration
 passed on staging and again on production. The raw-REF hydration fix (commit
 `c6c3d92`) is live on both environments. Production cutover ran after the founder
-accepted approval card `623c8fb1` (2026-11-20T16:39:52Z). Supabase Storage copies
-are deliberately kept (dual-read) until the retirement step is approved.
+accepted approval card `623c8fb1` (2026-11-20T16:39:52Z). Supabase Storage copies were retired after the founder accepted the separate retirement card.
 
 ## Decision
 
@@ -281,10 +280,25 @@ not transactional, so a timed-out cold start can apply statements without
 recording the ledger row). It is independent of R2. Recommended follow-up: run
 each migration file in one transaction together with its ledger insert.
 
+## Supabase Storage retirement (2026-11-20, later)
+
+The founder accepted the retirement card `d6e6e3e6-d4d2-4d59-89a2-937e0b0aed53`
+at 2026-11-20T17:47:57Z. After re-checking all 10 R2 objects with HEAD, the
+copies were removed through the Supabase Storage API:
+
+| Deleted | Count |
+| --- | --- |
+| `kiddy-private/<key>` same-key dual-read copies | 10 |
+| `kiddy-public/<key>` original public objects | 6 |
+
+`kiddy-private` is empty and a GET of a deleted key returns `404 not_found`.
+Only `kiddy-public/branding/<institute>/` remains, which is public branding and
+is not media. The post-retirement live check still shows 0 raw REFs and signed
+R2 URLs on the child (3), newsfeed (6) and drive (8) pages, so production no
+longer depends on the Supabase copies. Raw log: `prod-supabase-retire.log`
+(and the API transcript in `prod-supabase-retire-raw.log`).
+
 ## Remaining
 
-- Retire the Supabase Storage copies (dual-read fallback) only after the
-  founder confirms production is good; pass `--delete-source` per the migration
-  policy.
 - Fix the KID-2435 migration runner so a migration and its ledger row commit
   atomically.
