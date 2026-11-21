@@ -269,16 +269,19 @@ describe("KID-205 attendance sweep route", () => {
       );
     }
 
-    // Jan 5 2026 is a Monday; 22:00 is past closing (18:00) + 3h grace — BUT
-    // only for the daycares with Monday hours; the strays have no config and
-    // contribute nothing, exactly as before.
+    // Jan 5 2026 is a Monday; 19:00 UTC is 21:00 center-local (Africa/Cairo),
+    // past the 18:00 close and still the same center-local day (KID-2437/
+    // KID-2447: the sweep now keys off the center-local date, so a 22:00 UTC
+    // instant would already be Jan 6 in Cairo and find no Monday hours).
+    // Only the daycares with Monday hours are swept; the strays have no config
+    // and contribute nothing, exactly as before.
     //
     // KID-1175/F-05: the route now requires the cron shared secret, and its
     // response is minimal ({ ok: true }) — no institute IDs, no counts, no
     // reasons. The sweep behavior itself is asserted against the database
     // below (both kids auto-checked-out with the system actor), so the
     // multi-institute coverage is unchanged.
-    const now = new Date(2026, 0, 5, 22, 0, 0);
+    const now = new Date(Date.UTC(2026, 0, 5, 19, 0, 0));
     vi.useFakeTimers().setSystemTime(now);
     const prevCronSecret = process.env.CRON_SECRET;
     process.env.CRON_SECRET = "kid205-cron-shared-secret";
