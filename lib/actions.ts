@@ -2556,9 +2556,11 @@ export async function saveChildStatusAction(formData: FormData) {
         const code =
           err.reason === "sleep-state"
             ? "sleep_state"
-            : err.reason === "not-checked-in"
-              ? "not_checked_in"
-              : "duplicate";
+            : err.reason === "no-sleep"
+              ? "no_sleep"
+              : err.reason === "not-checked-in"
+                ? "not_checked_in"
+                : "duplicate";
         redirect(`${dailyHref}&error=${code}`);
       }
       throw err;

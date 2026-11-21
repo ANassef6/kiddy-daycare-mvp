@@ -135,13 +135,43 @@ describe("KID-2454 sleep state guard", () => {
     expect(await statusCount()).toBe(1);
   });
 
-  it("still logs Woke up → Fell asleep → Woke up", async () => {
-    const base = Date.now();
+  it("rejects Woke up when the child was never marked asleep", async () => {
+    const target = await targetOf(() =>
+      saveChildStatusAction(post({ kind: "sleep", value: "Woke up" }))
+    );
+    expect(queryOf(target).tab).toBe("daily");
+    expect(queryOf(target).error).toBe("no_sleep");
+    expect(await statusCount()).toBe(0);
+  });
+
+  it("rejects a second Woke up after the sleep cycle already ended", async () => {
+    const base = Date.now() - 5 * 60 * 1000;
     const at = (seconds: number) => new Date(base + seconds * 1000).toISOString();
-    await targetOf(() => saveChildStatusAction(post({ kind: "sleep", value: "Woke up", recordedAt: at(0) })));
-    await targetOf(() => saveChildStatusAction(post({ kind: "sleep", value: "Fell asleep", recordedAt: at(5) })));
-    await targetOf(() => saveChildStatusAction(post({ kind: "sleep", value: "Woke up", recordedAt: at(10) })));
-    expect(await statusCount()).toBe(3);
+    await targetOf(() => saveChildStatusAction(post({ kind: "sleep", value: "Fell asleep", recordedAt: at(0) })));
+    await targetOf(() => saveChildStatusAction(post({ kind: "sleep", value: "Woke up", recordedAt: at(5) })));
+    const second = await targetOf(() =>
+      saveChildStatusAction(post({ kind: "sleep", value: "Woke up", recordedAt: at(600) }))
+    );
+    expect(queryOf(second).error).toBe("no_sleep");
+    expect(await statusCount()).toBe(2);
+  });
+
+  it("guards the Arabic wake label when no sleep is registered", async () => {
+    const target = await targetOf(() =>
+      saveChildStatusAction(post({ kind: "sleep", value: "استيقظ" }))
+    );
+    expect(queryOf(target).error).toBe("no_sleep");
+    expect(await statusCount()).toBe(0);
+  });
+
+  it("still logs Fell asleep → Woke up → Fell asleep → Woke up", async () => {
+    const base = Date.now() - 5 * 60 * 1000;
+    const at = (seconds: number) => new Date(base + seconds * 1000).toISOString();
+    await targetOf(() => saveChildStatusAction(post({ kind: "sleep", value: "Fell asleep", recordedAt: at(0) })));
+    await targetOf(() => saveChildStatusAction(post({ kind: "sleep", value: "Woke up", recordedAt: at(5) })));
+    await targetOf(() => saveChildStatusAction(post({ kind: "sleep", value: "Fell asleep", recordedAt: at(120) })));
+    await targetOf(() => saveChildStatusAction(post({ kind: "sleep", value: "Woke up", recordedAt: at(125) })));
+    expect(await statusCount()).toBe(4);
   });
 });
 
@@ -193,16 +223,17 @@ describe("KID-2454 check-in precondition (scope addition)", () => {
 });
 
 describe("KID-2454 error surfacing", () => {
-  it("ships both messages in EN and AR", () => {
+  it("ships every message in EN and AR", () => {
     for (const locale of ["en", "ar"] as const) {
       const dict = dictionaries[locale];
       expect(tr(dict, "profile.statusSleepStateError")).not.toMatch(/MISSING|^profile\./);
+      expect(tr(dict, "profile.statusNoSleepError")).not.toMatch(/MISSING|^profile\./);
       expect(tr(dict, "profile.statusDuplicateError")).not.toMatch(/MISSING|^profile\./);
       expect(tr(dict, "profile.statusNotCheckedInError")).not.toMatch(/MISSING|^profile\./);
     }
   });
 
-  it("renders the daily-tab banner for sleep_state and duplicate in English", async () => {
+  it("renders the daily-tab banner for every status rejection in English", async () => {
     mockState.cookie = sessionCookieFor(ownerId, "owner", ownerEmail);
     const sleep = renderToStaticMarkup(
       await ChildPage({
@@ -211,6 +242,13 @@ describe("KID-2454 error surfacing", () => {
       })
     ).replace(/&quot;/g, '"');
     expect(sleep).toContain(tr(dictionaries.en, "profile.statusSleepStateError"));
+    const noSleep = renderToStaticMarkup(
+      await ChildPage({
+        params: Promise.resolve({ id: childId }),
+        searchParams: Promise.resolve({ tab: "daily", error: "no_sleep" }),
+      })
+    ).replace(/&quot;/g, '"');
+    expect(noSleep).toContain(tr(dictionaries.en, "profile.statusNoSleepError"));
     const dup = renderToStaticMarkup(
       await ChildPage({
         params: Promise.resolve({ id: childId }),
@@ -233,9 +271,9 @@ describe("KID-2454 error surfacing", () => {
     const html = renderToStaticMarkup(
       await ChildPage({
         params: Promise.resolve({ id: childId }),
-        searchParams: Promise.resolve({ tab: "daily", error: "duplicate" }),
+        searchParams: Promise.resolve({ tab: "daily", error: "no_sleep" }),
       })
     );
-    expect(html).toContain(tr(dictionaries.ar, "profile.statusDuplicateError"));
+    expect(html).toContain(tr(dictionaries.ar, "profile.statusNoSleepError"));
   });
 });

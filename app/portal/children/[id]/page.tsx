@@ -216,9 +216,11 @@ export default async function PortalChildPage(
       ? "profile.statusSleepStateError"
       : searchParams.error === "duplicate"
         ? "profile.statusDuplicateError"
-        : searchParams.error === "not_checked_in"
-          ? "profile.statusNotCheckedInError"
-          : null;
+        : searchParams.error === "no_sleep"
+          ? "profile.statusNoSleepError"
+          : searchParams.error === "not_checked_in"
+            ? "profile.statusNotCheckedInError"
+            : null;
   // KID-2450: server-side photo cap refusal (old clients / direct posts).
   const photoError = searchParams.error === "photoType" || searchParams.error === "photoSize";
   // KID-733: the Add-a-child flow reports its parent-login outcome here
