@@ -1964,7 +1964,7 @@ const CHILD_STATUS_FELL_ASLEEP = ["fellAsleep", "Fell asleep", "خلد إلى ا
 const CHILD_STATUS_WOKE_UP = ["wokeUp", "Woke up", "استيقظ"];
 const CHILD_STATUS_DUPLICATE_WINDOW_MS = 60_000;
 
-export type ChildStatusGuardReason = "sleep-state" | "duplicate" | "not-checked-in";
+export type ChildStatusGuardReason = "sleep-state" | "no-sleep" | "duplicate" | "not-checked-in";
 
 export class ChildStatusGuardError extends Error {
   readonly reason: ChildStatusGuardReason;
@@ -2005,22 +2005,28 @@ export async function logChildStatus(data: {
   );
   if (!attendance) throw new ChildStatusGuardError("not-checked-in");
 
-  // Guard 1 — sleep state: a second "fell asleep" with no wake-up in between
-  // is a duplicate, not a new event. "Woke up" is always allowed (the child
-  // may arrive asleep or have partial history).
-  if (data.kind === "sleep" && CHILD_STATUS_FELL_ASLEEP.includes(data.value)) {
-    const sleepValues = [...CHILD_STATUS_FELL_ASLEEP, ...CHILD_STATUS_WOKE_UP];
-    const latestSleep = await queryGet(
-      `SELECT value FROM child_status
-        WHERE child_id = ? AND kind = 'sleep' AND ${dayRange.sql}
-          AND value IN (${sleepValues.map(() => "?").join(", ")})
-        ORDER BY recorded_at DESC, id DESC LIMIT 1`,
-      data.childId,
-      ...dayRange.args,
-      ...sleepValues
-    );
-    if (latestSleep && CHILD_STATUS_FELL_ASLEEP.includes(String(latestSleep.value))) {
-      throw new ChildStatusGuardError("sleep-state");
+  // Guard 1 — sleep state: sleep entries must alternate. A second "fell
+  // asleep" with no wake-up in between is a duplicate, and "woke up" needs a
+  // registered sleep first (founder sign-off, KID-2454: no waking a child who
+  // was never marked asleep).
+  if (data.kind === "sleep") {
+    const isFellAsleep = CHILD_STATUS_FELL_ASLEEP.includes(data.value);
+    const isWokeUp = CHILD_STATUS_WOKE_UP.includes(data.value);
+    if (isFellAsleep || isWokeUp) {
+      const sleepValues = [...CHILD_STATUS_FELL_ASLEEP, ...CHILD_STATUS_WOKE_UP];
+      const latestSleep = await queryGet(
+        `SELECT value FROM child_status
+          WHERE child_id = ? AND kind = 'sleep' AND ${dayRange.sql}
+            AND value IN (${sleepValues.map(() => "?").join(", ")})
+          ORDER BY recorded_at DESC, id DESC LIMIT 1`,
+        data.childId,
+        ...dayRange.args,
+        ...sleepValues
+      );
+      const asleep =
+        !!latestSleep && CHILD_STATUS_FELL_ASLEEP.includes(String(latestSleep.value));
+      if (isFellAsleep && asleep) throw new ChildStatusGuardError("sleep-state");
+      if (isWokeUp && !asleep) throw new ChildStatusGuardError("no-sleep");
     }
   }
 
