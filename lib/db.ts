@@ -11,8 +11,39 @@ export type Row = Record<string, any>;
 
 const DATABASE_URL = process.env.KIDDY_DATABASE_URL;
 
+// KID-2452: on Cloudflare Workers a raw `pg` connection to the Supabase
+// Supavisor pooler fails its TLS handshake (the Workers runtime validates the
+// pooler's private CA and cannot skip it). Hyperdrive terminates that TLS
+// inside Cloudflare and hands the Worker a ready connection string, so prefer
+// its binding whenever it exists. Node (Vercel/local) keeps using
+// KIDDY_DATABASE_URL unchanged.
+function isCloudflareWorkers(): boolean {
+  // Same probe node-postgres uses: only true inside the Workers runtime. This
+  // keeps `next dev` / Vercel on KIDDY_DATABASE_URL (SQLite or the pooler).
+  return typeof navigator === "object" && navigator !== null && navigator.userAgent === "Cloudflare-Workers";
+}
+
+function hyperdriveUrl(): string | undefined {
+  if (!isCloudflareWorkers()) return undefined;
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { getCloudflareContext } = require("@opennextjs/cloudflare") as typeof import("@opennextjs/cloudflare");
+    const ctx = getCloudflareContext() as
+      | { env?: { HYPERDRIVE?: { connectionString?: string } } }
+      | undefined;
+    return ctx?.env?.HYPERDRIVE?.connectionString;
+  } catch {
+    return undefined;
+  }
+}
+
+function runtimeDatabaseUrl(): string | undefined {
+  return hyperdriveUrl() || DATABASE_URL;
+}
+
 export function isPostgresMode(): boolean {
-  return !!DATABASE_URL && !DATABASE_URL.startsWith("file:");
+  const url = runtimeDatabaseUrl();
+  return !!url && !url.startsWith("file:");
 }
 
 // ---------------------------------------------------------------------------
@@ -23,12 +54,17 @@ let _pool: import("pg").Pool | null = null;
 function getPool(): import("pg").Pool {
   if (_pool) return _pool;
   const { Pool } = require("pg") as typeof import("pg");
+  const url = runtimeDatabaseUrl();
+  if (!url) throw new Error("No database URL configured (HYPERDRIVE binding or KIDDY_DATABASE_URL).");
   // Strip the query string (sslmode=require is treated as verify-full by newer
-  // pg) and set Transport-Layer Security explicitly for the Supabase pooler.
-  const base = DATABASE_URL!.split("?")[0];
+  // pg). Direct Supabase pooler connections set TLS explicitly; Hyperdrive
+  // already terminates TLS, and adding `ssl` to its connection string breaks
+  // the handshake.
+  const base = url.split("?")[0];
+  const usesHyperdrive = /hyperdrive/i.test(url);
   _pool = new Pool({
     connectionString: base,
-    ssl: { rejectUnauthorized: false },
+    ...(usesHyperdrive ? {} : { ssl: { rejectUnauthorized: false } }),
     max: 5,
     connectionTimeoutMillis: 10000,
     idleTimeoutMillis: 30000,

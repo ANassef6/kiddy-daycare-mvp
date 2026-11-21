@@ -16,3 +16,9 @@ data/*
 
 # graphify generated artifacts
 graphify-out/
+
+# KID-2452 Cloudflare
+.open-next
+.wrangler
+cloudflare-env.d.ts
+.dev.vars*
