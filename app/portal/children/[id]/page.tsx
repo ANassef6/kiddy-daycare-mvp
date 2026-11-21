@@ -40,6 +40,7 @@ import Attribution from "@/components/Attribution";
 import { curriculumTree, ensureCurriculumSeeded } from "@/lib/curriculum";
 import ObservationModalTrigger from "@/components/ObservationModalTrigger";
 import MediaUploadForm from "@/components/MediaUploadForm";
+import StatusChipButton from "@/components/StatusChipButton";
 import { mediaUploadLabels } from "@/lib/media-i18n";
 import { MAX_PHOTO_UPLOAD_BYTES } from "@/lib/media-limits";
 import { queryGet } from "@/lib/db";
@@ -208,6 +209,18 @@ export default async function PortalChildPage(
   const inviteActivationUrl = String(searchParams.activationUrl ?? "").trim();
   const inviteDetail = String(searchParams.inviteDetail ?? "").trim();
   const relationshipError = searchParams.error === "relationship";
+  // KID-2454: the status-log guard rejected a duplicate sleep state or an
+  // accidental double-tap; say why instead of dropping the submit silently.
+  const statusError =
+    searchParams.error === "sleep_state"
+      ? "profile.statusSleepStateError"
+      : searchParams.error === "duplicate"
+        ? "profile.statusDuplicateError"
+        : searchParams.error === "no_sleep"
+          ? "profile.statusNoSleepError"
+          : searchParams.error === "not_checked_in"
+            ? "profile.statusNotCheckedInError"
+            : null;
   // KID-2450: server-side photo cap refusal (old clients / direct posts).
   const photoError = searchParams.error === "photoType" || searchParams.error === "photoSize";
   // KID-733: the Add-a-child flow reports its parent-login outcome here
@@ -249,6 +262,17 @@ export default async function PortalChildPage(
         >
           <p className="small" style={{ margin: 0 }}>
             {t("profile.contactRelationshipInvalid")}
+          </p>
+        </div>
+      )}
+      {statusError && (
+        <div
+          role="alert"
+          className="card mt-3"
+          style={{ borderLeft: "4px solid #b91c1c" }}
+        >
+          <p className="small" style={{ margin: 0 }}>
+            {t(statusError)}
           </p>
         </div>
       )}
@@ -421,7 +445,7 @@ function dailyReportTab(child: any, report: any, today: string, todayStatuses: a
                   <input type="hidden" name="kind" value="mood" />
                   <input type="hidden" name="statusDate" value={reportDate} />
                   <input type="hidden" name="value" value={value} />
-                  <button className="status-chip status-chip-mood" type="submit">{mo(t, value)}</button>
+                  <StatusChipButton className="status-chip status-chip-mood">{mo(t, value)}</StatusChipButton>
                 </form>
               ))}
             </div>
@@ -435,7 +459,7 @@ function dailyReportTab(child: any, report: any, today: string, todayStatuses: a
                   <input type="hidden" name="kind" value="diaper" />
                   <input type="hidden" name="statusDate" value={reportDate} />
                   <input type="hidden" name="value" value={value} />
-                  <button className="status-chip status-chip-diaper" type="submit">{di(t, value)}</button>
+                  <StatusChipButton className="status-chip status-chip-diaper">{di(t, value)}</StatusChipButton>
                 </form>
               ))}
             </div>
@@ -449,7 +473,7 @@ function dailyReportTab(child: any, report: any, today: string, todayStatuses: a
                   <input type="hidden" name="kind" value="sleep" />
                   <input type="hidden" name="statusDate" value={reportDate} />
                   <input type="hidden" name="value" value={t(`profile.${value}`)} />
-                  <button className="status-chip status-chip-sleep" type="submit">{t(`profile.${value}`)}</button>
+                  <StatusChipButton className="status-chip status-chip-sleep">{t(`profile.${value}`)}</StatusChipButton>
                 </form>
               ))}
             </div>
@@ -463,7 +487,7 @@ function dailyReportTab(child: any, report: any, today: string, todayStatuses: a
                   <input type="hidden" name="kind" value="sick" />
                   <input type="hidden" name="statusDate" value={reportDate} />
                   <input type="hidden" name="value" value={value} />
-                  <button className="status-chip status-chip-sick" type="submit">{value === "yes" ? t("child.feelingSick") : t("child.allGood")}</button>
+                  <StatusChipButton className="status-chip status-chip-sick">{value === "yes" ? t("child.feelingSick") : t("child.allGood")}</StatusChipButton>
                 </form>
               ))}
             </div>
