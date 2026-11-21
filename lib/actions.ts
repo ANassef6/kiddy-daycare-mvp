@@ -76,6 +76,7 @@ import {
   getRoom,
   addContact,
   logChildStatus,
+  ChildStatusGuardError,
   createInvite,
   updateInstitute,
   createContactRequest,
@@ -2547,24 +2548,39 @@ export async function saveChildStatusAction(formData: FormData) {
   const kind = String(formData.get("kind") ?? "").trim();
   const value = String(formData.get("value") ?? "").trim();
   const recordedAt = String(formData.get("recordedAt") ?? "").trim();
-  if (childId && kind && value) {
-    await logChildStatus({
-      childId,
-      kind,
-      value,
-      note: String(formData.get("note") ?? "").trim() || undefined,
-      accountId: me.accountId,
-      recordedAt: recordedAt || undefined,
-    });
-  }
   // KID-472 item 4: stay on the daily tab of the date the staff member was
   // viewing (status logging itself stays today-anchored, "logged instantly").
   // KID-536: the fallback is the same UTC todayIso() as every other surface.
-  redirect(
-    `/portal/children/${childId}?tab=daily&date=${encodeURIComponent(
-      configuredReportDate(formData.get("statusDate"), todayIso())
-    )}`
-  );
+  const dailyHref = `/portal/children/${childId}?tab=daily&date=${encodeURIComponent(
+    configuredReportDate(formData.get("statusDate"), todayIso())
+  )}`;
+  if (childId && kind && value) {
+    try {
+      await logChildStatus({
+        childId,
+        kind,
+        value,
+        note: String(formData.get("note") ?? "").trim() || undefined,
+        accountId: me.accountId,
+        recordedAt: recordedAt || undefined,
+      });
+    } catch (err) {
+      // KID-2454: the server guard rejects a duplicate "fell asleep" or an
+      // accidental double-tap. Send the staff member back to the same daily
+      // view with a visible reason instead of silently dropping the submit.
+      if (err instanceof ChildStatusGuardError) {
+        const code =
+          err.reason === "sleep-state"
+            ? "sleep_state"
+            : err.reason === "not-checked-in"
+              ? "not_checked_in"
+              : "duplicate";
+        redirect(`${dailyHref}&error=${code}`);
+      }
+      throw err;
+    }
+  }
+  redirect(dailyHref);
 }
 
 export async function addContactAction(formData: FormData) {
