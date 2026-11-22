@@ -6,6 +6,8 @@
 // path or unset. All query helpers are async so pages/actions don't care which
 // engine is behind them.
 
+import { dbRequestStore } from "./db-request";
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type Row = Record<string, any>;
 
@@ -37,12 +39,14 @@ function hyperdriveUrl(): string | undefined {
   }
 }
 
-function runtimeDatabaseUrl(): string | undefined {
-  return hyperdriveUrl() || DATABASE_URL;
+function runtimeDatabase(): { url: string | undefined; hyperdrive: boolean } {
+  const hyperdrive = hyperdriveUrl();
+  if (hyperdrive) return { url: hyperdrive, hyperdrive: true };
+  return { url: DATABASE_URL, hyperdrive: false };
 }
 
 export function isPostgresMode(): boolean {
-  const url = runtimeDatabaseUrl();
+  const { url } = runtimeDatabase();
   return !!url && !url.startsWith("file:");
 }
 
@@ -52,19 +56,25 @@ export function isPostgresMode(): boolean {
 let _pool: import("pg").Pool | null = null;
 
 function getPool(): import("pg").Pool {
+  // KID-2452: on Workers the entry point opens one pool per request and stores
+  // it here; sockets cannot be shared across requests. Node keeps the shared
+  // module-level pool below.
+  const requestPool = dbRequestStore.getStore()?.pool;
+  if (requestPool) return requestPool;
   if (_pool) return _pool;
   const { Pool } = require("pg") as typeof import("pg");
-  const url = runtimeDatabaseUrl();
+  const { url, hyperdrive } = runtimeDatabase();
   if (!url) throw new Error("No database URL configured (HYPERDRIVE binding or KIDDY_DATABASE_URL).");
   // Strip the query string (sslmode=require is treated as verify-full by newer
   // pg). Direct Supabase pooler connections set TLS explicitly; Hyperdrive
   // already terminates TLS, and adding `ssl` to its connection string breaks
-  // the handshake.
+  // the handshake. Do not infer this from the connection string: the runtime
+  // Hyperdrive host is not guaranteed to contain "hyperdrive", so the binding
+  // we actually resolved above is the only reliable signal.
   const base = url.split("?")[0];
-  const usesHyperdrive = /hyperdrive/i.test(url);
   _pool = new Pool({
     connectionString: base,
-    ...(usesHyperdrive ? {} : { ssl: { rejectUnauthorized: false } }),
+    ...(hyperdrive ? {} : { ssl: { rejectUnauthorized: false } }),
     max: 5,
     connectionTimeoutMillis: 10000,
     idleTimeoutMillis: 30000,
