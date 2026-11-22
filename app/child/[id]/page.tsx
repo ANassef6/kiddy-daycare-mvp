@@ -12,6 +12,8 @@ import {
   statusesForChild,
   listChildBilling,
   latestBusEvent,
+  busPhaseForCount,
+  centerToday,
   familyAccessForAccount,
   parentCheckInOutAllowed,
 } from "@/lib/store";
@@ -132,9 +134,12 @@ export default async function ChildDetailPage(
   const reportDate = configuredReportDate(searchParams?.date, today);
   const status = await todayStatus(child.id);
   const checkedIn = !!status.checkedIn && !status.checkedOut;
-  // KID-494: the parent sees the current bus status derived from the bus
-  // ledger — the same write path the staff roster and the sweep use.
-  const bus = await latestBusEvent(String(child.id), today);
+  // KID-494/KID-2448: the parent sees the current bus cycle state derived from
+  // the bus ledger — the same write path the staff roster and the sweep use.
+  // The day is the center-local one, matching setBusStatus.
+  const busDay = requestIid ? await centerToday(String(requestIid)) : today;
+  const bus = await latestBusEvent(String(child.id), busDay);
+  const busPhase = bus ? busPhaseForCount(Number(bus.day_count ?? 0)) : null;
   const onBus = bus ? String(bus.type) === "on" : false;
   const [report, contacts, feed, incidents, statuses, invoices] = await Promise.all([
     reportFor(child.id, reportDate),
@@ -182,12 +187,22 @@ export default async function ChildDetailPage(
           ) : (
             <span className="badge">{t("attendees.notCheckedInYet")}</span>
           )}
-          {/* KID-494: the parent-facing bus badge — On bus (green) while the
-              child is riding the bus, Off bus (gray) once set by staff or by
-              the close+2h sweep. */}
+          {/* KID-494/KID-2448: the parent-facing bus badge with the two
+              morning and two afternoon wordings, so "on bus" is never
+              ambiguous about which way the child is travelling. */}
           {bus && (
             <span className={`badge ${onBus ? "badge-green" : "badge-gray"}`}>
-              {onBus ? t("attendees.busOn") : t("attendees.busOff")}
+              {busPhase === "morning_on"
+                ? t("attendees.busOnMorning")
+                : busPhase === "morning_off"
+                  ? t("attendees.busOffMorning")
+                  : busPhase === "afternoon_on"
+                    ? t("attendees.busOnAfternoon")
+                    : busPhase === "afternoon_off"
+                      ? t("attendees.busOffAfternoon")
+                      : onBus
+                        ? t("attendees.busOn")
+                        : t("attendees.busOff")}
             </span>
           )}
         </div>

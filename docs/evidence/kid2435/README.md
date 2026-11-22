@@ -346,3 +346,64 @@ Commit `d6ebc53` implements it; `staging` was pushed `18fa06f..6be8459`.
   SQLite database: `Billing settings` shows the reference table first, then
   `Branch subscriptions: 1` / `Branch: Main (primary)`; with the branch on
   monthly, the `Band` drop-down lists Automatic plus all six bands.
+
+## Production cut (2026-11-20T00:08Z)
+
+Founder sign-off: the staging confirmation card was accepted
+2026-11-19T23:49:17Z (interaction `ed612507-9905-4988-8838-8b6b1a787f99`).
+This cut carries the same code that was checked on staging.
+
+| Item | Value |
+|---|---|
+| Pull request | #70 `kid2435-prod-cut` -> `master` |
+| Merge commit | `c647cfc4bf32f62fee82e8382ad4158d49b869a7` (2026-11-20T00:08:57Z) |
+| Cut branch base | `origin/master` `b132dd1` (KID-2447 production cut) |
+| Merge tree | identical to `772f42e` (the cut-branch tip that Vercel built) |
+| Production deployment | **blocked**: Vercel Hobby deployment rate limit |
+| Production build now | `b132dd1` (the last good deployment) |
+
+### Deployment blocker
+
+The merge is on `master`, but Vercel did not build it. The commit statuses
+on `c647cfc` say:
+
+```
+Vercel – kiddy: failure          Deployment rate limited — retry in 24 hours.
+Vercel – kiddy-staging: failure  Deployment rate limited — retry in 24 hours.
+```
+
+The `kiddy` preview deployment for `772f42e` (same tree as the merge commit)
+built successfully before the merge (`Vercel – kiddy` check on PR #70: pass).
+The team hit the Hobby daily deployment limit across the KID-2435, KID-2447,
+KID-2448 and KID-2449 previews pushed on 19-20 Nov 2026. The limit resets 24
+hours after the last counted build; after that, a new `master` deployment must
+be triggered (a new commit or a Vercel redeploy).
+
+### Post-merge probes (production still on the old build)
+
+| URL | Result | Meaning |
+|---|---|---|
+| `https://kiddyapp.net/login` | `200` | production is up |
+| `https://kiddyapp.net/platform/pricing` | `404` | v3 build not deployed yet |
+| `https://kiddyapp.net/api/attendance/sweep` (no secret) | `401 {"ok":false}` | unchanged, fail-closed |
+| `https://kiddy-staging-orcin.vercel.app/platform/pricing` | `307 -> /login` | staging still serves v3 |
+
+Raw probe data: `prod-cut-probes.json`.
+
+### Gates on the cut branch (rebased on `b132dd1`)
+
+| Check | Result |
+|---|---|
+| `npx tsc --noEmit` | pass |
+| `npm run lint` | pass (pre-existing `<img>` warnings only) |
+| `npm run db:verify-migrations` | all checks passed, including 0045, 0047-0050, 0052 |
+| Billing suites (KID-2434, KID-2435 x2, KID-244, KID-245, KID-246, KID-746, KID-850) | 120/120 pass |
+| `npm run build` (throwaway `SESSION_SECRET`) | pass, all routes collected |
+
+### Migrations in this cut
+
+Production applies `0045`, `0047`, `0048`, `0049`, `0050` and `0052` through
+the existing runner on first DB access. `0048` drops the unused annual columns;
+there are no paying clients at launch, per the approved plan. `0050` creates
+`branch_billing`, backfills one row per branch and anchors existing invoices to
+the institute's first branch. All statements are idempotent.

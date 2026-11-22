@@ -103,3 +103,61 @@ npx vitest run tests/unit/kid2450-media-compression.test.ts \
 5. Switch the app language to Arabic and repeat the video refusal: the message
    must be Arabic.
 6. Old-client mirror: not testable from the UI; covered by the action tests.
+
+## Production cut (2026-11-20T02:30Z)
+
+Founder sign-off: the staging confirmation card was accepted
+2026-11-20T02:04:12Z (interaction `c3d2968d-c7cd-4665-ae88-a6bcb083f8db`,
+"Pass — approve the production cut").
+
+| Item | Value |
+| --- | --- |
+| Pull request | #72 `kid2450-prod-cut` -> `master` |
+| Merge commit | `693c4cd` |
+| Cut branch base | `origin/master` `fc46a43` |
+| Source commit | `1eabc5d` on `staging`, cherry-picked as `350505e` |
+| Production deployment | `dpl CDHDNpkXA5ovr3snAy6Tba1UhJpR` — success |
+| Staging deployment | `dpl 5eSQhK95suECtsTA3ACNqUEZ4mMK` — success |
+
+`master` did not carry the unrelated KID-2449 commit that sits below KID-2450 on
+`staging`, so the cut is a cherry-pick onto `master`, not a branch merge. The
+runtime tree is the one the founder tested. Staging keeps its original commit.
+
+### Test-only correction in the cut
+
+The staging commit's `tests/unit/kid2450-media-compression.test.ts` did not
+type-check under the repo's TypeScript 5.9.3: two property reads on the
+`FileValidation` union (`ext`, `kind`) and two `Uint8Array<ArrayBufferLike>`
+values passed to `Blob`. The cut carries the same runtime code plus a test-only
+fix (typed helper returns and `toMatchObject` assertions), so `tsc` is genuinely
+clean. No runtime behavior changed. The staging branch still holds the earlier
+test text; this is a test-only delta.
+
+### Gates on the cut branch
+
+| Check | Result |
+| --- | --- |
+| `npx tsc --noEmit` | pass |
+| `npm run lint` | 0 errors (pre-existing `<img>` warnings only) |
+| `npm run build` (throwaway `SESSION_SECRET`) | pass, all routes collected |
+| `npm run db:verify-migrations` | all checks passed |
+| KID-2450 + 5 affected suites | 6 files / 77 tests pass |
+
+### Deployment and probes
+
+The Vercel Hobby rate limit that blocked the KID-2435 cut had cleared: both
+the pull-request previews and the `master` deployment reported `success`.
+
+| URL | Before the cut | After the cut |
+| --- | --- | --- |
+| `https://kiddyapp.net/login` | `200` | `200` |
+| `https://kiddyapp.net/platform/pricing` | `404` | `307 -> /login` |
+| `https://kiddyapp.net/api/attendance/sweep` | `401` | `401` (fail-closed) |
+| `https://kiddy-staging-orcin.vercel.app/login` | `200` | `200` |
+
+The `/platform/pricing` move to `307` proves production now serves the new
+build. This cut is also the first production deployment to carry the KID-2435
+pricing/branch-billing build and its migrations (`0045`, `0047`-`0050`, `0052`),
+which apply on first database access. KID-2450 adds no migration.
+
+Raw probe data: `prod-cut-probes.json`.

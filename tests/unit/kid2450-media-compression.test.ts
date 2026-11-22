@@ -40,7 +40,7 @@ vi.mock("next/navigation", () => ({
   },
 }));
 
-function box(type: string, body: Uint8Array): Uint8Array {
+function box(type: string, body: Uint8Array): Uint8Array<ArrayBuffer> {
   const out = new Uint8Array(8 + body.length);
   new DataView(out.buffer).setUint32(0, out.length);
   for (let i = 0; i < 4; i++) out[4 + i] = type.charCodeAt(i);
@@ -48,7 +48,7 @@ function box(type: string, body: Uint8Array): Uint8Array {
   return out;
 }
 
-function mvhd(version: 0 | 1, timescale: number, duration: number): Uint8Array {
+function mvhd(version: 0 | 1, timescale: number, duration: number): Uint8Array<ArrayBuffer> {
   const body = new Uint8Array(version === 0 ? 20 : 32);
   const view = new DataView(body.buffer);
   body[0] = version;
@@ -62,7 +62,7 @@ function mvhd(version: 0 | 1, timescale: number, duration: number): Uint8Array {
   return box("mvhd", body);
 }
 
-function mp4(timescale: number, duration: number, version: 0 | 1 = 0): Uint8Array {
+function mp4(timescale: number, duration: number, version: 0 | 1 = 0): Uint8Array<ArrayBuffer> {
   const ftyp = box("ftyp", new Uint8Array([0x69, 0x73, 0x6f, 0x6d, 0, 0, 0, 0]));
   const moov = box("moov", mvhd(version, timescale, duration));
   const out = new Uint8Array(ftyp.length + moov.length);

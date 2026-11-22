@@ -1,12 +1,10 @@
 # KID-2453 — Media storage on Cloudflare R2 (private, presigned)
 
-Status: **staging verified and signed off.** Live Cloudflare R2 uploads, signed
-reads, expiry, cross-tenant refusal and the legacy migration all passed against
-the staging project. The raw-REF hydration fix (commit `c6c3d92`) is live on
-staging: the later `8ee1bae` push deployed successfully even though the explicit
-redeploy attempt on the previous day hit `402 api-deployments-free-per-day`.
-Production storage cutover remains gated on a founder approval card. Supabase
-Storage stays readable (dual-read) until production cutover is verified.
+Status: **complete — staging verified and production cut over.** Live Cloudflare
+R2 uploads, signed reads, expiry, cross-tenant refusal and the legacy migration
+passed on staging and again on production. The raw-REF hydration fix (commit
+`c6c3d92`) is live on both environments. Production cutover ran after the founder
+accepted approval card `623c8fb1` (2026-11-20T16:39:52Z). Supabase Storage copies were retired after the founder accepted the separate retirement card.
 
 ## Decision
 
@@ -161,9 +159,146 @@ Live re-check as the staging owner (`founder.owner@staging.kiddy.test`):
 
 The founder accepted the staging sign-off card, so the staging half is closed.
 
+## Production cutover (2026-11-20)
+
+Founder sign-off: approval card `623c8fb1` accepted at 2026-11-20T16:39:52Z
+("Approve the production media cutover to Cloudflare R2").
+
+| Item | Value |
+| --- | --- |
+| Pull request | #74 `kid2453-prod-cut` → `master` |
+| Merge commit | `f943afa` |
+| Cut branch base | `origin/master` `e096b1f` |
+| Cherry-picked commits | `4bbf9b1`, `86ec0c7`, `00441fa`, `79ecd2b`, `c6c3d92` |
+| Production deployment | `dpl_FgYPTapUh7RoBZ1WsCDojZQrmq1e` — READY, `master` |
+| Production bucket | `kiddy-media-prod` (WEUR, private, no public domain) |
+| Bucket CORS | `GET`/`PUT`/`HEAD` from `kiddyapp.net`, `*.kiddyapp.net`, `kiddy-one.vercel.app` |
+| Secrets | `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET` — encrypted, `production` target only |
+
+The cut is a cherry-pick, not a branch merge: `master` did not carry the
+unrelated KID-2449/KID-2451 commits below KID-2453 on `staging`. Gates on the
+cut branch: `tsc` clean, ESLint 0 errors, 65 targeted tests passed (KID-2453,
+KID-2450, KID-489, KID-1177), production build green. The PR's audit and both
+Vercel checks passed before merge.
+
+### Live bucket check (production credentials)
+
+The R2 S3 secret is the SHA-256 hash of the Cloudflare API token value (the
+token `id` is the access key id), as documented by Cloudflare. With the
+production credentials:
+
+| Step | Result |
+| --- | --- |
+| Signed PUT | 200 |
+| HEAD | object present, exact size |
+| Unsigned GET | 400 `InvalidArgument` |
+| Presigned GET (`X-Amz-Expires=120`) | 200, exact bytes, `Cache-Control: private, max-age=120` |
+| Expired signed GET (1 s TTL, 3 s wait) | 403 `ExpiredRequest` |
+| Presigned PUT | 200 |
+| DELETE and HEAD after delete | 204, then 404 |
+
+CORS preflight from `https://sunshine.kiddyapp.net` and `https://kiddyapp.net`
+returns 204 with `Access-Control-Allow-Methods: GET, PUT, HEAD`, so browser
+direct uploads pass preflight. Raw log: `prod-r2-verify.log`.
+
+### Existing media migration
+
+The production library was small: 2 child photos, 2 staff photos, 2 payment
+proofs, 2 drive files and 2 newsfeed attachments — 10 objects, 6 of them still
+on pre-KID-1177 public Supabase URLs and 4 inline `data:` URIs. The database
+connection string is a write-only Vercel secret, so the migration used the
+Supabase service role through PostgREST with the same source/key/verification
+rules as `scripts/migrate-media-to-r2.ts`:
+
+| Source kind | Rows | Destination |
+| --- | --- | --- |
+| Public Supabase Storage URL (`kiddy-public`) | 6 | same object path under `r2-private:` |
+| Inline `data:` URI | 4 | `legacy/<table>/<id>/<uuid>.<ext>` |
+| **Total** | **10** | **migrated=10, failures=0** |
+
+Each object was PUT to R2, HEADed for the exact byte length, and only then did
+the row change to `r2-private:<key>`. Raw log: `prod-migration.log`.
+
+The Supabase copies were kept, and the 10 objects were also written to the
+private `kiddy-private` bucket at the same keys. That makes the code's real
+dual-read fallback work: if R2 is unset or a signing call fails, an
+`r2-private:<key>` row resolves from Supabase `kiddy-private` at `<key>`. A
+Supabase signed GET of the migrated child photo returned exactly `1,885,611`
+bytes. Raw log: `prod-supabase-backup.log`. (Six originals were in the public
+`kiddy-public` bucket, so a same-key private copy was needed for the fallback;
+the four former `data:` URIs had no stored copy at all.)
+
+### Live production checks
+
+Authenticated through the real operator login and the audited "Enter as admin"
+flow for Sunshine Daycare (production), then read the pages:
+
+| Check | Result |
+| --- | --- |
+| Child page `/portal/children/mud3euq6-j2xfy0jt` | 200; **0** `r2-private:` strings; **3** signed R2 URLs |
+| Child photo bytes | signed GET 200, `1,885,611` bytes, `image/jpeg` — exact source size |
+| Newsfeed `/portal/newsfeed` | **0** raw REFs; **6** signed R2 URLs |
+| Drive `/portal/drive` | **0** raw REFs; **8** signed R2 URLs |
+| Child billing `/portal/children/<id>/billing` | **0** raw REFs; **2** signed R2 URLs |
+| Child detail page (admin) | **0** raw REFs; **3** signed R2 URLs |
+| Cross-tenant child page | `404`, no media URL |
+| Unauthenticated child page | redirect to `/login`, no media URL |
+| Unsigned R2 GET | 400 |
+| Expired signed GET | 403 |
+
+Screenshots: `prod-platform.png`, `prod-child-photo.png`, `prod-newsfeed.png`,
+`prod-drive.png`, `prod-billing.png`, `prod-child-detail.png`,
+`prod-auth-negative-login.png`. HTML snapshots: `prod-child.html`,
+`prod-newsfeed.html`, `prod-drive.html`, `prod-billing.html`. Run log:
+`prod-verification.log`.
+
+The direct-upload endpoint correctly refuses the operator-view session (`No
+daycare is selected for this upload`): that session is bound to the host but is
+not a tenant account. The upload path itself (presign → PUT → finalize cap
+re-check) was verified end-to-end on staging with the same code; production
+bucket signing, CORS and expiry were verified with the live credentials above.
+
+### Pre-existing pricing migration ledger repair (not caused by KID-2453)
+
+The first authenticated production render after the cut exposed a **pre-existing**
+database state problem: `/platform` returned the generic error page because the
+migration runner replayed `0045_pricing_v2.sql`, whose `pricing_band` INSERT names
+`annual_egp`, a column that `0048` had already dropped. `schema_migrations` was
+missing rows `0045`, `0047`, `0048`, `0049` and `0050`, although their effects
+were present (verified column by column); `0052` had genuinely not applied.
+
+Repair, after verifying each effect:
+
+1. Recorded the five already-applied files in `schema_migrations`.
+2. Let the next cold start apply the one genuinely pending migration, `0052`
+   (`daycare_billing.band_key`, `branch_billing.band_key`, band index).
+3. Re-ran the operator flow: `/platform` renders, Sunshine Daycare "Enter as
+   admin" works, and the media checks above pass.
+
+This is a KID-2435 migration-runner robustness issue (multi-statement files are
+not transactional, so a timed-out cold start can apply statements without
+recording the ledger row). It is independent of R2. Recommended follow-up: run
+each migration file in one transaction together with its ledger insert.
+
+## Supabase Storage retirement (2026-11-20, later)
+
+The founder accepted the retirement card `d6e6e3e6-d4d2-4d59-89a2-937e0b0aed53`
+at 2026-11-20T17:47:57Z. After re-checking all 10 R2 objects with HEAD, the
+copies were removed through the Supabase Storage API:
+
+| Deleted | Count |
+| --- | --- |
+| `kiddy-private/<key>` same-key dual-read copies | 10 |
+| `kiddy-public/<key>` original public objects | 6 |
+
+`kiddy-private` is empty and a GET of a deleted key returns `404 not_found`.
+Only `kiddy-public/branding/<institute>/` remains, which is public branding and
+is not media. The post-retirement live check still shows 0 raw REFs and signed
+R2 URLs on the child (3), newsfeed (6) and drive (8) pages, so production no
+longer depends on the Supabase copies. Raw log: `prod-supabase-retire.log`
+(and the API transcript in `prod-supabase-retire-raw.log`).
+
 ## Remaining
 
-- Production cutover: create the separate private production bucket, set the
-  production secrets, run the migration, repeat the positive/negative checks,
-  and only then retire Supabase Storage. **Do not change production storage or
-  production credentials until the founder approves the confirmation card.**
+- Fix the KID-2435 migration runner so a migration and its ledger row commit
+  atomically.

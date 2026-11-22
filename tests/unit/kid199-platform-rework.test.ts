@@ -202,15 +202,18 @@ describe("i18n", () => {
       expect(enKeys.has(key)).toBe(true);
       expect(arKeys.has(key)).toBe(true);
     }
-    // The daycare role labels are exactly the five real roles in both dicts.
+    // The daycare role labels cover the five real roles plus the KID-2413
+    // teacher/caregiver staff variants in both dicts.
     const roleKeys = (d: typeof dictionaries.en) =>
       keysOf(d).filter((k) => k.startsWith("roles.")).sort();
     expect(roleKeys(dictionaries.en)).toEqual([
       "roles.admin",
+      "roles.caregiver",
       "roles.carer",
       "roles.owner",
       "roles.parent",
       "roles.staff",
+      "roles.teacher",
     ]);
     expect([...arKeys].sort()).toEqual([...enKeys].sort());
   });

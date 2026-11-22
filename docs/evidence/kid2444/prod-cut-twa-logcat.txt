@@ -1,0 +1,6 @@
+11-19 20:40:00.527 I/SunshineTWA( 8967): provider pick: com.android.chrome mode=TRUSTED_WEB_ACTIVITY
+11-19 20:40:00.552 I/SunshineTWA( 8967): launching TWA url https://sunshine.kiddyapp.net/login
+11-19 20:40:00.581 I/SunshineTWA( 8967): super.onCreate completed without exception
+11-19 20:49:36.968 D/FlashNotifController(  510): Flash notification is disabled
+11-19 20:49:36.971 W/AiAiEcho( 1581): SmartspaceNotificationPredictor no parser can handle this notification or notification is invalid
+11-19 20:49:37.491 D/AudioFlinger(  386): Client defaulted notificationFrames to 12512 for frameCount 25024

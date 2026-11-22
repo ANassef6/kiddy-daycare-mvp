@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { resolveTenantInstituteId } from "@/lib/tenant";
 import { requireSession } from "@/lib/require";
-import {attendanceOn, runAutoCheckoutSweep, scopedRoomIds, listRooms, busStatusByChild, parentCheckInOutAllowed, centerToday, AUTO_CHECKOUT_SOURCE } from "@/lib/store";
+import {attendanceOn, runAutoCheckoutSweep, scopedRoomIds, listRooms, busStatusByChild, busPhaseForCount, parentCheckInOutAllowed, centerToday, AUTO_CHECKOUT_SOURCE } from "@/lib/store";
 import { AttendanceCheckIn } from "@/components/AttendanceCheckIn";
 import { BusStatusButtons } from "@/components/BusStatusButtons";
 import { recordToolUsage } from "@/lib/tool-usage";
@@ -134,6 +134,15 @@ export default async function PortalAttendancePage(
         <tbody>
           {rows.map((r: any) => {
             const bus = busByChild[String(r.id)];
+            // KID-2448: the phase comes from the day's event count, so the
+            // roster can tell the morning and afternoon on-bus states apart.
+            const phase = bus ? busPhaseForCount(Number(bus.day_count ?? 0)) : null;
+            const busLabel =
+              phase === "morning_on" ? tr(dict, "attendance.busOnMorning")
+              : phase === "morning_off" ? tr(dict, "attendance.busOffMorning")
+              : phase === "afternoon_on" ? tr(dict, "attendance.busOnAfternoon")
+              : phase === "afternoon_off" ? tr(dict, "attendance.busOffAfternoon")
+              : null;
             return (
               <tr key={r.id}>
                 <td><strong>{r.first_name} {r.last_name}</strong></td>
@@ -144,13 +153,25 @@ export default async function PortalAttendancePage(
                   : <span className="badge">{tr(dict, "attendance.absent")}</span>}
                 </td>
                 <td>
-                  {bus?.type === "on" ? <span className="badge badge-green">{tr(dict, "attendance.busOn")}</span>
-                  : bus?.type === "off" ? <span className="badge badge-gray">{tr(dict, "attendance.busOff")}</span>
-                  : <span className="badge">—</span>}
+                  {busLabel ? (
+                    <span className={`badge ${phase === "morning_on" || phase === "afternoon_on" ? "badge-green" : "badge-gray"}`}>
+                      {busLabel}
+                    </span>
+                  ) : (
+                    <span className="badge">—</span>
+                  )}
                 </td>
-                <td className="small">{fmtTimeFor(locale, r.checked_in_at)}</td>
+                <td className="small">
+                  {fmtTimeFor(locale, r.checked_in_at)}
+                  {r.checked_in_source === "bus" && (
+                    <> <span className="badge badge-gray">{tr(dict, "attendance.busSource")}</span></>
+                  )}
+                </td>
                 <td className="small">
                   {fmtTimeFor(locale, r.checked_out_at)}
+                  {r.checked_out_source === "bus" && (
+                    <> <span className="badge badge-gray">{tr(dict, "attendance.busSource")}</span></>
+                  )}
                   {r.checked_out_source === AUTO_CHECKOUT_SOURCE && r.checked_out_at && (
                     <span className="badge badge-gray" style={{ marginLeft: 6 }}>
                       {tr(dict, "attendance.autoCheckoutBadge")}
@@ -172,11 +193,28 @@ export default async function PortalAttendancePage(
                     )}
                     <BusStatusButtons
                       childId={r.id as string}
-                      busEvent={bus ? { type: String(bus.type), auto: Number(bus.auto) === 1 } : undefined}
+                      busEvent={
+                        bus
+                          ? {
+                              type: String(bus.type),
+                              auto: Number(bus.auto) === 1,
+                              phase,
+                              dayCount: Number(bus.day_count ?? 0),
+                            }
+                          : undefined
+                      }
                       labels={{
-                        onBus: tr(dict, "attendance.busOn"),
-                        onBusAuto: `${tr(dict, "attendance.busOn")}${locale === "ar" ? " (تلقائي)" : " (auto)"}`,
-                        offBus: tr(dict, "attendance.busOff"),
+                        onMorning: tr(dict, "attendance.busOnMorning"),
+                        offMorning: tr(dict, "attendance.busOffMorning"),
+                        onAfternoon: tr(dict, "attendance.busOnAfternoon"),
+                        offAfternoon: tr(dict, "attendance.busOffAfternoon"),
+                        complete: tr(dict, "attendance.busCycleComplete"),
+                        errors: {
+                          off_without_on: tr(dict, "attendance.busErrorOffWithoutOn"),
+                          on_before_off: tr(dict, "attendance.busErrorOnBeforeOff"),
+                          cycle_complete: tr(dict, "attendance.busErrorCycleComplete"),
+                          unknown: tr(dict, "attendance.busErrorCycleComplete"),
+                        },
                       }}
                     />
                   </div>

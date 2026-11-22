@@ -54,6 +54,8 @@ import {
   scopedRoomIds,
   messagingRoomIds,
   setBusStatus,
+  BusCycleError,
+  type BusCycleErrorCode,
 } from "@/lib/store";
 import {
   getInviteByCode,
@@ -1749,21 +1751,35 @@ export async function busStatusAction(formData: FormData) {
       redirect("/child?error=role");
     }
     await assertChildInScope(childId, me);
-    await setBusStatus({ childId, accountId: me.accountId, type });
-    // KID-477: bus transitions are user-visible mutations on the audit trail.
-    const instituteId = await firstInstituteId();
-    await recordAuditEvent({
-      instituteId: instituteId ?? null,
-      actorAccountId: me.accountId,
-      action: type === "on" ? "bus_on" : "bus_off",
-      entityType: "bus",
-      entityId: childId,
-      summary: type === "on" ? "Set on bus" : "Set off bus",
-      metadata: null,
-    });
+    let phase: string | null = null;
+    try {
+      const res = await setBusStatus({ childId, accountId: me.accountId, type });
+      phase = res.phase;
+      if (res.inserted) {
+        // KID-477: bus transitions are user-visible mutations on the audit trail.
+        const instituteId = await firstInstituteId();
+        await recordAuditEvent({
+          instituteId: instituteId ?? null,
+          actorAccountId: me.accountId,
+          action: type === "on" ? "bus_on" : "bus_off",
+          entityType: "bus",
+          entityId: childId,
+          summary: type === "on" ? "Set on bus" : "Set off bus",
+          metadata: { phase: res.phase },
+        });
+      }
+    } catch (err) {
+      if (err instanceof BusCycleError) {
+        revalidatePath("/portal/attendance");
+        return { ok: false as const, code: err.code as BusCycleErrorCode, phase: null };
+      }
+      throw err;
+    }
+    revalidatePath("/portal/attendance");
+    return { ok: true as const, phase };
   }
   revalidatePath("/portal/attendance");
-  return { ok: true as const };
+  return { ok: true as const, phase: null };
 }
 
 export async function saveDailyReportAction(formData: FormData) {

@@ -1327,12 +1327,17 @@ export async function attendanceOn(
     `SELECT c.id, c.first_name, c.last_name, r.name AS room_name,
             (SELECT type FROM check_in WHERE child_id = c.id AND ${range.sql} ORDER BY recorded_at DESC LIMIT 1) AS last_event,
             (SELECT recorded_at FROM check_in WHERE child_id = c.id AND ${range.sql} AND type='in' ORDER BY recorded_at DESC LIMIT 1) AS checked_in_at,
+            (SELECT source FROM check_in WHERE child_id = c.id AND ${range.sql} AND type='in' ORDER BY recorded_at DESC LIMIT 1) AS checked_in_source,
             (SELECT recorded_at FROM check_in WHERE child_id = c.id AND ${range.sql} AND type='out' ORDER BY recorded_at DESC LIMIT 1) AS checked_out_at,
+            -- KID-2447 + KID-2448: the source column marks a system-written
+            -- row ('auto_end_of_day' or 'bus'); attendance history/exports use
+            -- it only as a display marker.
             (SELECT source FROM check_in WHERE child_id = c.id AND ${range.sql} AND type='out' ORDER BY recorded_at DESC LIMIT 1) AS checked_out_source
      FROM child c
      LEFT JOIN room r ON r.id = c.room_id
      WHERE ${where}
      ORDER BY r.name, c.first_name`,
+    ...range.args,
     ...range.args,
     ...range.args,
     ...range.args,
@@ -1562,7 +1567,14 @@ export async function runAutoCheckoutSweep(
       instituteId,
       ...range.args
     );
+    // KID-2448: a child whose latest bus transition is "on" is riding the bus,
+    // not on the premises. The morning on-bus state is not checked in anyway;
+    // the afternoon on-bus state is still checked in, so the end-of-day sweep
+    // must not close it (the child's own off-bus writes the check-out).
+    const busToday = await busStatusByChild(instituteId, today);
     for (const child of dueChildren) {
+      if (String(busToday[String(child.id)]?.type ?? "") === "on") continue;
+      if (!child.checked_in_at) continue;
       // KID-2447: after the end-of-day cutoff every child whose latest event
       // today is still 'in' is due, even one checked in after closing. The
       // idempotent guard is the ledger state itself: once the sweep writes the
@@ -1628,41 +1640,109 @@ export async function checkedInNow(
   );
 }
 
-// KID-489 item 5 (KID-494): bus on/off status. The state lives as an append-
-// only ledger (`bus_event`, migration 0035) — today's status is always the
-// LATEST event of the day, never a mutable column. Transitions carry the auto
-// check-in/check-out side effects on the existing `check_in` rows so
-// todayStatus/attendanceOn and the 3h auto-checkout keep working untouched,
-// and every transition emits exactly one durable parent notification
-// (dedupe rides emitNotifications' (account_id, ref) uniqueness).
+// KID-489 item 5 (KID-494), extended by KID-2448: the child bus cycle. The
+// state lives as an append-only ledger (`bus_event`, migration 0035) — today's
+// cycle position is always derived from the ordered events of the day, never
+// from a mutable column.
 //
+// A daycare day has at most one morning pair and one afternoon pair:
+//
+//   morning_on  On bus, picked up from home   -> no attendance write
+//   morning_off Off bus, arrived at daycare    -> auto CHECK-IN  (source 'bus')
+//   afternoon_on  On bus, leaving for home     -> no attendance write
+//   afternoon_off Off bus, dropped off home    -> auto CHECK-OUT (source 'bus')
+//
+// The sequence is strict: only the next expected action is accepted, so an
+// off-bus without a prior on-bus is rejected and each pair runs once per day.
+// Every inserted transition emits exactly one durable guardian notification
+// (dedupe rides emitNotifications' (account_id, ref) uniqueness).
 
-/** Latest bus event for the child on `day` (YYYY-MM-DD), if any. */
+export const BUS_SOURCE = "bus";
+
+export type BusPhase = "morning_on" | "morning_off" | "afternoon_on" | "afternoon_off";
+
+export type BusCycleErrorCode = "off_without_on" | "on_before_off" | "cycle_complete";
+
+/** A rejected bus transition. The action layer turns the code into localized
+ *  copy instead of leaking a generic server-action error. */
+export class BusCycleError extends Error {
+  code: BusCycleErrorCode;
+  constructor(code: BusCycleErrorCode) {
+    super(`bus cycle: ${code}`);
+    this.name = "BusCycleError";
+    this.code = code;
+  }
+}
+
+/** Phase of a completed bus event count (1..4); null for 0 or an invalid 5+. */
+export function busPhaseForCount(count: number): BusPhase | null {
+  switch (count) {
+    case 1:
+      return "morning_on";
+    case 2:
+      return "morning_off";
+    case 3:
+      return "afternoon_on";
+    case 4:
+      return "afternoon_off";
+    default:
+      return null;
+  }
+}
+
+/** The only action the next press may send, or null when the day is done. */
+export function busNextAction(count: number): "on" | "off" | null {
+  if (count >= 4) return null;
+  return count % 2 === 0 ? "on" : "off";
+}
+
+async function centerTimeZoneForChild(childId: string): Promise<string> {
+  const child = await queryGet("SELECT institute_id FROM child WHERE id = ?", childId);
+  const instituteId = String(child?.institute_id ?? "");
+  if (!instituteId) return normalizeTimeZone(undefined);
+  const acc = await getCenterSchedule(instituteId);
+  return acc.timeZone;
+}
+
+/** Latest bus event for the child on `day` (YYYY-MM-DD, center-local), if any.
+ *  `day_count` is the number of transitions that day, so callers can derive
+ *  the phase with busPhaseForCount. */
 export async function latestBusEvent(childId: string, day: string): Promise<Row | undefined> {
+  const timeZone = await centerTimeZoneForChild(childId);
+  const range = centerDayRange("be.recorded_at", day, timeZone);
+  const countRange = centerDayRange("b2.recorded_at", day, timeZone);
   return queryGet(
-    `SELECT be.*, a.full_name AS recorded_by_name
+    `SELECT be.*, a.full_name AS recorded_by_name,
+            (SELECT COUNT(*) FROM bus_event b2 WHERE b2.child_id = be.child_id AND ${countRange.sql}) AS day_count
      FROM bus_event be LEFT JOIN account a ON a.id = be.account_id
-     WHERE be.child_id = ? AND date(be.recorded_at) = ?
+     WHERE be.child_id = ? AND ${range.sql}
      ORDER BY be.recorded_at DESC, be.id DESC LIMIT 1`,
+    ...countRange.args,
     childId,
-    day
+    ...range.args
   );
 }
 
 /** Latest bus event per child for the staff roster — one indexed query, no
- *  N+1, restricted to the institute's active children for the day shown. */
+ *  N+1, restricted to the institute's children for the day shown. `day_count`
+ *  carries the phase. */
 export async function busStatusByChild(
   instituteId: string,
   day: string
 ): Promise<Record<string, Row>> {
+  const { timeZone } = await getCenterSchedule(instituteId);
+  const range = centerDayRange("be.recorded_at", day, timeZone);
+  const countRange = centerDayRange("b2.recorded_at", day, timeZone);
   const rows = await queryAll(
-    `SELECT be.child_id, be.id, be.type, be.auto, be.recorded_at
+    `SELECT be.child_id, be.id, be.type, be.auto, be.recorded_at,
+            (SELECT COUNT(*) FROM bus_event b2 WHERE b2.child_id = be.child_id AND ${countRange.sql}) AS day_count
      FROM bus_event be
      JOIN child c ON c.id = be.child_id
-     WHERE c.institute_id = ? AND date(be.recorded_at) = ?
+     WHERE c.institute_id = ? AND ${range.sql}
      ORDER BY be.recorded_at DESC, be.id DESC`,
+    ...countRange.args,
     instituteId,
-    day
+    ...range.args
   );
   const map: Record<string, Row> = {};
   for (const row of rows) {
@@ -1683,20 +1763,23 @@ async function parentAccountIdsForChild(childId: string): Promise<string[]> {
   return rows.map((r) => String(r.account_id));
 }
 
-/** Records a bus transition (staff button or the close+2h sweep).
+/** Records one bus cycle transition (staff button or the close+2h sweep).
  *
- *  Idempotent per day: setting the same type the latest event already has
- *  inserts nothing and emits nothing, so repeated sweeps never duplicate.
+ *  Guards (KID-2448): the day's events must alternate on, off, on, off. An
+ *  off-bus without a prior on-bus throws `off_without_on`; an on-bus while the
+ *  child is already on throws `on_before_off`; a fifth event throws
+ *  `cycle_complete`. A repeat of the LATEST type is an idempotent no-op so a
+ *  double click or a repeated sweep never duplicates.
  *
  *  Side effects (exactly the issue spec):
- *    - ON  bus and the child is not checked out -> auto check-out row
- *      (existing autoCheckoutChild) so attendance flips consistently; an
- *      already-checked-out child gets no duplicate event.
- *    - OFF bus and the child is not checked in -> auto check-in row.
- *    - One durable parent notification per inserted transition.
+ *    - morning_off -> auto check-in row marked source 'bus'
+ *    - afternoon_off -> auto check-out row marked source 'bus'
+ *    - the two on-bus transitions change no attendance row (the child is en
+ *      route; the off-bus that arrives is the attendance event)
+ *    - one durable guardian notification per inserted transition
  *
  *  The side-effect rows are plain `check_in` writes: todayStatus,
- *  attendanceOn, the 3h sweep and the reports read them unchanged. */
+ *  attendanceOn, the end-of-day sweep and the reports read them unchanged. */
 export async function setBusStatus(data: {
   childId: string;
   accountId: string;
@@ -1706,15 +1789,48 @@ export async function setBusStatus(data: {
   /** Stable dedupe ref for system (sweep) emissions — keeps "notify once" */
   /** across repeated sweeps even if two land near-simultaneously. */
   notificationRef?: string;
-}): Promise<{ event: Row; inserted: boolean; sideEffect: "check_out" | "check_in" | null }> {
+}): Promise<{
+  event: Row;
+  inserted: boolean;
+  sideEffect: "check_out" | "check_in" | null;
+  phase: BusPhase | null;
+  next: "on" | "off" | null;
+}> {
   const child = await queryGet("SELECT id, institute_id, first_name, last_name FROM child WHERE id = ?", data.childId);
   if (!child) throw new Error(`setBusStatus: child ${data.childId} not found`);
   const recordedAt = data.recordedAt ?? new Date().toISOString();
-  const day = recordedAt.slice(0, 10);
-  const latest = await latestBusEvent(data.childId, day);
-  if (latest && String(latest.type) === data.type) {
-    return { event: latest, inserted: false, sideEffect: null };
+  const instituteId = String(child.institute_id ?? "");
+  const timeZone = instituteId ? (await getCenterSchedule(instituteId)).timeZone : normalizeTimeZone(undefined);
+  const day = zonedDateKey(new Date(recordedAt), timeZone);
+  const range = centerDayRange("be.recorded_at", day, timeZone);
+
+  const events = await queryAll(
+    `SELECT type FROM bus_event be WHERE be.child_id = ? AND ${range.sql}
+     ORDER BY be.recorded_at, be.id`,
+    data.childId,
+    ...range.args
+  );
+  const count = events.length;
+  const latestType = count > 0 ? String(events[count - 1].type) : undefined;
+  const latest = count > 0 ? await latestBusEvent(data.childId, day) : undefined;
+
+  // Idempotent repeat of the latest transition (double click / repeated sweep).
+  if (latestType === data.type) {
+    return {
+      event: latest!,
+      inserted: false,
+      sideEffect: null,
+      phase: busPhaseForCount(count),
+      next: busNextAction(count),
+    };
   }
+
+  // Strict alternating sequence: on, off, on, off.
+  if (count >= 4) throw new BusCycleError("cycle_complete");
+  const expected = busNextAction(count);
+  if (data.type === "off" && expected !== "off") throw new BusCycleError("off_without_on");
+  if (data.type === "on" && expected !== "on") throw new BusCycleError("on_before_off");
+
   const id = uid();
   await queryRun(
     `INSERT INTO bus_event (id, child_id, account_id, type, auto, recorded_at)
@@ -1727,39 +1843,53 @@ export async function setBusStatus(data: {
     recordedAt
   );
   const event = (await queryGet("SELECT * FROM bus_event WHERE id = ?", id))!;
+  const phase = busPhaseForCount(count + 1)!;
 
-  // Attendance side effect: flip the missing half of the day on check_in.
-  // The comparison reads the check_in ledger for THE BUS EVENT'S day (not
-  // the server "today"), so a pinned recordedAt always stays consistent.
+  // Attendance side effect. The comparison reads the check_in ledger for THE
+  // BUS EVENT'S center-local day, so a pinned recordedAt stays consistent.
+  const checkRange = centerDayRange("recorded_at", day, timeZone);
   const lastEvent = await queryGet(
-    "SELECT type FROM check_in WHERE child_id = ? AND date(recorded_at) = ? ORDER BY recorded_at DESC, id DESC LIMIT 1",
+    `SELECT type FROM check_in WHERE child_id = ? AND ${checkRange.sql}
+     ORDER BY recorded_at DESC, id DESC LIMIT 1`,
     data.childId,
-    day
+    ...checkRange.args
   );
   const lastType = lastEvent ? String(lastEvent.type) : undefined;
   let sideEffect: "check_out" | "check_in" | null = null;
-  if (data.type === "on" && lastType !== "out") {
-    await autoCheckoutChild(data.childId, new Date(recordedAt), data.accountId);
-    sideEffect = "check_out";
-  }
-  if (data.type === "off" && lastType !== "in") {
+  if (phase === "morning_off" && lastType !== "in") {
     // Direct check-in row: the bus gate records arrival regardless of the
     // center's opening time — the bus IS the arrival, and the auto-off sweep
     // fires after closing when "not open yet" would always block.
-    await queryRun("INSERT INTO check_in (id, child_id, account_id, type, is_edit) VALUES (?, ?, ?, 'in', 0)", uid(), data.childId, data.accountId);
+    await queryRun(
+      "INSERT INTO check_in (id, child_id, account_id, type, is_edit, recorded_at, source) VALUES (?, ?, ?, 'in', 0, ?, ?)",
+      uid(),
+      data.childId,
+      data.accountId,
+      recordedAt,
+      BUS_SOURCE
+    );
     sideEffect = "check_in";
   }
+  if (phase === "afternoon_off" && lastType === "in") {
+    await queryRun(
+      "INSERT INTO check_in (id, child_id, account_id, type, is_edit, recorded_at, source) VALUES (?, ?, ?, 'out', 0, ?, ?)",
+      uid(),
+      data.childId,
+      data.accountId,
+      recordedAt,
+      BUS_SOURCE
+    );
+    sideEffect = "check_out";
+  }
 
-  // One durable parent notification per transition. The manual ref is the
+  // One durable guardian notification per transition. The manual ref is the
   // event id (never re-emitted); the sweep ref pins child+day so repeated
   // sweeps or a race emit exactly once via the (account_id, ref) unique key.
-  const ref =
-    data.notificationRef ??
-    `bus-${id}`;
+  const ref = data.notificationRef ?? `bus-${id}`;
   try {
     const parents = await parentAccountIdsForChild(data.childId);
     await emitNotifications({
-      instituteId: String(child.institute_id ?? ""),
+      instituteId,
       accountIds: parents,
       activity: "attendance",
       kind: data.type === "on" ? "bus_on" : "bus_off",
@@ -1768,14 +1898,15 @@ export async function setBusStatus(data: {
         childName: `${child.first_name ?? ""} ${child.last_name ?? ""}`.trim(),
         auto: data.auto ? 1 : 0,
         sideEffect: sideEffect ?? "",
+        phase,
       },
       ref,
       createdAt: recordedAt,
     });
   } catch (err) {
-    console.error(`KID-494 bus notification emission failed (child=${data.childId}, event=${id}):`, err);
+    console.error(`KID-2448 bus notification emission failed (child=${data.childId}, event=${id}):`, err);
   }
-  return { event, inserted: true, sideEffect };
+  return { event, inserted: true, sideEffect, phase, next: busNextAction(count + 1) };
 }
 
 /** The bus safety net: everyone still "on bus" 2 hours after today's closing
@@ -3999,12 +4130,30 @@ export function notificationViewCopy(
     const meta = copy.reportMeta(date);
     return { title: copy.reportTitle(childName), body: summary, meta };
   }
-  // KID-494: bus transitions. The payload carries the locale-independent
-  // names/flags; view copy localizes both the title and the side-effect note
-  // (auto check-out on ON, auto check-in on OFF, and the sweep auto-off).
+  // KID-494/KID-2448: bus transitions. The payload carries the
+  // locale-independent names/flags and the cycle phase (morning pick-up,
+  // morning arrival, afternoon departure, afternoon drop-off); view copy
+  // localizes both the title and the attendance side-effect note. The
+  // side-effect fallback keeps older payloads (no phase) readable.
   if (kind === "bus_on" || kind === "bus_off") {
     const sideEffect = String(payload.sideEffect ?? "");
     const auto = Number(payload.auto ?? 0) === 1;
+    const phase = String(payload.phase ?? "");
+    if (phase === "morning_on") {
+      return { title: copy.busPickedUpTitle(childName), body: copy.busPickedUpBody() };
+    }
+    if (phase === "morning_off") {
+      return { title: copy.busArrivedTitle(childName), body: copy.busArrivedBody() };
+    }
+    if (phase === "afternoon_on") {
+      return { title: copy.busDepartedTitle(childName), body: copy.busDepartedBody() };
+    }
+    if (phase === "afternoon_off") {
+      return {
+        title: copy.busDroppedOffTitle(childName),
+        body: auto && !sideEffect ? copy.busAutoOffBody() : copy.busDroppedOffBody(),
+      };
+    }
     const title = kind === "bus_on" ? copy.busOnTitle(childName) : copy.busOffTitle(childName);
     const note = auto && kind === "bus_off"
       ? copy.busAutoOffBody()

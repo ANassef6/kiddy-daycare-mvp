@@ -6,13 +6,48 @@
 // path or unset. All query helpers are async so pages/actions don't care which
 // engine is behind them.
 
+import { acquireClientWithRetry, dbRequestStore } from "./db-request";
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type Row = Record<string, any>;
 
 const DATABASE_URL = process.env.KIDDY_DATABASE_URL;
 
+// KID-2452: on Cloudflare Workers a raw `pg` connection to the Supabase
+// Supavisor pooler fails its TLS handshake (the Workers runtime validates the
+// pooler's private CA and cannot skip it). Hyperdrive terminates that TLS
+// inside Cloudflare and hands the Worker a ready connection string, so prefer
+// its binding whenever it exists. Node (Vercel/local) keeps using
+// KIDDY_DATABASE_URL unchanged.
+function isCloudflareWorkers(): boolean {
+  // Same probe node-postgres uses: only true inside the Workers runtime. This
+  // keeps `next dev` / Vercel on KIDDY_DATABASE_URL (SQLite or the pooler).
+  return typeof navigator === "object" && navigator !== null && navigator.userAgent === "Cloudflare-Workers";
+}
+
+function hyperdriveUrl(): string | undefined {
+  if (!isCloudflareWorkers()) return undefined;
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { getCloudflareContext } = require("@opennextjs/cloudflare") as typeof import("@opennextjs/cloudflare");
+    const ctx = getCloudflareContext() as
+      | { env?: { HYPERDRIVE?: { connectionString?: string } } }
+      | undefined;
+    return ctx?.env?.HYPERDRIVE?.connectionString;
+  } catch {
+    return undefined;
+  }
+}
+
+function runtimeDatabase(): { url: string | undefined; hyperdrive: boolean } {
+  const hyperdrive = hyperdriveUrl();
+  if (hyperdrive) return { url: hyperdrive, hyperdrive: true };
+  return { url: DATABASE_URL, hyperdrive: false };
+}
+
 export function isPostgresMode(): boolean {
-  return !!DATABASE_URL && !DATABASE_URL.startsWith("file:");
+  const { url } = runtimeDatabase();
+  return !!url && !url.startsWith("file:");
 }
 
 // ---------------------------------------------------------------------------
@@ -21,14 +56,34 @@ export function isPostgresMode(): boolean {
 let _pool: import("pg").Pool | null = null;
 
 function getPool(): import("pg").Pool {
+  // KID-2452: on Workers the entry point opens one pool per request and stores
+  // it here; sockets cannot be shared across requests. Node keeps the shared
+  // module-level pool below.
+  const requestPool = dbRequestStore.getStore()?.pool;
+  if (requestPool) return requestPool;
+  // KID-2457: never fall back to a module-level pool on Workers. A pool reused
+  // across requests fails intermittently (Workers I/O is request-scoped), so
+  // fail fast and visibly instead of silently corrupting the request.
+  if (isCloudflareWorkers()) {
+    throw new Error(
+      "KID-2457: no per-request database pool in the Workers request scope. " +
+        "The Worker entry must wrap the request with withRequestPool()."
+    );
+  }
   if (_pool) return _pool;
   const { Pool } = require("pg") as typeof import("pg");
+  const { url, hyperdrive } = runtimeDatabase();
+  if (!url) throw new Error("No database URL configured (HYPERDRIVE binding or KIDDY_DATABASE_URL).");
   // Strip the query string (sslmode=require is treated as verify-full by newer
-  // pg) and set Transport-Layer Security explicitly for the Supabase pooler.
-  const base = DATABASE_URL!.split("?")[0];
+  // pg). Direct Supabase pooler connections set TLS explicitly; Hyperdrive
+  // already terminates TLS, and adding `ssl` to its connection string breaks
+  // the handshake. Do not infer this from the connection string: the runtime
+  // Hyperdrive host is not guaranteed to contain "hyperdrive", so the binding
+  // we actually resolved above is the only reliable signal.
+  const base = url.split("?")[0];
   _pool = new Pool({
     connectionString: base,
-    ssl: { rejectUnauthorized: false },
+    ...(hyperdrive ? {} : { ssl: { rejectUnauthorized: false } }),
     max: 5,
     connectionTimeoutMillis: 10000,
     idleTimeoutMillis: 30000,
@@ -51,14 +106,34 @@ function render(sql: string, args: unknown[]): { text: string; values: unknown[]
   return { text: out, values: args };
 }
 
+/**
+ * Runs one statement on a checked-out client. KID-2457: only the client
+ * *connection* is retried (once) inside acquireClientWithRetry; the statement
+ * itself is executed exactly once, so a retry can never duplicate a write.
+ */
+async function pgQuery<T>(
+  sql: string,
+  args: unknown[],
+  map: (result: import("pg").QueryResult) => T
+): Promise<T> {
+  const client = await acquireClientWithRetry(getPool());
+  let queryError: unknown;
+  try {
+    return map(await client.query(render(sql, args)));
+  } catch (error) {
+    queryError = error;
+    throw error;
+  } finally {
+    client.release(queryError instanceof Error ? queryError : undefined);
+  }
+}
+
 async function pgAll(sql: string, args: unknown[]): Promise<Row[]> {
-  const r = await getPool().query(render(sql, args));
-  return r.rows as Row[];
+  return pgQuery(sql, args, (r) => r.rows as Row[]);
 }
 
 async function pgRun(sql: string, args: unknown[]): Promise<{ rowCount: number }> {
-  const r = await getPool().query(render(sql, args));
-  return { rowCount: r.rowCount ?? 0 };
+  return pgQuery(sql, args, (r) => ({ rowCount: r.rowCount ?? 0 }));
 }
 
 // Applies a multi-statement SQL script (used for the migration file).

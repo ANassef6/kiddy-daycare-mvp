@@ -67,8 +67,8 @@ export async function GET(request: Request) {
     const result = await runAutoCheckoutSweep(instituteId);
     // KID-1175/F-05: details are server-side logging only — the HTTP response
     // stays minimal, so no institute ID, count or reason ever leaves the box.
-    // KID-2447: the route now runs on a per-minute schedule, so quiet sweeps
-    // (nothing due) do not log every minute.
+    // KID-2447: a scheduler can call this as often as every minute, so quiet
+    // sweeps (nothing due) are not logged.
     if (result.children.length > 0 || result.staff.length > 0 || result.busOff.length > 0) {
       console.log(
         `attendance sweep: institute=${instituteId} children=${result.children.length} staff=${result.staff.length} reason=${result.reason}`

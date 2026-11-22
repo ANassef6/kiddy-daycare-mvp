@@ -1,0 +1,26 @@
+{
+  "recordedAt": "2026-11-20T00:12:00Z",
+  "mergeCommit": "c647cfc4bf32f62fee82e8382ad4158d49b869a7",
+  "pr": "https://github.com/ANassef6/kiddy-daycare-mvp/pull/70",
+  "deployment": {
+    "status": "blocked",
+    "reason": "Vercel Hobby deployment rate limit — retry in 24 hours",
+    "checks": {
+      "Vercel - kiddy": "failure",
+      "Vercel - kiddy-staging": "failure",
+      "audit": "success"
+    },
+    "previewBuilt": {
+      "sha": "772f42e5d8f712303b3adc5d96bf24869f05d95a",
+      "treeEqualsMergeCommit": true,
+      "check": "pass"
+    },
+    "productionServing": "b132dd1"
+  },
+  "probes": [
+    { "url": "https://kiddyapp.net/login", "status": 200 },
+    { "url": "https://kiddyapp.net/platform/pricing", "status": 404 },
+    { "url": "https://kiddyapp.net/api/attendance/sweep", "status": 401, "body": "{\"ok\":false}" },
+    { "url": "https://kiddy-staging-orcin.vercel.app/platform/pricing", "status": 307, "location": "https://kiddy-staging-orcin.vercel.app/login" }
+  ]
+}

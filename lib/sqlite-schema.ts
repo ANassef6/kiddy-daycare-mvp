@@ -164,9 +164,11 @@ export function sqliteSchema(db: any): void {
     type TEXT NOT NULL,
     recorded_at TEXT NOT NULL DEFAULT (datetime('now')),
     is_edit INTEGER NOT NULL DEFAULT 0,
-    -- KID-2447: NULL = manual/staff/parent write; 'auto_end_of_day' = written
-    -- by the end-of-working-hours sweep with no pickup person. Mirror of
-    -- supabase/migrations/0051_kid2447_auto_checkout_source.sql.
+    -- Shared by KID-2447 and KID-2448: NULL = manual/staff/parent write;
+    -- 'auto_end_of_day' = written by the end-of-working-hours sweep with no
+    -- pickup person (migration 0051_kid2447_auto_checkout_source.sql); 'bus' =
+    -- a bus off-bus transition auto-checked the child in/out (migration
+    -- 0054_kid2448_bus_cycle.sql).
     source TEXT
   );
 
@@ -900,8 +902,9 @@ export function sqliteSchema(db: any): void {
   if (!roomCols.some((c) => c.name === "colour")) {
     db.exec("ALTER TABLE room ADD COLUMN colour TEXT NOT NULL DEFAULT '#3B82F6'");
   }
-  // KID-2447: mirror of supabase/migrations/0051_kid2447_auto_checkout_source.sql
-  // for databases created before the auto-checkout source marker existed.
+  // KID-2447 + KID-2448: mirror of the two migrations that add the
+  // shared nullable check_in.source marker for databases created before it
+  // existed.
   const checkInCols = db.prepare("PRAGMA table_info(check_in)").all() as { name: string }[];
   if (!checkInCols.some((c) => c.name === "source")) {
     db.exec("ALTER TABLE check_in ADD COLUMN source TEXT");

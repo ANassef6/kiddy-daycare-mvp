@@ -1,0 +1,15 @@
+KID-2453 — Supabase Storage retirement (production)
+Approval: interaction d6e6e3e6-d4d2-4d59-89a2-937e0b0aed53, accepted 2026-11-20T17:47:57Z
+
+1. R2 pre-check: 10/10 migrated objects present (HEAD).
+2. DELETE /storage/v1/object/kiddy-private (prefixes: 10 keys): 200, 10 records returned.
+3. DELETE /storage/v1/object/kiddy-public (prefixes: 6 original keys): 200, 6 records returned.
+4. List kiddy-private: 0 objects.
+5. GET a deleted key: HTTP 400 {"statusCode":"404","error":"not_found","message":"Object not found","code":"NoSuchKey"}.
+6. Retained intentionally: kiddy-public/branding/<institute>/ (public branding, not media).
+7. Post-retirement live check (operator view, Sunshine Daycare):
+   child page 200, 0 r2-private: strings, 3 signed R2 URLs;
+   newsfeed 0 raw REFs, 6 signed R2 URLs;
+   drive 0 raw REFs, 8 signed R2 URLs;
+   cross-tenant child 404 with no media URL;
+   unauthenticated child -> /login with no media URL.
