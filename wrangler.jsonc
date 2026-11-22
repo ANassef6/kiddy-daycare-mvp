@@ -14,6 +14,12 @@
       "service": "kiddy-web"
     }
   ],
+  "hyperdrive": [
+    {
+      "binding": "HYPERDRIVE",
+      "id": "731fb486136f4ef7ae512157ca20b766"
+    }
+  ],
   "triggers": {
     "crons": ["*/5 * * * *"]
   },

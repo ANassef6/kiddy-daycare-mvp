@@ -1,8 +1,10 @@
 # Cloudflare Workers migration (KID-2452)
 
-Status: **staging deployed on Cloudflare Workers; production untouched.** The
-production DNS cutover stays blocked on founder approval and a production
-sign-off card (see "Production cutover").
+Status: **production cutover complete, Vercel kept warm as rollback.**
+`kiddyapp.net`, `www`, and both tenant hosts are served by the `kiddy-web`
+Worker through Cloudflare zone routes; the Vercel DNS records and project are
+untouched, so deleting the routes is an instant rollback. The 24-48 h rollback
+window is open.
 
 ## Why Hyperdrive
 
@@ -26,8 +28,9 @@ running inside Workers, and falls back to `KIDDY_DATABASE_URL` on Node
 | Resource | Name | Notes |
 | --- | --- | --- |
 | Worker | `kiddy-web-staging` | `https://kiddy-web-staging.trois4ever.workers.dev` |
-| Worker (prod, not deployed) | `kiddy-web` | Defined in `wrangler.jsonc`; no deploy until cutover |
+| Worker (prod) | `kiddy-web` | Deployed from `master` + the Hyperdrive request-pool patch; `https://kiddy-web.trois4ever.workers.dev` |
 | Hyperdrive | `kiddy-staging` (`ddcc107a8521433aa4373a67a31d9686`) | Origin: staging Supabase direct host `db.pjubkhhuccoqboypgpty.supabase.co:5432` |
+| Hyperdrive | `kiddy-prod` (`731fb486136f4ef7ae512157ca20b766`) | Origin: production Supabase direct host `db.sfetmfmtoubtdyyeyudd.supabase.co:5432`, role `kiddy_hyperdrive` |
 | Cron | `*/5 * * * *` | Calls `/api/attendance/sweep` through the self service binding with `CRON_SECRET` |
 | Assets | `.open-next/assets` | `public/_headers` caches `/_next/static/*` immutably |
 
@@ -128,14 +131,15 @@ uniform 401.
 
 ## Known gaps / follow-ups
 
-1. **Production Hyperdrive:** create a `kiddy-production` Hyperdrive config
-   against the production Supabase project at cutover, bind it in the default
-   (non-staging) environment, and set the production Worker secrets. The
-   default environment currently has no Hyperdrive binding.
-2. **Tenant subdomains:** staging is single-tenant (`PUBLIC_APEX_DOMAIN` empty).
-   The production cutover must add `*.kiddyapp.net` (and the apex) to the
-   Cloudflare zone/Worker routes and keep the wildcard on the Vercel project
-   warm for rollback.
+1. **New tenant routing:** Cloudflare Custom Domains cannot use wildcard DNS,
+   and a `*.kiddyapp.net` Worker route would also capture
+   `chatwoot.kiddyapp.net` (a Cloudflare Tunnel origin). New tenant subdomains
+   therefore need an explicit zone route to `kiddy-web` when the tenant is
+   created. Existing tenant routes (`sunshine`, `maple-grove`), apex and `www`
+   are in place. Automate the route in the daycare-creation flow.
+2. **Wildcard DNS stays on Vercel:** `*.kiddyapp.net` is still a DNS-only
+   CNAME to Vercel. Hosts without an explicit route keep hitting Vercel, which
+   is the rollback path, not a regression for the current tenants.
 3. **Branch flow:** `wrangler.jsonc` deploys from `staging` in CI, but the local
    `staging` branch is far behind `master`. Rebase/cut a fresh staging branch
    before turning `CF_DEPLOY_ENABLED` on.
@@ -149,13 +153,25 @@ uniform 401.
 6. **Image optimization:** the app uses `<img>` today, so no `IMAGES` binding is
    configured. Add one if `next/image` is adopted.
 
-## Production cutover (gated)
+## Production cutover (executed 2026-11-22)
 
-1. Founder signs off on staging parity (confirmation card).
-2. Create the production Hyperdrive config and bind it to `kiddy-web`.
-3. Deploy `kiddy-web` with production secrets; do **not** move DNS yet.
-4. Move `kiddyapp.net` + `*.kiddyapp.net` DNS/routes to Cloudflare.
-5. Keep the Vercel production project untouched and warm for 24-48 h as
-   rollback. Never delete it before the rollback window closes.
-6. After 24-48 h of green traffic, decommission Vercel and update the standing
-   workflow/infra docs.
+1. Founder accepted the staging parity card (`794f2c43`) and the production
+   cutover card (`d4ccad40`).
+2. Created Hyperdrive `kiddy-prod` with a dedicated `kiddy_hyperdrive` role on
+   the production Supabase project; bound it as `HYPERDRIVE` on `kiddy-web`.
+3. Deployed `kiddy-web` with production secrets, then set `CRON_SECRET`; the
+   worker opens one short-lived `pg` pool per request because Workers cannot
+   reuse sockets across requests.
+4. Added zone routes for `kiddyapp.net/*`, `www.kiddyapp.net/*`,
+   `sunshine.kiddyapp.net/*` and `maple-grove.kiddyapp.net/*` to `kiddy-web`.
+   DNS records were not changed, so deleting a route instantly restores the
+   Vercel origin.
+5. Live verification (2026-11-22T01:15Z): all four hosts return `x-opennext: 1`
+   with correct tenant titles; `/?lang=ar` renders RTL; CSP/security headers and
+   immutable `/_next/static/*` caching hold; `/platform`, `/portal/attendance`,
+   `/child` redirect to `/login`; the sweep returns `{"ok":true}` with the
+   secret and 401 without it; `/api/mobile/login` with a bad credential returns
+   401 (proving the Postgres read path); the cron fired at 01:15Z and logged
+   `[cron] attendance sweep ok`.
+6. Vercel stays warm for 24-48 h. Delete the routes (not the Vercel project)
+   if any check regresses. Decommission Vercel only after the window closes.

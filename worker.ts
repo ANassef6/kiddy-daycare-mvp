@@ -4,13 +4,46 @@
 // The attendance sweep is idempotent (see app/api/attendance/sweep/route.ts),
 // but the handler still fails closed so a misconfigured worker can never sweep
 // the wrong deployment: it requires NEXT_PUBLIC_SITE_URL and CRON_SECRET.
+import { Pool } from "pg";
 import openNextWorker from "./.open-next/worker.js";
+import { dbRequestStore } from "./lib/db-request";
 
 type Env = {
   NEXT_PUBLIC_SITE_URL?: string;
   CRON_SECRET?: string;
+  HYPERDRIVE?: { connectionString?: string };
   WORKER_SELF_REFERENCE?: { fetch: (request: Request) => Promise<Response> };
 };
+
+// KID-2452: Workers cannot reuse a TCP connection across requests. A pool per
+// request (not per isolate) keeps Hyperdrive connections short-lived and
+// avoids the cross-request promise/liveness failures a cached module pool
+// causes under any real concurrency.
+function requestPool(connectionString: string): Pool {
+  return new Pool({
+    connectionString: connectionString.split("?")[0],
+    max: 4,
+    connectionTimeoutMillis: 10000,
+    idleTimeoutMillis: 10000,
+  });
+}
+
+async function withRequestPool<T>(
+  env: Env,
+  ctx: ExecutionContext,
+  run: () => Promise<T>
+): Promise<T> {
+  const connectionString = env.HYPERDRIVE?.connectionString;
+  if (!connectionString) return run();
+  const pool = requestPool(connectionString);
+  try {
+    return await dbRequestStore.run({ pool }, run);
+  } finally {
+    ctx.waitUntil(
+      pool.end().catch((error) => console.error("[db] request pool close failed:", error))
+    );
+  }
+}
 
 async function runAttendanceSweep(env: Env): Promise<void> {
   const base = (env.NEXT_PUBLIC_SITE_URL || "").replace(/\/+$/, "");
@@ -33,7 +66,8 @@ async function runAttendanceSweep(env: Env): Promise<void> {
 }
 
 export default {
-  fetch: openNextWorker.fetch,
+  fetch: (request: Request, env: Env, ctx: ExecutionContext) =>
+    withRequestPool(env, ctx, () => openNextWorker.fetch(request, env, ctx)),
   async scheduled(_controller: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
     ctx.waitUntil(runAttendanceSweep(env));
   },
