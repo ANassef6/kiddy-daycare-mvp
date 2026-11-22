@@ -23,7 +23,9 @@ export default async function ForParentsPage() {
       <SiteHeader active="/for-parents" locale={locale} brandImage={brandImage} brandName={brandName} nextPath={nextPath} />
       <main id="main">
         <section className="section section-head">
-          <div className="container" data-reveal>
+          {/* KID-2458: the above-the-fold hero renders visible in the server
+              HTML and never depends on the client reveal driver. */}
+          <div className="container">
             <p className="hero-eyebrow">{t("site.parents.eyebrow")}</p>
             <h1 className="page-title">{t("site.parents.title")}</h1>
             <p className="subtitle">{t("site.parents.subtitle")}</p>

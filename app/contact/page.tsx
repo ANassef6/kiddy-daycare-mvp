@@ -41,7 +41,9 @@ export default async function ContactPage(
       <SiteHeader active="/contact" locale={locale} brandImage={brandImage} brandName={brandName} nextPath={nextPath} />
       <main id="main">
         <section className="section section-head">
-          <div className="container" data-reveal>
+          {/* KID-2458: the above-the-fold hero renders visible in the server
+              HTML and never depends on the client reveal driver. */}
+          <div className="container">
             <p className="hero-eyebrow">{t("site.contact.eyebrow")}</p>
             <h1 className="page-title">{t("site.contact.title", { brand: SITE_BRAND })}</h1>
             <p className="subtitle">{t("site.contact.subtitle")}</p>
