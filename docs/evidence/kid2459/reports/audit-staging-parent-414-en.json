@@ -1,0 +1,325 @@
+{
+  "issue": "KID-2459",
+  "baseUrl": "https://kiddy-staging-orcin.vercel.app",
+  "runAt": "2026-11-22T22:24:38.095Z",
+  "widths": [
+    414
+  ],
+  "langs": [
+    "en"
+  ],
+  "total": 15,
+  "failed": 0,
+  "results": [
+    {
+      "role": "parent",
+      "lang": "en",
+      "width": 414,
+      "path": "/child",
+      "status": 200,
+      "ok": true,
+      "dir": "ltr",
+      "clientWidth": 414,
+      "scrollWidth": 414,
+      "bodyScrollWidth": 414,
+      "offenders": [
+        {
+          "el": "a.skip-link \"Skip to content\"",
+          "left": -9999,
+          "right": -9817,
+          "width": 182,
+          "overflow": 9999
+        }
+      ]
+    },
+    {
+      "role": "parent",
+      "lang": "en",
+      "width": 414,
+      "path": "/child/mwmgz47k-k1b15bbk",
+      "status": 200,
+      "ok": true,
+      "dir": "ltr",
+      "clientWidth": 414,
+      "scrollWidth": 414,
+      "bodyScrollWidth": 414,
+      "offenders": [
+        {
+          "el": "a.skip-link \"Skip to content\"",
+          "left": -9999,
+          "right": -9817,
+          "width": 182,
+          "overflow": 9999
+        }
+      ]
+    },
+    {
+      "role": "parent",
+      "lang": "en",
+      "width": 414,
+      "path": "/child/messages",
+      "status": 200,
+      "ok": true,
+      "dir": "ltr",
+      "clientWidth": 414,
+      "scrollWidth": 414,
+      "bodyScrollWidth": 414,
+      "offenders": [
+        {
+          "el": "a.skip-link \"Skip to content\"",
+          "left": -9999,
+          "right": -9817,
+          "width": 182,
+          "overflow": 9999
+        }
+      ]
+    },
+    {
+      "role": "parent",
+      "lang": "en",
+      "width": 414,
+      "path": "/child/messages?thread=mwsdk2b3-4p0knvzh",
+      "status": 200,
+      "ok": true,
+      "dir": "ltr",
+      "clientWidth": 414,
+      "scrollWidth": 414,
+      "bodyScrollWidth": 414,
+      "offenders": [
+        {
+          "el": "a.skip-link \"Skip to content\"",
+          "left": -9999,
+          "right": -9817,
+          "width": 182,
+          "overflow": 9999
+        }
+      ]
+    },
+    {
+      "role": "parent",
+      "lang": "en",
+      "width": 414,
+      "path": "/child/newsfeed",
+      "status": 200,
+      "ok": true,
+      "dir": "ltr",
+      "clientWidth": 414,
+      "scrollWidth": 414,
+      "bodyScrollWidth": 414,
+      "offenders": [
+        {
+          "el": "a.skip-link \"Skip to content\"",
+          "left": -9999,
+          "right": -9817,
+          "width": 182,
+          "overflow": 9999
+        }
+      ]
+    },
+    {
+      "role": "parent",
+      "lang": "en",
+      "width": 414,
+      "path": "/child/notifications",
+      "status": 200,
+      "ok": true,
+      "dir": "ltr",
+      "clientWidth": 414,
+      "scrollWidth": 414,
+      "bodyScrollWidth": 414,
+      "offenders": [
+        {
+          "el": "a.skip-link \"Skip to content\"",
+          "left": -9999,
+          "right": -9817,
+          "width": 182,
+          "overflow": 9999
+        }
+      ]
+    },
+    {
+      "role": "parent",
+      "lang": "en",
+      "width": 414,
+      "path": "/child/settings",
+      "status": 200,
+      "ok": true,
+      "dir": "ltr",
+      "clientWidth": 414,
+      "scrollWidth": 414,
+      "bodyScrollWidth": 414,
+      "offenders": [
+        {
+          "el": "a.skip-link \"Skip to content\"",
+          "left": -9999,
+          "right": -9817,
+          "width": 182,
+          "overflow": 9999
+        }
+      ]
+    },
+    {
+      "role": "parent",
+      "lang": "en",
+      "width": 414,
+      "path": "/child/forms",
+      "status": 200,
+      "ok": true,
+      "dir": "ltr",
+      "clientWidth": 414,
+      "scrollWidth": 414,
+      "bodyScrollWidth": 414,
+      "offenders": [
+        {
+          "el": "a.skip-link \"Skip to content\"",
+          "left": -9999,
+          "right": -9817,
+          "width": 182,
+          "overflow": 9999
+        }
+      ]
+    },
+    {
+      "role": "parent",
+      "lang": "en",
+      "width": 414,
+      "path": "/child/events",
+      "status": 200,
+      "ok": true,
+      "dir": "ltr",
+      "clientWidth": 414,
+      "scrollWidth": 414,
+      "bodyScrollWidth": 414,
+      "offenders": [
+        {
+          "el": "a.skip-link \"Skip to content\"",
+          "left": -9999,
+          "right": -9817,
+          "width": 182,
+          "overflow": 9999
+        }
+      ]
+    },
+    {
+      "role": "parent",
+      "lang": "en",
+      "width": 414,
+      "path": "/child/learning",
+      "status": 200,
+      "ok": true,
+      "dir": "ltr",
+      "clientWidth": 414,
+      "scrollWidth": 414,
+      "bodyScrollWidth": 414,
+      "offenders": [
+        {
+          "el": "a.skip-link \"Skip to content\"",
+          "left": -9999,
+          "right": -9817,
+          "width": 182,
+          "overflow": 9999
+        }
+      ]
+    },
+    {
+      "role": "parent",
+      "lang": "en",
+      "width": 414,
+      "path": "/child/consents",
+      "status": 200,
+      "ok": true,
+      "dir": "ltr",
+      "clientWidth": 414,
+      "scrollWidth": 414,
+      "bodyScrollWidth": 414,
+      "offenders": [
+        {
+          "el": "a.skip-link \"Skip to content\"",
+          "left": -9999,
+          "right": -9817,
+          "width": 182,
+          "overflow": 9999
+        }
+      ]
+    },
+    {
+      "role": "parent",
+      "lang": "en",
+      "width": 414,
+      "path": "/child/incidents",
+      "status": 200,
+      "ok": true,
+      "dir": "ltr",
+      "clientWidth": 414,
+      "scrollWidth": 414,
+      "bodyScrollWidth": 414,
+      "offenders": [
+        {
+          "el": "a.skip-link \"Skip to content\"",
+          "left": -9999,
+          "right": -9817,
+          "width": 182,
+          "overflow": 9999
+        }
+      ]
+    },
+    {
+      "role": "parent",
+      "lang": "en",
+      "width": 414,
+      "path": "/child/drive",
+      "status": 200,
+      "ok": true,
+      "dir": "ltr",
+      "clientWidth": 414,
+      "scrollWidth": 414,
+      "bodyScrollWidth": 414,
+      "offenders": [
+        {
+          "el": "a.skip-link \"Skip to content\"",
+          "left": -9999,
+          "right": -9817,
+          "width": 182,
+          "overflow": 9999
+        }
+      ]
+    },
+    {
+      "role": "parent",
+      "lang": "en",
+      "width": 414,
+      "path": "/child/support",
+      "status": 200,
+      "ok": true,
+      "dir": "ltr",
+      "clientWidth": 414,
+      "scrollWidth": 414,
+      "bodyScrollWidth": 414,
+      "offenders": [
+        {
+          "el": "a.skip-link \"Skip to content\"",
+          "left": -9999,
+          "right": -9817,
+          "width": 182,
+          "overflow": 9999
+        }
+      ]
+    },
+    {
+      "role": "parent",
+      "lang": "en",
+      "width": 414,
+      "path": "/child/support/none-supported",
+      "ok": true,
+      "status": 404,
+      "skipped": true,
+      "scrollWidth": 0,
+      "clientWidth": 414,
+      "offenders": []
+    }
+  ],
+  "consoleErrors": [
+    "parent: Failed to load resource: the server responded with a status of 404 ()",
+    "parent: Failed to load resource: the server responded with a status of 404 ()"
+  ]
+}

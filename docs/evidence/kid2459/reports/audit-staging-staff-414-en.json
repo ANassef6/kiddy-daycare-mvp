@@ -1,0 +1,1522 @@
+{
+  "issue": "KID-2459",
+  "baseUrl": "https://kiddy-staging-orcin.vercel.app",
+  "runAt": "2026-11-22T22:21:32.589Z",
+  "widths": [
+    414
+  ],
+  "langs": [
+    "en"
+  ],
+  "total": 44,
+  "failed": 0,
+  "results": [
+    {
+      "role": "staff",
+      "lang": "en",
+      "width": 414,
+      "path": "/portal/dashboard",
+      "status": 200,
+      "ok": true,
+      "dir": "ltr",
+      "clientWidth": 414,
+      "scrollWidth": 414,
+      "bodyScrollWidth": 414,
+      "offenders": [
+        {
+          "el": "a.skip-link \"Skip to content\"",
+          "left": -9999,
+          "right": -9817,
+          "width": 182,
+          "overflow": 9999
+        }
+      ]
+    },
+    {
+      "role": "staff",
+      "lang": "en",
+      "width": 414,
+      "path": "/portal/children",
+      "status": 200,
+      "ok": true,
+      "dir": "ltr",
+      "clientWidth": 414,
+      "scrollWidth": 414,
+      "bodyScrollWidth": 414,
+      "offenders": [
+        {
+          "el": "a.skip-link \"Skip to content\"",
+          "left": -9999,
+          "right": -9817,
+          "width": 182,
+          "overflow": 9999
+        }
+      ]
+    },
+    {
+      "role": "staff",
+      "lang": "en",
+      "width": 414,
+      "path": "/portal/children/mwmgz47k-k1b15bbk",
+      "status": 200,
+      "ok": true,
+      "dir": "ltr",
+      "clientWidth": 414,
+      "scrollWidth": 414,
+      "bodyScrollWidth": 414,
+      "offenders": [
+        {
+          "el": "a.skip-link \"Skip to content\"",
+          "left": -9999,
+          "right": -9817,
+          "width": 182,
+          "overflow": 9999
+        },
+        {
+          "el": "button \"Incidents & accidents\"",
+          "left": 1328,
+          "right": 1524,
+          "width": 196,
+          "overflow": 1110
+        },
+        {
+          "el": "button \"Learning history\"",
+          "left": 1168,
+          "right": 1324,
+          "width": 156,
+          "overflow": 910
+        },
+        {
+          "el": "button \"Invoices\"",
+          "left": 1072,
+          "right": 1164,
+          "width": 92,
+          "overflow": 750
+        },
+        {
+          "el": "button \"Schedules (Beta)\"",
+          "left": 912,
+          "right": 1068,
+          "width": 156,
+          "overflow": 654
+        },
+        {
+          "el": "button \"Signed documents & consents\"",
+          "left": 664,
+          "right": 908,
+          "width": 244,
+          "overflow": 494
+        },
+        {
+          "el": "button \"Media (0)\"",
+          "left": 560,
+          "right": 660,
+          "width": 100,
+          "overflow": 246
+        },
+        {
+          "el": "button \"Pickup & family contacts\"",
+          "left": 336,
+          "right": 556,
+          "width": 220,
+          "overflow": 142
+        }
+      ]
+    },
+    {
+      "role": "staff",
+      "lang": "en",
+      "width": 414,
+      "path": "/portal/children/mwmgz47k-k1b15bbk/billing",
+      "status": 200,
+      "ok": true,
+      "dir": "ltr",
+      "clientWidth": 414,
+      "scrollWidth": 414,
+      "bodyScrollWidth": 414,
+      "offenders": [
+        {
+          "el": "a.skip-link \"Skip to content\"",
+          "left": -9999,
+          "right": -9817,
+          "width": 182,
+          "overflow": 9999
+        },
+        {
+          "el": "thead \"DescriptionAmountPeriodDue dateStatusPay\"",
+          "left": 24,
+          "right": 688,
+          "width": 664,
+          "overflow": 274
+        },
+        {
+          "el": "tr \"DescriptionAmountPeriodDue dateStatusPay\"",
+          "left": 24,
+          "right": 688,
+          "width": 664,
+          "overflow": 274
+        },
+        {
+          "el": "th \"By\"",
+          "left": 648,
+          "right": 688,
+          "width": 40,
+          "overflow": 274
+        },
+        {
+          "el": "tbody \"Staging test — monthly tuitionEGP 1200.0\"",
+          "left": 24,
+          "right": 688,
+          "width": 664,
+          "overflow": 274
+        },
+        {
+          "el": "tr \"Staging test — monthly tuitionEGP 1200.0\"",
+          "left": 24,
+          "right": 688,
+          "width": 664,
+          "overflow": 274
+        },
+        {
+          "el": "td",
+          "left": 648,
+          "right": 688,
+          "width": 40,
+          "overflow": 274
+        },
+        {
+          "el": "th \"Created\"",
+          "left": 568,
+          "right": 648,
+          "width": 80,
+          "overflow": 234
+        }
+      ]
+    },
+    {
+      "role": "staff",
+      "lang": "en",
+      "width": 414,
+      "path": "/portal/children/mwmgz47k-k1b15bbk/development",
+      "status": 200,
+      "ok": true,
+      "dir": "ltr",
+      "clientWidth": 414,
+      "scrollWidth": 414,
+      "bodyScrollWidth": 414,
+      "offenders": [
+        {
+          "el": "a.skip-link \"Skip to content\"",
+          "left": -9999,
+          "right": -9817,
+          "width": 182,
+          "overflow": 9999
+        }
+      ]
+    },
+    {
+      "role": "staff",
+      "lang": "en",
+      "width": 414,
+      "path": "/portal/children/development",
+      "status": 200,
+      "ok": true,
+      "dir": "ltr",
+      "clientWidth": 414,
+      "scrollWidth": 414,
+      "bodyScrollWidth": 414,
+      "offenders": [
+        {
+          "el": "a.skip-link \"Skip to content\"",
+          "left": -9999,
+          "right": -9817,
+          "width": 182,
+          "overflow": 9999
+        }
+      ]
+    },
+    {
+      "role": "staff",
+      "lang": "en",
+      "width": 414,
+      "path": "/portal/messages",
+      "status": 200,
+      "ok": true,
+      "dir": "ltr",
+      "clientWidth": 414,
+      "scrollWidth": 414,
+      "bodyScrollWidth": 414,
+      "offenders": [
+        {
+          "el": "a.skip-link \"Skip to content\"",
+          "left": -9999,
+          "right": -9817,
+          "width": 182,
+          "overflow": 9999
+        }
+      ]
+    },
+    {
+      "role": "staff",
+      "lang": "en",
+      "width": 414,
+      "path": "/portal/messages?thread=mwsdk2b3-4p0knvzh",
+      "status": 200,
+      "ok": true,
+      "dir": "ltr",
+      "clientWidth": 414,
+      "scrollWidth": 414,
+      "bodyScrollWidth": 414,
+      "offenders": [
+        {
+          "el": "a.skip-link \"Skip to content\"",
+          "left": -9999,
+          "right": -9817,
+          "width": 182,
+          "overflow": 9999
+        }
+      ]
+    },
+    {
+      "role": "staff",
+      "lang": "en",
+      "width": 414,
+      "path": "/portal/messages?compose=1",
+      "status": 200,
+      "ok": true,
+      "dir": "ltr",
+      "clientWidth": 414,
+      "scrollWidth": 414,
+      "bodyScrollWidth": 414,
+      "offenders": [
+        {
+          "el": "a.skip-link \"Skip to content\"",
+          "left": -9999,
+          "right": -9817,
+          "width": 182,
+          "overflow": 9999
+        }
+      ]
+    },
+    {
+      "role": "staff",
+      "lang": "en",
+      "width": 414,
+      "path": "/portal/newsfeed",
+      "status": 200,
+      "ok": true,
+      "dir": "ltr",
+      "clientWidth": 414,
+      "scrollWidth": 414,
+      "bodyScrollWidth": 414,
+      "offenders": [
+        {
+          "el": "a.skip-link \"Skip to content\"",
+          "left": -9999,
+          "right": -9817,
+          "width": 182,
+          "overflow": 9999
+        }
+      ]
+    },
+    {
+      "role": "staff",
+      "lang": "en",
+      "width": 414,
+      "path": "/portal/attendance",
+      "status": 200,
+      "ok": true,
+      "dir": "ltr",
+      "clientWidth": 414,
+      "scrollWidth": 414,
+      "bodyScrollWidth": 414,
+      "offenders": [
+        {
+          "el": "a.skip-link \"Skip to content\"",
+          "left": -9999,
+          "right": -9817,
+          "width": 182,
+          "overflow": 9999
+        },
+        {
+          "el": "thead \"ChildRoomStatusBusChecked inChecked outA\"",
+          "left": 24,
+          "right": 625,
+          "width": 601,
+          "overflow": 211
+        },
+        {
+          "el": "tr \"ChildRoomStatusBusChecked inChecked outA\"",
+          "left": 24,
+          "right": 625,
+          "width": 601,
+          "overflow": 211
+        },
+        {
+          "el": "th \"Actions\"",
+          "left": 505,
+          "right": 625,
+          "width": 120,
+          "overflow": 211
+        },
+        {
+          "el": "tbody \"Omar FounderLittle StarsAbsent———Check i\"",
+          "left": 24,
+          "right": 625,
+          "width": 601,
+          "overflow": 211
+        },
+        {
+          "el": "tr \"Omar FounderLittle StarsAbsent———Check i\"",
+          "left": 24,
+          "right": 625,
+          "width": 601,
+          "overflow": 211
+        },
+        {
+          "el": "td \"Check inOn bus (to daycare)Arrived at da\"",
+          "left": 505,
+          "right": 625,
+          "width": 120,
+          "overflow": 211
+        },
+        {
+          "el": "tr \"Layla FounderSunflowersAbsent———Check in\"",
+          "left": 24,
+          "right": 625,
+          "width": 601,
+          "overflow": 211
+        }
+      ]
+    },
+    {
+      "role": "staff",
+      "lang": "en",
+      "width": 414,
+      "path": "/portal/calendar",
+      "status": 200,
+      "ok": true,
+      "dir": "ltr",
+      "clientWidth": 414,
+      "scrollWidth": 414,
+      "bodyScrollWidth": 414,
+      "offenders": [
+        {
+          "el": "a.skip-link \"Skip to content\"",
+          "left": -9999,
+          "right": -9817,
+          "width": 182,
+          "overflow": 9999
+        }
+      ]
+    },
+    {
+      "role": "staff",
+      "lang": "en",
+      "width": 414,
+      "path": "/portal/rooms",
+      "status": 200,
+      "ok": true,
+      "dir": "ltr",
+      "clientWidth": 414,
+      "scrollWidth": 414,
+      "bodyScrollWidth": 414,
+      "offenders": [
+        {
+          "el": "a.skip-link \"Skip to content\"",
+          "left": -9999,
+          "right": -9817,
+          "width": 182,
+          "overflow": 9999
+        }
+      ]
+    },
+    {
+      "role": "staff",
+      "lang": "en",
+      "width": 414,
+      "path": "/portal/rooms/mwmgz3p3-f2uxjy6d",
+      "status": 200,
+      "ok": true,
+      "dir": "ltr",
+      "clientWidth": 414,
+      "scrollWidth": 414,
+      "bodyScrollWidth": 414,
+      "offenders": [
+        {
+          "el": "a.skip-link \"Skip to content\"",
+          "left": -9999,
+          "right": -9817,
+          "width": 182,
+          "overflow": 9999
+        }
+      ]
+    },
+    {
+      "role": "staff",
+      "lang": "en",
+      "width": 414,
+      "path": "/portal/staff",
+      "status": 200,
+      "ok": true,
+      "dir": "ltr",
+      "clientWidth": 414,
+      "scrollWidth": 414,
+      "bodyScrollWidth": 414,
+      "offenders": [
+        {
+          "el": "a.skip-link \"Skip to content\"",
+          "left": -9999,
+          "right": -9817,
+          "width": 182,
+          "overflow": 9999
+        },
+        {
+          "el": "thead \"NameAccessAssigned classroomsStatusActio\"",
+          "left": 49,
+          "right": 729,
+          "width": 680,
+          "overflow": 315
+        },
+        {
+          "el": "tr \"NameAccessAssigned classroomsStatusActio\"",
+          "left": 49,
+          "right": 729,
+          "width": 680,
+          "overflow": 315
+        },
+        {
+          "el": "th \"Actions\"",
+          "left": 615,
+          "right": 729,
+          "width": 114,
+          "overflow": 315
+        },
+        {
+          "el": "tbody \"FTFounder Test Ownerfounder.owner@stagin\"",
+          "left": 49,
+          "right": 729,
+          "width": 680,
+          "overflow": 315
+        },
+        {
+          "el": "tr \"FTFounder Test Ownerfounder.owner@stagin\"",
+          "left": 49,
+          "right": 729,
+          "width": 680,
+          "overflow": 315
+        },
+        {
+          "el": "td \"ProfileSet status\"",
+          "left": 615,
+          "right": 729,
+          "width": 114,
+          "overflow": 315
+        },
+        {
+          "el": "tr \"NTNour Teacherfounder.teacher@staging.ki\"",
+          "left": 49,
+          "right": 729,
+          "width": 680,
+          "overflow": 315
+        }
+      ]
+    },
+    {
+      "role": "staff",
+      "lang": "en",
+      "width": 414,
+      "path": "/portal/staff/mwmgz36i-2j38o492",
+      "status": 200,
+      "ok": true,
+      "dir": "ltr",
+      "clientWidth": 414,
+      "scrollWidth": 414,
+      "bodyScrollWidth": 414,
+      "offenders": [
+        {
+          "el": "a.skip-link \"Skip to content\"",
+          "left": -9999,
+          "right": -9817,
+          "width": 182,
+          "overflow": 9999
+        },
+        {
+          "el": "tbody \"Full nameFounder Test OwnerRoleOwnerEmai\"",
+          "left": 51,
+          "right": 473,
+          "width": 422,
+          "overflow": 59
+        },
+        {
+          "el": "tr \"Full nameFounder Test Owner\"",
+          "left": 51,
+          "right": 473,
+          "width": 422,
+          "overflow": 59
+        },
+        {
+          "el": "td \"Founder Test Owner\"",
+          "left": 153,
+          "right": 473,
+          "width": 320,
+          "overflow": 59
+        },
+        {
+          "el": "tr \"RoleOwner\"",
+          "left": 51,
+          "right": 473,
+          "width": 422,
+          "overflow": 59
+        },
+        {
+          "el": "td \"Owner\"",
+          "left": 153,
+          "right": 473,
+          "width": 320,
+          "overflow": 59
+        },
+        {
+          "el": "tr \"Emailfounder.owner@staging.kiddy.test\"",
+          "left": 51,
+          "right": 473,
+          "width": 422,
+          "overflow": 59
+        },
+        {
+          "el": "td \"founder.owner@staging.kiddy.test\"",
+          "left": 153,
+          "right": 473,
+          "width": 320,
+          "overflow": 59
+        }
+      ]
+    },
+    {
+      "role": "staff",
+      "lang": "en",
+      "width": 414,
+      "path": "/portal/staff/hours",
+      "status": 200,
+      "ok": true,
+      "dir": "ltr",
+      "clientWidth": 414,
+      "scrollWidth": 414,
+      "bodyScrollWidth": 414,
+      "offenders": [
+        {
+          "el": "a.skip-link \"Skip to content\"",
+          "left": -9999,
+          "right": -9817,
+          "width": 182,
+          "overflow": 9999
+        }
+      ]
+    },
+    {
+      "role": "staff",
+      "lang": "en",
+      "width": 414,
+      "path": "/portal/staff/schedule",
+      "status": 200,
+      "ok": true,
+      "dir": "ltr",
+      "clientWidth": 414,
+      "scrollWidth": 414,
+      "bodyScrollWidth": 414,
+      "offenders": [
+        {
+          "el": "a.skip-link \"Skip to content\"",
+          "left": -9999,
+          "right": -9817,
+          "width": 182,
+          "overflow": 9999
+        }
+      ]
+    },
+    {
+      "role": "staff",
+      "lang": "en",
+      "width": 414,
+      "path": "/portal/settings",
+      "status": 200,
+      "ok": true,
+      "dir": "ltr",
+      "clientWidth": 414,
+      "scrollWidth": 414,
+      "bodyScrollWidth": 414,
+      "offenders": [
+        {
+          "el": "a.skip-link \"Skip to content\"",
+          "left": -9999,
+          "right": -9817,
+          "width": 182,
+          "overflow": 9999
+        },
+        {
+          "el": "thead \"DayOpenCloseClosed\"",
+          "left": 49,
+          "right": 506,
+          "width": 457,
+          "overflow": 92
+        },
+        {
+          "el": "tr \"DayOpenCloseClosed\"",
+          "left": 49,
+          "right": 506,
+          "width": 457,
+          "overflow": 92
+        },
+        {
+          "el": "th \"Closed\"",
+          "left": 434,
+          "right": 506,
+          "width": 72,
+          "overflow": 92
+        },
+        {
+          "el": "tbody \"Sunday · todayMondayTuesdayWednesdayThur\"",
+          "left": 49,
+          "right": 506,
+          "width": 457,
+          "overflow": 92
+        },
+        {
+          "el": "tr \"Sunday · today\"",
+          "left": 49,
+          "right": 506,
+          "width": 457,
+          "overflow": 92
+        },
+        {
+          "el": "td",
+          "left": 434,
+          "right": 506,
+          "width": 72,
+          "overflow": 92
+        },
+        {
+          "el": "tr \"Monday\"",
+          "left": 49,
+          "right": 506,
+          "width": 457,
+          "overflow": 92
+        }
+      ]
+    },
+    {
+      "role": "staff",
+      "lang": "en",
+      "width": 414,
+      "path": "/portal/account",
+      "status": 200,
+      "ok": true,
+      "dir": "ltr",
+      "clientWidth": 414,
+      "scrollWidth": 414,
+      "bodyScrollWidth": 414,
+      "offenders": [
+        {
+          "el": "a.skip-link \"Skip to content\"",
+          "left": -9999,
+          "right": -9817,
+          "width": 182,
+          "overflow": 9999
+        }
+      ]
+    },
+    {
+      "role": "staff",
+      "lang": "en",
+      "width": 414,
+      "path": "/portal/account-billing",
+      "status": 200,
+      "ok": true,
+      "dir": "ltr",
+      "clientWidth": 414,
+      "scrollWidth": 414,
+      "bodyScrollWidth": 414,
+      "offenders": [
+        {
+          "el": "a.skip-link \"Skip to content\"",
+          "left": -9999,
+          "right": -9817,
+          "width": 182,
+          "overflow": 9999
+        }
+      ]
+    },
+    {
+      "role": "staff",
+      "lang": "en",
+      "width": 414,
+      "path": "/portal/finance",
+      "status": 200,
+      "ok": true,
+      "dir": "ltr",
+      "clientWidth": 414,
+      "scrollWidth": 414,
+      "bodyScrollWidth": 414,
+      "offenders": [
+        {
+          "el": "a.skip-link \"Skip to content\"",
+          "left": -9999,
+          "right": -9817,
+          "width": 182,
+          "overflow": 9999
+        },
+        {
+          "el": "thead \"Trans. RefChildPayerDue dateInv. periodS\"",
+          "left": 49,
+          "right": 1068,
+          "width": 1019,
+          "overflow": 654
+        },
+        {
+          "el": "tr \"Trans. RefChildPayerDue dateInv. periodS\"",
+          "left": 49,
+          "right": 1068,
+          "width": 1019,
+          "overflow": 654
+        },
+        {
+          "el": "th \"Actions\"",
+          "left": 986,
+          "right": 1068,
+          "width": 82,
+          "overflow": 654
+        },
+        {
+          "el": "tbody \"mwmgz6ixLayla FounderMona Founder2026-11\"",
+          "left": 49,
+          "right": 1068,
+          "width": 1019,
+          "overflow": 654
+        },
+        {
+          "el": "tr \"mwmgz6ixLayla FounderMona Founder2026-11\"",
+          "left": 49,
+          "right": 1068,
+          "width": 1019,
+          "overflow": 654
+        },
+        {
+          "el": "td \"PendingPaidOverdueCancelledSet\"",
+          "left": 986,
+          "right": 1068,
+          "width": 82,
+          "overflow": 654
+        },
+        {
+          "el": "form.row \"PendingPaidOverdueCancelledSet\"",
+          "left": 998,
+          "right": 1056,
+          "width": 58,
+          "overflow": 642
+        }
+      ]
+    },
+    {
+      "role": "staff",
+      "lang": "en",
+      "width": 414,
+      "path": "/portal/events",
+      "status": 200,
+      "ok": true,
+      "dir": "ltr",
+      "clientWidth": 414,
+      "scrollWidth": 414,
+      "bodyScrollWidth": 414,
+      "offenders": [
+        {
+          "el": "a.skip-link \"Skip to content\"",
+          "left": -9999,
+          "right": -9817,
+          "width": 182,
+          "overflow": 9999
+        }
+      ]
+    },
+    {
+      "role": "staff",
+      "lang": "en",
+      "width": 414,
+      "path": "/portal/learning",
+      "status": 200,
+      "ok": true,
+      "dir": "ltr",
+      "clientWidth": 414,
+      "scrollWidth": 414,
+      "bodyScrollWidth": 414,
+      "offenders": [
+        {
+          "el": "a.skip-link \"Skip to content\"",
+          "left": -9999,
+          "right": -9817,
+          "width": 182,
+          "overflow": 9999
+        }
+      ]
+    },
+    {
+      "role": "staff",
+      "lang": "en",
+      "width": 414,
+      "path": "/portal/learning/activities",
+      "status": 200,
+      "ok": true,
+      "dir": "ltr",
+      "clientWidth": 414,
+      "scrollWidth": 414,
+      "bodyScrollWidth": 414,
+      "offenders": [
+        {
+          "el": "a.skip-link \"Skip to content\"",
+          "left": -9999,
+          "right": -9817,
+          "width": 182,
+          "overflow": 9999
+        }
+      ]
+    },
+    {
+      "role": "staff",
+      "lang": "en",
+      "width": 414,
+      "path": "/portal/learning/curriculum",
+      "status": 200,
+      "ok": true,
+      "dir": "ltr",
+      "clientWidth": 414,
+      "scrollWidth": 414,
+      "bodyScrollWidth": 414,
+      "offenders": [
+        {
+          "el": "a.skip-link \"Skip to content\"",
+          "left": -9999,
+          "right": -9817,
+          "width": 182,
+          "overflow": 9999
+        }
+      ]
+    },
+    {
+      "role": "staff",
+      "lang": "en",
+      "width": 414,
+      "path": "/portal/learning/homework",
+      "status": 200,
+      "ok": true,
+      "dir": "ltr",
+      "clientWidth": 414,
+      "scrollWidth": 414,
+      "bodyScrollWidth": 414,
+      "offenders": [
+        {
+          "el": "a.skip-link \"Skip to content\"",
+          "left": -9999,
+          "right": -9817,
+          "width": 182,
+          "overflow": 9999
+        }
+      ]
+    },
+    {
+      "role": "staff",
+      "lang": "en",
+      "width": 414,
+      "path": "/portal/report-center",
+      "status": 200,
+      "ok": true,
+      "dir": "ltr",
+      "clientWidth": 414,
+      "scrollWidth": 414,
+      "bodyScrollWidth": 414,
+      "offenders": [
+        {
+          "el": "a.skip-link \"Skip to content\"",
+          "left": -9999,
+          "right": -9817,
+          "width": 182,
+          "overflow": 9999
+        },
+        {
+          "el": "thead \"StaffRoleReports authoredCheck-insIncide\"",
+          "left": 49,
+          "right": 569,
+          "width": 520,
+          "overflow": 155
+        },
+        {
+          "el": "tr \"StaffRoleReports authoredCheck-insIncide\"",
+          "left": 49,
+          "right": 569,
+          "width": 520,
+          "overflow": 155
+        },
+        {
+          "el": "th \"Observations\"",
+          "left": 449,
+          "right": 569,
+          "width": 120,
+          "overflow": 155
+        },
+        {
+          "el": "tbody \"Blue Horizon Kids CarerCarer1010Maple Gr\"",
+          "left": 49,
+          "right": 569,
+          "width": 520,
+          "overflow": 155
+        },
+        {
+          "el": "tr \"Blue Horizon Kids CarerCarer1010\"",
+          "left": 49,
+          "right": 569,
+          "width": 520,
+          "overflow": 155
+        },
+        {
+          "el": "td \"0\"",
+          "left": 449,
+          "right": 569,
+          "width": 120,
+          "overflow": 155
+        },
+        {
+          "el": "tr \"Maple Grove Daycare CarerCarer1010\"",
+          "left": 49,
+          "right": 569,
+          "width": 520,
+          "overflow": 155
+        }
+      ]
+    },
+    {
+      "role": "staff",
+      "lang": "en",
+      "width": 414,
+      "path": "/portal/reports",
+      "status": 200,
+      "ok": true,
+      "dir": "ltr",
+      "clientWidth": 414,
+      "scrollWidth": 414,
+      "bodyScrollWidth": 414,
+      "offenders": [
+        {
+          "el": "a.skip-link \"Skip to content\"",
+          "left": -9999,
+          "right": -9817,
+          "width": 182,
+          "overflow": 9999
+        },
+        {
+          "el": "thead \"StaffRoleReports authoredCheck-insIncide\"",
+          "left": 49,
+          "right": 569,
+          "width": 520,
+          "overflow": 155
+        },
+        {
+          "el": "tr \"StaffRoleReports authoredCheck-insIncide\"",
+          "left": 49,
+          "right": 569,
+          "width": 520,
+          "overflow": 155
+        },
+        {
+          "el": "th \"Observations\"",
+          "left": 449,
+          "right": 569,
+          "width": 120,
+          "overflow": 155
+        },
+        {
+          "el": "tbody \"Blue Horizon Kids CarerCarer1010Maple Gr\"",
+          "left": 49,
+          "right": 569,
+          "width": 520,
+          "overflow": 155
+        },
+        {
+          "el": "tr \"Blue Horizon Kids CarerCarer1010\"",
+          "left": 49,
+          "right": 569,
+          "width": 520,
+          "overflow": 155
+        },
+        {
+          "el": "td \"0\"",
+          "left": 449,
+          "right": 569,
+          "width": 120,
+          "overflow": 155
+        },
+        {
+          "el": "tr \"Maple Grove Daycare CarerCarer1010\"",
+          "left": 49,
+          "right": 569,
+          "width": 520,
+          "overflow": 155
+        }
+      ]
+    },
+    {
+      "role": "staff",
+      "lang": "en",
+      "width": 414,
+      "path": "/portal/surveys",
+      "status": 200,
+      "ok": true,
+      "dir": "ltr",
+      "clientWidth": 414,
+      "scrollWidth": 414,
+      "bodyScrollWidth": 414,
+      "offenders": [
+        {
+          "el": "a.skip-link \"Skip to content\"",
+          "left": -9999,
+          "right": -9817,
+          "width": 182,
+          "overflow": 9999
+        }
+      ]
+    },
+    {
+      "role": "staff",
+      "lang": "en",
+      "width": 414,
+      "path": "/portal/tags",
+      "status": 200,
+      "ok": true,
+      "dir": "ltr",
+      "clientWidth": 414,
+      "scrollWidth": 414,
+      "bodyScrollWidth": 414,
+      "offenders": [
+        {
+          "el": "a.skip-link \"Skip to content\"",
+          "left": -9999,
+          "right": -9817,
+          "width": 182,
+          "overflow": 9999
+        },
+        {
+          "el": "input.input",
+          "left": 213,
+          "right": 473,
+          "width": 260,
+          "overflow": 59
+        },
+        {
+          "el": "thead \"NameDOB / ageGenderRoomAllergies\"",
+          "left": 49,
+          "right": 457,
+          "width": 408,
+          "overflow": 43
+        },
+        {
+          "el": "tr \"NameDOB / ageGenderRoomAllergies\"",
+          "left": 49,
+          "right": 457,
+          "width": 408,
+          "overflow": 43
+        },
+        {
+          "el": "th \"Allergies\"",
+          "left": 361,
+          "right": 457,
+          "width": 96,
+          "overflow": 43
+        },
+        {
+          "el": "tbody \"Layla Founder12 Apr 2022 · 4y—Sunflowers\"",
+          "left": 49,
+          "right": 457,
+          "width": 408,
+          "overflow": 43
+        },
+        {
+          "el": "tr \"Layla Founder12 Apr 2022 · 4y—Sunflowers\"",
+          "left": 49,
+          "right": 457,
+          "width": 408,
+          "overflow": 43
+        },
+        {
+          "el": "td.small \"None\"",
+          "left": 361,
+          "right": 457,
+          "width": 96,
+          "overflow": 43
+        }
+      ]
+    },
+    {
+      "role": "staff",
+      "lang": "en",
+      "width": 414,
+      "path": "/portal/forms",
+      "status": 200,
+      "ok": true,
+      "dir": "ltr",
+      "clientWidth": 414,
+      "scrollWidth": 414,
+      "bodyScrollWidth": 414,
+      "offenders": [
+        {
+          "el": "a.skip-link \"Skip to content\"",
+          "left": -9999,
+          "right": -9817,
+          "width": 182,
+          "overflow": 9999
+        },
+        {
+          "el": "thead \"TitlePaymentForm typeSubmissionsCreated \"",
+          "left": 49,
+          "right": 673,
+          "width": 624,
+          "overflow": 259
+        },
+        {
+          "el": "tr \"TitlePaymentForm typeSubmissionsCreated \"",
+          "left": 49,
+          "right": 673,
+          "width": 624,
+          "overflow": 259
+        },
+        {
+          "el": "th \"Actions\"",
+          "left": 593,
+          "right": 673,
+          "width": 80,
+          "overflow": 259
+        },
+        {
+          "el": "tbody \"No forms match.\"",
+          "left": 49,
+          "right": 673,
+          "width": 624,
+          "overflow": 259
+        },
+        {
+          "el": "tr \"No forms match.\"",
+          "left": 49,
+          "right": 673,
+          "width": 624,
+          "overflow": 259
+        },
+        {
+          "el": "td.muted.small \"No forms match.\"",
+          "left": 49,
+          "right": 673,
+          "width": 624,
+          "overflow": 259
+        },
+        {
+          "el": "th \"Status\"",
+          "left": 521,
+          "right": 593,
+          "width": 72,
+          "overflow": 179
+        }
+      ]
+    },
+    {
+      "role": "staff",
+      "lang": "en",
+      "width": 414,
+      "path": "/portal/inquiries",
+      "status": 200,
+      "ok": true,
+      "dir": "ltr",
+      "clientWidth": 414,
+      "scrollWidth": 414,
+      "bodyScrollWidth": 414,
+      "offenders": [
+        {
+          "el": "a.skip-link \"Skip to content\"",
+          "left": -9999,
+          "right": -9817,
+          "width": 182,
+          "overflow": 9999
+        }
+      ]
+    },
+    {
+      "role": "staff",
+      "lang": "en",
+      "width": 414,
+      "path": "/portal/enhancements",
+      "status": 200,
+      "ok": true,
+      "dir": "ltr",
+      "clientWidth": 414,
+      "scrollWidth": 414,
+      "bodyScrollWidth": 414,
+      "offenders": [
+        {
+          "el": "a.skip-link \"Skip to content\"",
+          "left": -9999,
+          "right": -9817,
+          "width": 182,
+          "overflow": 9999
+        }
+      ]
+    },
+    {
+      "role": "staff",
+      "lang": "en",
+      "width": 414,
+      "path": "/portal/incidents",
+      "status": 200,
+      "ok": true,
+      "dir": "ltr",
+      "clientWidth": 414,
+      "scrollWidth": 414,
+      "bodyScrollWidth": 414,
+      "offenders": [
+        {
+          "el": "a.skip-link \"Skip to content\"",
+          "left": -9999,
+          "right": -9817,
+          "width": 182,
+          "overflow": 9999
+        }
+      ]
+    },
+    {
+      "role": "staff",
+      "lang": "en",
+      "width": 414,
+      "path": "/portal/consents",
+      "status": 200,
+      "ok": true,
+      "dir": "ltr",
+      "clientWidth": 414,
+      "scrollWidth": 414,
+      "bodyScrollWidth": 414,
+      "offenders": [
+        {
+          "el": "a.skip-link \"Skip to content\"",
+          "left": -9999,
+          "right": -9817,
+          "width": 182,
+          "overflow": 9999
+        }
+      ]
+    },
+    {
+      "role": "staff",
+      "lang": "en",
+      "width": 414,
+      "path": "/portal/drive",
+      "status": 200,
+      "ok": true,
+      "dir": "ltr",
+      "clientWidth": 414,
+      "scrollWidth": 414,
+      "bodyScrollWidth": 414,
+      "offenders": [
+        {
+          "el": "a.skip-link \"Skip to content\"",
+          "left": -9999,
+          "right": -9817,
+          "width": 182,
+          "overflow": 9999
+        }
+      ]
+    },
+    {
+      "role": "staff",
+      "lang": "en",
+      "width": 414,
+      "path": "/portal/support",
+      "status": 200,
+      "ok": true,
+      "dir": "ltr",
+      "clientWidth": 414,
+      "scrollWidth": 414,
+      "bodyScrollWidth": 414,
+      "offenders": [
+        {
+          "el": "a.skip-link \"Skip to content\"",
+          "left": -9999,
+          "right": -9817,
+          "width": 182,
+          "overflow": 9999
+        }
+      ]
+    },
+    {
+      "role": "staff",
+      "lang": "en",
+      "width": 414,
+      "path": "/portal/support/none-supported",
+      "ok": true,
+      "status": 404,
+      "skipped": true,
+      "scrollWidth": 0,
+      "clientWidth": 414,
+      "offenders": []
+    },
+    {
+      "role": "staff",
+      "lang": "en",
+      "width": 414,
+      "path": "/portal/support-inbox",
+      "status": 200,
+      "ok": true,
+      "dir": "ltr",
+      "clientWidth": 414,
+      "scrollWidth": 414,
+      "bodyScrollWidth": 414,
+      "offenders": [
+        {
+          "el": "a.skip-link \"Skip to content\"",
+          "left": -9999,
+          "right": -9817,
+          "width": 182,
+          "overflow": 9999
+        }
+      ]
+    },
+    {
+      "role": "staff",
+      "lang": "en",
+      "width": 414,
+      "path": "/portal/notifications",
+      "status": 200,
+      "ok": true,
+      "dir": "ltr",
+      "clientWidth": 414,
+      "scrollWidth": 414,
+      "bodyScrollWidth": 414,
+      "offenders": [
+        {
+          "el": "a.skip-link \"Skip to content\"",
+          "left": -9999,
+          "right": -9817,
+          "width": 182,
+          "overflow": 9999
+        }
+      ]
+    },
+    {
+      "role": "staff",
+      "lang": "en",
+      "width": 414,
+      "path": "/portal/audit",
+      "status": 200,
+      "ok": true,
+      "dir": "ltr",
+      "clientWidth": 414,
+      "scrollWidth": 414,
+      "bodyScrollWidth": 414,
+      "offenders": [
+        {
+          "el": "a.skip-link \"Skip to content\"",
+          "left": -9999,
+          "right": -9817,
+          "width": 182,
+          "overflow": 9999
+        },
+        {
+          "el": "thead \"WhenActorTypeSummary\"",
+          "left": 49,
+          "right": 729,
+          "width": 680,
+          "overflow": 315
+        },
+        {
+          "el": "tr \"WhenActorTypeSummary\"",
+          "left": 49,
+          "right": 729,
+          "width": 680,
+          "overflow": 315
+        },
+        {
+          "el": "th \"Summary\"",
+          "left": 449,
+          "right": 729,
+          "width": 280,
+          "overflow": 315
+        },
+        {
+          "el": "tbody \"22 Nov 2026, 21:54Founder Test Ownersend\"",
+          "left": 49,
+          "right": 729,
+          "width": 680,
+          "overflow": 315
+        },
+        {
+          "el": "tr \"22 Nov 2026, 21:54Founder Test Ownersend\"",
+          "left": 49,
+          "right": 729,
+          "width": 680,
+          "overflow": 315
+        },
+        {
+          "el": "td \"Sent a group message\"",
+          "left": 449,
+          "right": 729,
+          "width": 280,
+          "overflow": 315
+        },
+        {
+          "el": "tr \"21 Nov 2026, 00:15Founder Test Ownerchec\"",
+          "left": 49,
+          "right": 729,
+          "width": 680,
+          "overflow": 315
+        }
+      ]
+    },
+    {
+      "role": "staff",
+      "lang": "en",
+      "width": 414,
+      "path": "/portal/performance",
+      "status": 200,
+      "ok": true,
+      "dir": "ltr",
+      "clientWidth": 414,
+      "scrollWidth": 414,
+      "bodyScrollWidth": 414,
+      "offenders": [
+        {
+          "el": "a.skip-link \"Skip to content\"",
+          "left": -9999,
+          "right": -9817,
+          "width": 182,
+          "overflow": 9999
+        }
+      ]
+    },
+    {
+      "role": "staff",
+      "lang": "en",
+      "width": 414,
+      "path": "/portal/supplies",
+      "status": 200,
+      "ok": true,
+      "dir": "ltr",
+      "clientWidth": 414,
+      "scrollWidth": 414,
+      "bodyScrollWidth": 414,
+      "offenders": [
+        {
+          "el": "a.skip-link \"Skip to content\"",
+          "left": -9999,
+          "right": -9817,
+          "width": 182,
+          "overflow": 9999
+        }
+      ]
+    }
+  ],
+  "consoleErrors": [
+    "staff: Failed to load resource: the server responded with a status of 404 ()",
+    "staff: Failed to load resource: the server responded with a status of 404 ()"
+  ]
+}
