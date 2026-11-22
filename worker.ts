@@ -15,34 +15,35 @@ type Env = {
   WORKER_SELF_REFERENCE?: { fetch: (request: Request) => Promise<Response> };
 };
 
-// KID-2452: Workers cannot reuse a TCP connection across requests. A pool per
-// request (not per isolate) keeps Hyperdrive connections short-lived and
-// avoids the cross-request promise/liveness failures a cached module pool
-// causes under any real concurrency.
+// KID-2452: Workers cannot reuse a TCP connection across requests. One
+// short-lived pool per request (never per isolate) keeps Hyperdrive connections
+// inside the request's I/O context.
+//
+// `max: 1` is deliberate. A page can issue several queries in parallel, but
+// Hyperdrive already pools the origin connections; a single client here queues
+// those queries instead of opening up to four sockets per request. The Workers
+// runtime allows only six simultaneous open connections per invocation, and
+// oversubscribing it was one suspected cause of the intermittent connect
+// failures that forced the 2026-11-22 rollback.
+//
+// Do not call pool.end() in ctx.waitUntil(): the runtime closes the sockets at
+// the end of the invocation, while an early end() can race work scheduled for
+// after the response (the `after()`/background paths) and turn a healthy
+// request into a "pool after end" error.
 function requestPool(connectionString: string): Pool {
   return new Pool({
     connectionString: connectionString.split("?")[0],
-    max: 4,
-    connectionTimeoutMillis: 10000,
-    idleTimeoutMillis: 10000,
+    max: 1,
+    connectionTimeoutMillis: 5000,
+    idleTimeoutMillis: 15000,
   });
 }
 
-async function withRequestPool<T>(
-  env: Env,
-  ctx: ExecutionContext,
-  run: () => Promise<T>
-): Promise<T> {
+function withRequestPool<T>(env: Env, run: () => Promise<T>): Promise<T> {
   const connectionString = env.HYPERDRIVE?.connectionString;
   if (!connectionString) return run();
   const pool = requestPool(connectionString);
-  try {
-    return await dbRequestStore.run({ pool }, run);
-  } finally {
-    ctx.waitUntil(
-      pool.end().catch((error) => console.error("[db] request pool close failed:", error))
-    );
-  }
+  return dbRequestStore.run({ pool }, run);
 }
 
 async function runAttendanceSweep(env: Env): Promise<void> {
@@ -67,7 +68,7 @@ async function runAttendanceSweep(env: Env): Promise<void> {
 
 export default {
   fetch: (request: Request, env: Env, ctx: ExecutionContext) =>
-    withRequestPool(env, ctx, () => openNextWorker.fetch(request, env, ctx)),
+    withRequestPool(env, () => openNextWorker.fetch(request, env, ctx)),
   async scheduled(_controller: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
     ctx.waitUntil(runAttendanceSweep(env));
   },

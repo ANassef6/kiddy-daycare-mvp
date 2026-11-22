@@ -7,6 +7,7 @@
 // engine is behind them.
 
 import { dbRequestStore } from "./db-request";
+import { connectWithRetry, describePgError } from "./pg-retry";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type Row = Record<string, any>;
@@ -53,17 +54,11 @@ export function isPostgresMode(): boolean {
 // ---------------------------------------------------------------------------
 // Postgres (Supabase)
 // ---------------------------------------------------------------------------
-let _pool: import("pg").Pool | null = null;
+type PgDatabase = { url: string | undefined; hyperdrive: boolean };
 
-function getPool(): import("pg").Pool {
-  // KID-2452: on Workers the entry point opens one pool per request and stores
-  // it here; sockets cannot be shared across requests. Node keeps the shared
-  // module-level pool below.
-  const requestPool = dbRequestStore.getStore()?.pool;
-  if (requestPool) return requestPool;
-  if (_pool) return _pool;
+function createPool(database: PgDatabase, max: number): import("pg").Pool {
   const { Pool } = require("pg") as typeof import("pg");
-  const { url, hyperdrive } = runtimeDatabase();
+  const { url, hyperdrive } = database;
   if (!url) throw new Error("No database URL configured (HYPERDRIVE binding or KIDDY_DATABASE_URL).");
   // Strip the query string (sslmode=require is treated as verify-full by newer
   // pg). Direct Supabase pooler connections set TLS explicitly; Hyperdrive
@@ -71,15 +66,83 @@ function getPool(): import("pg").Pool {
   // the handshake. Do not infer this from the connection string: the runtime
   // Hyperdrive host is not guaranteed to contain "hyperdrive", so the binding
   // we actually resolved above is the only reliable signal.
-  const base = url.split("?")[0];
-  _pool = new Pool({
-    connectionString: base,
+  return new Pool({
+    connectionString: url.split("?")[0],
     ...(hyperdrive ? {} : { ssl: { rejectUnauthorized: false } }),
-    max: 5,
-    connectionTimeoutMillis: 10000,
-    idleTimeoutMillis: 30000,
+    max,
+    connectionTimeoutMillis: 5000,
+    idleTimeoutMillis: 15000,
   });
-  return _pool;
+}
+
+// Node only (Vercel/local). Workers never reuse a pool across requests; see
+// withPgClient() below.
+let _nodePool: import("pg").Pool | null = null;
+
+function nodePool(): import("pg").Pool {
+  if (!_nodePool) _nodePool = createPool(runtimeDatabase(), 5);
+  return _nodePool;
+}
+
+type PgClient = import("pg").PoolClient;
+
+// KID-2452: a Workers invocation can fail to open the edge connection to
+// Hyperdrive under load. Retry only the connect (never the query): a connect
+// failure means no SQL ran, so a retry cannot replay a write.
+async function acquireClient(pool: import("pg").Pool): Promise<PgClient> {
+  return connectWithRetry(pool, {
+    attempts: 3,
+    baseDelayMs: 100,
+    onFailure: (error, attempt, willRetry) => {
+      console.error(
+        JSON.stringify({
+          fmt: "KID-2452 db connect failed",
+          attempt,
+          willRetry,
+          error: describePgError(error),
+        })
+      );
+    },
+  });
+}
+
+async function runOnPool<T>(
+  pool: import("pg").Pool,
+  run: (client: PgClient) => Promise<T>
+): Promise<T> {
+  const client = await acquireClient(pool);
+  try {
+    return await run(client);
+  } finally {
+    client.release();
+  }
+}
+
+async function withPgClient<T>(run: (client: PgClient) => Promise<T>): Promise<T> {
+  // The Workers entry opens exactly one pool per request and stores it here.
+  // Sockets cannot cross request contexts, so this path is the only one used
+  // on Workers in the normal case.
+  const requestPool = dbRequestStore.getStore()?.pool;
+  if (requestPool) return runOnPool(requestPool, run);
+
+  if (isCloudflareWorkers()) {
+    // No request store (for example a callback that escaped the request's
+    // async context). Never fall back to a module-level pool on Workers: that
+    // is the cross-request socket reuse this data layer must not do. Use a
+    // single short-lived pool for this call instead.
+    const pool = createPool(runtimeDatabase(), 1);
+    try {
+      return await runOnPool(pool, run);
+    } finally {
+      await pool.end().catch((error) => {
+        console.error(
+          JSON.stringify({ fmt: "KID-2452 db pool close failed", error: describePgError(error) })
+        );
+      });
+    }
+  }
+
+  return runOnPool(nodePool(), run);
 }
 
 // Converts `?` positional placeholders (SQLite style) to `$1..$n` for pg.
@@ -98,13 +161,17 @@ function render(sql: string, args: unknown[]): { text: string; values: unknown[]
 }
 
 async function pgAll(sql: string, args: unknown[]): Promise<Row[]> {
-  const r = await getPool().query(render(sql, args));
-  return r.rows as Row[];
+  return withPgClient(async (client) => {
+    const r = await client.query(render(sql, args));
+    return r.rows as Row[];
+  });
 }
 
 async function pgRun(sql: string, args: unknown[]): Promise<{ rowCount: number }> {
-  const r = await getPool().query(render(sql, args));
-  return { rowCount: r.rowCount ?? 0 };
+  return withPgClient(async (client) => {
+    const r = await client.query(render(sql, args));
+    return { rowCount: r.rowCount ?? 0 };
+  });
 }
 
 // Applies a multi-statement SQL script (used for the migration file).
@@ -229,13 +296,6 @@ export function splitStatements(sql: string): string[] {
   return out;
 }
 
-async function pgExec(sql: string): Promise<void> {
-  const pool = getPool();
-  for (const statement of splitStatements(sql)) {
-    await pool.query(statement);
-  }
-}
-
 // ---------------------------------------------------------------------------
 // SQLite (local fallback)
 // ---------------------------------------------------------------------------
@@ -319,23 +379,29 @@ async function ensurePgSchema(): Promise<void> {
   const migrationDir = path.join(process.cwd(), "supabase", "migrations");
   if (!fs.existsSync(migrationDir)) return;
 
-  const pool = getPool();
-  await pool.query(
-    `CREATE TABLE IF NOT EXISTS schema_migrations (
-      file TEXT PRIMARY KEY,
-      applied_at TIMESTAMPTZ NOT NULL DEFAULT now()
-    )`
-  );
-  const res = await pool.query("SELECT file FROM schema_migrations");
-  const appliedSet = new Set(res.rows.map((r) => String(r.file)));
+  // One client for the whole pass: the ledger read and every statement that
+  // follows must see a consistent session, and a single connection avoids a
+  // burst of sockets on Workers.
+  await withPgClient(async (client) => {
+    await client.query(
+      `CREATE TABLE IF NOT EXISTS schema_migrations (
+        file TEXT PRIMARY KEY,
+        applied_at TIMESTAMPTZ NOT NULL DEFAULT now()
+      )`
+    );
+    const res = await client.query("SELECT file FROM schema_migrations");
+    const appliedSet = new Set(res.rows.map((r) => String(r.file)));
 
-  const files = fs.readdirSync(migrationDir).filter((f: string) => f.endsWith(".sql")).sort();
-  for (const file of files) {
-    if (appliedSet.has(file)) continue;
-    await pgExec(fs.readFileSync(path.join(migrationDir, file), "utf8"));
-    await pool.query("INSERT INTO schema_migrations (file) VALUES ($1)", [file]);
-  }
-  _pgMigrated = new Set(files);
+    const files = fs.readdirSync(migrationDir).filter((f: string) => f.endsWith(".sql")).sort();
+    for (const file of files) {
+      if (appliedSet.has(file)) continue;
+      for (const statement of splitStatements(fs.readFileSync(path.join(migrationDir, file), "utf8"))) {
+        await client.query(statement);
+      }
+      await client.query("INSERT INTO schema_migrations (file) VALUES ($1)", [file]);
+    }
+    _pgMigrated = new Set(files);
+  });
 }
 
 export function uid(): string {
