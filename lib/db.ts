@@ -6,7 +6,7 @@
 // path or unset. All query helpers are async so pages/actions don't care which
 // engine is behind them.
 
-import { dbRequestStore } from "./db-request";
+import { acquireClientWithRetry, dbRequestStore } from "./db-request";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type Row = Record<string, any>;
@@ -61,6 +61,15 @@ function getPool(): import("pg").Pool {
   // module-level pool below.
   const requestPool = dbRequestStore.getStore()?.pool;
   if (requestPool) return requestPool;
+  // KID-2457: never fall back to a module-level pool on Workers. A pool reused
+  // across requests fails intermittently (Workers I/O is request-scoped), so
+  // fail fast and visibly instead of silently corrupting the request.
+  if (isCloudflareWorkers()) {
+    throw new Error(
+      "KID-2457: no per-request database pool in the Workers request scope. " +
+        "The Worker entry must wrap the request with withRequestPool()."
+    );
+  }
   if (_pool) return _pool;
   const { Pool } = require("pg") as typeof import("pg");
   const { url, hyperdrive } = runtimeDatabase();
@@ -97,14 +106,34 @@ function render(sql: string, args: unknown[]): { text: string; values: unknown[]
   return { text: out, values: args };
 }
 
+/**
+ * Runs one statement on a checked-out client. KID-2457: only the client
+ * *connection* is retried (once) inside acquireClientWithRetry; the statement
+ * itself is executed exactly once, so a retry can never duplicate a write.
+ */
+async function pgQuery<T>(
+  sql: string,
+  args: unknown[],
+  map: (result: import("pg").QueryResult) => T
+): Promise<T> {
+  const client = await acquireClientWithRetry(getPool());
+  let queryError: unknown;
+  try {
+    return map(await client.query(render(sql, args)));
+  } catch (error) {
+    queryError = error;
+    throw error;
+  } finally {
+    client.release(queryError instanceof Error ? queryError : undefined);
+  }
+}
+
 async function pgAll(sql: string, args: unknown[]): Promise<Row[]> {
-  const r = await getPool().query(render(sql, args));
-  return r.rows as Row[];
+  return pgQuery(sql, args, (r) => r.rows as Row[]);
 }
 
 async function pgRun(sql: string, args: unknown[]): Promise<{ rowCount: number }> {
-  const r = await getPool().query(render(sql, args));
-  return { rowCount: r.rowCount ?? 0 };
+  return pgQuery(sql, args, (r) => ({ rowCount: r.rowCount ?? 0 }));
 }
 
 // Applies a multi-statement SQL script (used for the migration file).

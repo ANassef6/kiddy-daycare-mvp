@@ -129,6 +129,44 @@ The cron logs `[cron] attendance sweep ok` or a skipped/failed line. The sweep
 endpoint requires `Authorization: Bearer $CRON_SECRET`; without it it returns a
 uniform 401.
 
+## KID-2457: pool lifecycle hotfix (staging verified)
+
+After the first production cutover, authenticated RSC navigations on tenant
+hosts intermittently returned the Next.js digest crash page. Workers Logs
+showed one throw site — pg's `promisify` (pool connect) — with an empty
+message; the same failure broke branding, billing/withdrawal sweeps and
+operator bootstrap on that request. Production was rolled back to Vercel at
+07:24Z.
+
+Root cause: the Worker entry opened one `pg.Pool` per request and called
+`pool.end()` as soon as `handler.fetch()` resolved. OpenNext returns a
+streaming Response and keeps rendering — and querying — after that point, so
+the remaining work hit an ended pool (`Cannot use a pool after calling end on
+the pool`; on the edge runtime the same race surfaced as the empty-message
+connect error). Staging reproduced 5 such failures in a 900-request tenant
+soak on the pre-fix build.
+
+Fix:
+
+- `lib/db-request.ts`: the per-request pool is not ended when the fetch
+  handler resolves. Workers/Hyperdrive clean up the invocation's connections
+  when the invocation ends, which is the race-free lifecycle.
+- `lib/db-request.ts`: a failed client *connection* is retried once with a
+  short backoff. The statement itself runs exactly once, so a retry cannot
+  duplicate a write.
+- `lib/db.ts`: on Workers, a missing request scope now fails fast with a clear
+  error instead of silently reusing a cross-request module pool.
+- `app/error.tsx`: a failed render shows a recoverable "Try again" page
+  instead of the opaque digest screen (hardening; the pool lifecycle is the
+  primary fix).
+
+Verification: the same staging worker, after the fix, took an authenticated
+browser soak of 240 soft navigations (owner and parent roles across
+`/portal/*` and `/child/*`) with zero digest pages, zero 5xx and zero
+error-level Worker logs; the one-minute cron logged
+`[cron] attendance sweep ok`. Production routes/DNS stay on Vercel until the
+founder signs off on staging.
+
 ## Known gaps / follow-ups
 
 1. **New tenant routing:** Cloudflare Custom Domains cannot use wildcard DNS,
