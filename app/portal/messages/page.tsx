@@ -55,6 +55,12 @@ export default async function PortalMessagesPage(
 
   const onlyUnread = searchParams.unread === "1";
   const threadId = searchParams.thread;
+  // KID-2459: on a phone the list is the entry point. Only an explicit
+  // selection (a thread, a 1:1 chat, or the composer) replaces it. The
+  // auto-selected first conversation below must not count, or the list would
+  // never be reachable at phone width.
+  const mobileHasSelection =
+    !!threadId || !!searchParams.with || searchParams.compose === "1";
   // Legacy 1:1 conversations have no participant row to archive, so the
   // Archived view lists threads only.
   const withId = !threadId && !showArchived ? searchParams.with || (conversations[0]?.other_account_id as string) || parents[0]?.id : null;
@@ -149,8 +155,11 @@ export default async function PortalMessagesPage(
         </p>
       )}
 
-      <div className="grid" style={{ gridTemplateColumns: "280px 1fr" }}>
-        <div className="card">
+      <div
+        className={`grid messages-layout${mobileHasSelection ? " messages-has-selection" : ""}`}
+        style={{ gridTemplateColumns: "280px 1fr" }}
+      >
+        <div className="card messages-list">
           <h4 className="subtitle">{t("messages.conversations")}{totalUnread > 0 ? ` · ${t("messages.unreadCount", { count: totalUnread })}` : ""}</h4>
           <div className="row" style={{ gap: 6, marginBottom: 8 }}>
             <Link
@@ -263,7 +272,10 @@ export default async function PortalMessagesPage(
           })}
         </div>
 
-        <div className="card">
+        <div className="card messages-thread">
+          <Link className="btn btn-ghost small messages-back" href="/portal/messages">
+            ← {t("messages.backToConversations")}
+          </Link>
           {composing ? (
             <MediaUploadForm
               action={sendComposerAction}

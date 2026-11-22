@@ -165,7 +165,7 @@ export default async function PortalTagsPage(
           <button className="btn btn-primary small" type="submit">{tr(dict, "smartList.apply")}</button>
         </form>
 
-        <div className="mt-3" style={{ display: "grid", gridTemplateColumns: "280px 1fr", gap: 16 }}>
+        <div className="mt-3 tags-layout" style={{ display: "grid", gridTemplateColumns: "280px 1fr", gap: 16 }}>
           <div>
             <div className="row" style={{ gap: 8, flexWrap: "wrap" }}>
               {cols.map((c) => (

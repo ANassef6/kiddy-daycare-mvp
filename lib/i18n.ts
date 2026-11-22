@@ -479,6 +479,8 @@ export const en = {
     titleUnread: "Messages ({count} unread)",
     noParentsInClassroomsShort: "No parents in your classrooms.",
     closeComposer: "Close composer",
+    // KID-2459: phone-width Messages shows one pane at a time.
+    backToConversations: "Back to conversations",
     // KID-169: no staff assigned to the child's classroom, and a send the
     // server refused. Both were silent before; the parent saw a page that
     // looked identical before and after the failure.
@@ -2822,6 +2824,8 @@ export const ar = {
     titleUnread: "الرسائل ({count} غير مقروءة)",
     noParentsInClassroomsShort: "لا يوجد أولياء أمور في فصولك.",
     closeComposer: "إغلاق نافذة الإنشاء",
+    // KID-2459: mirror of the phone-width Messages back link.
+    backToConversations: "رجوع إلى المحادثات",
     noClassroomStaff:
       "لا يوجد موظف متاح للمراسلة بعد. لم تُعيّن الحضانة معلّمًا لفصل طفلك — اسأل الاستقبال عمّن يمكنك التحدث إليه.",
     sendFailedRecipient:
