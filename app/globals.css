@@ -843,6 +843,18 @@ table.data th {
     max-width: 100%;
     min-width: 0;
   }
+
+  /* KID-2459: a list row's text (a long email or name) kept its auto minimum
+     and pushed the trailing badges/actions past the card. Let the row wrap and
+     the text break so both ends stay on screen. */
+  .list-item {
+    flex-wrap: wrap;
+    overflow-wrap: anywhere;
+  }
+
+  .list-item > * {
+    min-width: 0;
+  }
 }
 
 /* ==========================================================================

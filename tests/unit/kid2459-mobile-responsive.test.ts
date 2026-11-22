@@ -53,6 +53,17 @@ describe("KID-2459 mobile responsiveness", () => {
     expect(block).toMatch(/input\[type="file"\]\s*\{[^}]*max-width:\s*100%/);
   });
 
+  it("lets long list rows wrap instead of pushing their badges off-screen", () => {
+    const block = phoneBlock(".list-item {");
+    expect(block).toMatch(/\.list-item\s*\{[^}]*flex-wrap:\s*wrap/);
+    expect(block).toMatch(/\.list-item\s*\{[^}]*overflow-wrap:\s*anywhere/);
+    expect(block).toMatch(/\.list-item > \*\s*\{[^}]*min-width:\s*0/);
+  });
+
+  it("keeps the wide finance transactions table in its own scroll box", () => {
+    expect(read("app/portal/finance/page.tsx")).toContain('<div className="table-scroll mt-3">');
+  });
+
   it("collapses the Messages two-pane layout to one pane below 720px", () => {
     const block = phoneBlock(".messages-layout");
     expect(block).toContain("grid-template-columns: minmax(0, 1fr) !important");
