@@ -1,10 +1,9 @@
 # Cloudflare Workers migration (KID-2452)
 
-Status: **production cutover complete, Vercel kept warm as rollback.**
-`kiddyapp.net`, `www`, and both tenant hosts are served by the `kiddy-web`
-Worker through Cloudflare zone routes; the Vercel DNS records and project are
-untouched, so deleting the routes is an instant rollback. The 24-48 h rollback
-window is open.
+Status: **production cutover rolled back 2026-11-22T07:24Z; fix prepared and
+re-cutover is gated on founder sign-off.** All four hosts are served by Vercel
+again. The Worker, Hyperdrive config and zone-route rollback path are intact.
+See "Production regression and rollback" below.
 
 ## Why Hyperdrive
 
@@ -153,7 +152,88 @@ uniform 401.
 6. **Image optimization:** the app uses `<img>` today, so no `IMAGES` binding is
    configured. Add one if `next/image` is adopted.
 
-## Production cutover (executed 2026-11-22)
+## Production regression and rollback (2026-11-22)
+
+The cutover was live from 2026-11-21T23:5xZ. At 07:16Z the founder reported
+"Application error: server-side exception" on authenticated tenant pages.
+Workers Logs (Workers Observability API, `kiddy-web`) showed two bursts of
+database failures, at 06:43:50-06:44:31Z and 07:16:23-07:19:28Z. Every failing
+request logged an error whose `message` was empty; the throw site was
+`worker.js:4775`, the `promisify()` rethrow inside `pg-pool`, i.e. a failed
+`pool.connect()`. The failures hit branding resolution, the billing and
+withdrawal sweeps, operator bootstrap and page data together, so the whole
+request lost its Postgres connection rather than one query failing.
+
+Evidence that the database itself was healthy:
+
+- No `FATAL`/connection-limit entries in `postgres_logs`; the Postgres process
+  had been up since 2026-09-04 and `kiddy_hyperdrive` held only ~5 connections.
+- Successful requests interleaved with the failures, and the `*/5` cron sweep
+  logged `[cron] attendance sweep ok` at 07:15Z and again after the rollback.
+- No Cloudflare incident for Workers or Hyperdrive in that window.
+
+The exact cause of the edge connect rejection is not proven from the logs
+(`pg-pool` replaces the error stack, and the runtime error carried no message).
+The suspected trigger is connection churn/oversubscription: the Worker opened a
+pool of up to four sockets per request, on top of Hyperdrive's own pooling,
+under a burst of authenticated page loads.
+
+**Rollback:** the four zone routes (`kiddyapp.net/*`, `www`, `sunshine`,
+`maple-grove`) were deleted at ~07:24Z; no DNS record changed. Live check:
+`x-vercel-id` present, `x-opennext` gone, `/api/branding` and `/login` 200.
+
+**Rollback gap found and fixed:** `maple-grove.kiddyapp.net` returned HTTP 525
+after the route deletion because Vercel had no certificate for that exact host
+(only the apex, `sunshine` and the now-stale `maple-grove-daycare*` names were
+project domains). The host was added to the Vercel `kiddy` project; it now
+returns 200 with `x-vercel-id`. The `*.kiddyapp.net` record stays DNS-only.
+
+## Re-cutover fix
+
+Code on branch `kid2452-connect-fix` (PR pending) changes only the Workers
+connection path:
+
+1. **One connection per request.** `worker.ts` now creates the per-request pool
+   with `max: 1`. Parallel queries queue on that client instead of opening up
+   to four sockets, well under the Workers limit of six simultaneous
+   connections per invocation.
+2. **Connect-only retry.** `lib/db.ts` checks out a client through
+   `connectWithRetry()` (`lib/pg-retry.ts`): up to three attempts with a short
+   linear backoff. A failure here happens before any SQL runs, so a retry
+   cannot replay a write. Query errors are never retried.
+3. **Structured failure logging.** Every failed connect logs
+   `{"fmt":"KID-2452 db connect failed",attempt,willRetry,error:{name,message,code,errno,syscall,cause}}`,
+   so the next occurrence names the runtime error instead of showing an empty
+   message.
+4. **No `pool.end()` in `ctx.waitUntil`.** The runtime closes request sockets
+   at invocation end; an early end could race work scheduled after the
+   response and surface as "pool after end".
+5. **Single client for schema boot.** `ensurePgSchema()` runs the ledger read
+   and any pending migrations on one connection instead of `pool.query` per
+   statement.
+6. **No module-level pool on Workers.** If the request store is missing, the
+   data layer uses a one-call client instead of a shared pool, so cross-request
+   socket reuse is impossible.
+
+Verification before re-cutover:
+
+- `tsc --noEmit` clean; `vitest` `db-split` (6/6), `db-fk` (4/4) and the new
+  `kid2452-pg-retry` (6/6) pass; `opennextjs-cloudflare build` and
+  `wrangler deploy --env staging --dry-run` pass (2.7 MiB gzip).
+- A Workers probe bound to the staging Hyperdrive ran 200 requests at 60-way
+  concurrency with 4 parallel queries each; `max: 1` and single-client modes
+  returned 200 for every request.
+
+Re-cutover sequence (each step gated on the prior one being green):
+
+1. Deploy the fixed script to `kiddy-web` with the routes still absent; the
+   `*/5` cron exercises the production DB path with zero user traffic.
+2. Re-create the `www.kiddyapp.net` route first as a canary; monitor Workers
+   Logs for `KID-2452 db connect failed` and HTTP 5xx for 15-30 minutes.
+3. Re-create `kiddyapp.net`, `sunshine`, `maple-grove` only if the canary is
+   clean. Vercel stays warm for the full rollback window.
+
+## Production cutover (executed 2026-11-22, rolled back 2026-11-22T07:24Z)
 
 1. Founder accepted the staging parity card (`794f2c43`) and the production
    cutover card (`d4ccad40`).

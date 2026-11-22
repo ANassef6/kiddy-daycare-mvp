@@ -39,7 +39,7 @@ jobs:
       # tracked in the hosting-migration follow-up task). Gate the data layer
       # that Hyperdrive changes; the adapter itself is covered by the build and
       # the wrangler dry-run below.
-      - run: npx vitest run tests/unit/db-split.test.ts
+      - run: npx vitest run tests/unit/db-split.test.ts tests/unit/kid2452-pg-retry.test.ts
       - run: npx opennextjs-cloudflare build
       - name: Wrangler dry run
         run: npx wrangler deploy --env staging --dry-run
