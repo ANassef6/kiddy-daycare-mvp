@@ -1,0 +1,312 @@
+{
+  "issue": "KID-2459",
+  "baseUrl": "http://127.0.0.1:4600",
+  "runAt": "2026-11-22T21:20:20.811Z",
+  "widths": [
+    414
+  ],
+  "langs": [
+    "ar"
+  ],
+  "total": 14,
+  "failed": 0,
+  "results": [
+    {
+      "role": "parent",
+      "lang": "ar",
+      "width": 414,
+      "path": "/child",
+      "status": 200,
+      "ok": true,
+      "dir": "rtl",
+      "clientWidth": 414,
+      "scrollWidth": 414,
+      "bodyScrollWidth": 414,
+      "offenders": [
+        {
+          "el": "a.skip-link \"تخطَّ إلى المحتوى\"",
+          "left": 10281,
+          "right": 10413,
+          "width": 132,
+          "overflow": 9999
+        }
+      ]
+    },
+    {
+      "role": "parent",
+      "lang": "ar",
+      "width": 414,
+      "path": "/child/mwsbobn5-qsg59nv8",
+      "status": 200,
+      "ok": true,
+      "dir": "rtl",
+      "clientWidth": 414,
+      "scrollWidth": 414,
+      "bodyScrollWidth": 414,
+      "offenders": [
+        {
+          "el": "a.skip-link \"تخطَّ إلى المحتوى\"",
+          "left": 10281,
+          "right": 10413,
+          "width": 132,
+          "overflow": 9999
+        }
+      ]
+    },
+    {
+      "role": "parent",
+      "lang": "ar",
+      "width": 414,
+      "path": "/child/messages",
+      "status": 200,
+      "ok": true,
+      "dir": "rtl",
+      "clientWidth": 414,
+      "scrollWidth": 414,
+      "bodyScrollWidth": 414,
+      "offenders": [
+        {
+          "el": "a.skip-link \"تخطَّ إلى المحتوى\"",
+          "left": 10281,
+          "right": 10413,
+          "width": 132,
+          "overflow": 9999
+        }
+      ]
+    },
+    {
+      "role": "parent",
+      "lang": "ar",
+      "width": 414,
+      "path": "/child/messages?thread=t-kid2459-1",
+      "status": 200,
+      "ok": true,
+      "dir": "rtl",
+      "clientWidth": 414,
+      "scrollWidth": 414,
+      "bodyScrollWidth": 414,
+      "offenders": [
+        {
+          "el": "a.skip-link \"تخطَّ إلى المحتوى\"",
+          "left": 10281,
+          "right": 10413,
+          "width": 132,
+          "overflow": 9999
+        }
+      ]
+    },
+    {
+      "role": "parent",
+      "lang": "ar",
+      "width": 414,
+      "path": "/child/newsfeed",
+      "status": 200,
+      "ok": true,
+      "dir": "rtl",
+      "clientWidth": 414,
+      "scrollWidth": 414,
+      "bodyScrollWidth": 414,
+      "offenders": [
+        {
+          "el": "a.skip-link \"تخطَّ إلى المحتوى\"",
+          "left": 10281,
+          "right": 10413,
+          "width": 132,
+          "overflow": 9999
+        }
+      ]
+    },
+    {
+      "role": "parent",
+      "lang": "ar",
+      "width": 414,
+      "path": "/child/notifications",
+      "status": 200,
+      "ok": true,
+      "dir": "rtl",
+      "clientWidth": 414,
+      "scrollWidth": 414,
+      "bodyScrollWidth": 414,
+      "offenders": [
+        {
+          "el": "a.skip-link \"تخطَّ إلى المحتوى\"",
+          "left": 10281,
+          "right": 10413,
+          "width": 132,
+          "overflow": 9999
+        }
+      ]
+    },
+    {
+      "role": "parent",
+      "lang": "ar",
+      "width": 414,
+      "path": "/child/settings",
+      "status": 200,
+      "ok": true,
+      "dir": "rtl",
+      "clientWidth": 414,
+      "scrollWidth": 414,
+      "bodyScrollWidth": 414,
+      "offenders": [
+        {
+          "el": "a.skip-link \"تخطَّ إلى المحتوى\"",
+          "left": 10281,
+          "right": 10413,
+          "width": 132,
+          "overflow": 9999
+        }
+      ]
+    },
+    {
+      "role": "parent",
+      "lang": "ar",
+      "width": 414,
+      "path": "/child/forms",
+      "status": 200,
+      "ok": true,
+      "dir": "rtl",
+      "clientWidth": 414,
+      "scrollWidth": 414,
+      "bodyScrollWidth": 414,
+      "offenders": [
+        {
+          "el": "a.skip-link \"تخطَّ إلى المحتوى\"",
+          "left": 10281,
+          "right": 10413,
+          "width": 132,
+          "overflow": 9999
+        }
+      ]
+    },
+    {
+      "role": "parent",
+      "lang": "ar",
+      "width": 414,
+      "path": "/child/events",
+      "status": 200,
+      "ok": true,
+      "dir": "rtl",
+      "clientWidth": 414,
+      "scrollWidth": 414,
+      "bodyScrollWidth": 414,
+      "offenders": [
+        {
+          "el": "a.skip-link \"تخطَّ إلى المحتوى\"",
+          "left": 10281,
+          "right": 10413,
+          "width": 132,
+          "overflow": 9999
+        }
+      ]
+    },
+    {
+      "role": "parent",
+      "lang": "ar",
+      "width": 414,
+      "path": "/child/learning",
+      "status": 200,
+      "ok": true,
+      "dir": "rtl",
+      "clientWidth": 414,
+      "scrollWidth": 414,
+      "bodyScrollWidth": 414,
+      "offenders": [
+        {
+          "el": "a.skip-link \"تخطَّ إلى المحتوى\"",
+          "left": 10281,
+          "right": 10413,
+          "width": 132,
+          "overflow": 9999
+        }
+      ]
+    },
+    {
+      "role": "parent",
+      "lang": "ar",
+      "width": 414,
+      "path": "/child/consents",
+      "status": 200,
+      "ok": true,
+      "dir": "rtl",
+      "clientWidth": 414,
+      "scrollWidth": 414,
+      "bodyScrollWidth": 414,
+      "offenders": [
+        {
+          "el": "a.skip-link \"تخطَّ إلى المحتوى\"",
+          "left": 10281,
+          "right": 10413,
+          "width": 132,
+          "overflow": 9999
+        }
+      ]
+    },
+    {
+      "role": "parent",
+      "lang": "ar",
+      "width": 414,
+      "path": "/child/incidents",
+      "status": 200,
+      "ok": true,
+      "dir": "rtl",
+      "clientWidth": 414,
+      "scrollWidth": 414,
+      "bodyScrollWidth": 414,
+      "offenders": [
+        {
+          "el": "a.skip-link \"تخطَّ إلى المحتوى\"",
+          "left": 10281,
+          "right": 10413,
+          "width": 132,
+          "overflow": 9999
+        }
+      ]
+    },
+    {
+      "role": "parent",
+      "lang": "ar",
+      "width": 414,
+      "path": "/child/drive",
+      "status": 200,
+      "ok": true,
+      "dir": "rtl",
+      "clientWidth": 414,
+      "scrollWidth": 414,
+      "bodyScrollWidth": 414,
+      "offenders": [
+        {
+          "el": "a.skip-link \"تخطَّ إلى المحتوى\"",
+          "left": 10281,
+          "right": 10413,
+          "width": 132,
+          "overflow": 9999
+        }
+      ]
+    },
+    {
+      "role": "parent",
+      "lang": "ar",
+      "width": 414,
+      "path": "/child/support",
+      "status": 200,
+      "ok": true,
+      "dir": "rtl",
+      "clientWidth": 414,
+      "scrollWidth": 414,
+      "bodyScrollWidth": 414,
+      "offenders": [
+        {
+          "el": "a.skip-link \"تخطَّ إلى المحتوى\"",
+          "left": 10281,
+          "right": 10413,
+          "width": 132,
+          "overflow": 9999
+        }
+      ]
+    }
+  ],
+  "consoleErrors": [
+    "parent: Failed to load resource: the server responded with a status of 404 (Not Found)"
+  ]
+}

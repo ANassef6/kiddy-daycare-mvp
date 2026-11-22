@@ -417,6 +417,11 @@ table.data th {
   background: var(--color-surface);
   border-right: 1px solid var(--color-border);
   padding: var(--space-4);
+  /* KID-2459: a grid item's default min-width is auto, so one wide child
+     (a long table, an unbreakable row) stretched the whole 1fr track past the
+     viewport. min-width:0 lets the track shrink; the wide child scrolls in its
+     own container instead of dragging the page sideways. */
+  min-width: 0;
 }
 
 .shell-side a {
@@ -566,6 +571,8 @@ table.data th {
 
 .shell-main {
   padding: var(--space-5);
+  /* KID-2459: see .shell-side — the main track must be allowed to shrink. */
+  min-width: 0;
 }
 
 /* KID-52 #12: top-right portal toolbar — messages, notifications, account. */
@@ -808,7 +815,34 @@ table.data th {
 }
 
 @media (max-width: 720px) {
-  .shell { grid-template-columns: 1fr; }
+  /* KID-2459: minmax(0, 1fr) makes the single phone track shrink to the
+     viewport even when a child has a wide min-content size (1fr alone keeps
+     the auto minimum and lets one table widen the whole page). */
+  .shell { grid-template-columns: minmax(0, 1fr); }
+
+  /* KID-2459: data tables keep their columns and scroll inside the card
+     instead of scrolling the page. display:block is the supported way to let
+     a table element own an overflow box; the inner rows keep table layout. */
+  table {
+    display: block;
+    width: 100%;
+    max-width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* KID-2459: upload forms sit in a flexible row next to an avatar or text.
+     Their min-content (file picker + button) was wider than the row, so they
+     pushed past the card. Let the form and the file input shrink and wrap. */
+  .row form {
+    min-width: 0;
+    flex-wrap: wrap;
+  }
+
+  input[type="file"] {
+    max-width: 100%;
+    min-width: 0;
+  }
 }
 
 /* ==========================================================================
@@ -2110,4 +2144,58 @@ html[dir="rtl"] .skip-link:focus {
 
 [dir="rtl"] .help-article-body {
   text-align: right;
+}
+
+/* ==========================================================================
+   KID-2459 — mobile single-pane Messages
+   ========================================================================== */
+
+/* The staff Messages screen is two panes on desktop: a 280px conversation
+   list and a fluid thread/composer. On a phone that layout pushed the thread
+   off the viewport and clipped the composer controls. Below the 720px
+   breakpoint the same markup becomes one pane: the list is the entry point,
+   and opening a thread, a 1:1 chat or the composer replaces it. A back link
+   returns to the list. Desktop and tablet keep the two-pane layout. */
+.messages-back {
+  display: none;
+}
+
+@media (max-width: 720px) {
+  .messages-layout {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  .messages-layout.messages-has-selection .messages-list {
+    display: none;
+  }
+
+  .messages-layout:not(.messages-has-selection) .messages-thread {
+    display: none;
+  }
+
+  .messages-back {
+    display: inline-flex;
+  }
+}
+
+/* KID-2459: the Smart Lists builder is a 280px column-picker plus a results
+   table. On a phone the fixed column pushed the table off-screen; stack them
+   and let the table own its horizontal scroll. */
+@media (max-width: 720px) {
+  .tags-layout {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+}
+
+@media (max-width: 720px) {
+  .observation-goals-grid {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  .observation-goals-grid > div:first-child {
+    border-inline-end: none !important;
+    padding-inline-end: 0 !important;
+    border-bottom: 1px solid var(--color-border);
+    padding-bottom: 8px;
+  }
 }

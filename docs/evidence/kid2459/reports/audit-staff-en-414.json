@@ -1,0 +1,1365 @@
+{
+  "issue": "KID-2459",
+  "baseUrl": "http://127.0.0.1:4600",
+  "runAt": "2026-11-22T21:09:56.535Z",
+  "widths": [
+    414
+  ],
+  "langs": [
+    "en"
+  ],
+  "total": 43,
+  "failed": 0,
+  "results": [
+    {
+      "role": "staff",
+      "lang": "en",
+      "width": 414,
+      "path": "/portal/dashboard",
+      "status": 200,
+      "ok": true,
+      "dir": "ltr",
+      "clientWidth": 414,
+      "scrollWidth": 414,
+      "bodyScrollWidth": 414,
+      "offenders": [
+        {
+          "el": "a.skip-link \"Skip to content\"",
+          "left": -9999,
+          "right": -9817,
+          "width": 182,
+          "overflow": 9999
+        }
+      ]
+    },
+    {
+      "role": "staff",
+      "lang": "en",
+      "width": 414,
+      "path": "/portal/children",
+      "status": 200,
+      "ok": true,
+      "dir": "ltr",
+      "clientWidth": 414,
+      "scrollWidth": 414,
+      "bodyScrollWidth": 414,
+      "offenders": [
+        {
+          "el": "a.skip-link \"Skip to content\"",
+          "left": -9999,
+          "right": -9817,
+          "width": 182,
+          "overflow": 9999
+        }
+      ]
+    },
+    {
+      "role": "staff",
+      "lang": "en",
+      "width": 414,
+      "path": "/portal/children/mwsbobn5-qsg59nv8",
+      "status": 200,
+      "ok": true,
+      "dir": "ltr",
+      "clientWidth": 414,
+      "scrollWidth": 414,
+      "bodyScrollWidth": 414,
+      "offenders": [
+        {
+          "el": "a.skip-link \"Skip to content\"",
+          "left": -9999,
+          "right": -9817,
+          "width": 182,
+          "overflow": 9999
+        },
+        {
+          "el": "button \"Incidents & accidents\"",
+          "left": 1320,
+          "right": 1516,
+          "width": 196,
+          "overflow": 1102
+        },
+        {
+          "el": "button \"Learning history\"",
+          "left": 1160,
+          "right": 1316,
+          "width": 156,
+          "overflow": 902
+        },
+        {
+          "el": "button \"Invoices\"",
+          "left": 1064,
+          "right": 1156,
+          "width": 92,
+          "overflow": 742
+        },
+        {
+          "el": "button \"Schedules (Beta)\"",
+          "left": 904,
+          "right": 1060,
+          "width": 156,
+          "overflow": 646
+        },
+        {
+          "el": "button \"Signed documents & consents\"",
+          "left": 656,
+          "right": 900,
+          "width": 244,
+          "overflow": 486
+        },
+        {
+          "el": "button \"Media (1)\"",
+          "left": 552,
+          "right": 652,
+          "width": 100,
+          "overflow": 238
+        },
+        {
+          "el": "button \"Pickup & family contacts\"",
+          "left": 328,
+          "right": 548,
+          "width": 220,
+          "overflow": 134
+        }
+      ]
+    },
+    {
+      "role": "staff",
+      "lang": "en",
+      "width": 414,
+      "path": "/portal/children/mwsbobn5-qsg59nv8/billing",
+      "status": 200,
+      "ok": true,
+      "dir": "ltr",
+      "clientWidth": 414,
+      "scrollWidth": 414,
+      "bodyScrollWidth": 414,
+      "offenders": [
+        {
+          "el": "a.skip-link \"Skip to content\"",
+          "left": -9999,
+          "right": -9817,
+          "width": 182,
+          "overflow": 9999
+        }
+      ]
+    },
+    {
+      "role": "staff",
+      "lang": "en",
+      "width": 414,
+      "path": "/portal/children/mwsbobn5-qsg59nv8/development",
+      "status": 200,
+      "ok": true,
+      "dir": "ltr",
+      "clientWidth": 414,
+      "scrollWidth": 414,
+      "bodyScrollWidth": 414,
+      "offenders": [
+        {
+          "el": "a.skip-link \"Skip to content\"",
+          "left": -9999,
+          "right": -9817,
+          "width": 182,
+          "overflow": 9999
+        }
+      ]
+    },
+    {
+      "role": "staff",
+      "lang": "en",
+      "width": 414,
+      "path": "/portal/children/development",
+      "status": 200,
+      "ok": true,
+      "dir": "ltr",
+      "clientWidth": 414,
+      "scrollWidth": 414,
+      "bodyScrollWidth": 414,
+      "offenders": [
+        {
+          "el": "a.skip-link \"Skip to content\"",
+          "left": -9999,
+          "right": -9817,
+          "width": 182,
+          "overflow": 9999
+        }
+      ]
+    },
+    {
+      "role": "staff",
+      "lang": "en",
+      "width": 414,
+      "path": "/portal/messages",
+      "status": 200,
+      "ok": true,
+      "dir": "ltr",
+      "clientWidth": 414,
+      "scrollWidth": 414,
+      "bodyScrollWidth": 414,
+      "offenders": [
+        {
+          "el": "a.skip-link \"Skip to content\"",
+          "left": -9999,
+          "right": -9817,
+          "width": 182,
+          "overflow": 9999
+        }
+      ]
+    },
+    {
+      "role": "staff",
+      "lang": "en",
+      "width": 414,
+      "path": "/portal/messages?thread=t-kid2459-1",
+      "status": 200,
+      "ok": true,
+      "dir": "ltr",
+      "clientWidth": 414,
+      "scrollWidth": 414,
+      "bodyScrollWidth": 414,
+      "offenders": [
+        {
+          "el": "a.skip-link \"Skip to content\"",
+          "left": -9999,
+          "right": -9817,
+          "width": 182,
+          "overflow": 9999
+        }
+      ]
+    },
+    {
+      "role": "staff",
+      "lang": "en",
+      "width": 414,
+      "path": "/portal/messages?compose=1",
+      "status": 200,
+      "ok": true,
+      "dir": "ltr",
+      "clientWidth": 414,
+      "scrollWidth": 414,
+      "bodyScrollWidth": 414,
+      "offenders": [
+        {
+          "el": "a.skip-link \"Skip to content\"",
+          "left": -9999,
+          "right": -9817,
+          "width": 182,
+          "overflow": 9999
+        }
+      ]
+    },
+    {
+      "role": "staff",
+      "lang": "en",
+      "width": 414,
+      "path": "/portal/newsfeed",
+      "status": 200,
+      "ok": true,
+      "dir": "ltr",
+      "clientWidth": 414,
+      "scrollWidth": 414,
+      "bodyScrollWidth": 414,
+      "offenders": [
+        {
+          "el": "a.skip-link \"Skip to content\"",
+          "left": -9999,
+          "right": -9817,
+          "width": 182,
+          "overflow": 9999
+        }
+      ]
+    },
+    {
+      "role": "staff",
+      "lang": "en",
+      "width": 414,
+      "path": "/portal/attendance",
+      "status": 200,
+      "ok": true,
+      "dir": "ltr",
+      "clientWidth": 414,
+      "scrollWidth": 414,
+      "bodyScrollWidth": 414,
+      "offenders": [
+        {
+          "el": "a.skip-link \"Skip to content\"",
+          "left": -9999,
+          "right": -9817,
+          "width": 182,
+          "overflow": 9999
+        },
+        {
+          "el": "thead \"ChildRoomStatusBusChecked inChecked outA\"",
+          "left": 24,
+          "right": 609,
+          "width": 585,
+          "overflow": 195
+        },
+        {
+          "el": "tr \"ChildRoomStatusBusChecked inChecked outA\"",
+          "left": 24,
+          "right": 609,
+          "width": 585,
+          "overflow": 195
+        },
+        {
+          "el": "th \"Actions\"",
+          "left": 489,
+          "right": 609,
+          "width": 120,
+          "overflow": 195
+        },
+        {
+          "el": "tbody \"Leo NguyenPreschoolAbsent———Check inOn b\"",
+          "left": 24,
+          "right": 609,
+          "width": 585,
+          "overflow": 195
+        },
+        {
+          "el": "tr \"Leo NguyenPreschoolAbsent———Check inOn b\"",
+          "left": 24,
+          "right": 609,
+          "width": 585,
+          "overflow": 195
+        },
+        {
+          "el": "td \"Check inOn bus (to daycare)Arrived at da\"",
+          "left": 489,
+          "right": 609,
+          "width": 120,
+          "overflow": 195
+        },
+        {
+          "el": "tr \"Ella NguyenToddlersAbsent———Check inOn b\"",
+          "left": 24,
+          "right": 609,
+          "width": 585,
+          "overflow": 195
+        }
+      ]
+    },
+    {
+      "role": "staff",
+      "lang": "en",
+      "width": 414,
+      "path": "/portal/calendar",
+      "status": 200,
+      "ok": true,
+      "dir": "ltr",
+      "clientWidth": 414,
+      "scrollWidth": 414,
+      "bodyScrollWidth": 414,
+      "offenders": [
+        {
+          "el": "a.skip-link \"Skip to content\"",
+          "left": -9999,
+          "right": -9817,
+          "width": 182,
+          "overflow": 9999
+        }
+      ]
+    },
+    {
+      "role": "staff",
+      "lang": "en",
+      "width": 414,
+      "path": "/portal/rooms",
+      "status": 200,
+      "ok": true,
+      "dir": "ltr",
+      "clientWidth": 414,
+      "scrollWidth": 414,
+      "bodyScrollWidth": 414,
+      "offenders": [
+        {
+          "el": "a.skip-link \"Skip to content\"",
+          "left": -9999,
+          "right": -9817,
+          "width": 182,
+          "overflow": 9999
+        }
+      ]
+    },
+    {
+      "role": "staff",
+      "lang": "en",
+      "width": 414,
+      "path": "/portal/rooms/mwsbobjn-ep1xrl3r",
+      "status": 200,
+      "ok": true,
+      "dir": "ltr",
+      "clientWidth": 414,
+      "scrollWidth": 414,
+      "bodyScrollWidth": 414,
+      "offenders": [
+        {
+          "el": "a.skip-link \"Skip to content\"",
+          "left": -9999,
+          "right": -9817,
+          "width": 182,
+          "overflow": 9999
+        }
+      ]
+    },
+    {
+      "role": "staff",
+      "lang": "en",
+      "width": 414,
+      "path": "/portal/staff",
+      "status": 200,
+      "ok": true,
+      "dir": "ltr",
+      "clientWidth": 414,
+      "scrollWidth": 414,
+      "bodyScrollWidth": 414,
+      "offenders": [
+        {
+          "el": "a.skip-link \"Skip to content\"",
+          "left": -9999,
+          "right": -9817,
+          "width": 182,
+          "overflow": 9999
+        },
+        {
+          "el": "thead \"NameAccessAssigned classroomsStatusActio\"",
+          "left": 49,
+          "right": 657,
+          "width": 608,
+          "overflow": 243
+        },
+        {
+          "el": "tr \"NameAccessAssigned classroomsStatusActio\"",
+          "left": 49,
+          "right": 657,
+          "width": 608,
+          "overflow": 243
+        },
+        {
+          "el": "th \"Actions\"",
+          "left": 543,
+          "right": 657,
+          "width": 114,
+          "overflow": 243
+        },
+        {
+          "el": "tbody \"NNasseftrois4ever+admin@gmail.comAdminPr\"",
+          "left": 49,
+          "right": 657,
+          "width": 608,
+          "overflow": 243
+        },
+        {
+          "el": "tr \"NNasseftrois4ever+admin@gmail.comAdminPr\"",
+          "left": 49,
+          "right": 657,
+          "width": 608,
+          "overflow": 243
+        },
+        {
+          "el": "td \"ProfileSet status\"",
+          "left": 543,
+          "right": 657,
+          "width": 114,
+          "overflow": 243
+        },
+        {
+          "el": "div.row \"ProfileSet status\"",
+          "left": 555,
+          "right": 645,
+          "width": 90,
+          "overflow": 231
+        }
+      ]
+    },
+    {
+      "role": "staff",
+      "lang": "en",
+      "width": 414,
+      "path": "/portal/staff/mwsbobk8-ta4lblch",
+      "status": 200,
+      "ok": true,
+      "dir": "ltr",
+      "clientWidth": 414,
+      "scrollWidth": 414,
+      "bodyScrollWidth": 414,
+      "offenders": [
+        {
+          "el": "a.skip-link \"Skip to content\"",
+          "left": -9999,
+          "right": -9817,
+          "width": 182,
+          "overflow": 9999
+        }
+      ]
+    },
+    {
+      "role": "staff",
+      "lang": "en",
+      "width": 414,
+      "path": "/portal/staff/hours",
+      "status": 200,
+      "ok": true,
+      "dir": "ltr",
+      "clientWidth": 414,
+      "scrollWidth": 414,
+      "bodyScrollWidth": 414,
+      "offenders": [
+        {
+          "el": "a.skip-link \"Skip to content\"",
+          "left": -9999,
+          "right": -9817,
+          "width": 182,
+          "overflow": 9999
+        }
+      ]
+    },
+    {
+      "role": "staff",
+      "lang": "en",
+      "width": 414,
+      "path": "/portal/staff/schedule",
+      "status": 200,
+      "ok": true,
+      "dir": "ltr",
+      "clientWidth": 414,
+      "scrollWidth": 414,
+      "bodyScrollWidth": 414,
+      "offenders": [
+        {
+          "el": "a.skip-link \"Skip to content\"",
+          "left": -9999,
+          "right": -9817,
+          "width": 182,
+          "overflow": 9999
+        }
+      ]
+    },
+    {
+      "role": "staff",
+      "lang": "en",
+      "width": 414,
+      "path": "/portal/settings",
+      "status": 200,
+      "ok": true,
+      "dir": "ltr",
+      "clientWidth": 414,
+      "scrollWidth": 414,
+      "bodyScrollWidth": 414,
+      "offenders": [
+        {
+          "el": "a.skip-link \"Skip to content\"",
+          "left": -9999,
+          "right": -9817,
+          "width": 182,
+          "overflow": 9999
+        },
+        {
+          "el": "thead \"DayOpenCloseClosed\"",
+          "left": 49,
+          "right": 506,
+          "width": 457,
+          "overflow": 92
+        },
+        {
+          "el": "tr \"DayOpenCloseClosed\"",
+          "left": 49,
+          "right": 506,
+          "width": 457,
+          "overflow": 92
+        },
+        {
+          "el": "th \"Closed\"",
+          "left": 434,
+          "right": 506,
+          "width": 72,
+          "overflow": 92
+        },
+        {
+          "el": "tbody \"Sunday · todayMondayTuesdayWednesdayThur\"",
+          "left": 49,
+          "right": 506,
+          "width": 457,
+          "overflow": 92
+        },
+        {
+          "el": "tr \"Sunday · today\"",
+          "left": 49,
+          "right": 506,
+          "width": 457,
+          "overflow": 92
+        },
+        {
+          "el": "td",
+          "left": 434,
+          "right": 506,
+          "width": 72,
+          "overflow": 92
+        },
+        {
+          "el": "tr \"Monday\"",
+          "left": 49,
+          "right": 506,
+          "width": 457,
+          "overflow": 92
+        }
+      ]
+    },
+    {
+      "role": "staff",
+      "lang": "en",
+      "width": 414,
+      "path": "/portal/account",
+      "status": 200,
+      "ok": true,
+      "dir": "ltr",
+      "clientWidth": 414,
+      "scrollWidth": 414,
+      "bodyScrollWidth": 414,
+      "offenders": [
+        {
+          "el": "a.skip-link \"Skip to content\"",
+          "left": -9999,
+          "right": -9817,
+          "width": 182,
+          "overflow": 9999
+        }
+      ]
+    },
+    {
+      "role": "staff",
+      "lang": "en",
+      "width": 414,
+      "path": "/portal/account-billing",
+      "status": 200,
+      "ok": true,
+      "dir": "ltr",
+      "clientWidth": 414,
+      "scrollWidth": 414,
+      "bodyScrollWidth": 414,
+      "offenders": [
+        {
+          "el": "a.skip-link \"Skip to content\"",
+          "left": -9999,
+          "right": -9817,
+          "width": 182,
+          "overflow": 9999
+        }
+      ]
+    },
+    {
+      "role": "staff",
+      "lang": "en",
+      "width": 414,
+      "path": "/portal/finance",
+      "status": 200,
+      "ok": true,
+      "dir": "ltr",
+      "clientWidth": 414,
+      "scrollWidth": 414,
+      "bodyScrollWidth": 414,
+      "offenders": [
+        {
+          "el": "a.skip-link \"Skip to content\"",
+          "left": -9999,
+          "right": -9817,
+          "width": 182,
+          "overflow": 9999
+        },
+        {
+          "el": "thead \"Trans. RefChildPayerDue dateInv. periodS\"",
+          "left": 49,
+          "right": 929,
+          "width": 880,
+          "overflow": 515
+        },
+        {
+          "el": "tr \"Trans. RefChildPayerDue dateInv. periodS\"",
+          "left": 49,
+          "right": 929,
+          "width": 880,
+          "overflow": 515
+        },
+        {
+          "el": "th \"Actions\"",
+          "left": 849,
+          "right": 929,
+          "width": 80,
+          "overflow": 515
+        },
+        {
+          "el": "tbody \"No invoices match.\"",
+          "left": 49,
+          "right": 929,
+          "width": 880,
+          "overflow": 515
+        },
+        {
+          "el": "tr \"No invoices match.\"",
+          "left": 49,
+          "right": 929,
+          "width": 880,
+          "overflow": 515
+        },
+        {
+          "el": "td.muted.small \"No invoices match.\"",
+          "left": 49,
+          "right": 929,
+          "width": 880,
+          "overflow": 515
+        },
+        {
+          "el": "th \"Payments\"",
+          "left": 761,
+          "right": 849,
+          "width": 88,
+          "overflow": 435
+        }
+      ]
+    },
+    {
+      "role": "staff",
+      "lang": "en",
+      "width": 414,
+      "path": "/portal/events",
+      "status": 200,
+      "ok": true,
+      "dir": "ltr",
+      "clientWidth": 414,
+      "scrollWidth": 414,
+      "bodyScrollWidth": 414,
+      "offenders": [
+        {
+          "el": "a.skip-link \"Skip to content\"",
+          "left": -9999,
+          "right": -9817,
+          "width": 182,
+          "overflow": 9999
+        }
+      ]
+    },
+    {
+      "role": "staff",
+      "lang": "en",
+      "width": 414,
+      "path": "/portal/learning",
+      "status": 200,
+      "ok": true,
+      "dir": "ltr",
+      "clientWidth": 414,
+      "scrollWidth": 414,
+      "bodyScrollWidth": 414,
+      "offenders": [
+        {
+          "el": "a.skip-link \"Skip to content\"",
+          "left": -9999,
+          "right": -9817,
+          "width": 182,
+          "overflow": 9999
+        }
+      ]
+    },
+    {
+      "role": "staff",
+      "lang": "en",
+      "width": 414,
+      "path": "/portal/learning/activities",
+      "status": 200,
+      "ok": true,
+      "dir": "ltr",
+      "clientWidth": 414,
+      "scrollWidth": 414,
+      "bodyScrollWidth": 414,
+      "offenders": [
+        {
+          "el": "a.skip-link \"Skip to content\"",
+          "left": -9999,
+          "right": -9817,
+          "width": 182,
+          "overflow": 9999
+        }
+      ]
+    },
+    {
+      "role": "staff",
+      "lang": "en",
+      "width": 414,
+      "path": "/portal/learning/curriculum",
+      "status": 200,
+      "ok": true,
+      "dir": "ltr",
+      "clientWidth": 414,
+      "scrollWidth": 414,
+      "bodyScrollWidth": 414,
+      "offenders": [
+        {
+          "el": "a.skip-link \"Skip to content\"",
+          "left": -9999,
+          "right": -9817,
+          "width": 182,
+          "overflow": 9999
+        }
+      ]
+    },
+    {
+      "role": "staff",
+      "lang": "en",
+      "width": 414,
+      "path": "/portal/learning/homework",
+      "status": 200,
+      "ok": true,
+      "dir": "ltr",
+      "clientWidth": 414,
+      "scrollWidth": 414,
+      "bodyScrollWidth": 414,
+      "offenders": [
+        {
+          "el": "a.skip-link \"Skip to content\"",
+          "left": -9999,
+          "right": -9817,
+          "width": 182,
+          "overflow": 9999
+        }
+      ]
+    },
+    {
+      "role": "staff",
+      "lang": "en",
+      "width": 414,
+      "path": "/portal/report-center",
+      "status": 200,
+      "ok": true,
+      "dir": "ltr",
+      "clientWidth": 414,
+      "scrollWidth": 414,
+      "bodyScrollWidth": 414,
+      "offenders": [
+        {
+          "el": "a.skip-link \"Skip to content\"",
+          "left": -9999,
+          "right": -9817,
+          "width": 182,
+          "overflow": 9999
+        },
+        {
+          "el": "thead \"StaffRoleReports authoredCheck-insIncide\"",
+          "left": 49,
+          "right": 561,
+          "width": 512,
+          "overflow": 147
+        },
+        {
+          "el": "tr \"StaffRoleReports authoredCheck-insIncide\"",
+          "left": 49,
+          "right": 561,
+          "width": 512,
+          "overflow": 147
+        },
+        {
+          "el": "th \"Observations\"",
+          "left": 441,
+          "right": 561,
+          "width": 120,
+          "overflow": 147
+        },
+        {
+          "el": "tbody \"NassefOwner1002\"",
+          "left": 49,
+          "right": 561,
+          "width": 512,
+          "overflow": 147
+        },
+        {
+          "el": "tr \"NassefOwner1002\"",
+          "left": 49,
+          "right": 561,
+          "width": 512,
+          "overflow": 147
+        },
+        {
+          "el": "td \"2\"",
+          "left": 441,
+          "right": 561,
+          "width": 120,
+          "overflow": 147
+        },
+        {
+          "el": "th \"Incidents logged\"",
+          "left": 345,
+          "right": 441,
+          "width": 96,
+          "overflow": 27
+        }
+      ]
+    },
+    {
+      "role": "staff",
+      "lang": "en",
+      "width": 414,
+      "path": "/portal/reports",
+      "status": 200,
+      "ok": true,
+      "dir": "ltr",
+      "clientWidth": 414,
+      "scrollWidth": 414,
+      "bodyScrollWidth": 414,
+      "offenders": [
+        {
+          "el": "a.skip-link \"Skip to content\"",
+          "left": -9999,
+          "right": -9817,
+          "width": 182,
+          "overflow": 9999
+        },
+        {
+          "el": "thead \"StaffRoleReports authoredCheck-insIncide\"",
+          "left": 49,
+          "right": 561,
+          "width": 512,
+          "overflow": 147
+        },
+        {
+          "el": "tr \"StaffRoleReports authoredCheck-insIncide\"",
+          "left": 49,
+          "right": 561,
+          "width": 512,
+          "overflow": 147
+        },
+        {
+          "el": "th \"Observations\"",
+          "left": 441,
+          "right": 561,
+          "width": 120,
+          "overflow": 147
+        },
+        {
+          "el": "tbody \"NassefOwner1002\"",
+          "left": 49,
+          "right": 561,
+          "width": 512,
+          "overflow": 147
+        },
+        {
+          "el": "tr \"NassefOwner1002\"",
+          "left": 49,
+          "right": 561,
+          "width": 512,
+          "overflow": 147
+        },
+        {
+          "el": "td \"2\"",
+          "left": 441,
+          "right": 561,
+          "width": 120,
+          "overflow": 147
+        },
+        {
+          "el": "th \"Incidents logged\"",
+          "left": 345,
+          "right": 441,
+          "width": 96,
+          "overflow": 27
+        }
+      ]
+    },
+    {
+      "role": "staff",
+      "lang": "en",
+      "width": 414,
+      "path": "/portal/surveys",
+      "status": 200,
+      "ok": true,
+      "dir": "ltr",
+      "clientWidth": 414,
+      "scrollWidth": 414,
+      "bodyScrollWidth": 414,
+      "offenders": [
+        {
+          "el": "a.skip-link \"Skip to content\"",
+          "left": -9999,
+          "right": -9817,
+          "width": 182,
+          "overflow": 9999
+        }
+      ]
+    },
+    {
+      "role": "staff",
+      "lang": "en",
+      "width": 414,
+      "path": "/portal/tags",
+      "status": 200,
+      "ok": true,
+      "dir": "ltr",
+      "clientWidth": 414,
+      "scrollWidth": 414,
+      "bodyScrollWidth": 414,
+      "offenders": [
+        {
+          "el": "a.skip-link \"Skip to content\"",
+          "left": -9999,
+          "right": -9817,
+          "width": 182,
+          "overflow": 9999
+        },
+        {
+          "el": "input.input",
+          "left": 213,
+          "right": 473,
+          "width": 260,
+          "overflow": 59
+        },
+        {
+          "el": "thead \"NameDOB / ageGenderRoomAllergies\"",
+          "left": 49,
+          "right": 441,
+          "width": 392,
+          "overflow": 27
+        },
+        {
+          "el": "tr \"NameDOB / ageGenderRoomAllergies\"",
+          "left": 49,
+          "right": 441,
+          "width": 392,
+          "overflow": 27
+        },
+        {
+          "el": "th \"Allergies\"",
+          "left": 345,
+          "right": 441,
+          "width": 96,
+          "overflow": 27
+        },
+        {
+          "el": "tbody \"Ella Nguyen12 Apr 2021 · 5y—ToddlersPean\"",
+          "left": 49,
+          "right": 441,
+          "width": 392,
+          "overflow": 27
+        },
+        {
+          "el": "tr \"Ella Nguyen12 Apr 2021 · 5y—ToddlersPean\"",
+          "left": 49,
+          "right": 441,
+          "width": 392,
+          "overflow": 27
+        },
+        {
+          "el": "td.small \"Peanuts\"",
+          "left": 345,
+          "right": 441,
+          "width": 96,
+          "overflow": 27
+        }
+      ]
+    },
+    {
+      "role": "staff",
+      "lang": "en",
+      "width": 414,
+      "path": "/portal/forms",
+      "status": 200,
+      "ok": true,
+      "dir": "ltr",
+      "clientWidth": 414,
+      "scrollWidth": 414,
+      "bodyScrollWidth": 414,
+      "offenders": [
+        {
+          "el": "a.skip-link \"Skip to content\"",
+          "left": -9999,
+          "right": -9817,
+          "width": 182,
+          "overflow": 9999
+        },
+        {
+          "el": "thead \"TitlePaymentForm typeSubmissionsCreated \"",
+          "left": 49,
+          "right": 827,
+          "width": 778,
+          "overflow": 413
+        },
+        {
+          "el": "tr \"TitlePaymentForm typeSubmissionsCreated \"",
+          "left": 49,
+          "right": 827,
+          "width": 778,
+          "overflow": 413
+        },
+        {
+          "el": "th \"Actions\"",
+          "left": 681,
+          "right": 827,
+          "width": 146,
+          "overflow": 413
+        },
+        {
+          "el": "tbody \"Would you like a parent-teacher conferen\"",
+          "left": 49,
+          "right": 827,
+          "width": 778,
+          "overflow": 413
+        },
+        {
+          "el": "tr \"Would you like a parent-teacher conferen\"",
+          "left": 49,
+          "right": 827,
+          "width": 778,
+          "overflow": 413
+        },
+        {
+          "el": "td \"View submissionsPublish\"",
+          "left": 681,
+          "right": 827,
+          "width": 146,
+          "overflow": 413
+        },
+        {
+          "el": "tr \"Photo day permission listTick the box to\"",
+          "left": 49,
+          "right": 827,
+          "width": 778,
+          "overflow": 413
+        }
+      ]
+    },
+    {
+      "role": "staff",
+      "lang": "en",
+      "width": 414,
+      "path": "/portal/inquiries",
+      "status": 200,
+      "ok": true,
+      "dir": "ltr",
+      "clientWidth": 414,
+      "scrollWidth": 414,
+      "bodyScrollWidth": 414,
+      "offenders": [
+        {
+          "el": "a.skip-link \"Skip to content\"",
+          "left": -9999,
+          "right": -9817,
+          "width": 182,
+          "overflow": 9999
+        }
+      ]
+    },
+    {
+      "role": "staff",
+      "lang": "en",
+      "width": 414,
+      "path": "/portal/enhancements",
+      "status": 200,
+      "ok": true,
+      "dir": "ltr",
+      "clientWidth": 414,
+      "scrollWidth": 414,
+      "bodyScrollWidth": 414,
+      "offenders": [
+        {
+          "el": "a.skip-link \"Skip to content\"",
+          "left": -9999,
+          "right": -9817,
+          "width": 182,
+          "overflow": 9999
+        }
+      ]
+    },
+    {
+      "role": "staff",
+      "lang": "en",
+      "width": 414,
+      "path": "/portal/incidents",
+      "status": 200,
+      "ok": true,
+      "dir": "ltr",
+      "clientWidth": 414,
+      "scrollWidth": 414,
+      "bodyScrollWidth": 414,
+      "offenders": [
+        {
+          "el": "a.skip-link \"Skip to content\"",
+          "left": -9999,
+          "right": -9817,
+          "width": 182,
+          "overflow": 9999
+        }
+      ]
+    },
+    {
+      "role": "staff",
+      "lang": "en",
+      "width": 414,
+      "path": "/portal/consents",
+      "status": 200,
+      "ok": true,
+      "dir": "ltr",
+      "clientWidth": 414,
+      "scrollWidth": 414,
+      "bodyScrollWidth": 414,
+      "offenders": [
+        {
+          "el": "a.skip-link \"Skip to content\"",
+          "left": -9999,
+          "right": -9817,
+          "width": 182,
+          "overflow": 9999
+        }
+      ]
+    },
+    {
+      "role": "staff",
+      "lang": "en",
+      "width": 414,
+      "path": "/portal/drive",
+      "status": 200,
+      "ok": true,
+      "dir": "ltr",
+      "clientWidth": 414,
+      "scrollWidth": 414,
+      "bodyScrollWidth": 414,
+      "offenders": [
+        {
+          "el": "a.skip-link \"Skip to content\"",
+          "left": -9999,
+          "right": -9817,
+          "width": 182,
+          "overflow": 9999
+        }
+      ]
+    },
+    {
+      "role": "staff",
+      "lang": "en",
+      "width": 414,
+      "path": "/portal/support",
+      "status": 200,
+      "ok": true,
+      "dir": "ltr",
+      "clientWidth": 414,
+      "scrollWidth": 414,
+      "bodyScrollWidth": 414,
+      "offenders": [
+        {
+          "el": "a.skip-link \"Skip to content\"",
+          "left": -9999,
+          "right": -9817,
+          "width": 182,
+          "overflow": 9999
+        }
+      ]
+    },
+    {
+      "role": "staff",
+      "lang": "en",
+      "width": 414,
+      "path": "/portal/support-inbox",
+      "status": 200,
+      "ok": true,
+      "dir": "ltr",
+      "clientWidth": 414,
+      "scrollWidth": 414,
+      "bodyScrollWidth": 414,
+      "offenders": [
+        {
+          "el": "a.skip-link \"Skip to content\"",
+          "left": -9999,
+          "right": -9817,
+          "width": 182,
+          "overflow": 9999
+        }
+      ]
+    },
+    {
+      "role": "staff",
+      "lang": "en",
+      "width": 414,
+      "path": "/portal/notifications",
+      "status": 200,
+      "ok": true,
+      "dir": "ltr",
+      "clientWidth": 414,
+      "scrollWidth": 414,
+      "bodyScrollWidth": 414,
+      "offenders": [
+        {
+          "el": "a.skip-link \"Skip to content\"",
+          "left": -9999,
+          "right": -9817,
+          "width": 182,
+          "overflow": 9999
+        }
+      ]
+    },
+    {
+      "role": "staff",
+      "lang": "en",
+      "width": 414,
+      "path": "/portal/audit",
+      "status": 200,
+      "ok": true,
+      "dir": "ltr",
+      "clientWidth": 414,
+      "scrollWidth": 414,
+      "bodyScrollWidth": 414,
+      "offenders": [
+        {
+          "el": "a.skip-link \"Skip to content\"",
+          "left": -9999,
+          "right": -9817,
+          "width": 182,
+          "overflow": 9999
+        }
+      ]
+    },
+    {
+      "role": "staff",
+      "lang": "en",
+      "width": 414,
+      "path": "/portal/performance",
+      "status": 200,
+      "ok": true,
+      "dir": "ltr",
+      "clientWidth": 414,
+      "scrollWidth": 414,
+      "bodyScrollWidth": 414,
+      "offenders": [
+        {
+          "el": "a.skip-link \"Skip to content\"",
+          "left": -9999,
+          "right": -9817,
+          "width": 182,
+          "overflow": 9999
+        }
+      ]
+    },
+    {
+      "role": "staff",
+      "lang": "en",
+      "width": 414,
+      "path": "/portal/supplies",
+      "status": 200,
+      "ok": true,
+      "dir": "ltr",
+      "clientWidth": 414,
+      "scrollWidth": 414,
+      "bodyScrollWidth": 414,
+      "offenders": [
+        {
+          "el": "a.skip-link \"Skip to content\"",
+          "left": -9999,
+          "right": -9817,
+          "width": 182,
+          "overflow": 9999
+        }
+      ]
+    }
+  ],
+  "consoleErrors": [
+    "staff: Failed to load resource: the server responded with a status of 404 (Not Found)",
+    "staff: In HTML, whitespace text nodes cannot be a child of <%s>. Make sure you don't have any extra whitespace between tags on each line of your source code.\nThis will cause a hydration error.%s tr \n\n  ...\n ",
+    "staff: In HTML, whitespace text nodes cannot be a child of <%s>. Make sure you don't have any extra whitespace between tags on each line of your source code.\nThis will cause a hydration error.%s tr \n\n  ...\n ",
+    "staff: Use the `defaultValue` or `value` props on <select> instead of setting `selected` on <option>."
+  ]
+}

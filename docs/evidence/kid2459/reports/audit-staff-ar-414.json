@@ -1,0 +1,1309 @@
+{
+  "issue": "KID-2459",
+  "baseUrl": "http://127.0.0.1:4600",
+  "runAt": "2026-11-22T21:18:29.534Z",
+  "widths": [
+    414
+  ],
+  "langs": [
+    "ar"
+  ],
+  "total": 43,
+  "failed": 0,
+  "results": [
+    {
+      "role": "staff",
+      "lang": "ar",
+      "width": 414,
+      "path": "/portal/dashboard",
+      "status": 200,
+      "ok": true,
+      "dir": "rtl",
+      "clientWidth": 414,
+      "scrollWidth": 414,
+      "bodyScrollWidth": 414,
+      "offenders": [
+        {
+          "el": "a.skip-link \"تخطَّ إلى المحتوى\"",
+          "left": 10281,
+          "right": 10413,
+          "width": 132,
+          "overflow": 9999
+        }
+      ]
+    },
+    {
+      "role": "staff",
+      "lang": "ar",
+      "width": 414,
+      "path": "/portal/children",
+      "status": 200,
+      "ok": true,
+      "dir": "rtl",
+      "clientWidth": 414,
+      "scrollWidth": 414,
+      "bodyScrollWidth": 414,
+      "offenders": [
+        {
+          "el": "a.skip-link \"تخطَّ إلى المحتوى\"",
+          "left": 10281,
+          "right": 10413,
+          "width": 132,
+          "overflow": 9999
+        }
+      ]
+    },
+    {
+      "role": "staff",
+      "lang": "ar",
+      "width": 414,
+      "path": "/portal/children/mwsbobn5-qsg59nv8",
+      "status": 200,
+      "ok": true,
+      "dir": "rtl",
+      "clientWidth": 414,
+      "scrollWidth": 414,
+      "bodyScrollWidth": 414,
+      "offenders": [
+        {
+          "el": "a.skip-link \"تخطَّ إلى المحتوى\"",
+          "left": 10281,
+          "right": 10413,
+          "width": 132,
+          "overflow": 9999
+        },
+        {
+          "el": "button \"الحوادث والإصابات\"",
+          "left": -853,
+          "right": -719,
+          "width": 134,
+          "overflow": 853
+        },
+        {
+          "el": "button \"سجل التعلّم\"",
+          "left": -715,
+          "right": -616,
+          "width": 99,
+          "overflow": 715
+        },
+        {
+          "el": "button \"الفواتير\"",
+          "left": -612,
+          "right": -535,
+          "width": 77,
+          "overflow": 612
+        },
+        {
+          "el": "button \"الجداول (تجريبي)\"",
+          "left": -531,
+          "right": -409,
+          "width": 122,
+          "overflow": 531
+        },
+        {
+          "el": "button \"المستندات والموافقات الموقعة\"",
+          "left": -405,
+          "right": -200,
+          "width": 205,
+          "overflow": 405
+        },
+        {
+          "el": "button \"الوسائط (1)\"",
+          "left": -196,
+          "right": -87,
+          "width": 109,
+          "overflow": 196
+        },
+        {
+          "el": "button \"الاستلام وجهات اتصال العائلة\"",
+          "left": -83,
+          "right": 130,
+          "width": 213,
+          "overflow": 83
+        }
+      ]
+    },
+    {
+      "role": "staff",
+      "lang": "ar",
+      "width": 414,
+      "path": "/portal/children/mwsbobn5-qsg59nv8/billing",
+      "status": 200,
+      "ok": true,
+      "dir": "rtl",
+      "clientWidth": 414,
+      "scrollWidth": 414,
+      "bodyScrollWidth": 414,
+      "offenders": [
+        {
+          "el": "a.skip-link \"تخطَّ إلى المحتوى\"",
+          "left": 10281,
+          "right": 10413,
+          "width": 132,
+          "overflow": 9999
+        }
+      ]
+    },
+    {
+      "role": "staff",
+      "lang": "ar",
+      "width": 414,
+      "path": "/portal/children/mwsbobn5-qsg59nv8/development",
+      "status": 200,
+      "ok": true,
+      "dir": "rtl",
+      "clientWidth": 414,
+      "scrollWidth": 414,
+      "bodyScrollWidth": 414,
+      "offenders": [
+        {
+          "el": "a.skip-link \"تخطَّ إلى المحتوى\"",
+          "left": 10281,
+          "right": 10413,
+          "width": 132,
+          "overflow": 9999
+        }
+      ]
+    },
+    {
+      "role": "staff",
+      "lang": "ar",
+      "width": 414,
+      "path": "/portal/children/development",
+      "status": 200,
+      "ok": true,
+      "dir": "rtl",
+      "clientWidth": 414,
+      "scrollWidth": 414,
+      "bodyScrollWidth": 414,
+      "offenders": [
+        {
+          "el": "a.skip-link \"تخطَّ إلى المحتوى\"",
+          "left": 10281,
+          "right": 10413,
+          "width": 132,
+          "overflow": 9999
+        }
+      ]
+    },
+    {
+      "role": "staff",
+      "lang": "ar",
+      "width": 414,
+      "path": "/portal/messages",
+      "status": 200,
+      "ok": true,
+      "dir": "rtl",
+      "clientWidth": 414,
+      "scrollWidth": 414,
+      "bodyScrollWidth": 414,
+      "offenders": [
+        {
+          "el": "a.skip-link \"تخطَّ إلى المحتوى\"",
+          "left": 10281,
+          "right": 10413,
+          "width": 132,
+          "overflow": 9999
+        }
+      ]
+    },
+    {
+      "role": "staff",
+      "lang": "ar",
+      "width": 414,
+      "path": "/portal/messages?thread=t-kid2459-1",
+      "status": 200,
+      "ok": true,
+      "dir": "rtl",
+      "clientWidth": 414,
+      "scrollWidth": 414,
+      "bodyScrollWidth": 414,
+      "offenders": [
+        {
+          "el": "a.skip-link \"تخطَّ إلى المحتوى\"",
+          "left": 10281,
+          "right": 10413,
+          "width": 132,
+          "overflow": 9999
+        }
+      ]
+    },
+    {
+      "role": "staff",
+      "lang": "ar",
+      "width": 414,
+      "path": "/portal/messages?compose=1",
+      "status": 200,
+      "ok": true,
+      "dir": "rtl",
+      "clientWidth": 414,
+      "scrollWidth": 414,
+      "bodyScrollWidth": 414,
+      "offenders": [
+        {
+          "el": "a.skip-link \"تخطَّ إلى المحتوى\"",
+          "left": 10281,
+          "right": 10413,
+          "width": 132,
+          "overflow": 9999
+        }
+      ]
+    },
+    {
+      "role": "staff",
+      "lang": "ar",
+      "width": 414,
+      "path": "/portal/newsfeed",
+      "status": 200,
+      "ok": true,
+      "dir": "rtl",
+      "clientWidth": 414,
+      "scrollWidth": 414,
+      "bodyScrollWidth": 414,
+      "offenders": [
+        {
+          "el": "a.skip-link \"تخطَّ إلى المحتوى\"",
+          "left": 10281,
+          "right": 10413,
+          "width": 132,
+          "overflow": 9999
+        }
+      ]
+    },
+    {
+      "role": "staff",
+      "lang": "ar",
+      "width": 414,
+      "path": "/portal/attendance",
+      "status": 200,
+      "ok": true,
+      "dir": "rtl",
+      "clientWidth": 414,
+      "scrollWidth": 414,
+      "bodyScrollWidth": 414,
+      "offenders": [
+        {
+          "el": "a.skip-link \"تخطَّ إلى المحتوى\"",
+          "left": 10281,
+          "right": 10413,
+          "width": 132,
+          "overflow": 9999
+        },
+        {
+          "el": "thead \"الطفلالفصلالحالةالباصحاضرمنصرفإجراءات\"",
+          "left": -122,
+          "right": 390,
+          "width": 512,
+          "overflow": 122
+        },
+        {
+          "el": "tr \"الطفلالفصلالحالةالباصحاضرمنصرفإجراءات\"",
+          "left": -122,
+          "right": 390,
+          "width": 512,
+          "overflow": 122
+        },
+        {
+          "el": "th \"إجراءات\"",
+          "left": -122,
+          "right": -16,
+          "width": 106,
+          "overflow": 122
+        },
+        {
+          "el": "tbody \"Leo NguyenPreschoolغائب———تسجيل حضورفي ا\"",
+          "left": -122,
+          "right": 390,
+          "width": 512,
+          "overflow": 122
+        },
+        {
+          "el": "tr \"Leo NguyenPreschoolغائب———تسجيل حضورفي ا\"",
+          "left": -122,
+          "right": 390,
+          "width": 512,
+          "overflow": 122
+        },
+        {
+          "el": "td \"تسجيل حضورفي الباص (إلى الحضانة)وصل إلى \"",
+          "left": -122,
+          "right": -16,
+          "width": 106,
+          "overflow": 122
+        },
+        {
+          "el": "tr \"Ella NguyenToddlersغائب———تسجيل حضورفي ا\"",
+          "left": -122,
+          "right": 390,
+          "width": 512,
+          "overflow": 122
+        }
+      ]
+    },
+    {
+      "role": "staff",
+      "lang": "ar",
+      "width": 414,
+      "path": "/portal/calendar",
+      "status": 200,
+      "ok": true,
+      "dir": "rtl",
+      "clientWidth": 414,
+      "scrollWidth": 414,
+      "bodyScrollWidth": 414,
+      "offenders": [
+        {
+          "el": "a.skip-link \"تخطَّ إلى المحتوى\"",
+          "left": 10281,
+          "right": 10413,
+          "width": 132,
+          "overflow": 9999
+        }
+      ]
+    },
+    {
+      "role": "staff",
+      "lang": "ar",
+      "width": 414,
+      "path": "/portal/rooms",
+      "status": 200,
+      "ok": true,
+      "dir": "rtl",
+      "clientWidth": 414,
+      "scrollWidth": 414,
+      "bodyScrollWidth": 414,
+      "offenders": [
+        {
+          "el": "a.skip-link \"تخطَّ إلى المحتوى\"",
+          "left": 10281,
+          "right": 10413,
+          "width": 132,
+          "overflow": 9999
+        }
+      ]
+    },
+    {
+      "role": "staff",
+      "lang": "ar",
+      "width": 414,
+      "path": "/portal/rooms/mwsbobjn-ep1xrl3r",
+      "status": 200,
+      "ok": true,
+      "dir": "rtl",
+      "clientWidth": 414,
+      "scrollWidth": 414,
+      "bodyScrollWidth": 414,
+      "offenders": [
+        {
+          "el": "a.skip-link \"تخطَّ إلى المحتوى\"",
+          "left": 10281,
+          "right": 10413,
+          "width": 132,
+          "overflow": 9999
+        }
+      ]
+    },
+    {
+      "role": "staff",
+      "lang": "ar",
+      "width": 414,
+      "path": "/portal/staff",
+      "status": 200,
+      "ok": true,
+      "dir": "rtl",
+      "clientWidth": 414,
+      "scrollWidth": 414,
+      "bodyScrollWidth": 414,
+      "offenders": [
+        {
+          "el": "a.skip-link \"تخطَّ إلى المحتوى\"",
+          "left": 10281,
+          "right": 10413,
+          "width": 132,
+          "overflow": 9999
+        },
+        {
+          "el": "thead \"الاسمالوصولالفصول المسندةالحالةإجراءات\"",
+          "left": -192,
+          "right": 365,
+          "width": 557,
+          "overflow": 192
+        },
+        {
+          "el": "tr \"الاسمالوصولالفصول المسندةالحالةإجراءات\"",
+          "left": -192,
+          "right": 365,
+          "width": 557,
+          "overflow": 192
+        },
+        {
+          "el": "th \"إجراءات\"",
+          "left": -192,
+          "right": -99,
+          "width": 93,
+          "overflow": 192
+        },
+        {
+          "el": "tbody \"NNasseftrois4ever+admin@gmail.comمديرPre\"",
+          "left": -192,
+          "right": 365,
+          "width": 557,
+          "overflow": 192
+        },
+        {
+          "el": "tr \"NNasseftrois4ever+admin@gmail.comمديرPre\"",
+          "left": -192,
+          "right": 365,
+          "width": 557,
+          "overflow": 192
+        },
+        {
+          "el": "td \"الملفتعيين الحالة\"",
+          "left": -192,
+          "right": -99,
+          "width": 93,
+          "overflow": 192
+        },
+        {
+          "el": "div.row \"الملفتعيين الحالة\"",
+          "left": -180,
+          "right": -111,
+          "width": 69,
+          "overflow": 180
+        }
+      ]
+    },
+    {
+      "role": "staff",
+      "lang": "ar",
+      "width": 414,
+      "path": "/portal/staff/mwsbobk8-ta4lblch",
+      "status": 200,
+      "ok": true,
+      "dir": "rtl",
+      "clientWidth": 414,
+      "scrollWidth": 414,
+      "bodyScrollWidth": 414,
+      "offenders": [
+        {
+          "el": "a.skip-link \"تخطَّ إلى المحتوى\"",
+          "left": 10281,
+          "right": 10413,
+          "width": 132,
+          "overflow": 9999
+        }
+      ]
+    },
+    {
+      "role": "staff",
+      "lang": "ar",
+      "width": 414,
+      "path": "/portal/staff/hours",
+      "status": 200,
+      "ok": true,
+      "dir": "rtl",
+      "clientWidth": 414,
+      "scrollWidth": 414,
+      "bodyScrollWidth": 414,
+      "offenders": [
+        {
+          "el": "a.skip-link \"تخطَّ إلى المحتوى\"",
+          "left": 10281,
+          "right": 10413,
+          "width": 132,
+          "overflow": 9999
+        }
+      ]
+    },
+    {
+      "role": "staff",
+      "lang": "ar",
+      "width": 414,
+      "path": "/portal/staff/schedule",
+      "status": 200,
+      "ok": true,
+      "dir": "rtl",
+      "clientWidth": 414,
+      "scrollWidth": 414,
+      "bodyScrollWidth": 414,
+      "offenders": [
+        {
+          "el": "a.skip-link \"تخطَّ إلى المحتوى\"",
+          "left": 10281,
+          "right": 10413,
+          "width": 132,
+          "overflow": 9999
+        }
+      ]
+    },
+    {
+      "role": "staff",
+      "lang": "ar",
+      "width": 414,
+      "path": "/portal/settings",
+      "status": 200,
+      "ok": true,
+      "dir": "rtl",
+      "clientWidth": 414,
+      "scrollWidth": 414,
+      "bodyScrollWidth": 414,
+      "offenders": [
+        {
+          "el": "a.skip-link \"تخطَّ إلى المحتوى\"",
+          "left": 10281,
+          "right": 10413,
+          "width": 132,
+          "overflow": 9999
+        },
+        {
+          "el": "thead \"اليومالافتتاحالإغلاقمغلق\"",
+          "left": -49,
+          "right": 365,
+          "width": 414,
+          "overflow": 49
+        },
+        {
+          "el": "tr \"اليومالافتتاحالإغلاقمغلق\"",
+          "left": -49,
+          "right": 365,
+          "width": 414,
+          "overflow": 49
+        },
+        {
+          "el": "th \"مغلق\"",
+          "left": -49,
+          "right": 3,
+          "width": 52,
+          "overflow": 49
+        },
+        {
+          "el": "tbody \"الأحد · اليومالاثنينالثلاثاءالأربعاءالخم\"",
+          "left": -49,
+          "right": 365,
+          "width": 414,
+          "overflow": 49
+        },
+        {
+          "el": "tr \"الأحد · اليوم\"",
+          "left": -49,
+          "right": 365,
+          "width": 414,
+          "overflow": 49
+        },
+        {
+          "el": "td",
+          "left": -49,
+          "right": 3,
+          "width": 52,
+          "overflow": 49
+        },
+        {
+          "el": "tr \"الاثنين\"",
+          "left": -49,
+          "right": 365,
+          "width": 414,
+          "overflow": 49
+        }
+      ]
+    },
+    {
+      "role": "staff",
+      "lang": "ar",
+      "width": 414,
+      "path": "/portal/account",
+      "status": 200,
+      "ok": true,
+      "dir": "rtl",
+      "clientWidth": 414,
+      "scrollWidth": 414,
+      "bodyScrollWidth": 414,
+      "offenders": [
+        {
+          "el": "a.skip-link \"تخطَّ إلى المحتوى\"",
+          "left": 10281,
+          "right": 10413,
+          "width": 132,
+          "overflow": 9999
+        }
+      ]
+    },
+    {
+      "role": "staff",
+      "lang": "ar",
+      "width": 414,
+      "path": "/portal/account-billing",
+      "status": 200,
+      "ok": true,
+      "dir": "rtl",
+      "clientWidth": 414,
+      "scrollWidth": 414,
+      "bodyScrollWidth": 414,
+      "offenders": [
+        {
+          "el": "a.skip-link \"تخطَّ إلى المحتوى\"",
+          "left": 10281,
+          "right": 10413,
+          "width": 132,
+          "overflow": 9999
+        }
+      ]
+    },
+    {
+      "role": "staff",
+      "lang": "ar",
+      "width": 414,
+      "path": "/portal/finance",
+      "status": 200,
+      "ok": true,
+      "dir": "rtl",
+      "clientWidth": 414,
+      "scrollWidth": 414,
+      "bodyScrollWidth": 414,
+      "offenders": [
+        {
+          "el": "a.skip-link \"تخطَّ إلى المحتوى\"",
+          "left": 10281,
+          "right": 10413,
+          "width": 132,
+          "overflow": 9999
+        },
+        {
+          "el": "thead \"مرجع العمليةالطفلالدافعتاريخ الاستحقاقفت\"",
+          "left": -476,
+          "right": 365,
+          "width": 841,
+          "overflow": 476
+        },
+        {
+          "el": "tr \"مرجع العمليةالطفلالدافعتاريخ الاستحقاقفت\"",
+          "left": -476,
+          "right": 365,
+          "width": 841,
+          "overflow": 476
+        },
+        {
+          "el": "th \"إجراءات\"",
+          "left": -476,
+          "right": -403,
+          "width": 73,
+          "overflow": 476
+        },
+        {
+          "el": "tbody \"لا توجد فواتير مطابقة.\"",
+          "left": -476,
+          "right": 365,
+          "width": 841,
+          "overflow": 476
+        },
+        {
+          "el": "tr \"لا توجد فواتير مطابقة.\"",
+          "left": -476,
+          "right": 365,
+          "width": 841,
+          "overflow": 476
+        },
+        {
+          "el": "td.muted.small \"لا توجد فواتير مطابقة.\"",
+          "left": -476,
+          "right": 365,
+          "width": 841,
+          "overflow": 476
+        },
+        {
+          "el": "th \"المدفوعات\"",
+          "left": -403,
+          "right": -323,
+          "width": 80,
+          "overflow": 403
+        }
+      ]
+    },
+    {
+      "role": "staff",
+      "lang": "ar",
+      "width": 414,
+      "path": "/portal/events",
+      "status": 200,
+      "ok": true,
+      "dir": "rtl",
+      "clientWidth": 414,
+      "scrollWidth": 414,
+      "bodyScrollWidth": 414,
+      "offenders": [
+        {
+          "el": "a.skip-link \"تخطَّ إلى المحتوى\"",
+          "left": 10281,
+          "right": 10413,
+          "width": 132,
+          "overflow": 9999
+        }
+      ]
+    },
+    {
+      "role": "staff",
+      "lang": "ar",
+      "width": 414,
+      "path": "/portal/learning",
+      "status": 200,
+      "ok": true,
+      "dir": "rtl",
+      "clientWidth": 414,
+      "scrollWidth": 414,
+      "bodyScrollWidth": 414,
+      "offenders": [
+        {
+          "el": "a.skip-link \"تخطَّ إلى المحتوى\"",
+          "left": 10281,
+          "right": 10413,
+          "width": 132,
+          "overflow": 9999
+        }
+      ]
+    },
+    {
+      "role": "staff",
+      "lang": "ar",
+      "width": 414,
+      "path": "/portal/learning/activities",
+      "status": 200,
+      "ok": true,
+      "dir": "rtl",
+      "clientWidth": 414,
+      "scrollWidth": 414,
+      "bodyScrollWidth": 414,
+      "offenders": [
+        {
+          "el": "a.skip-link \"تخطَّ إلى المحتوى\"",
+          "left": 10281,
+          "right": 10413,
+          "width": 132,
+          "overflow": 9999
+        }
+      ]
+    },
+    {
+      "role": "staff",
+      "lang": "ar",
+      "width": 414,
+      "path": "/portal/learning/curriculum",
+      "status": 200,
+      "ok": true,
+      "dir": "rtl",
+      "clientWidth": 414,
+      "scrollWidth": 414,
+      "bodyScrollWidth": 414,
+      "offenders": [
+        {
+          "el": "a.skip-link \"تخطَّ إلى المحتوى\"",
+          "left": 10281,
+          "right": 10413,
+          "width": 132,
+          "overflow": 9999
+        }
+      ]
+    },
+    {
+      "role": "staff",
+      "lang": "ar",
+      "width": 414,
+      "path": "/portal/learning/homework",
+      "status": 200,
+      "ok": true,
+      "dir": "rtl",
+      "clientWidth": 414,
+      "scrollWidth": 414,
+      "bodyScrollWidth": 414,
+      "offenders": [
+        {
+          "el": "a.skip-link \"تخطَّ إلى المحتوى\"",
+          "left": 10281,
+          "right": 10413,
+          "width": 132,
+          "overflow": 9999
+        }
+      ]
+    },
+    {
+      "role": "staff",
+      "lang": "ar",
+      "width": 414,
+      "path": "/portal/report-center",
+      "status": 200,
+      "ok": true,
+      "dir": "rtl",
+      "clientWidth": 414,
+      "scrollWidth": 414,
+      "bodyScrollWidth": 414,
+      "offenders": [
+        {
+          "el": "a.skip-link \"تخطَّ إلى المحتوى\"",
+          "left": 10281,
+          "right": 10413,
+          "width": 132,
+          "overflow": 9999
+        },
+        {
+          "el": "thead \"الموظفالدورتقارير منشورةتسجيلات الحضورحو\"",
+          "left": -30,
+          "right": 365,
+          "width": 395,
+          "overflow": 30
+        },
+        {
+          "el": "tr \"الموظفالدورتقارير منشورةتسجيلات الحضورحو\"",
+          "left": -30,
+          "right": 365,
+          "width": 395,
+          "overflow": 30
+        },
+        {
+          "el": "th \"الملاحظات\"",
+          "left": -30,
+          "right": 43,
+          "width": 73,
+          "overflow": 30
+        },
+        {
+          "el": "tbody \"Nassefالمالك1002\"",
+          "left": -30,
+          "right": 365,
+          "width": 395,
+          "overflow": 30
+        },
+        {
+          "el": "tr \"Nassefالمالك1002\"",
+          "left": -30,
+          "right": 365,
+          "width": 395,
+          "overflow": 30
+        },
+        {
+          "el": "td \"2\"",
+          "left": -30,
+          "right": 43,
+          "width": 73,
+          "overflow": 30
+        }
+      ]
+    },
+    {
+      "role": "staff",
+      "lang": "ar",
+      "width": 414,
+      "path": "/portal/reports",
+      "status": 200,
+      "ok": true,
+      "dir": "rtl",
+      "clientWidth": 414,
+      "scrollWidth": 414,
+      "bodyScrollWidth": 414,
+      "offenders": [
+        {
+          "el": "a.skip-link \"تخطَّ إلى المحتوى\"",
+          "left": 10281,
+          "right": 10413,
+          "width": 132,
+          "overflow": 9999
+        },
+        {
+          "el": "thead \"الموظفالدورتقارير منشورةتسجيلات الحضورحو\"",
+          "left": -30,
+          "right": 365,
+          "width": 395,
+          "overflow": 30
+        },
+        {
+          "el": "tr \"الموظفالدورتقارير منشورةتسجيلات الحضورحو\"",
+          "left": -30,
+          "right": 365,
+          "width": 395,
+          "overflow": 30
+        },
+        {
+          "el": "th \"الملاحظات\"",
+          "left": -30,
+          "right": 43,
+          "width": 73,
+          "overflow": 30
+        },
+        {
+          "el": "tbody \"Nassefالمالك1002\"",
+          "left": -30,
+          "right": 365,
+          "width": 395,
+          "overflow": 30
+        },
+        {
+          "el": "tr \"Nassefالمالك1002\"",
+          "left": -30,
+          "right": 365,
+          "width": 395,
+          "overflow": 30
+        },
+        {
+          "el": "td \"2\"",
+          "left": -30,
+          "right": 43,
+          "width": 73,
+          "overflow": 30
+        }
+      ]
+    },
+    {
+      "role": "staff",
+      "lang": "ar",
+      "width": 414,
+      "path": "/portal/surveys",
+      "status": 200,
+      "ok": true,
+      "dir": "rtl",
+      "clientWidth": 414,
+      "scrollWidth": 414,
+      "bodyScrollWidth": 414,
+      "offenders": [
+        {
+          "el": "a.skip-link \"تخطَّ إلى المحتوى\"",
+          "left": 10281,
+          "right": 10413,
+          "width": 132,
+          "overflow": 9999
+        }
+      ]
+    },
+    {
+      "role": "staff",
+      "lang": "ar",
+      "width": 414,
+      "path": "/portal/tags",
+      "status": 200,
+      "ok": true,
+      "dir": "rtl",
+      "clientWidth": 414,
+      "scrollWidth": 414,
+      "bodyScrollWidth": 414,
+      "offenders": [
+        {
+          "el": "a.skip-link \"تخطَّ إلى المحتوى\"",
+          "left": 10281,
+          "right": 10413,
+          "width": 132,
+          "overflow": 9999
+        },
+        {
+          "el": "input.input",
+          "left": -85,
+          "right": 175,
+          "width": 260,
+          "overflow": 85
+        }
+      ]
+    },
+    {
+      "role": "staff",
+      "lang": "ar",
+      "width": 414,
+      "path": "/portal/forms",
+      "status": 200,
+      "ok": true,
+      "dir": "rtl",
+      "clientWidth": 414,
+      "scrollWidth": 414,
+      "bodyScrollWidth": 414,
+      "offenders": [
+        {
+          "el": "a.skip-link \"تخطَّ إلى المحتوى\"",
+          "left": 10281,
+          "right": 10413,
+          "width": 132,
+          "overflow": 9999
+        },
+        {
+          "el": "thead \"العنوانالدفعنوع النموذجالردودالمنشئالنشر\"",
+          "left": -250,
+          "right": 365,
+          "width": 615,
+          "overflow": 250
+        },
+        {
+          "el": "tr \"العنوانالدفعنوع النموذجالردودالمنشئالنشر\"",
+          "left": -250,
+          "right": 365,
+          "width": 615,
+          "overflow": 250
+        },
+        {
+          "el": "th \"إجراءات\"",
+          "left": -250,
+          "right": -150,
+          "width": 100,
+          "overflow": 250
+        },
+        {
+          "el": "tbody \"Would you like a parent-teacher conferen\"",
+          "left": -250,
+          "right": 365,
+          "width": 615,
+          "overflow": 250
+        },
+        {
+          "el": "tr \"Would you like a parent-teacher conferen\"",
+          "left": -250,
+          "right": 365,
+          "width": 615,
+          "overflow": 250
+        },
+        {
+          "el": "td \"عرض الردودنشر\"",
+          "left": -250,
+          "right": -150,
+          "width": 100,
+          "overflow": 250
+        },
+        {
+          "el": "tr \"Photo day permission listTick the box to\"",
+          "left": -250,
+          "right": 365,
+          "width": 615,
+          "overflow": 250
+        }
+      ]
+    },
+    {
+      "role": "staff",
+      "lang": "ar",
+      "width": 414,
+      "path": "/portal/inquiries",
+      "status": 200,
+      "ok": true,
+      "dir": "rtl",
+      "clientWidth": 414,
+      "scrollWidth": 414,
+      "bodyScrollWidth": 414,
+      "offenders": [
+        {
+          "el": "a.skip-link \"تخطَّ إلى المحتوى\"",
+          "left": 10281,
+          "right": 10413,
+          "width": 132,
+          "overflow": 9999
+        }
+      ]
+    },
+    {
+      "role": "staff",
+      "lang": "ar",
+      "width": 414,
+      "path": "/portal/enhancements",
+      "status": 200,
+      "ok": true,
+      "dir": "rtl",
+      "clientWidth": 414,
+      "scrollWidth": 414,
+      "bodyScrollWidth": 414,
+      "offenders": [
+        {
+          "el": "a.skip-link \"تخطَّ إلى المحتوى\"",
+          "left": 10281,
+          "right": 10413,
+          "width": 132,
+          "overflow": 9999
+        }
+      ]
+    },
+    {
+      "role": "staff",
+      "lang": "ar",
+      "width": 414,
+      "path": "/portal/incidents",
+      "status": 200,
+      "ok": true,
+      "dir": "rtl",
+      "clientWidth": 414,
+      "scrollWidth": 414,
+      "bodyScrollWidth": 414,
+      "offenders": [
+        {
+          "el": "a.skip-link \"تخطَّ إلى المحتوى\"",
+          "left": 10281,
+          "right": 10413,
+          "width": 132,
+          "overflow": 9999
+        }
+      ]
+    },
+    {
+      "role": "staff",
+      "lang": "ar",
+      "width": 414,
+      "path": "/portal/consents",
+      "status": 200,
+      "ok": true,
+      "dir": "rtl",
+      "clientWidth": 414,
+      "scrollWidth": 414,
+      "bodyScrollWidth": 414,
+      "offenders": [
+        {
+          "el": "a.skip-link \"تخطَّ إلى المحتوى\"",
+          "left": 10281,
+          "right": 10413,
+          "width": 132,
+          "overflow": 9999
+        }
+      ]
+    },
+    {
+      "role": "staff",
+      "lang": "ar",
+      "width": 414,
+      "path": "/portal/drive",
+      "status": 200,
+      "ok": true,
+      "dir": "rtl",
+      "clientWidth": 414,
+      "scrollWidth": 414,
+      "bodyScrollWidth": 414,
+      "offenders": [
+        {
+          "el": "a.skip-link \"تخطَّ إلى المحتوى\"",
+          "left": 10281,
+          "right": 10413,
+          "width": 132,
+          "overflow": 9999
+        }
+      ]
+    },
+    {
+      "role": "staff",
+      "lang": "ar",
+      "width": 414,
+      "path": "/portal/support",
+      "status": 200,
+      "ok": true,
+      "dir": "rtl",
+      "clientWidth": 414,
+      "scrollWidth": 414,
+      "bodyScrollWidth": 414,
+      "offenders": [
+        {
+          "el": "a.skip-link \"تخطَّ إلى المحتوى\"",
+          "left": 10281,
+          "right": 10413,
+          "width": 132,
+          "overflow": 9999
+        }
+      ]
+    },
+    {
+      "role": "staff",
+      "lang": "ar",
+      "width": 414,
+      "path": "/portal/support-inbox",
+      "status": 200,
+      "ok": true,
+      "dir": "rtl",
+      "clientWidth": 414,
+      "scrollWidth": 414,
+      "bodyScrollWidth": 414,
+      "offenders": [
+        {
+          "el": "a.skip-link \"تخطَّ إلى المحتوى\"",
+          "left": 10281,
+          "right": 10413,
+          "width": 132,
+          "overflow": 9999
+        }
+      ]
+    },
+    {
+      "role": "staff",
+      "lang": "ar",
+      "width": 414,
+      "path": "/portal/notifications",
+      "status": 200,
+      "ok": true,
+      "dir": "rtl",
+      "clientWidth": 414,
+      "scrollWidth": 414,
+      "bodyScrollWidth": 414,
+      "offenders": [
+        {
+          "el": "a.skip-link \"تخطَّ إلى المحتوى\"",
+          "left": 10281,
+          "right": 10413,
+          "width": 132,
+          "overflow": 9999
+        }
+      ]
+    },
+    {
+      "role": "staff",
+      "lang": "ar",
+      "width": 414,
+      "path": "/portal/audit",
+      "status": 200,
+      "ok": true,
+      "dir": "rtl",
+      "clientWidth": 414,
+      "scrollWidth": 414,
+      "bodyScrollWidth": 414,
+      "offenders": [
+        {
+          "el": "a.skip-link \"تخطَّ إلى المحتوى\"",
+          "left": 10281,
+          "right": 10413,
+          "width": 132,
+          "overflow": 9999
+        }
+      ]
+    },
+    {
+      "role": "staff",
+      "lang": "ar",
+      "width": 414,
+      "path": "/portal/performance",
+      "status": 200,
+      "ok": true,
+      "dir": "rtl",
+      "clientWidth": 414,
+      "scrollWidth": 414,
+      "bodyScrollWidth": 414,
+      "offenders": [
+        {
+          "el": "a.skip-link \"تخطَّ إلى المحتوى\"",
+          "left": 10281,
+          "right": 10413,
+          "width": 132,
+          "overflow": 9999
+        }
+      ]
+    },
+    {
+      "role": "staff",
+      "lang": "ar",
+      "width": 414,
+      "path": "/portal/supplies",
+      "status": 200,
+      "ok": true,
+      "dir": "rtl",
+      "clientWidth": 414,
+      "scrollWidth": 414,
+      "bodyScrollWidth": 414,
+      "offenders": [
+        {
+          "el": "a.skip-link \"تخطَّ إلى المحتوى\"",
+          "left": 10281,
+          "right": 10413,
+          "width": 132,
+          "overflow": 9999
+        }
+      ]
+    }
+  ],
+  "consoleErrors": [
+    "staff: Failed to load resource: the server responded with a status of 404 (Not Found)",
+    "staff: In HTML, whitespace text nodes cannot be a child of <%s>. Make sure you don't have any extra whitespace between tags on each line of your source code.\nThis will cause a hydration error.%s tr \n\n  ...\n ",
+    "staff: In HTML, whitespace text nodes cannot be a child of <%s>. Make sure you don't have any extra whitespace between tags on each line of your source code.\nThis will cause a hydration error.%s tr \n\n  ...\n ",
+    "staff: Use the `defaultValue` or `value` props on <select> instead of setting `selected` on <option>."
+  ]
+}

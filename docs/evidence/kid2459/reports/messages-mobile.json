@@ -1,0 +1,132 @@
+{
+  "issue": "KID-2459",
+  "baseUrl": "http://127.0.0.1:4600",
+  "runAt": "2026-11-22T21:22:38.418Z",
+  "results": [
+    {
+      "id": "en-360-list-visible",
+      "ok": true,
+      "detail": "list=true threadHidden=true sw=360"
+    },
+    {
+      "id": "en-360-thread-open",
+      "ok": true,
+      "detail": "thread=true listGone=true sw=360"
+    },
+    {
+      "id": "en-360-thread-controls",
+      "ok": true,
+      "detail": "back={\"x\":49,\"y\":518.78125,\"width\":218,\"height\":33} attach={\"x\":49,\"y\":859.78125,\"width\":146,\"height\":44} send={\"x\":49,\"y\":971.78125,\"width\":262,\"height\":44} input={\"x\":49,\"y\":915.78125,\"width\":262,\"height\":44}"
+    },
+    {
+      "id": "en-360-back-to-list",
+      "ok": true,
+      "detail": "list=true threadGone=true"
+    },
+    {
+      "id": "en-360-composer",
+      "ok": true,
+      "detail": "composer=true listGone=true sw=360 send={\"x\":49,\"y\":1184.171875,\"width\":64,\"height\":32}"
+    },
+    {
+      "id": "en-360-direct-open",
+      "ok": true,
+      "detail": "thread=true listGone=true"
+    },
+    {
+      "id": "en-414-list-visible",
+      "ok": true,
+      "detail": "list=true threadHidden=true sw=414"
+    },
+    {
+      "id": "en-414-thread-open",
+      "ok": true,
+      "detail": "thread=true listGone=true sw=414"
+    },
+    {
+      "id": "en-414-thread-controls",
+      "ok": true,
+      "detail": "back={\"x\":49,\"y\":518.78125,\"width\":218,\"height\":33} attach={\"x\":49,\"y\":859.78125,\"width\":146,\"height\":44} send={\"x\":49,\"y\":971.78125,\"width\":316,\"height\":44} input={\"x\":49,\"y\":915.78125,\"width\":316,\"height\":44}"
+    },
+    {
+      "id": "en-414-back-to-list",
+      "ok": true,
+      "detail": "list=true threadGone=true"
+    },
+    {
+      "id": "en-414-composer",
+      "ok": true,
+      "detail": "composer=true listGone=true sw=414 send={\"x\":49,\"y\":1184.171875,\"width\":64,\"height\":32}"
+    },
+    {
+      "id": "en-414-direct-open",
+      "ok": true,
+      "detail": "thread=true listGone=true"
+    },
+    {
+      "id": "ar-360-list-visible",
+      "ok": true,
+      "detail": "list=true threadHidden=true sw=360"
+    },
+    {
+      "id": "ar-360-thread-open",
+      "ok": true,
+      "detail": "thread=true listGone=true sw=360"
+    },
+    {
+      "id": "ar-360-thread-controls",
+      "ok": true,
+      "detail": "back={\"x\":148,\"y\":518.78125,\"width\":163,\"height\":33} attach={\"x\":189,\"y\":859.78125,\"width\":122,\"height\":44} send={\"x\":49,\"y\":971.78125,\"width\":262,\"height\":44} input={\"x\":49,\"y\":915.78125,\"width\":262,\"height\":44}"
+    },
+    {
+      "id": "ar-360-back-to-list",
+      "ok": true,
+      "detail": "list=true threadGone=true"
+    },
+    {
+      "id": "ar-360-composer",
+      "ok": true,
+      "detail": "composer=true listGone=true sw=360 send={\"x\":244,\"y\":1184.171875,\"width\":67,\"height\":32}"
+    },
+    {
+      "id": "ar-360-direct-open",
+      "ok": true,
+      "detail": "thread=true listGone=true"
+    },
+    {
+      "id": "ar-414-list-visible",
+      "ok": true,
+      "detail": "list=true threadHidden=true sw=414"
+    },
+    {
+      "id": "ar-414-thread-open",
+      "ok": true,
+      "detail": "thread=true listGone=true sw=414"
+    },
+    {
+      "id": "ar-414-thread-controls",
+      "ok": true,
+      "detail": "back={\"x\":202,\"y\":518.78125,\"width\":163,\"height\":33} attach={\"x\":243,\"y\":859.78125,\"width\":122,\"height\":44} send={\"x\":49,\"y\":971.78125,\"width\":316,\"height\":44} input={\"x\":49,\"y\":915.78125,\"width\":316,\"height\":44}"
+    },
+    {
+      "id": "ar-414-back-to-list",
+      "ok": true,
+      "detail": "list=true threadGone=true"
+    },
+    {
+      "id": "ar-414-composer",
+      "ok": true,
+      "detail": "composer=true listGone=true sw=414 send={\"x\":298,\"y\":1184.171875,\"width\":67,\"height\":32}"
+    },
+    {
+      "id": "ar-414-direct-open",
+      "ok": true,
+      "detail": "thread=true listGone=true"
+    },
+    {
+      "id": "desktop-two-pane",
+      "ok": true,
+      "detail": "list=true thread=true cols=280px 716px"
+    }
+  ]
+}
