@@ -196,7 +196,7 @@ export default function ObservationModal({
                 ))}
               </div>
             </div>
-            <div style={{ display: "grid", gridTemplateColumns: "180px 1fr", gap: 14, marginTop: 12 }}>
+            <div className="observation-goals-grid" style={{ display: "grid", gridTemplateColumns: "180px 1fr", gap: 14, marginTop: 12 }}>
               <div style={{ borderInlineEnd: "1px solid var(--color-border)", paddingInlineEnd: 10 }}>
                 {areas.map((a) => (
                   <button
