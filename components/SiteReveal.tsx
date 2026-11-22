@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { usePathname } from "next/navigation";
 
 // KID-2077: scroll-reveal driver for the five public marketing pages. A tiny
 // client component (no dependency, no animation library) that:
@@ -17,10 +18,19 @@ import { useEffect } from "react";
 // users return early: the armed state is never set and everything stays
 // visible with zero motion. Reveals move vertically only, so RTL/AR is
 // unaffected and no horizontal overflow can be introduced.
+//
+// KID-2458: <html> is document-global and stays armed across client-side
+// route changes. Each page mounts its own <SiteReveal />, but the old
+// `hasAttribute` guard made the new instance return early, so the new page's
+// server-rendered [data-reveal] sections stayed at opacity 0 — the blank hero
+// band seen when clicking from the landing page to any other marketing page.
+// The effect now runs per pathname: arming is idempotent and the new page's
+// targets are revealed or observed on every navigation.
 export default function SiteReveal() {
+  const pathname = usePathname();
+
   useEffect(() => {
     const root = document.documentElement;
-    if (root.hasAttribute("data-reveal-ready")) return;
     if (typeof IntersectionObserver === "undefined") return;
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
 
@@ -83,7 +93,7 @@ export default function SiteReveal() {
     }
 
     return () => observer.disconnect();
-  }, []);
+  }, [pathname]);
 
   return null;
 }

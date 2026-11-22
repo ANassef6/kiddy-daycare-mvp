@@ -25,7 +25,9 @@ export default async function ForCentersPage() {
       <SiteHeader active="/for-centers" locale={locale} brandImage={brandImage} brandName={brandName} nextPath={nextPath} />
       <main id="main">
         <section className="section section-head">
-          <div className="container" data-reveal>
+          {/* KID-2458: the above-the-fold hero renders visible in the server
+              HTML and never depends on the client reveal driver. */}
+          <div className="container">
             <p className="hero-eyebrow">{t("site.centers.eyebrow")}</p>
             <h1 className="page-title">{t("site.centers.title")}</h1>
             <p className="subtitle">{t("site.centers.subtitle")}</p>
