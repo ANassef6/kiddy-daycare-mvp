@@ -185,7 +185,8 @@ export default async function PortalFinancePage(
             </div>
           </div>
 
-          <table className="data mt-3">
+          <div className="table-scroll mt-3">
+          <table className="data">
             <thead>
               <tr>
                 <th>{tr(dict, "finance.colRef")}</th><th>{tr(dict, "common.child")}</th><th>{tr(dict, "finance.colPayer")}</th><th>{tr(dict, "accountBilling.colDue")}</th><th>{tr(dict, "finance.colPeriod")}</th>
@@ -224,6 +225,7 @@ export default async function PortalFinancePage(
               ))}
             </tbody>
           </table>
+          </div>
         </div>
       )}
 
