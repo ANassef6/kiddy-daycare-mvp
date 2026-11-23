@@ -49,8 +49,9 @@ Two secondary defects were visible on the same shell:
 2. Repeated the same flow in reverse (Arabic → English): sidebar on the left,
    all labels English.
 3. Opened a child profile: the tab bar renders Arabic labels in RTL order.
-4. Signed in as the parent, switched to Arabic and reloaded `/child/settings`:
-   every header nav label is Arabic.
+4. Signed in as the parent, switched to English and then Arabic, and reloaded
+   `/child/settings` after each switch: every header nav label follows the
+   selected language on the same shell.
 
 ## Screenshot matrix
 
@@ -58,7 +59,8 @@ Two secondary defects were visible on the same shell:
 | --- | --- | --- |
 | EN / LTR | Staff portal dashboard (owner) | `en-portal-dashboard.png` |
 | AR / RTL | Staff portal dashboard after English → Arabic switch | `ar-portal-dashboard.png` |
-| AR / RTL | Parent portal settings/nav header | `ar-parent-settings-nav.png` |
+| EN / LTR | Parent portal header nav | `en-parent-nav.png` |
+| AR / RTL | Parent portal header nav (settings page) | `ar-parent-settings-nav.png` |
 | AR / RTL | Staff portal child profile tabs | `ar-child-profile-tabs.png` |
 
 In `ar-portal-dashboard.png` the collapsed group chevrons point left (`‹`) and
