@@ -1954,6 +1954,14 @@ html[dir="rtl"] .portal-nav-toggle {
   margin-left: 6px;
 }
 
+/* KID-2460: the group toggle chevron is drawn pointing inline-end (a ">"
+   path). Under RTL that points back toward the label; mirror it so collapsed
+   groups point left, toward the sub-list they open. The expanded (up) path is
+   unchanged by scaleX. */
+html[dir="rtl"] .portal-nav-toggle svg {
+  transform: scaleX(-1);
+}
+
 html[dir="rtl"] .portal-account-menu {
   right: auto;
   left: 0;

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import ChildNavMenu from "@/components/ChildNavMenu";
+import LocaleGuard from "@/components/LocaleGuard";
 import OperatorViewBanner from "@/components/OperatorViewBanner";
 import NotificationBell from "@/components/NotificationBell";
 import ServiceWorkerRegister from "@/components/ServiceWorkerRegister";
@@ -43,7 +44,7 @@ export default async function ParentLayout({ children }: { children: React.React
   // parent surface is a tenant surface too. KID-472: the post-session reads
   // below are pairwise independent, so they now run as one parallel batch;
   // the unused familiesForAccount() call the layout never consumed is gone.
-  const [{ dict }, branding, access, operatorViewName, parentUnread, tempPasswordFlagged] = await Promise.all([
+  const [{ locale, dict }, branding, access, operatorViewName, parentUnread, tempPasswordFlagged] = await Promise.all([
     i18nForAccount(session.accountId),
     // branding failure falls back to neutral Kiddy defaults (unchanged).
     getBranding().catch(() => ({ logoUrl: null as string | null, name: "Kiddy" })),
@@ -109,6 +110,7 @@ export default async function ParentLayout({ children }: { children: React.React
 
   return (
     <div className="container" style={{ maxWidth: 760 }}>
+      <LocaleGuard locale={locale} />
       {readOnly && (
         <div
           className="small"

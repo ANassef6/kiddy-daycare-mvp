@@ -1,12 +1,19 @@
 "use client";
 
 import { useState } from "react";
-import { saveLanguageAction } from "@/lib/actions";
+import { usePathname } from "next/navigation";
 import { tr, type Dict, type Locale } from "@/lib/i18n";
 
 // KID-57: App language card for Account Settings. Two options — English and
-// العربية — persisted per user via a server action. The locale is re-read on
-// the next navigation so the whole app (including RTL) flips immediately.
+// العربية — persisted per user.
+//
+// KID-2460: the switch is a native POST to /switch-app-lang, not a server
+// action. A server-action redirect is a client-side navigation: the App Router
+// keeps the already-mounted layouts, so the root <html lang dir> and the portal
+// sidebar could stay in the old language while the page segment re-rendered in
+// the new one (the mixed English-sidebar / Arabic-content screenshot). A POST
+// route that answers 303 forces a full document load, so every shell and
+// direction re-resolves from the saved account language.
 export default function LanguageSettingsCard({
   locale,
   dict,
@@ -15,12 +22,19 @@ export default function LanguageSettingsCard({
   dict: Dict;
 }) {
   const [current, setCurrent] = useState<Locale>(locale);
+  const pathname = usePathname();
 
   return (
     <div className="card mb-4">
       <h3 className="subtitle">{tr(dict, "account.appLanguage")}</h3>
       <p className="small muted">{tr(dict, "account.appLanguageHint")}</p>
-      <form action={saveLanguageAction} className="row mt-3" style={{ alignItems: "center", gap: 12 }}>
+      <form
+        method="post"
+        action="/switch-app-lang"
+        className="row mt-3"
+        style={{ alignItems: "center", gap: 12 }}
+      >
+        <input type="hidden" name="next" value={pathname} />
         <label
           className="choice"
           style={{
