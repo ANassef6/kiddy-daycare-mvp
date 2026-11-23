@@ -1,0 +1,137 @@
+{
+  "base": "https://kiddy-staging-orcin.vercel.app",
+  "thread": "mwsq7di4-n6xees59",
+  "urlAfterLogin": "https://kiddy-staging-orcin.vercel.app/portal/dashboard",
+  "presign": {
+    "kind": "response",
+    "method": "POST",
+    "status": 200,
+    "origin": "https://kiddy-staging-orcin.vercel.app",
+    "path": "/api/media/presign",
+    "signed": false
+  },
+  "r2": [
+    {
+      "kind": "response",
+      "method": "GET",
+      "status": 200,
+      "origin": "https://85c675833ff17bc65e8b5b5ae43455cd.r2.cloudflarestorage.com",
+      "path": "/kiddy-media-staging/messages/mwmgz2us-lrvm80et/6e2b8bc8-a04d-4c99-b19c-854fdd364f94.png",
+      "signed": true
+    },
+    {
+      "kind": "response",
+      "method": "GET",
+      "status": 200,
+      "origin": "https://85c675833ff17bc65e8b5b5ae43455cd.r2.cloudflarestorage.com",
+      "path": "/kiddy-media-staging/messages/mwmgz2us-lrvm80et/1543755f-bf25-4db4-b571-3f08310b524d.png",
+      "signed": true
+    },
+    {
+      "kind": "response",
+      "method": "PUT",
+      "status": 200,
+      "origin": "https://85c675833ff17bc65e8b5b5ae43455cd.r2.cloudflarestorage.com",
+      "path": "/kiddy-media-staging/messages/mwmgz2us-lrvm80et/2cf9fdf9-a1c4-447e-a0bb-f7271be78674.png",
+      "signed": true
+    },
+    {
+      "kind": "response",
+      "method": "GET",
+      "status": 200,
+      "origin": "https://85c675833ff17bc65e8b5b5ae43455cd.r2.cloudflarestorage.com",
+      "path": "/kiddy-media-staging/messages/mwmgz2us-lrvm80et/1543755f-bf25-4db4-b571-3f08310b524d.png",
+      "signed": true
+    },
+    {
+      "kind": "response",
+      "method": "GET",
+      "status": 200,
+      "origin": "https://85c675833ff17bc65e8b5b5ae43455cd.r2.cloudflarestorage.com",
+      "path": "/kiddy-media-staging/messages/mwmgz2us-lrvm80et/6e2b8bc8-a04d-4c99-b19c-854fdd364f94.png",
+      "signed": true
+    },
+    {
+      "kind": "response",
+      "method": "GET",
+      "status": 200,
+      "origin": "https://85c675833ff17bc65e8b5b5ae43455cd.r2.cloudflarestorage.com",
+      "path": "/kiddy-media-staging/messages/mwmgz2us-lrvm80et/2cf9fdf9-a1c4-447e-a0bb-f7271be78674.png",
+      "signed": true
+    }
+  ],
+  "violations": [],
+  "preexistingR2Images": 2,
+  "consoleErrors": [
+    {
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 404 ()"
+    }
+  ],
+  "markerPresent": true,
+  "events": [
+    {
+      "kind": "response",
+      "method": "GET",
+      "status": 200,
+      "origin": "https://85c675833ff17bc65e8b5b5ae43455cd.r2.cloudflarestorage.com",
+      "path": "/kiddy-media-staging/messages/mwmgz2us-lrvm80et/6e2b8bc8-a04d-4c99-b19c-854fdd364f94.png",
+      "signed": true
+    },
+    {
+      "kind": "response",
+      "method": "GET",
+      "status": 200,
+      "origin": "https://85c675833ff17bc65e8b5b5ae43455cd.r2.cloudflarestorage.com",
+      "path": "/kiddy-media-staging/messages/mwmgz2us-lrvm80et/1543755f-bf25-4db4-b571-3f08310b524d.png",
+      "signed": true
+    },
+    {
+      "kind": "response",
+      "method": "POST",
+      "status": 200,
+      "origin": "https://kiddy-staging-orcin.vercel.app",
+      "path": "/api/media/presign",
+      "signed": false
+    },
+    {
+      "kind": "response",
+      "method": "PUT",
+      "status": 200,
+      "origin": "https://85c675833ff17bc65e8b5b5ae43455cd.r2.cloudflarestorage.com",
+      "path": "/kiddy-media-staging/messages/mwmgz2us-lrvm80et/2cf9fdf9-a1c4-447e-a0bb-f7271be78674.png",
+      "signed": true
+    },
+    {
+      "kind": "failed",
+      "method": "PUT",
+      "url": "https://85c675833ff17bc65e8b5b5ae43455cd.r2.cloudflarestorage.com/kiddy-media-staging/messages/mwmgz2us-lrvm80et/2cf9fdf9-a1c4-447e-a0bb-f7271be78674.png",
+      "failure": "net::ERR_ABORTED"
+    },
+    {
+      "kind": "response",
+      "method": "GET",
+      "status": 200,
+      "origin": "https://85c675833ff17bc65e8b5b5ae43455cd.r2.cloudflarestorage.com",
+      "path": "/kiddy-media-staging/messages/mwmgz2us-lrvm80et/1543755f-bf25-4db4-b571-3f08310b524d.png",
+      "signed": true
+    },
+    {
+      "kind": "response",
+      "method": "GET",
+      "status": 200,
+      "origin": "https://85c675833ff17bc65e8b5b5ae43455cd.r2.cloudflarestorage.com",
+      "path": "/kiddy-media-staging/messages/mwmgz2us-lrvm80et/6e2b8bc8-a04d-4c99-b19c-854fdd364f94.png",
+      "signed": true
+    },
+    {
+      "kind": "response",
+      "method": "GET",
+      "status": 200,
+      "origin": "https://85c675833ff17bc65e8b5b5ae43455cd.r2.cloudflarestorage.com",
+      "path": "/kiddy-media-staging/messages/mwmgz2us-lrvm80et/2cf9fdf9-a1c4-447e-a0bb-f7271be78674.png",
+      "signed": true
+    }
+  ],
+  "finalUrl": "https://kiddy-staging-orcin.vercel.app/portal/messages?thread=mwsq7di4-n6xees59"
+}
