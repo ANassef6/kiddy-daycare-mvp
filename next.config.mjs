@@ -4,6 +4,13 @@ import { fileURLToPath } from "url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
+// KID-2463: private media is read and written directly against Cloudflare R2
+// with short-lived presigned URLs. The account id is stable, so the origin is a
+// named constant: the R2 secrets are runtime-only and are not available to the
+// build-time CSP. The bucket lives in the path, not in the host.
+const R2_MEDIA_ORIGIN =
+  "https://85c675833ff17bc65e8b5b5ae43455cd.r2.cloudflarestorage.com";
+
 // ---------------------------------------------------------------------------
 // KID-1178/F-03: baseline security headers + a tailored Content Security Policy.
 //
@@ -23,10 +30,10 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 //     theme tokens inline (brand colors/font vary per host, so a static hash
 //     cannot cover them), and Next/React inline styles.
 //   connect-src: same-origin, the Supabase project (REST + realtime WSS +
-//     storage), Chatwoot (HTTP + WSS, the live-chat socket), and FCM
-//     (VAPID web push service endpoint).
-//   img-src: same-origin, data:/blob:, Supabase storage (branding assets) and
-//     the Chatwoot host (avatars).
+//     storage), Chatwoot (HTTP + WSS, the live-chat socket), FCM (VAPID web
+//     push service endpoint), and Cloudflare R2 (presigned direct uploads).
+//   img-src: same-origin, data:/blob:, Supabase storage (branding assets), the
+//     Chatwoot host (avatars), and Cloudflare R2 (presigned media reads).
 //   frame-ancestors 'self' + X-Frame-Options SAMEORIGIN — clickjacking.
 //   object-src 'none'; base-uri 'self'; form-action 'self'.
 //   worker-src 'self' blob: — the push service worker (/sw.js) plus blob
@@ -101,6 +108,11 @@ export function contentSecurityPolicy() {
   // subscriptions; most of that is browser-internal, but FCM fetches from
   // service workers stay covered by connect-src.
   csp.get("connect-src").push("https://fcm.googleapis.com");
+
+  // KID-2463: signed media reads (img) and presigned direct uploads
+  // (fetch/XHR) target the R2 S3 endpoint directly, not the app origin.
+  csp.get("img-src").push(R2_MEDIA_ORIGIN);
+  csp.get("connect-src").push(R2_MEDIA_ORIGIN);
 
   if (process.env.NODE_ENV !== "production") {
     // Dev/HMR: Next dev overlays need eval.
