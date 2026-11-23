@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import PortalSidebar from "@/components/PortalSidebar";
 import PortalAccountMenu from "@/components/PortalAccountMenu";
+import LocaleGuard from "@/components/LocaleGuard";
 import OperatorViewBanner from "@/components/OperatorViewBanner";
 import NotificationBell from "@/components/NotificationBell";
 import NotificationSoundWatcher from "@/components/NotificationSoundWatcher";
@@ -89,6 +90,7 @@ export default async function PortalLayout({ children }: { children: React.React
   return (
     <div className="shell">
       <PortalSidebar brandName={brandName} logoUrl={logoUrl} locale={locale} dict={dict} role={session.role} />
+      <LocaleGuard locale={locale} />
       <main className="shell-main">
         {/* KID-52 #12: messages, notifications and account settings live in the
             top-right corner on every portal page. */}
