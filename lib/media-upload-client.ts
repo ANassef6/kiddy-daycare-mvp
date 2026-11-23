@@ -20,7 +20,7 @@ export type DirectUploadResult =
 
 export async function directUploadFile(opts: {
   file: File;
-  purpose: "photo" | "proof" | "contract" | "drive" | "newsfeed" | "message";
+  purpose: "photo" | "proof" | "contract" | "drive" | "newsfeed" | "message" | "event";
   entityType?: string;
   entityId?: string;
 }): Promise<DirectUploadResult> {

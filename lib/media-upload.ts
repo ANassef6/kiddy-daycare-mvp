@@ -13,6 +13,7 @@
 // through lib/storage.ts. Both paths end at the same REF model.
 
 import {
+  MAX_EVENT_ATTACHMENT_BYTES,
   MAX_MESSAGE_ATTACHMENT_BYTES,
   MAX_NEWSFEED_ATTACHMENT_BYTES,
   MAX_PHOTO_UPLOAD_BYTES,
@@ -32,7 +33,7 @@ import {
   signedPrivateUpload,
 } from "./storage";
 
-export type UploadPurpose = "photo" | "proof" | "contract" | "drive" | "newsfeed" | "message";
+export type UploadPurpose = "photo" | "proof" | "contract" | "drive" | "newsfeed" | "message" | "event";
 
 export type UploadIntent = {
   purpose: UploadPurpose;
@@ -70,6 +71,12 @@ const PURPOSE_CONFIG: Record<UploadPurpose, PurposeConfig> = {
     folder: "messages",
     maxBytes: MAX_MESSAGE_ATTACHMENT_BYTES,
     mimes: { ...PHOTO_MIME_EXT, ...VIDEO_MIME_EXT, "application/pdf": "pdf" },
+  },
+  // KID-2466: event attachments are photos and videos only (no documents).
+  event: {
+    folder: "events",
+    maxBytes: MAX_EVENT_ATTACHMENT_BYTES,
+    mimes: { ...PHOTO_MIME_EXT, ...VIDEO_MIME_EXT },
   },
 };
 
