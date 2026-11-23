@@ -80,20 +80,42 @@ Observed but not yet explained:
 
 ## Environment/secrets
 
-Set as Worker secrets (staging), never in source:
+There are two kinds of values, and they go to different places.
+
+### Build-time public values (inlined by Next — NOT Worker secrets)
+
+`NEXT_PUBLIC_*` values are baked into the client bundle by
+`opennextjs-cloudflare build`. Export them in the shell/CI environment that
+runs the build:
 
 ```
 NEXT_PUBLIC_SITE_URL=https://kiddy-web-staging.trois4ever.workers.dev
-KIDDY_DATABASE_URL=<staging Supavisor URL>   # used by Node/local, Hyperdrive wins on Workers
 NEXT_PUBLIC_SUPABASE_URL / _ANON_KEY / _PUBLISHABLE_KEY
+NEXT_PUBLIC_CHATWOOT_BASE_URL=https://chatwoot.kiddyapp.net
+NEXT_PUBLIC_CHATWOOT_WEBSITE_TOKEN=<shared website-inbox token>
+KIDDY_CSP_MODE=report-only
+```
+
+Setting a `NEXT_PUBLIC_*` value only with `wrangler secret put` does **not**
+put it in the browser bundle. KID-2465 lost the production Chatwoot launcher
+exactly that way: the base URL was inlined while the token stayed a runtime
+lookup from an empty browser env, and the widget rendered nothing.
+`next.config.mjs` now fails the build when only one of the Chatwoot pair is
+set; set both or neither.
+
+### Runtime Worker secrets
+
+Set out of band with `wrangler secret put <NAME> --env staging` (or `--env`
+production):
+
+```
+KIDDY_DATABASE_URL=<staging Supavisor URL>   # used by Node/local, Hyperdrive wins on Workers
 SUPABASE_URL / _ANON_KEY / _PUBLISHABLE_KEY / _SECRET_KEY / _SERVICE_ROLE_KEY
 SESSION_SECRET
 CRON_SECRET
-KIDDY_CSP_MODE=report-only
 PLATFORM_ADMIN_EMAIL
 PLATFORM_OPERATOR_PASSWORD
 CHATWOOT_BASE_URL / CHATWOOT_ACCESS_TOKEN
-NEXT_PUBLIC_CHATWOOT_BASE_URL / NEXT_PUBLIC_CHATWOOT_WEBSITE_TOKEN
 VAPID_PUBLIC_KEY / VAPID_PRIVATE_KEY
 ```
 
@@ -103,7 +125,16 @@ rest of the values are the staging Supabase project.
 ### Deploying
 
 ```sh
-# build once, then deploy the built output
+# build once with the public values exported, then deploy the built output
+export NEXT_PUBLIC_SITE_URL=https://kiddy-web-staging.trois4ever.workers.dev
+export NEXT_PUBLIC_SUPABASE_URL=...
+export NEXT_PUBLIC_SUPABASE_ANON_KEY=...
+export NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=...
+export NEXT_PUBLIC_CHATWOOT_BASE_URL=https://chatwoot.kiddyapp.net
+export NEXT_PUBLIC_CHATWOOT_WEBSITE_TOKEN=...   # website-inbox token; never commit it
+export KIDDY_CSP_MODE=report-only
+export SESSION_SECRET=...                       # >=32 chars; build check only, runtime uses the Worker secret
+
 npx opennextjs-cloudflare build
 CLOUDFLARE_HYPERDRIVE_LOCAL_CONNECTION_STRING_HYPERDRIVE=\
   postgres://user:password@localhost:5432/postgres \
@@ -114,9 +145,20 @@ CLOUDFLARE_HYPERDRIVE_LOCAL_CONNECTION_STRING_HYPERDRIVE=\
 Wrangler's local platform proxy during the CLI command; the remote Worker uses
 the real binding.
 
-Secrets are set out of band with `wrangler secret put <NAME> --env staging`.
+After the build, confirm the token really was inlined:
+
+```sh
+grep -rl "$NEXT_PUBLIC_CHATWOOT_WEBSITE_TOKEN" \
+  .open-next/assets/_next/static/chunks/app
+```
+
+It must print the root `layout-*.js` chunk (and only the root layout chunk).
+An empty result means the browser bundle has no widget, no matter what Worker
+secrets say.
+
 The GitHub Actions workflow verifies on every PR/push and deploys staging only
-when the `CF_DEPLOY_ENABLED` repository variable is `true`.
+when the `CF_DEPLOY_ENABLED` repository variable is `true`; its deploy job
+fails before building if either staging Chatwoot value is missing.
 
 ### Logs and cron
 

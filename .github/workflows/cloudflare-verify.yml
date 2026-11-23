@@ -71,5 +71,14 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci --include=dev
+      # KID-2465: NEXT_PUBLIC_* are inlined at build time. A missing staging
+      # secret would ship a tokenless bundle (widget permanently off), so fail
+      # before spending a build on it.
+      - name: Require build-time Chatwoot values
+        run: |
+          test -n "$NEXT_PUBLIC_CHATWOOT_BASE_URL" || {
+            echo "STAGING_NEXT_PUBLIC_CHATWOOT_BASE_URL is unset"; exit 1; }
+          test -n "$NEXT_PUBLIC_CHATWOOT_WEBSITE_TOKEN" || {
+            echo "STAGING_NEXT_PUBLIC_CHATWOOT_WEBSITE_TOKEN is unset"; exit 1; }
       - run: npx opennextjs-cloudflare build
       - run: npx wrangler deploy --env staging

@@ -23,6 +23,16 @@ it on; clearing either one turns it fully off.
    renders nothing and makes no request to the Chatwoot server, so previews
    and tenants without Chatwoot stay clean.
 
+### Cloudflare Worker builds (KID-2465)
+
+`NEXT_PUBLIC_*` values are inlined by `next build`; the browser never reads
+Worker runtime secrets. Export both Chatwoot values in the environment that
+runs `opennextjs-cloudflare build`. Setting them only with `wrangler secret
+put` leaves the client bundle tokenless and the widget off — that is how the
+production Worker lost the launcher on 2026-11-23. `next.config.mjs` now
+fails the build when exactly one of the pair is set; both unset stays the
+supported "widget off" state.
+
 ## Where the widget appears
 
 Every web page: the component is mounted once at the bottom of the root
