@@ -1,0 +1,166 @@
+{
+  "base": "https://sunshine.kiddyapp.net",
+  "startedAt": "2026-11-23T21:25:12.912Z",
+  "steps": [
+    {
+      "step": "login",
+      "url": "https://sunshine.kiddyapp.net/portal/dashboard",
+      "title": "Sunshine Daycare — childcare, in your pocket"
+    },
+    {
+      "step": "children",
+      "url": "https://sunshine.kiddyapp.net/portal/children",
+      "r2Images": [
+        {
+          "src": "https://85c675833ff17bc65e8b5b5ae43455cd.r2.cloudflarestorage.com/kiddy-media-prod/staff/mubchxos-bks4o4f9/photo-1790001296776.jpg",
+          "complete": true,
+          "naturalWidth": 312
+        },
+        {
+          "src": "https://85c675833ff17bc65e8b5b5ae43455cd.r2.cloudflarestorage.com/kiddy-media-prod/child/mud3euq6-j2xfy0jt/photo-1790106980841.jpg",
+          "complete": true,
+          "naturalWidth": 3000
+        }
+      ],
+      "violations": [
+        {
+          "directive": "script-src-elem",
+          "blockedURI": "https://static.cloudflareinsights.com/beacon.min.js/vce701823e78c4301a35b7e07294d87301792088814092",
+          "sourceFile": "",
+          "lineNumber": 0
+        }
+      ]
+    },
+    {
+      "step": "newsfeed",
+      "url": "https://sunshine.kiddyapp.net/portal/newsfeed",
+      "r2Images": [
+        {
+          "src": "https://85c675833ff17bc65e8b5b5ae43455cd.r2.cloudflarestorage.com/kiddy-media-prod/staff/mubchxos-bks4o4f9/photo-1790001296776.jpg",
+          "complete": true,
+          "naturalWidth": 312
+        },
+        {
+          "src": "https://85c675833ff17bc65e8b5b5ae43455cd.r2.cloudflarestorage.com/kiddy-media-prod/legacy/newsfeed_post/mulhl4fd-2xxwh1e8/d32f14f3-19ce-40c1-9065-12f739d91332.jpg",
+          "complete": true,
+          "naturalWidth": 3000
+        },
+        {
+          "src": "https://85c675833ff17bc65e8b5b5ae43455cd.r2.cloudflarestorage.com/kiddy-media-prod/legacy/newsfeed_post/mu7ei78e-pxgvk6np/24393780-8751-415d-996c-55ad58c82650.txt",
+          "complete": true,
+          "naturalWidth": 0
+        }
+      ],
+      "violations": [
+        {
+          "directive": "script-src-elem",
+          "blockedURI": "https://static.cloudflareinsights.com/beacon.min.js/vce701823e78c4301a35b7e07294d87301792088814092",
+          "sourceFile": "",
+          "lineNumber": 0
+        }
+      ]
+    },
+    {
+      "step": "presigned-put",
+      "upload": {
+        "presign": 200,
+        "key": "messages/mtnfwlhn-jokgnsiw/1c307bdc-c69e-494e-bd62-80bfa92ded9e.png",
+        "ref": "r2-private:messages/mtnfwlhn-jokgnsiw/1c307bdc-c69e-494e-bd62-80bfa92ded9e.png",
+        "put": 200,
+        "putUrlHost": "85c675833ff17bc65e8b5b5ae43455cd.r2.cloudflarestorage.com"
+      },
+      "violations": [
+        {
+          "directive": "script-src-elem",
+          "blockedURI": "https://static.cloudflareinsights.com/beacon.min.js/vce701823e78c4301a35b7e07294d87301792088814092",
+          "sourceFile": "",
+          "lineNumber": 0
+        }
+      ]
+    }
+  ],
+  "violations": [
+    {
+      "directive": "script-src-elem",
+      "blockedURI": "https://static.cloudflareinsights.com/beacon.min.js/vce701823e78c4301a35b7e07294d87301792088814092",
+      "sourceFile": "",
+      "lineNumber": 0
+    }
+  ],
+  "network": [
+    {
+      "url": "https://sunshine.kiddyapp.net/api/csp-report",
+      "status": 204,
+      "method": "POST",
+      "at": 1795469113770
+    },
+    {
+      "url": "https://85c675833ff17bc65e8b5b5ae43455cd.r2.cloudflarestorage.com/kiddy-media-prod/staff/mubchxos-bks4o4f9/photo-1790001296776.jpg?X-Amz-Expires=3600&response-cache-control=private%2C+max-age%3D3600&X-Amz-Date=20261123T212517Z&X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=69c12cc4b5ead0504062014346166f1e%2F20261123%2Fauto%2Fs3%2Faws4_request&X-Amz-SignedHeaders=host&X-Amz-Signature=e3ad233c3e611d58865304f8ab7571ec6900628cac94059ccd474d435fd170af",
+      "status": 200,
+      "method": "GET",
+      "at": 1795469118606
+    },
+    {
+      "url": "https://85c675833ff17bc65e8b5b5ae43455cd.r2.cloudflarestorage.com/kiddy-media-prod/staff/mubchxos-bks4o4f9/photo-1790001296776.jpg?X-Amz-Expires=3600&response-cache-control=private%2C+max-age%3D3600&X-Amz-Date=20261123T212522Z&X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=69c12cc4b5ead0504062014346166f1e%2F20261123%2Fauto%2Fs3%2Faws4_request&X-Amz-SignedHeaders=host&X-Amz-Signature=a1a2bb41cc79f6af3b8d56e8dc7dd066676ade006acaf2b6c2051c06f8ba030f",
+      "status": 200,
+      "method": "GET",
+      "at": 1795469123230
+    },
+    {
+      "url": "https://sunshine.kiddyapp.net/api/csp-report",
+      "status": 204,
+      "method": "POST",
+      "at": 1795469123302
+    },
+    {
+      "url": "https://85c675833ff17bc65e8b5b5ae43455cd.r2.cloudflarestorage.com/kiddy-media-prod/child/mud3euq6-j2xfy0jt/photo-1790106980841.jpg?X-Amz-Expires=3600&response-cache-control=private%2C+max-age%3D3600&X-Amz-Date=20261123T212522Z&X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=69c12cc4b5ead0504062014346166f1e%2F20261123%2Fauto%2Fs3%2Faws4_request&X-Amz-SignedHeaders=host&X-Amz-Signature=fb51fd45af6527069b71b5305933a479b68402188a2bd12dad08f6e7d4126022",
+      "status": 200,
+      "method": "GET",
+      "at": 1795469123365
+    },
+    {
+      "url": "https://85c675833ff17bc65e8b5b5ae43455cd.r2.cloudflarestorage.com/kiddy-media-prod/staff/mubchxos-bks4o4f9/photo-1790001296776.jpg?X-Amz-Expires=3600&response-cache-control=private%2C+max-age%3D3600&X-Amz-Date=20261123T212529Z&X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=69c12cc4b5ead0504062014346166f1e%2F20261123%2Fauto%2Fs3%2Faws4_request&X-Amz-SignedHeaders=host&X-Amz-Signature=993139ac4d8ed127afedb9b0aac44acdd80454099e2200443de9ff81315bfdfc",
+      "status": 200,
+      "method": "GET",
+      "at": 1795469130044
+    },
+    {
+      "url": "https://85c675833ff17bc65e8b5b5ae43455cd.r2.cloudflarestorage.com/kiddy-media-prod/legacy/newsfeed_post/mulhl4fd-2xxwh1e8/d32f14f3-19ce-40c1-9065-12f739d91332.jpg?X-Amz-Expires=3600&response-cache-control=private%2C+max-age%3D3600&X-Amz-Date=20261123T212528Z&X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=69c12cc4b5ead0504062014346166f1e%2F20261123%2Fauto%2Fs3%2Faws4_request&X-Amz-SignedHeaders=host&X-Amz-Signature=aee1c752698558b7806ec6c5e502ec57cf9a2f51a52f1b35b35fcb9d37adb965",
+      "status": 200,
+      "method": "GET",
+      "at": 1795469130065
+    },
+    {
+      "url": "https://sunshine.kiddyapp.net/api/csp-report",
+      "status": 204,
+      "method": "POST",
+      "at": 1795469130109
+    },
+    {
+      "url": "https://85c675833ff17bc65e8b5b5ae43455cd.r2.cloudflarestorage.com/kiddy-media-prod/legacy/newsfeed_post/mu7ei78e-pxgvk6np/24393780-8751-415d-996c-55ad58c82650.txt?X-Amz-Expires=3600&response-cache-control=private%2C+max-age%3D3600&X-Amz-Date=20261123T212528Z&X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=69c12cc4b5ead0504062014346166f1e%2F20261123%2Fauto%2Fs3%2Faws4_request&X-Amz-SignedHeaders=host&X-Amz-Signature=5186f26b1458065b90876c13dc9413db452d62c3127f9e7d04943e16657d8515",
+      "status": 200,
+      "method": "GET",
+      "at": 1795469130218
+    },
+    {
+      "url": "https://sunshine.kiddyapp.net/api/media/presign",
+      "status": 200,
+      "method": "POST",
+      "at": 1795469134899
+    },
+    {
+      "url": "https://85c675833ff17bc65e8b5b5ae43455cd.r2.cloudflarestorage.com/kiddy-media-prod/messages/mtnfwlhn-jokgnsiw/1c307bdc-c69e-494e-bd62-80bfa92ded9e.png?X-Amz-Expires=900&X-Amz-Date=20261123T212534Z&X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=69c12cc4b5ead0504062014346166f1e%2F20261123%2Fauto%2Fs3%2Faws4_request&X-Amz-SignedHeaders=cache-control%3Bhost&X-Amz-Signature=b9e2c363b129556c9c95c6911b95af0d9425ab33efb69d6a3448203d4422215a",
+      "status": 200,
+      "method": "PUT",
+      "at": 1795469135321
+    },
+    {
+      "url": "https://85c675833ff17bc65e8b5b5ae43455cd.r2.cloudflarestorage.com/kiddy-media-prod/messages/mtnfwlhn-jokgnsiw/1c307bdc-c69e-494e-bd62-80bfa92ded9e.png?X-Amz-Expires=900&X-Amz-Date=20261123T212534Z&X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=69c12cc4b5ead0504062014346166f1e%2F20261123%2Fauto%2Fs3%2Faws4_request&X-Amz-SignedHeaders=cache-control%3Bhost&X-Amz-Signature=b9e2c363b129556c9c95c6911b95af0d9425ab33efb69d6a3448203d4422215a",
+      "status": "FAILED",
+      "method": "PUT",
+      "failure": "net::ERR_ABORTED",
+      "at": 1795469135323
+    }
+  ],
+  "finishedAt": "2026-11-23T21:25:35.327Z"
+}
