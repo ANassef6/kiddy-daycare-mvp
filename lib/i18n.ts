@@ -343,6 +343,10 @@ export const en = {
     photo: "Photo",
     video: "Video",
     attach: "Attach",
+    attachmentDevice: "Attachment (from your device)",
+    attachmentLimit: "Photos are compressed automatically. Videos: 60 seconds max, under 4 MB.",
+    errorAttachment:
+      "The attachment was not added. Choose a photo or a video that is 60 seconds or less and under 4 MB.",
     parentSubtitle: "Daycare events and recent videos for your family.",
     videosTitle: "Videos",
     noDaycare: "No daycare configured yet.",
@@ -2700,6 +2704,10 @@ export const ar = {
     photo: "صورة",
     video: "فيديو",
     attach: "إرفاق",
+    attachmentDevice: "المرفق (من جهازك)",
+    attachmentLimit: "تُضغط الصور تلقائيًا. الفيديو: 60 ثانية كحد أقصى، وأقل من 4 ميجابايت.",
+    errorAttachment:
+      "لم تتم إضافة المرفق. اختر صورة أو فيديو بمدة 60 ثانية أو أقل وحجم أقل من 4 ميجابايت.",
     parentSubtitle: "فعاليات الحضانة والفيديوهات الحديثة لعائلتكم.",
     videosTitle: "الفيديوهات",
     noDaycare: "لم يتم إعداد أي حضانة بعد.",

@@ -1,6 +1,7 @@
 import { requireFamilyPage } from "@/lib/require";
 import { listEvents, eventMedia, listVideos } from "@/lib/store";
 import { firstInstituteId, cap } from "@/lib/helpers";
+import { signedUrlsForRefs } from "@/lib/storage";
 import { i18nForAccount } from "@/lib/i18n-session";
 import { fmtTimeFor, tr } from "@/lib/i18n";
 import { recordToolUsage } from "@/lib/tool-usage";
@@ -30,6 +31,10 @@ export default async function ParentEventsPage() {
   const withMedia = await Promise.all(
     events.map(async (e: any) => ({ ...e, media: await eventMedia(e.id) }))
   );
+  // KID-2466: event media (and the video shelf) are private REFs; resolve them
+  // through short-lived signed URLs before anything renders.
+  const eventRefs = withMedia.flatMap((e: any) => e.media.map((m: any) => String(m.url ?? "")));
+  const mediaSrcs = await signedUrlsForRefs([...eventRefs, ...videos.map((v: any) => String(v.url ?? ""))]);
 
   return (
     <div>
@@ -48,11 +53,28 @@ export default async function ParentEventsPage() {
             {e.description && <p className="small mt-2">{e.description}</p>}
             {e.media.length > 0 && (
               <div className="row mt-2">
-                {e.media.slice(0, 4).map((m: any) => (
-                  <a key={m.id} href={m.url} target="_blank" rel="noreferrer">
-                    <img src={m.url} alt={m.caption ?? e.title} width={96} height={72} style={{ objectFit: "cover", borderRadius: 8 }} />
-                  </a>
-                ))}
+                {e.media.slice(0, 4).map((m: any) => {
+                  // Never fall back to the raw REF when signing failed.
+                  const src = mediaSrcs.get(String(m.url ?? "")) ?? "";
+                  if (!src) return null;
+                  if (String(m.kind) === "video") {
+                    return (
+                      <video
+                        key={m.id}
+                        src={src}
+                        controls
+                        playsInline
+                        preload="metadata"
+                        style={{ width: 96, height: 72, objectFit: "cover", borderRadius: 8 }}
+                      />
+                    );
+                  }
+                  return (
+                    <a key={m.id} href={src} target="_blank" rel="noreferrer">
+                      <img src={src} alt={m.caption ?? e.title} width={96} height={72} style={{ objectFit: "cover", borderRadius: 8 }} />
+                    </a>
+                  );
+                })}
               </div>
             )}
           </div>
@@ -62,15 +84,19 @@ export default async function ParentEventsPage() {
       <h3 className="subtitle">{t("events.videos")}</h3>
       {videos.length === 0 && <p className="muted small">{t("events.noVideos")}</p>}
       <div className="grid">
-        {videos.map((v: any) => (
-          <div className="card" key={v.id}>
-            <a href={v.url} target="_blank" rel="noreferrer" style={{ display: "block" }}>
-              <video src={v.url} controls style={{ width: "100%", borderRadius: 8, maxHeight: 180, objectFit: "cover" }} />
-            </a>
-            {v.caption && <p className="small mt-2">{v.caption}</p>}
-            {v.first_name && <div className="muted small">{v.first_name} {v.last_name}</div>}
-          </div>
-        ))}
+        {videos.map((v: any) => {
+          const src = mediaSrcs.get(String(v.url ?? "")) ?? "";
+          if (!src) return null;
+          return (
+            <div className="card" key={v.id}>
+              <a href={src} target="_blank" rel="noreferrer" style={{ display: "block" }}>
+                <video src={src} controls playsInline preload="metadata" style={{ width: "100%", borderRadius: 8, maxHeight: 180, objectFit: "cover" }} />
+              </a>
+              {v.caption && <p className="small mt-2">{v.caption}</p>}
+              {v.first_name && <div className="muted small">{v.first_name} {v.last_name}</div>}
+            </div>
+          );
+        })}
       </div>
     </div>
   );
