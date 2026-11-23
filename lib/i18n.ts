@@ -342,7 +342,8 @@ export const en = {
     mediaUrlPlaceholder: "Media URL (photo/video)",
     photo: "Photo",
     video: "Video",
-    attach: "Attach",
+    attach: "Add media",
+    closeAttach: "Close",
     attachmentDevice: "Attachment (from your device)",
     attachmentLimit: "Photos are compressed automatically. Videos: 60 seconds max, under 4 MB.",
     errorAttachment:
@@ -2703,7 +2704,8 @@ export const ar = {
     mediaUrlPlaceholder: "رابط الوسيط (صورة/فيديو)",
     photo: "صورة",
     video: "فيديو",
-    attach: "إرفاق",
+    attach: "إضافة وسائط",
+    closeAttach: "إغلاق",
     attachmentDevice: "المرفق (من جهازك)",
     attachmentLimit: "تُضغط الصور تلقائيًا. الفيديو: 60 ثانية كحد أقصى، وأقل من 4 ميجابايت.",
     errorAttachment:
