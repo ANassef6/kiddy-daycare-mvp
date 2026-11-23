@@ -7,8 +7,9 @@
 //    code change (KIDDY_CSP_MODE=enforce)
 //  - the policy is tailored to this app's actual origins: Supabase
 //    (REST/storAGE + realtime WSS), the Chatwoot widget host (script, frame,
-//    socket), FCM's push endpoint, plus the frame-ancestors / object-src /
-//    base-uri hardening
+//    socket), FCM's push endpoint, Cloudflare R2 (signed media reads and
+//    presigned direct uploads, KID-2463), plus the frame-ancestors /
+//    object-src / base-uri hardening
 //  - HSTS is NOT re-declared in the app (the hosting layer already serves it;
 //    a duplicate could conflict)
 
@@ -107,6 +108,19 @@ describe("KID-1178/F-03 the CSP is tailored to this app", () => {
 
   it("covers the VAPID/FMC push-service endpoint in connect-src", () => {
     expect(contentSecurityPolicy()).toContain("https://fcm.googleapis.com");
+  });
+
+  it("allows the R2 media origin for signed reads and presigned uploads (KID-2463)", () => {
+    const r2Origin =
+      "https://85c675833ff17bc65e8b5b5ae43455cd.r2.cloudflarestorage.com";
+    const csp = contentSecurityPolicy();
+    const directive = (name: string) =>
+      csp.split("; ").find((entry) => entry.startsWith(`${name} `)) ?? "";
+    expect(directive("img-src").split(" ")).toContain(r2Origin);
+    expect(directive("connect-src").split(" ")).toContain(r2Origin);
+    // The media origin is never granted script or frame privileges.
+    expect(directive("script-src")).not.toContain(r2Origin);
+    expect(directive("frame-src")).not.toContain(r2Origin);
   });
 
   it("stays quiet about third parties that are not configured", () => {
