@@ -28,6 +28,7 @@ import { validatePaymentProof, paymentProofFilename } from "@/lib/payment-proof"
 import { validateContract, contractStorageFilename } from "@/lib/contract";
 import {
   MAX_DRIVE_FILE_BYTES,
+  MAX_EVENT_ATTACHMENT_BYTES,
   MAX_MESSAGE_ATTACHMENT_BYTES,
   MAX_NEWSFEED_ATTACHMENT_BYTES,
   MAX_VIDEO_DURATION_SECONDS,
@@ -3083,33 +3084,93 @@ export async function createEventAction(formData: FormData) {
 
 export async function addEventMediaAction(formData: FormData) {
   const me = await authAccount();
-  // KID-1178/F-06: activity media url uploads — per-account budget.
+  // KID-1178/F-06: activity media uploads — per-account budget.
   if (!(await throttle("upload", RATE_LIMIT_RULES.uploadAccount, me.accountId)).ok) {
     throttledRedirect();
   }
   const instituteId = await requireInstitute();
-  const eventId = String(formData.get("eventId") ?? "");
-  if (instituteId && eventId) {
-    await addEventMedia({
-      eventId,
-      instituteId,
-      url: String(formData.get("url") ?? ""),
-      kind: String(formData.get("kind") ?? "image"),
-      caption: String(formData.get("caption") ?? "") || undefined,
-      accountId: me.accountId,
-    });
-    // KID-477: media additions are attributed to the acting account.
-    await recordAuditEvent({
-      instituteId,
-      actorAccountId: me.accountId,
-      action: "create",
-      entityType: "event_media",
-      entityId: eventId,
-      summary: "Attached media to an activity",
-      metadata: { kind: String(formData.get("kind") ?? "image") },
-    });
+  const eventId = String(formData.get("eventId") ?? "").trim();
+  if (!instituteId || !eventId) redirect("/portal/events?error=eventMedia");
+  const back = `/portal/events?open=${encodeURIComponent(eventId)}`;
+  // KID-2466: never attach to an event that does not belong to this tenant.
+  const event = await queryGet(
+    "SELECT id FROM event WHERE id = ? AND institute_id = ?",
+    eventId,
+    String(instituteId)
+  );
+  if (!event) {
+    console.error("KID-2466 refused event media for a foreign or missing event:", eventId);
+    redirect("/portal/events?error=eventMedia");
   }
-  redirect(`/portal/events?open=${eventId}`);
+
+  let mediaRef: string | null = null;
+  let kind = "image";
+  const caption = String(formData.get("caption") ?? "").trim() || undefined;
+
+  // KID-2453/2466: a direct upload submits only `attachmentRef`; validate the
+  // REF first (tenant prefix, HEAD size and MIME) before it can reach a row.
+  const presigned = await takeUploadedRef(formData, {
+    purpose: "event",
+    instituteId: String(instituteId),
+    field: "attachmentRef",
+  });
+  if (presigned.ok) {
+    mediaRef = presigned.ref;
+    kind = mediaKind(presigned.contentType) === "video" ? "video" : "image";
+  } else {
+    const attachment = formData.get("attachment");
+    if (!(attachment instanceof File) || attachment.size === 0) {
+      redirect(`${back}&error=eventMedia`);
+    }
+    // Server-side boundary for the multipart fallback: photos/videos only,
+    // 4 MB cap and the same 60-second video limit the client applies.
+    const media = validateMediaAttachment(attachment, MAX_EVENT_ATTACHMENT_BYTES);
+    if (!media.ok || media.kind === "pdf") redirect(`${back}&error=eventMedia`);
+    kind = media.kind === "video" ? "video" : "image";
+    const buf = Buffer.from(await attachment.arrayBuffer());
+    if (media.kind === "video") {
+      const seconds = mp4DurationSeconds(buf);
+      if (seconds !== null && seconds > MAX_VIDEO_DURATION_SECONDS) {
+        redirect(`${back}&error=eventMedia`);
+      }
+    }
+    const mime = attachment.type || "application/octet-stream";
+    if (storageAdminConfigured()) {
+      const uploaded = await uploadPrivateObject(
+        `events/${String(instituteId)}/${crypto.randomUUID()}.${media.ext}`,
+        attachment,
+        mime
+      );
+      if (uploaded.error || !uploaded.ref) {
+        console.error("KID-2466 event media upload failed:", uploaded.error?.message ?? "no provider");
+        redirect(`${back}&error=eventMedia`);
+      }
+      mediaRef = uploaded.ref;
+    } else {
+      mediaRef = `data:${mime};base64,${buf.toString("base64")}`;
+    }
+  }
+  if (!mediaRef) redirect(`${back}&error=eventMedia`);
+
+  await addEventMedia({
+    eventId,
+    instituteId: String(instituteId),
+    url: mediaRef,
+    kind,
+    caption,
+    accountId: me.accountId,
+  });
+  // KID-477: media additions are attributed to the acting account.
+  await recordAuditEvent({
+    instituteId: String(instituteId),
+    actorAccountId: me.accountId,
+    action: "create",
+    entityType: "event_media",
+    entityId: eventId,
+    summary: "Attached media to an activity",
+    metadata: { kind },
+  });
+  redirect(back);
 }
 
 export async function createFormAction(formData: FormData) {

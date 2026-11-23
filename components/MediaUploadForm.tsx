@@ -52,7 +52,7 @@ type Props = {
    *  private storage and submit its REF instead of the bytes. Falls back to
    *  the multipart field on any failure. */
   directUpload?: {
-    purpose: "photo" | "proof" | "contract" | "drive" | "newsfeed" | "message";
+    purpose: "photo" | "proof" | "contract" | "drive" | "newsfeed" | "message" | "event";
     entityType?: string;
     entityId?: string;
     /** The file input's name. Defaults to "file". */
