@@ -8,9 +8,10 @@
 //
 // The KID-57 override `html[dir="rtl"] .shell { grid-template-columns: 1fr 220px }`
 // reversed the tracks on every Arabic portal page (sidebar 860px, main 220px,
-// 64px of horizontal overflow at 1080px) and, out-specifying the
-// `@media (max-width: 720px) { .shell { grid-template-columns: 1fr } }` rule,
-// kept a sidebar track in RTL at phone widths too.
+// 64px of horizontal overflow at 1080px) and, out-specifying the phone
+// `@media (max-width: 720px)` single-track rule, kept a sidebar track in RTL at
+// phone widths too. KID-2459 later made that phone track `minmax(0, 1fr)` so a
+// wide child cannot stretch it; it is still one track.
 //
 // This suite has no DOM, so instead of a browser the assertions resolve the
 // cascade the browser would apply to `<div class="shell">` — media queries,
@@ -252,12 +253,15 @@ describe("KID-453 portal shell grid cascade", () => {
     expect(rtl?.media).toBeNull();
   });
 
-  it("should give .shell a single 1fr track at the 720px breakpoint in both directions", () => {
+  it("should give .shell a single shrinkable track at the 720px breakpoint in both directions", () => {
     const ltr = resolveGridTemplateColumns({ dir: "ltr", width: 720 });
     const rtl = resolveGridTemplateColumns(PHONE);
 
-    expect(ltr?.value).toBe("1fr");
-    expect(rtl?.value).toBe("1fr");
+    // KID-2459: the phone track is minmax(0, 1fr) so a wide child (a data
+    // table) cannot stretch the single column past the viewport. It is still
+    // exactly one track, which is what the RTL cascade depends on.
+    expect(ltr?.value).toBe("minmax(0, 1fr)");
+    expect(rtl?.value).toBe("minmax(0, 1fr)");
     expect(rtl?.media).toContain("max-width: 720px");
   });
 

@@ -1,0 +1,1018 @@
+{
+  "issue": "KID-2459",
+  "baseUrl": "https://kiddy-staging-orcin.vercel.app",
+  "runAt": "2026-11-22T22:26:34.585Z",
+  "widths": [
+    1280
+  ],
+  "langs": [
+    "en"
+  ],
+  "total": 44,
+  "failed": 0,
+  "results": [
+    {
+      "role": "staff",
+      "lang": "en",
+      "width": 1280,
+      "path": "/portal/dashboard",
+      "status": 200,
+      "ok": true,
+      "dir": "ltr",
+      "clientWidth": 1280,
+      "scrollWidth": 1280,
+      "bodyScrollWidth": 1280,
+      "offenders": [
+        {
+          "el": "a.skip-link \"Skip to content\"",
+          "left": -9999,
+          "right": -9817,
+          "width": 182,
+          "overflow": 9999
+        }
+      ]
+    },
+    {
+      "role": "staff",
+      "lang": "en",
+      "width": 1280,
+      "path": "/portal/children",
+      "status": 200,
+      "ok": true,
+      "dir": "ltr",
+      "clientWidth": 1280,
+      "scrollWidth": 1280,
+      "bodyScrollWidth": 1280,
+      "offenders": [
+        {
+          "el": "a.skip-link \"Skip to content\"",
+          "left": -9999,
+          "right": -9817,
+          "width": 182,
+          "overflow": 9999
+        }
+      ]
+    },
+    {
+      "role": "staff",
+      "lang": "en",
+      "width": 1280,
+      "path": "/portal/children/mwmgz47k-k1b15bbk",
+      "status": 200,
+      "ok": true,
+      "dir": "ltr",
+      "clientWidth": 1280,
+      "scrollWidth": 1280,
+      "bodyScrollWidth": 1280,
+      "offenders": [
+        {
+          "el": "a.skip-link \"Skip to content\"",
+          "left": -9999,
+          "right": -9817,
+          "width": 182,
+          "overflow": 9999
+        },
+        {
+          "el": "button \"Incidents & accidents\"",
+          "left": 1548,
+          "right": 1744,
+          "width": 196,
+          "overflow": 464
+        },
+        {
+          "el": "button \"Learning history\"",
+          "left": 1388,
+          "right": 1544,
+          "width": 156,
+          "overflow": 264
+        },
+        {
+          "el": "button \"Invoices\"",
+          "left": 1292,
+          "right": 1384,
+          "width": 92,
+          "overflow": 104
+        },
+        {
+          "el": "button \"Schedules (Beta)\"",
+          "left": 1132,
+          "right": 1288,
+          "width": 156,
+          "overflow": 8
+        }
+      ]
+    },
+    {
+      "role": "staff",
+      "lang": "en",
+      "width": 1280,
+      "path": "/portal/children/mwmgz47k-k1b15bbk/billing",
+      "status": 200,
+      "ok": true,
+      "dir": "ltr",
+      "clientWidth": 1280,
+      "scrollWidth": 1280,
+      "bodyScrollWidth": 1280,
+      "offenders": [
+        {
+          "el": "a.skip-link \"Skip to content\"",
+          "left": -9999,
+          "right": -9817,
+          "width": 182,
+          "overflow": 9999
+        }
+      ]
+    },
+    {
+      "role": "staff",
+      "lang": "en",
+      "width": 1280,
+      "path": "/portal/children/mwmgz47k-k1b15bbk/development",
+      "status": 200,
+      "ok": true,
+      "dir": "ltr",
+      "clientWidth": 1280,
+      "scrollWidth": 1280,
+      "bodyScrollWidth": 1280,
+      "offenders": [
+        {
+          "el": "a.skip-link \"Skip to content\"",
+          "left": -9999,
+          "right": -9817,
+          "width": 182,
+          "overflow": 9999
+        }
+      ]
+    },
+    {
+      "role": "staff",
+      "lang": "en",
+      "width": 1280,
+      "path": "/portal/children/development",
+      "status": 200,
+      "ok": true,
+      "dir": "ltr",
+      "clientWidth": 1280,
+      "scrollWidth": 1280,
+      "bodyScrollWidth": 1280,
+      "offenders": [
+        {
+          "el": "a.skip-link \"Skip to content\"",
+          "left": -9999,
+          "right": -9817,
+          "width": 182,
+          "overflow": 9999
+        }
+      ]
+    },
+    {
+      "role": "staff",
+      "lang": "en",
+      "width": 1280,
+      "path": "/portal/messages",
+      "status": 200,
+      "ok": true,
+      "dir": "ltr",
+      "clientWidth": 1280,
+      "scrollWidth": 1280,
+      "bodyScrollWidth": 1280,
+      "offenders": [
+        {
+          "el": "a.skip-link \"Skip to content\"",
+          "left": -9999,
+          "right": -9817,
+          "width": 182,
+          "overflow": 9999
+        }
+      ]
+    },
+    {
+      "role": "staff",
+      "lang": "en",
+      "width": 1280,
+      "path": "/portal/messages?thread=mwsdk2b3-4p0knvzh",
+      "status": 200,
+      "ok": true,
+      "dir": "ltr",
+      "clientWidth": 1280,
+      "scrollWidth": 1280,
+      "bodyScrollWidth": 1280,
+      "offenders": [
+        {
+          "el": "a.skip-link \"Skip to content\"",
+          "left": -9999,
+          "right": -9817,
+          "width": 182,
+          "overflow": 9999
+        }
+      ]
+    },
+    {
+      "role": "staff",
+      "lang": "en",
+      "width": 1280,
+      "path": "/portal/messages?compose=1",
+      "status": 200,
+      "ok": true,
+      "dir": "ltr",
+      "clientWidth": 1280,
+      "scrollWidth": 1280,
+      "bodyScrollWidth": 1280,
+      "offenders": [
+        {
+          "el": "a.skip-link \"Skip to content\"",
+          "left": -9999,
+          "right": -9817,
+          "width": 182,
+          "overflow": 9999
+        }
+      ]
+    },
+    {
+      "role": "staff",
+      "lang": "en",
+      "width": 1280,
+      "path": "/portal/newsfeed",
+      "status": 200,
+      "ok": true,
+      "dir": "ltr",
+      "clientWidth": 1280,
+      "scrollWidth": 1280,
+      "bodyScrollWidth": 1280,
+      "offenders": [
+        {
+          "el": "a.skip-link \"Skip to content\"",
+          "left": -9999,
+          "right": -9817,
+          "width": 182,
+          "overflow": 9999
+        }
+      ]
+    },
+    {
+      "role": "staff",
+      "lang": "en",
+      "width": 1280,
+      "path": "/portal/attendance",
+      "status": 200,
+      "ok": true,
+      "dir": "ltr",
+      "clientWidth": 1280,
+      "scrollWidth": 1280,
+      "bodyScrollWidth": 1280,
+      "offenders": [
+        {
+          "el": "a.skip-link \"Skip to content\"",
+          "left": -9999,
+          "right": -9817,
+          "width": 182,
+          "overflow": 9999
+        }
+      ]
+    },
+    {
+      "role": "staff",
+      "lang": "en",
+      "width": 1280,
+      "path": "/portal/calendar",
+      "status": 200,
+      "ok": true,
+      "dir": "ltr",
+      "clientWidth": 1280,
+      "scrollWidth": 1280,
+      "bodyScrollWidth": 1280,
+      "offenders": [
+        {
+          "el": "a.skip-link \"Skip to content\"",
+          "left": -9999,
+          "right": -9817,
+          "width": 182,
+          "overflow": 9999
+        }
+      ]
+    },
+    {
+      "role": "staff",
+      "lang": "en",
+      "width": 1280,
+      "path": "/portal/rooms",
+      "status": 200,
+      "ok": true,
+      "dir": "ltr",
+      "clientWidth": 1280,
+      "scrollWidth": 1280,
+      "bodyScrollWidth": 1280,
+      "offenders": [
+        {
+          "el": "a.skip-link \"Skip to content\"",
+          "left": -9999,
+          "right": -9817,
+          "width": 182,
+          "overflow": 9999
+        }
+      ]
+    },
+    {
+      "role": "staff",
+      "lang": "en",
+      "width": 1280,
+      "path": "/portal/rooms/mwmgz3p3-f2uxjy6d",
+      "status": 200,
+      "ok": true,
+      "dir": "ltr",
+      "clientWidth": 1280,
+      "scrollWidth": 1280,
+      "bodyScrollWidth": 1280,
+      "offenders": [
+        {
+          "el": "a.skip-link \"Skip to content\"",
+          "left": -9999,
+          "right": -9817,
+          "width": 182,
+          "overflow": 9999
+        }
+      ]
+    },
+    {
+      "role": "staff",
+      "lang": "en",
+      "width": 1280,
+      "path": "/portal/staff",
+      "status": 200,
+      "ok": true,
+      "dir": "ltr",
+      "clientWidth": 1280,
+      "scrollWidth": 1280,
+      "bodyScrollWidth": 1280,
+      "offenders": [
+        {
+          "el": "a.skip-link \"Skip to content\"",
+          "left": -9999,
+          "right": -9817,
+          "width": 182,
+          "overflow": 9999
+        }
+      ]
+    },
+    {
+      "role": "staff",
+      "lang": "en",
+      "width": 1280,
+      "path": "/portal/staff/mwmgz36i-2j38o492",
+      "status": 200,
+      "ok": true,
+      "dir": "ltr",
+      "clientWidth": 1280,
+      "scrollWidth": 1280,
+      "bodyScrollWidth": 1280,
+      "offenders": [
+        {
+          "el": "a.skip-link \"Skip to content\"",
+          "left": -9999,
+          "right": -9817,
+          "width": 182,
+          "overflow": 9999
+        }
+      ]
+    },
+    {
+      "role": "staff",
+      "lang": "en",
+      "width": 1280,
+      "path": "/portal/staff/hours",
+      "status": 200,
+      "ok": true,
+      "dir": "ltr",
+      "clientWidth": 1280,
+      "scrollWidth": 1280,
+      "bodyScrollWidth": 1280,
+      "offenders": [
+        {
+          "el": "a.skip-link \"Skip to content\"",
+          "left": -9999,
+          "right": -9817,
+          "width": 182,
+          "overflow": 9999
+        }
+      ]
+    },
+    {
+      "role": "staff",
+      "lang": "en",
+      "width": 1280,
+      "path": "/portal/staff/schedule",
+      "status": 200,
+      "ok": true,
+      "dir": "ltr",
+      "clientWidth": 1280,
+      "scrollWidth": 1280,
+      "bodyScrollWidth": 1280,
+      "offenders": [
+        {
+          "el": "a.skip-link \"Skip to content\"",
+          "left": -9999,
+          "right": -9817,
+          "width": 182,
+          "overflow": 9999
+        }
+      ]
+    },
+    {
+      "role": "staff",
+      "lang": "en",
+      "width": 1280,
+      "path": "/portal/settings",
+      "status": 200,
+      "ok": true,
+      "dir": "ltr",
+      "clientWidth": 1280,
+      "scrollWidth": 1280,
+      "bodyScrollWidth": 1280,
+      "offenders": [
+        {
+          "el": "a.skip-link \"Skip to content\"",
+          "left": -9999,
+          "right": -9817,
+          "width": 182,
+          "overflow": 9999
+        }
+      ]
+    },
+    {
+      "role": "staff",
+      "lang": "en",
+      "width": 1280,
+      "path": "/portal/account",
+      "status": 200,
+      "ok": true,
+      "dir": "ltr",
+      "clientWidth": 1280,
+      "scrollWidth": 1280,
+      "bodyScrollWidth": 1280,
+      "offenders": [
+        {
+          "el": "a.skip-link \"Skip to content\"",
+          "left": -9999,
+          "right": -9817,
+          "width": 182,
+          "overflow": 9999
+        }
+      ]
+    },
+    {
+      "role": "staff",
+      "lang": "en",
+      "width": 1280,
+      "path": "/portal/account-billing",
+      "status": 200,
+      "ok": true,
+      "dir": "ltr",
+      "clientWidth": 1280,
+      "scrollWidth": 1280,
+      "bodyScrollWidth": 1280,
+      "offenders": [
+        {
+          "el": "a.skip-link \"Skip to content\"",
+          "left": -9999,
+          "right": -9817,
+          "width": 182,
+          "overflow": 9999
+        }
+      ]
+    },
+    {
+      "role": "staff",
+      "lang": "en",
+      "width": 1280,
+      "path": "/portal/finance",
+      "status": 200,
+      "ok": true,
+      "dir": "ltr",
+      "clientWidth": 1280,
+      "scrollWidth": 1280,
+      "bodyScrollWidth": 1280,
+      "offenders": [
+        {
+          "el": "a.skip-link \"Skip to content\"",
+          "left": -9999,
+          "right": -9817,
+          "width": 182,
+          "overflow": 9999
+        },
+        {
+          "el": "table.data \"Trans. RefChildPayerDue dateInv. periodS\"",
+          "left": 269,
+          "right": 1288,
+          "width": 1019,
+          "overflow": 8
+        },
+        {
+          "el": "thead \"Trans. RefChildPayerDue dateInv. periodS\"",
+          "left": 269,
+          "right": 1288,
+          "width": 1019,
+          "overflow": 8
+        },
+        {
+          "el": "tr \"Trans. RefChildPayerDue dateInv. periodS\"",
+          "left": 269,
+          "right": 1288,
+          "width": 1019,
+          "overflow": 8
+        },
+        {
+          "el": "th \"Actions\"",
+          "left": 1206,
+          "right": 1288,
+          "width": 82,
+          "overflow": 8
+        },
+        {
+          "el": "tbody \"mwmgz6ixLayla FounderMona Founder2026-11\"",
+          "left": 269,
+          "right": 1288,
+          "width": 1019,
+          "overflow": 8
+        },
+        {
+          "el": "tr \"mwmgz6ixLayla FounderMona Founder2026-11\"",
+          "left": 269,
+          "right": 1288,
+          "width": 1019,
+          "overflow": 8
+        },
+        {
+          "el": "td \"PendingPaidOverdueCancelledSet\"",
+          "left": 1206,
+          "right": 1288,
+          "width": 82,
+          "overflow": 8
+        }
+      ]
+    },
+    {
+      "role": "staff",
+      "lang": "en",
+      "width": 1280,
+      "path": "/portal/events",
+      "status": 200,
+      "ok": true,
+      "dir": "ltr",
+      "clientWidth": 1280,
+      "scrollWidth": 1280,
+      "bodyScrollWidth": 1280,
+      "offenders": [
+        {
+          "el": "a.skip-link \"Skip to content\"",
+          "left": -9999,
+          "right": -9817,
+          "width": 182,
+          "overflow": 9999
+        }
+      ]
+    },
+    {
+      "role": "staff",
+      "lang": "en",
+      "width": 1280,
+      "path": "/portal/learning",
+      "status": 200,
+      "ok": true,
+      "dir": "ltr",
+      "clientWidth": 1280,
+      "scrollWidth": 1280,
+      "bodyScrollWidth": 1280,
+      "offenders": [
+        {
+          "el": "a.skip-link \"Skip to content\"",
+          "left": -9999,
+          "right": -9817,
+          "width": 182,
+          "overflow": 9999
+        }
+      ]
+    },
+    {
+      "role": "staff",
+      "lang": "en",
+      "width": 1280,
+      "path": "/portal/learning/activities",
+      "status": 200,
+      "ok": true,
+      "dir": "ltr",
+      "clientWidth": 1280,
+      "scrollWidth": 1280,
+      "bodyScrollWidth": 1280,
+      "offenders": [
+        {
+          "el": "a.skip-link \"Skip to content\"",
+          "left": -9999,
+          "right": -9817,
+          "width": 182,
+          "overflow": 9999
+        }
+      ]
+    },
+    {
+      "role": "staff",
+      "lang": "en",
+      "width": 1280,
+      "path": "/portal/learning/curriculum",
+      "status": 200,
+      "ok": true,
+      "dir": "ltr",
+      "clientWidth": 1280,
+      "scrollWidth": 1280,
+      "bodyScrollWidth": 1280,
+      "offenders": [
+        {
+          "el": "a.skip-link \"Skip to content\"",
+          "left": -9999,
+          "right": -9817,
+          "width": 182,
+          "overflow": 9999
+        }
+      ]
+    },
+    {
+      "role": "staff",
+      "lang": "en",
+      "width": 1280,
+      "path": "/portal/learning/homework",
+      "status": 200,
+      "ok": true,
+      "dir": "ltr",
+      "clientWidth": 1280,
+      "scrollWidth": 1280,
+      "bodyScrollWidth": 1280,
+      "offenders": [
+        {
+          "el": "a.skip-link \"Skip to content\"",
+          "left": -9999,
+          "right": -9817,
+          "width": 182,
+          "overflow": 9999
+        }
+      ]
+    },
+    {
+      "role": "staff",
+      "lang": "en",
+      "width": 1280,
+      "path": "/portal/report-center",
+      "status": 200,
+      "ok": true,
+      "dir": "ltr",
+      "clientWidth": 1280,
+      "scrollWidth": 1280,
+      "bodyScrollWidth": 1280,
+      "offenders": [
+        {
+          "el": "a.skip-link \"Skip to content\"",
+          "left": -9999,
+          "right": -9817,
+          "width": 182,
+          "overflow": 9999
+        }
+      ]
+    },
+    {
+      "role": "staff",
+      "lang": "en",
+      "width": 1280,
+      "path": "/portal/reports",
+      "status": 200,
+      "ok": true,
+      "dir": "ltr",
+      "clientWidth": 1280,
+      "scrollWidth": 1280,
+      "bodyScrollWidth": 1280,
+      "offenders": [
+        {
+          "el": "a.skip-link \"Skip to content\"",
+          "left": -9999,
+          "right": -9817,
+          "width": 182,
+          "overflow": 9999
+        }
+      ]
+    },
+    {
+      "role": "staff",
+      "lang": "en",
+      "width": 1280,
+      "path": "/portal/surveys",
+      "status": 200,
+      "ok": true,
+      "dir": "ltr",
+      "clientWidth": 1280,
+      "scrollWidth": 1280,
+      "bodyScrollWidth": 1280,
+      "offenders": [
+        {
+          "el": "a.skip-link \"Skip to content\"",
+          "left": -9999,
+          "right": -9817,
+          "width": 182,
+          "overflow": 9999
+        }
+      ]
+    },
+    {
+      "role": "staff",
+      "lang": "en",
+      "width": 1280,
+      "path": "/portal/tags",
+      "status": 200,
+      "ok": true,
+      "dir": "ltr",
+      "clientWidth": 1280,
+      "scrollWidth": 1280,
+      "bodyScrollWidth": 1280,
+      "offenders": [
+        {
+          "el": "a.skip-link \"Skip to content\"",
+          "left": -9999,
+          "right": -9817,
+          "width": 182,
+          "overflow": 9999
+        },
+        {
+          "el": "input.input",
+          "left": 1079,
+          "right": 1339,
+          "width": 260,
+          "overflow": 59
+        }
+      ]
+    },
+    {
+      "role": "staff",
+      "lang": "en",
+      "width": 1280,
+      "path": "/portal/forms",
+      "status": 200,
+      "ok": true,
+      "dir": "ltr",
+      "clientWidth": 1280,
+      "scrollWidth": 1280,
+      "bodyScrollWidth": 1280,
+      "offenders": [
+        {
+          "el": "a.skip-link \"Skip to content\"",
+          "left": -9999,
+          "right": -9817,
+          "width": 182,
+          "overflow": 9999
+        }
+      ]
+    },
+    {
+      "role": "staff",
+      "lang": "en",
+      "width": 1280,
+      "path": "/portal/inquiries",
+      "status": 200,
+      "ok": true,
+      "dir": "ltr",
+      "clientWidth": 1280,
+      "scrollWidth": 1280,
+      "bodyScrollWidth": 1280,
+      "offenders": [
+        {
+          "el": "a.skip-link \"Skip to content\"",
+          "left": -9999,
+          "right": -9817,
+          "width": 182,
+          "overflow": 9999
+        }
+      ]
+    },
+    {
+      "role": "staff",
+      "lang": "en",
+      "width": 1280,
+      "path": "/portal/enhancements",
+      "status": 200,
+      "ok": true,
+      "dir": "ltr",
+      "clientWidth": 1280,
+      "scrollWidth": 1280,
+      "bodyScrollWidth": 1280,
+      "offenders": [
+        {
+          "el": "a.skip-link \"Skip to content\"",
+          "left": -9999,
+          "right": -9817,
+          "width": 182,
+          "overflow": 9999
+        }
+      ]
+    },
+    {
+      "role": "staff",
+      "lang": "en",
+      "width": 1280,
+      "path": "/portal/incidents",
+      "status": 200,
+      "ok": true,
+      "dir": "ltr",
+      "clientWidth": 1280,
+      "scrollWidth": 1280,
+      "bodyScrollWidth": 1280,
+      "offenders": [
+        {
+          "el": "a.skip-link \"Skip to content\"",
+          "left": -9999,
+          "right": -9817,
+          "width": 182,
+          "overflow": 9999
+        }
+      ]
+    },
+    {
+      "role": "staff",
+      "lang": "en",
+      "width": 1280,
+      "path": "/portal/consents",
+      "status": 200,
+      "ok": true,
+      "dir": "ltr",
+      "clientWidth": 1280,
+      "scrollWidth": 1280,
+      "bodyScrollWidth": 1280,
+      "offenders": [
+        {
+          "el": "a.skip-link \"Skip to content\"",
+          "left": -9999,
+          "right": -9817,
+          "width": 182,
+          "overflow": 9999
+        }
+      ]
+    },
+    {
+      "role": "staff",
+      "lang": "en",
+      "width": 1280,
+      "path": "/portal/drive",
+      "status": 200,
+      "ok": true,
+      "dir": "ltr",
+      "clientWidth": 1280,
+      "scrollWidth": 1280,
+      "bodyScrollWidth": 1280,
+      "offenders": [
+        {
+          "el": "a.skip-link \"Skip to content\"",
+          "left": -9999,
+          "right": -9817,
+          "width": 182,
+          "overflow": 9999
+        }
+      ]
+    },
+    {
+      "role": "staff",
+      "lang": "en",
+      "width": 1280,
+      "path": "/portal/support",
+      "status": 200,
+      "ok": true,
+      "dir": "ltr",
+      "clientWidth": 1280,
+      "scrollWidth": 1280,
+      "bodyScrollWidth": 1280,
+      "offenders": [
+        {
+          "el": "a.skip-link \"Skip to content\"",
+          "left": -9999,
+          "right": -9817,
+          "width": 182,
+          "overflow": 9999
+        }
+      ]
+    },
+    {
+      "role": "staff",
+      "lang": "en",
+      "width": 1280,
+      "path": "/portal/support/none-supported",
+      "ok": true,
+      "status": 404,
+      "skipped": true,
+      "scrollWidth": 0,
+      "clientWidth": 1280,
+      "offenders": []
+    },
+    {
+      "role": "staff",
+      "lang": "en",
+      "width": 1280,
+      "path": "/portal/support-inbox",
+      "status": 200,
+      "ok": true,
+      "dir": "ltr",
+      "clientWidth": 1280,
+      "scrollWidth": 1280,
+      "bodyScrollWidth": 1280,
+      "offenders": [
+        {
+          "el": "a.skip-link \"Skip to content\"",
+          "left": -9999,
+          "right": -9817,
+          "width": 182,
+          "overflow": 9999
+        }
+      ]
+    },
+    {
+      "role": "staff",
+      "lang": "en",
+      "width": 1280,
+      "path": "/portal/notifications",
+      "status": 200,
+      "ok": true,
+      "dir": "ltr",
+      "clientWidth": 1280,
+      "scrollWidth": 1280,
+      "bodyScrollWidth": 1280,
+      "offenders": [
+        {
+          "el": "a.skip-link \"Skip to content\"",
+          "left": -9999,
+          "right": -9817,
+          "width": 182,
+          "overflow": 9999
+        }
+      ]
+    },
+    {
+      "role": "staff",
+      "lang": "en",
+      "width": 1280,
+      "path": "/portal/audit",
+      "status": 200,
+      "ok": true,
+      "dir": "ltr",
+      "clientWidth": 1280,
+      "scrollWidth": 1280,
+      "bodyScrollWidth": 1280,
+      "offenders": [
+        {
+          "el": "a.skip-link \"Skip to content\"",
+          "left": -9999,
+          "right": -9817,
+          "width": 182,
+          "overflow": 9999
+        }
+      ]
+    },
+    {
+      "role": "staff",
+      "lang": "en",
+      "width": 1280,
+      "path": "/portal/performance",
+      "status": 200,
+      "ok": true,
+      "dir": "ltr",
+      "clientWidth": 1280,
+      "scrollWidth": 1280,
+      "bodyScrollWidth": 1280,
+      "offenders": [
+        {
+          "el": "a.skip-link \"Skip to content\"",
+          "left": -9999,
+          "right": -9817,
+          "width": 182,
+          "overflow": 9999
+        }
+      ]
+    },
+    {
+      "role": "staff",
+      "lang": "en",
+      "width": 1280,
+      "path": "/portal/supplies",
+      "status": 200,
+      "ok": true,
+      "dir": "ltr",
+      "clientWidth": 1280,
+      "scrollWidth": 1280,
+      "bodyScrollWidth": 1280,
+      "offenders": [
+        {
+          "el": "a.skip-link \"Skip to content\"",
+          "left": -9999,
+          "right": -9817,
+          "width": 182,
+          "overflow": 9999
+        }
+      ]
+    }
+  ],
+  "consoleErrors": [
+    "staff: Failed to load resource: the server responded with a status of 404 ()",
+    "staff: Failed to load resource: the server responded with a status of 404 ()"
+  ]
+}
