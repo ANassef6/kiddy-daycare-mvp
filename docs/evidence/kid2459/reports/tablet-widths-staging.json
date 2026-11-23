@@ -1,0 +1,147 @@
+[
+  {
+    "id": "390-list-only",
+    "ok": true,
+    "detail": "list=true thread=false sw=390"
+  },
+  {
+    "id": "390-thread-open",
+    "ok": true,
+    "detail": "thread=true list=false sw=390"
+  },
+  {
+    "id": "390-input-usable",
+    "ok": true,
+    "detail": "inputW=292"
+  },
+  {
+    "id": "390-controls-in-view",
+    "ok": true,
+    "detail": "inputX=49 inputW=292 sendX=49"
+  },
+  {
+    "id": "768-list-only",
+    "ok": true,
+    "detail": "list=true thread=false sw=768"
+  },
+  {
+    "id": "768-thread-open",
+    "ok": true,
+    "detail": "thread=true list=false sw=768"
+  },
+  {
+    "id": "768-input-usable",
+    "ok": true,
+    "detail": "inputW=450"
+  },
+  {
+    "id": "768-controls-in-view",
+    "ok": true,
+    "detail": "inputX=269 inputW=450 sendX=269"
+  },
+  {
+    "id": "780-list-only",
+    "ok": true,
+    "detail": "list=true thread=false sw=780"
+  },
+  {
+    "id": "780-thread-open",
+    "ok": true,
+    "detail": "thread=true list=false sw=780"
+  },
+  {
+    "id": "780-input-usable",
+    "ok": true,
+    "detail": "inputW=462"
+  },
+  {
+    "id": "780-controls-in-view",
+    "ok": true,
+    "detail": "inputX=269 inputW=462 sendX=269"
+  },
+  {
+    "id": "780-send",
+    "ok": true,
+    "detail": "message visible after send"
+  },
+  {
+    "id": "844-list-only",
+    "ok": true,
+    "detail": "list=true thread=false sw=844"
+  },
+  {
+    "id": "844-thread-open",
+    "ok": true,
+    "detail": "thread=true list=false sw=844"
+  },
+  {
+    "id": "844-input-usable",
+    "ok": true,
+    "detail": "inputW=526"
+  },
+  {
+    "id": "844-controls-in-view",
+    "ok": true,
+    "detail": "inputX=269 inputW=526 sendX=269"
+  },
+  {
+    "id": "900-list-only",
+    "ok": true,
+    "detail": "list=true thread=false sw=900"
+  },
+  {
+    "id": "900-thread-open",
+    "ok": true,
+    "detail": "thread=true list=false sw=900"
+  },
+  {
+    "id": "900-input-usable",
+    "ok": true,
+    "detail": "inputW=582"
+  },
+  {
+    "id": "900-controls-in-view",
+    "ok": true,
+    "detail": "inputX=269 inputW=582 sendX=269"
+  },
+  {
+    "id": "960-list-only",
+    "ok": true,
+    "detail": "list=true thread=false sw=960"
+  },
+  {
+    "id": "960-thread-open",
+    "ok": true,
+    "detail": "thread=true list=false sw=960"
+  },
+  {
+    "id": "960-input-usable",
+    "ok": true,
+    "detail": "inputW=642"
+  },
+  {
+    "id": "960-controls-in-view",
+    "ok": true,
+    "detail": "inputX=269 inputW=642 sendX=269"
+  },
+  {
+    "id": "1024-two-pane",
+    "ok": true,
+    "detail": "thread=true list=true grid=280px 460px inputW=254 sw=1024"
+  },
+  {
+    "id": "1024-desktop-input",
+    "ok": true,
+    "detail": "inputW=254"
+  },
+  {
+    "id": "1280-two-pane",
+    "ok": true,
+    "detail": "thread=true list=true grid=280px 716px inputW=433 sw=1280"
+  },
+  {
+    "id": "1280-desktop-input",
+    "ok": true,
+    "detail": "inputW=433"
+  }
+]

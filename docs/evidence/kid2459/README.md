@@ -32,9 +32,14 @@ width with no left/right swiping.
   they scroll inside the card.
 - At `<=720px` `.row form` and `input[type=file]` can shrink/wrap; `.list-item`
   rows wrap and long text breaks.
-- Staff Messages is single-pane below 720px: the conversation list is the entry
+- Staff Messages is single-pane below 1024px: the conversation list is the entry
   point; an explicit thread, a 1:1 chat or `?compose=1` replaces it, with a
-  localized back link. Desktop keeps the two panes.
+  localized back link. Desktop (>=1024px) keeps the two panes. The first cut of
+  this fix stopped at 720px, but the portal shell still holds its 220px sidebar
+  between 721px and 1023px, so the thread pane measured only 216–460px and the
+  message input collapsed to a 50–177px sliver. Both panes are now also
+  `min-width: 0`, and the composer stacks when it cannot give the input a real
+  typing width.
 - The Smart Lists builder and the observation goals grid stack on phones.
 - The 12-column finance transactions table is wrapped in `.table-scroll` so it
   cannot push the desktop page either.
@@ -109,8 +114,33 @@ Report: `reports/messages-mobile-staging.json` (local copy:
 | `npx tsc --noEmit` | clean |
 | `npm run lint` | 0 errors (pre-existing `<img>` warnings only) |
 | Targeted unit tests | 121 passed (i18n, Arabic, RTL shell, child nav, messaging, KID-182/207/169/2455, KID-472 composer/500) |
-| New guard | `tests/unit/kid2459-mobile-responsive.test.ts` (9 assertions) |
+| New guard | `tests/unit/kid2459-mobile-responsive.test.ts` (10 assertions) |
 | PR checks | `audit`, `Test + build + wrangler dry-run`, Vercel staging all pass |
+
+### Tablet and landscape widths (follow-up, 2026-11-23)
+
+The first fix only collapsed below 720px. A real browser at 768px, 780px,
+844px (landscape) and 900px still showed the two-pane layout: thread pane
+216–460px, message input 50–113px. That is the founder report "conversation
+next to the thread ... no space to type". The breakpoint is now 1024px.
+
+`docs/evidence/kid2459/tablet-width-verify.mjs` ran against staging
+`f7a2496` with an iPhone-13 profile (`isMobile`, `hasTouch`): **29/29 pass**.
+
+| Viewport | Layout | List on thread open | Message input | Page scrollWidth |
+| --- | --- | --- | --- | --- |
+| 390x844 | single pane | hidden | 292px | 390 |
+| 768x1024 | single pane | hidden | 450px | 768 |
+| 780x360 | single pane | hidden | 462px | 780 |
+| 844x390 (landscape) | single pane | hidden | 526px | 844 |
+| 900x400 | single pane | hidden | 582px | 900 |
+| 960x400 | single pane | hidden | 642px | 960 |
+| 1024x768 | two panes | visible | 254px | 1024 |
+| 1280x900 | two panes | visible | 433px | 1280 |
+
+A message was typed and sent in an existing thread at 780px and appeared.
+Screenshots: `shots/staging-tablet/`; report:
+`reports/tablet-widths-staging.json`.
 
 ## Staging
 
