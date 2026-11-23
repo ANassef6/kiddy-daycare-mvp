@@ -55,6 +55,33 @@ function chatwootOrigin() {
   }
 }
 
+// KID-2465: NEXT_PUBLIC_* values are inlined into the client bundle at build
+// time; Worker secrets are NOT visible to the browser. A build that carries
+// only one of the two Chatwoot values therefore ships a permanently disabled
+// widget (components/ChatwootWidget.tsx renders nothing when either is empty).
+// That is exactly how production lost the launcher on 2026-11-23, so fail the
+// build instead. Both unset stay supported: that is the intentional
+// "Chatwoot off" state for previews and tenants without support.
+export function assertChatwootBuildEnv(
+  /** @type {Record<string, string | undefined>} */
+  env = process.env,
+) {
+  const baseUrl = (env.NEXT_PUBLIC_CHATWOOT_BASE_URL ?? "").trim();
+  const websiteToken = (env.NEXT_PUBLIC_CHATWOOT_WEBSITE_TOKEN ?? "").trim();
+  if (Boolean(baseUrl) === Boolean(websiteToken)) return;
+  const missing = baseUrl
+    ? "NEXT_PUBLIC_CHATWOOT_WEBSITE_TOKEN"
+    : "NEXT_PUBLIC_CHATWOOT_BASE_URL";
+  const message =
+    `KID-2465: ${missing} is empty while the other Chatwoot build value is set. ` +
+    "NEXT_PUBLIC_* values are inlined at build time, so a production build " +
+    "would ship a disabled support widget. Set both or unset both.";
+  if ((env.NODE_ENV ?? "").toLowerCase() === "production") throw new Error(message);
+  // Development/test shells may intentionally leave the pair half-set while
+  // working on other surfaces; keep them running, but say it loudly.
+  console.warn(`${message} (not a production build)`);
+}
+
 function supabaseOrigin() {
   const raw = process.env.NEXT_PUBLIC_SUPABASE_URL;
   if (!raw) return null;
@@ -144,6 +171,11 @@ export function securityHeaders(mode) {
   });
   return headers;
 }
+
+// Runs on every config load (next build, dev, tests). Clean envs pass; in a
+// production build a half-configured Chatwoot env aborts before a bundle can
+// be produced, while development/test only warns.
+assertChatwootBuildEnv();
 
 const nextConfig = {
   experimental: {
