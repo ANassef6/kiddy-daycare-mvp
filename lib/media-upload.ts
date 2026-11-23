@@ -18,6 +18,7 @@ import {
   MAX_NEWSFEED_ATTACHMENT_BYTES,
   MAX_PHOTO_UPLOAD_BYTES,
   MAX_DRIVE_FILE_BYTES,
+  DOCUMENT_MIME_EXT,
   PHOTO_MIME_EXT,
   VIDEO_MIME_EXT,
   mediaKind,
@@ -57,10 +58,10 @@ const PURPOSE_CONFIG: Record<UploadPurpose, PurposeConfig> = {
   contract: { folder: "contracts", maxBytes: MAX_CONTRACT_BYTES, mimes: CONTRACT_TYPES },
   drive: {
     folder: "drive",
-    // The drive intentionally accepts any file type; the byte cap is the
-    // server-enforced boundary (same as KID-2450).
+    // KID-2467: the drive is documents-only. Photos, videos and images are
+    // refused here and re-checked against the stored object's HEAD MIME.
     maxBytes: MAX_DRIVE_FILE_BYTES,
-    mimes: null,
+    mimes: DOCUMENT_MIME_EXT,
   },
   newsfeed: {
     folder: "newsfeed",

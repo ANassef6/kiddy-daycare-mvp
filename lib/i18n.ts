@@ -354,9 +354,11 @@ export const en = {
   // KID-368 (DEF-004): /child/drive strings. The drive kind labels mirror the
   // portal upload form's enum (file | pdf | photo | video) with a safe EN
   // fallback for anything the daycare names itself.
+  // KID-2467: the drive is documents-only. kindPhoto/kindVideo stay in the
+  // dictionary so files shared before the change keep their labels.
   drive: {
     title: "Parent drive",
-    subtitle: "Documents, forms, and media shared with your family by the daycare.",
+    subtitle: "Documents and forms shared with your family by the daycare.",
     empty: "Nothing shared yet.",
     open: "Open",
     allChildren: "all children",
@@ -365,7 +367,9 @@ export const en = {
     kindPhoto: "Photo",
     kindVideo: "Video",
     errorAttachment:
-      "The file was not uploaded. Photos are compressed automatically; videos must be 60 seconds or less and under 4 MB. Nothing was saved.",
+      "The file was not uploaded. Documents must be 4 MB or less. Nothing was saved.",
+    errorDocumentOnly:
+      "Only documents can be added to the drive. Choose a PDF, Word, Excel, PowerPoint, text, or CSV file. Nothing was saved.",
   },
   // KID-2450: shared client-side media preparation copy (photos + video caps).
   media: {
@@ -1942,7 +1946,9 @@ export const en = {
     empty: "No incidents logged.",
   },
   driveAdmin: {
-    subtitle: "Share files with a family (a child) or with all families.",
+    subtitle: "Share documents with a family (a child) or with all families.",
+    documentsOnly:
+      "Documents only: PDF, Word, Excel, PowerPoint, text, or CSV. Photos and videos are not accepted here.",
     shareFileHeading: "Share a file",
     fileNameLabel: "File name (optional — defaults to upload name)",
     fileNamePlaceholder: "e.g. Handbook 2026.pdf",
@@ -2714,7 +2720,7 @@ export const ar = {
   },
   drive: {
     title: "الملفات المشتركة",
-    subtitle: "المستندات والنماذج والوسائط التي تشاركها حضانتك مع عائلتك.",
+    subtitle: "المستندات والنماذج التي تشاركها حضانتك مع عائلتك.",
     empty: "لم يُشارك أي شيء بعد.",
     open: "فتح",
     allChildren: "كل الأطفال",
@@ -2723,7 +2729,9 @@ export const ar = {
     kindPhoto: "صورة",
     kindVideo: "فيديو",
     errorAttachment:
-      "لم يُرفع الملف. تُضغط الصور تلقائيًا، ويجب ألا يزيد الفيديو عن 60 ثانية وأقل من 4 ميجابايت. لم يُحفظ شيء.",
+      "لم يُرفع الملف. يجب ألا يزيد حجم المستند عن 4 ميجابايت. لم يُحفظ شيء.",
+    errorDocumentOnly:
+      "يمكن إضافة المستندات فقط إلى الملفات المشتركة. اختر ملف PDF أو Word أو Excel أو PowerPoint أو نص أو CSV. لم يُحفظ شيء.",
   },
   // KID-2450: النصوص المشتركة لتجهيز الوسائط قبل الرفع (الصور وحدود الفيديو).
   media: {
@@ -4242,7 +4250,9 @@ export const ar = {
     empty: "لم تُسجَّل أي حوادث.",
   },
   driveAdmin: {
-    subtitle: "شارِك الملفات مع إحدى العائلات (طفل) أو مع كل العائلات.",
+    subtitle: "شارِك المستندات مع إحدى العائلات (طفل) أو مع كل العائلات.",
+    documentsOnly:
+      "المستندات فقط: PDF أو Word أو Excel أو PowerPoint أو نص أو CSV. لا تُقبل الصور أو الفيديوهات هنا.",
     shareFileHeading: "مشاركة ملف",
     fileNameLabel: "اسم الملف (اختياري — يُستخدم اسم الرفع افتراضيًا)",
     fileNamePlaceholder: "مثلًا: دليل 2026.pdf",

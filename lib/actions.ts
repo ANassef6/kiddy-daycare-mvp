@@ -27,6 +27,7 @@ import { parsePaymentLink } from "@/lib/instapay";
 import { validatePaymentProof, paymentProofFilename } from "@/lib/payment-proof";
 import { validateContract, contractStorageFilename } from "@/lib/contract";
 import {
+  DOCUMENT_MIME_EXT,
   MAX_DRIVE_FILE_BYTES,
   MAX_EVENT_ATTACHMENT_BYTES,
   MAX_MESSAGE_ATTACHMENT_BYTES,
@@ -3306,7 +3307,9 @@ export async function addDriveFileAction(formData: FormData) {
     const uploaded = formData.get("file");
     let filename = String(formData.get("filename") ?? "").trim();
     let url = "";
-    let kind = String(formData.get("kind") ?? "file");
+    // KID-2467: the drive stores documents only. Older clients may still
+    // submit photo/video kinds; they are normalized to a document kind.
+    let kind = String(formData.get("kind") ?? "file") === "pdf" ? "pdf" : "file";
     let sizeBytes: number | undefined;
     // KID-2453: the browser may have already streamed the file to R2 and
     // submitted only its verified private REF.
@@ -3319,35 +3322,25 @@ export async function addDriveFileAction(formData: FormData) {
       url = presigned.ref;
       sizeBytes = presigned.size;
       filename = filename || String(formData.get("fileRefName") ?? "").trim() || "upload";
-      const mime = presigned.contentType;
-      if (kind === "file") {
-        if (mime.startsWith("image/")) kind = "photo";
-        else if (mime === "application/pdf") kind = "pdf";
-        else if (mime.startsWith("video/")) kind = "video";
-      }
+      if (kind === "file" && presigned.contentType === "application/pdf") kind = "pdf";
+    } else if (presigned.code === "type" && !(uploaded instanceof File && uploaded.size > 0)) {
+      // A stale tab uploaded a now-refused type straight to storage.
+      redirect("/portal/drive?error=document");
     } else if (uploaded instanceof File && uploaded.size > 0) {
-      // KID-2450: server mirror of the drive's client cap (any type, 4 MB,
-      // videos also <= 60s for MP4/MOV).
+      // KID-2467: documents only. The declared MIME must be on the drive
+      // whitelist before the bytes are read or stored.
+      const mime = uploaded.type || "application/octet-stream";
+      if (!isAllowedPurposeMime("drive", mime)) redirect("/portal/drive?error=document");
+      // KID-2450: server mirror of the drive's client cap (4 MB).
       if (uploaded.size > MAX_DRIVE_FILE_BYTES) redirect("/portal/drive?error=attachment");
       filename = filename || uploaded.name || "upload";
       sizeBytes = uploaded.size;
       const buf = Buffer.from(await uploaded.arrayBuffer());
-      const mime = uploaded.type || "application/octet-stream";
-      if (mediaKind(mime) === "video") {
-        const seconds = mp4DurationSeconds(buf);
-        if (seconds !== null && seconds > MAX_VIDEO_DURATION_SECONDS) {
-          redirect("/portal/drive?error=attachment");
-        }
-      }
-      if (kind === "file") {
-        if (mime.startsWith("image/")) kind = "photo";
-        else if (mime === "application/pdf") kind = "pdf";
-        else if (mime.startsWith("video/")) kind = "video";
-      }
+      if (kind === "file" && mime === "application/pdf") kind = "pdf";
       // KID-2453: private object in the tenant's drive folder. The data-URI
       // fallback keeps local development (no storage env) working.
       if (storageAdminConfigured()) {
-        const ext = mime.split("/")[1]?.replace(/[^a-z0-9]+/gi, "").slice(0, 8) || "bin";
+        const ext = DOCUMENT_MIME_EXT[mime] ?? "bin";
         const uploadedObject = await uploadPrivateObject(
           `drive/${instituteId}/${crypto.randomUUID()}.${ext}`,
           uploaded,

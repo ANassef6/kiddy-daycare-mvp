@@ -250,7 +250,7 @@ describe("KID-2450 server-side upload caps", () => {
     const before = Number((await mustGet("SELECT COUNT(*) c FROM drive_file")).c);
     const { addDriveFileAction } = await import("@/lib/actions");
     const form = new FormData();
-    form.set("file", new File([Buffer.alloc(MAX_DRIVE_FILE_BYTES + 1, 1)], "huge.bin", { type: "application/octet-stream" }));
+    form.set("file", new File([Buffer.alloc(MAX_DRIVE_FILE_BYTES + 1, 1)], "huge.pdf", { type: "application/pdf" }));
     const target = await redirectTargetOf(() => addDriveFileAction(form));
     expect(target).toContain("error=attachment");
     const after = Number((await mustGet("SELECT COUNT(*) c FROM drive_file")).c);

@@ -61,6 +61,32 @@ export const VIDEO_MIME_EXT: Record<string, string> = {
   "video/ogg": "ogv",
 };
 
+// KID-2467: the drive is a documents-only area. These are the only types a
+// new drive upload may declare (browser MIME, then re-checked against the
+// stored object's HEAD Content-Type). Photos, videos and images are refused.
+export const DOCUMENT_MIME_EXT: Record<string, string> = {
+  "application/pdf": "pdf",
+  "application/msword": "doc",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document": "docx",
+  "application/vnd.ms-excel": "xls",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": "xlsx",
+  "application/vnd.ms-powerpoint": "ppt",
+  "application/vnd.openxmlformats-officedocument.presentationml.presentation": "pptx",
+  "application/vnd.oasis.opendocument.text": "odt",
+  "application/vnd.oasis.opendocument.spreadsheet": "ods",
+  "application/vnd.oasis.opendocument.presentation": "odp",
+  "text/plain": "txt",
+  "text/csv": "csv",
+  "application/rtf": "rtf",
+  "text/rtf": "rtf",
+};
+
+/** File-picker hint for the drive upload form (documents only). */
+export const DOCUMENT_ACCEPT = Object.values(DOCUMENT_MIME_EXT)
+  .map((ext) => `.${ext}`)
+  .filter((ext, index, all) => all.indexOf(ext) === index)
+  .join(",");
+
 export type MediaKind = "image" | "video" | "pdf" | "other";
 
 export function mediaKind(mime: string | undefined | null): MediaKind {
@@ -73,6 +99,10 @@ export function mediaKind(mime: string | undefined | null): MediaKind {
 
 export function isPhotoMime(mime: string | undefined | null): boolean {
   return !!PHOTO_MIME_EXT[String(mime ?? "").toLowerCase()];
+}
+
+export function isDocumentMime(mime: string | undefined | null): boolean {
+  return !!DOCUMENT_MIME_EXT[String(mime ?? "").toLowerCase()];
 }
 
 // KID-2455: message rows store only the attachment name (plus its URL), so the
