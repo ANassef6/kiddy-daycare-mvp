@@ -9,6 +9,8 @@ import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createSessionToken } from "@/lib/auth";
+import { queryRun } from "@/lib/db";
+import { driveFilesFor } from "@/lib/store";
 import { mustGet, seedFixture } from "../helpers";
 import {
   DOCUMENT_ACCEPT,
@@ -126,18 +128,37 @@ describe("KID-2467: drive document whitelist", () => {
     expect(await driveCount()).toBe(before);
   });
 
-  it("still stores a PDF with the pdf kind", async () => {
+  it("still stores and shares a PDF with the pdf kind", async () => {
     const before = await driveCount();
+    const child = await mustGet("SELECT id, institute_id FROM child LIMIT 1");
     const { addDriveFileAction } = await import("@/lib/actions");
     const form = new FormData();
     form.set("filename", "Handbook.pdf");
     form.set("file", new File([Buffer.from("%PDF-1.4 test")], "Handbook.pdf", { type: "application/pdf" }));
     form.set("kind", "file");
+    form.set("childId", String(child.id));
     await redirectTargetOf(() => addDriveFileAction(form));
     expect(await driveCount()).toBe(before + 1);
-    const row = await mustGet("SELECT filename, kind FROM drive_file ORDER BY id DESC LIMIT 1");
+    const row = await mustGet("SELECT filename, kind, child_id FROM drive_file ORDER BY id DESC LIMIT 1");
     expect(String(row.filename)).toBe("Handbook.pdf");
     expect(String(row.kind)).toBe("pdf");
+    expect(String(row.child_id)).toBe(String(child.id));
+    const shared = await driveFilesFor(String(child.institute_id), String(child.id));
+    expect(shared.some((f) => String(f.filename) === "Handbook.pdf")).toBe(true);
+  });
+
+  it("keeps photo rows shared before the change visible to the parent", async () => {
+    const child = await mustGet("SELECT id, institute_id FROM child LIMIT 1");
+    await queryRun(
+      `INSERT INTO drive_file (id, institute_id, filename, url, kind, size_bytes, child_id)
+       VALUES ('legacy-photo', ?, 'Beach day.jpg', 'data:image/jpeg;base64,AA==', 'photo', 1, ?)`,
+      String(child.institute_id),
+      String(child.id)
+    );
+    const shared = await driveFilesFor(String(child.institute_id), String(child.id));
+    const legacy = shared.find((f) => String(f.id) === "legacy-photo");
+    expect(legacy).toBeTruthy();
+    expect(String(legacy?.kind)).toBe("photo");
   });
 
   it("still stores a Word document with the file kind", async () => {
