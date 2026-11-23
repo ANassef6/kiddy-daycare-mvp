@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { requireSession } from "@/lib/require";
 import { listEvents, eventMedia } from "@/lib/store";
 import { firstInstituteId } from "@/lib/helpers";
@@ -75,6 +76,16 @@ export default async function PortalEventsPage({ searchParams }: { searchParams:
             {e.start_time && <div className="muted small">{fmtTimeFor(locale, e.start_time)}{e.end_time ? ` – ${fmtTimeFor(locale, e.end_time)}` : ""}</div>}
             {e.location && <div className="muted small">📍 {e.location}</div>}
             {e.description && <p className="small mt-2">{e.description}</p>}
+            {/* KID-2466: the upload form was previously reachable only by
+                hand-building ?open=; staff need a visible control. */}
+            <div className="row mt-2" style={{ justifyContent: "space-between", alignItems: "center" }}>
+              <Link
+                className="btn btn-ghost small"
+                href={openId === e.id ? "/portal/events" : `/portal/events?open=${e.id}#event-media-${e.id}`}
+              >
+                {openId === e.id ? t("events.closeAttach") : t("events.attach")}
+              </Link>
+            </div>
             {e.media.length > 0 && (
               <div className="row mt-2">
                 {e.media.map((m: any) => {
