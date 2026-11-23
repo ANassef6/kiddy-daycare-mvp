@@ -2048,20 +2048,25 @@ html[dir="rtl"] .skip-link:focus {
 /* KID-475 OBS-002: at phone widths the composer's `.row` wrapped its three
    flex items into two cramped lines — the message input measured 86px wide at
    390px and 56px at 360px (a sliver beside a full-width recipient select,
-   which read as "the textbox is not editable"). Below the 720px breakpoint
-   the recipient select and the message input each take a full line and the
-   send button becomes a full-width 44px hit target, matching the KID-369
-   tap-area guidance. Logical flex properties keep this symmetrical in RTL
-   (verified EN + AR at 320/360/390/430). */
+   which read as "the textbox is not editable"). The message input now asks
+   for a real typing width (`flex-basis: 220px`) so it wraps to its own line
+   whenever the pane cannot give it that, and below 1024px the recipient
+   select and the message input each take a full line with a full-width 44px
+   send target, matching the KID-369 tap-area guidance. KID-2459: the
+   breakpoint moved up with the Messages single-pane breakpoint because the
+   two-pane thread measured only 216–460px between 721px and 1023px.
+   Logical flex properties keep this symmetrical in RTL (verified EN + AR at
+   320/360/390/430). */
 .messages-composer .select {
   max-width: 260px;
 }
 
 .messages-composer .input {
-  flex: 1;
+  flex: 1 1 220px;
+  min-width: 0;
 }
 
-@media (max-width: 720px) {
+@media (max-width: 1023.98px) {
   .messages-composer .select,
   .messages-composer .input,
   .messages-composer .btn {
@@ -2172,15 +2177,23 @@ html[dir="rtl"] .skip-link:focus {
 
 /* The staff Messages screen is two panes on desktop: a 280px conversation
    list and a fluid thread/composer. On a phone that layout pushed the thread
-   off the viewport and clipped the composer controls. Below the 720px
-   breakpoint the same markup becomes one pane: the list is the entry point,
-   and opening a thread, a 1:1 chat or the composer replaces it. A back link
-   returns to the list. Desktop and tablet keep the two-pane layout. */
+   off the viewport and clipped the composer controls. KID-2459: between
+   721px and 1023px the portal shell still holds its 220px sidebar, so the
+   two-pane thread pane measured only 216–460px and the message input
+   collapsed to a 50–177px sliver ("no space to type"). Below 1024px the same
+   markup becomes one pane: the list is the entry point, and opening a thread,
+   a 1:1 chat or the composer replaces it. A back link returns to the list.
+   Desktop (>=1024px) keeps the two panes. */
+.messages-layout,
+.messages-layout > .card {
+  min-width: 0;
+}
+
 .messages-back {
   display: none;
 }
 
-@media (max-width: 720px) {
+@media (max-width: 1023.98px) {
   .messages-layout {
     grid-template-columns: minmax(0, 1fr) !important;
   }

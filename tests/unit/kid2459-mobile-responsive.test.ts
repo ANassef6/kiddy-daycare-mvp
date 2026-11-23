@@ -15,9 +15,10 @@ const read = (rel: string) => readFileSync(path.join(root, rel), "utf8");
 const css = read("app/globals.css");
 const messagesPage = read("app/portal/messages/page.tsx");
 
-/** Pull a `@media (max-width: 720px) { ... }` block that contains `marker`. */
-function phoneBlock(marker: string): string {
-  const blocks = [...css.matchAll(/@media\s*\(max-width:\s*720px\)\s*\{/g)];
+/** Pull an `@media (max-width: <width>) { ... }` block that contains `marker`. */
+function blockAt(width: string, marker: string): string {
+  const escaped = width.replace(/\./g, "\\.");
+  const blocks = [...css.matchAll(new RegExp(`@media\\s*\\(max-width:\\s*${escaped}px\\)\\s*\\{`, "g"))];
   for (const match of blocks) {
     let depth = 1;
     let i = (match.index ?? 0) + match[0].length;
@@ -31,6 +32,11 @@ function phoneBlock(marker: string): string {
     if (body.includes(marker)) return body;
   }
   return "";
+}
+
+/** Pull a `@media (max-width: 720px) { ... }` block that contains `marker`. */
+function phoneBlock(marker: string): string {
+  return blockAt("720", marker);
 }
 
 describe("KID-2459 mobile responsiveness", () => {
@@ -64,15 +70,24 @@ describe("KID-2459 mobile responsiveness", () => {
     expect(read("app/portal/finance/page.tsx")).toContain('<div className="table-scroll mt-3">');
   });
 
-  it("collapses the Messages two-pane layout to one pane below 720px", () => {
-    const block = phoneBlock(".messages-layout");
+  it("collapses the Messages two-pane layout to one pane below 1024px", () => {
+    const block = blockAt("1023.98", ".messages-layout");
     expect(block).toContain("grid-template-columns: minmax(0, 1fr) !important");
     expect(block).toMatch(/\.messages-layout\.messages-has-selection \.messages-list\s*\{[^}]*display:\s*none/);
     expect(block).toMatch(
       /\.messages-layout:not\(\.messages-has-selection\) \.messages-thread\s*\{[^}]*display:\s*none/
     );
+    // Both panes can shrink inside the grid, so no child can stretch the page.
+    expect(css).toMatch(/\.messages-layout,\s*\n\.messages-layout > \.card\s*\{[^}]*min-width:\s*0/);
     // Outside the media query the back link stays hidden on desktop.
     expect(css).toMatch(/\.messages-back\s*\{[^}]*display:\s*none/);
+  });
+
+  it("stacks the Messages composer before the thread pane gets too narrow", () => {
+    expect(css).toMatch(/\.messages-composer \.input\s*\{[^}]*flex:\s*1 1 220px/);
+    const block = blockAt("1023.98", ".messages-composer");
+    expect(block).toMatch(/\.messages-composer \.input,[\s\S]*?flex:\s*1 1 100%/);
+    expect(block).toMatch(/\.messages-composer \.btn\s*\{[^}]*min-height:\s*44px/);
   });
 
   it("marks the Messages panes and only counts an explicit selection", () => {
