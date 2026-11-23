@@ -1634,27 +1634,11 @@ async function resolveNewsfeedRecipients(
   });
 }
 
-// KID-57: persist the user's app language (English | Arabic). The root layout
-// and every page resolve the locale from `account.language`, and once saved the
-// server action also drops the lang cookie so `dir`/`lang` apply immediately.
-export async function saveLanguageAction(formData: FormData) {
-  const locale = String(formData.get("locale") ?? "");
-  if (locale !== "en" && locale !== "ar") redirect("/");
-  const me = await authAccount({ allowReadOnly: true });
-  const { setAccountLanguage } = await import("@/lib/auth");
-  const account = await (await import("@/lib/auth")).getAccount(me.accountId);
-  if (account) {
-    await setAccountLanguage(me.accountId, locale);
-  }
-  (await cookies()).set(LANG_COOKIE, locale, {
-    httpOnly: false,
-    sameSite: "lax",
-    path: "/",
-    maxAge: 30 * 24 * 3600,
-  });
-  revalidatePath("/", "layout");
-  redirect(homeForRole(me.role) === "/child" ? "/child" : "/portal/account");
-}
+// KID-57: the app language lives on `account.language` + the kiddy_lang
+// cookie. KID-2460 moved the write to the native POST route
+// /switch-app-lang: a server-action redirect kept the mounted layouts (and
+// <html lang dir>) on the old language while only the page segment updated,
+// which is how an Arabic portal ended up with an English, LTR sidebar.
 
 export async function checkInOutAction(formData: FormData) {
   const childId = String(formData.get("childId") ?? "");
