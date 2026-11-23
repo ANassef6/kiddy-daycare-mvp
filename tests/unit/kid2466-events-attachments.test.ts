@@ -250,6 +250,9 @@ describe("KID-2466 event pages render signed media only", () => {
     expect(src).toContain("MediaUploadForm");
     expect(src).toContain('purpose: "event"');
     expect(src).toContain("signedUrlsForRefs");
+    // The form must be reachable from the page, not only via a hand-built URL.
+    expect(src).toContain("/portal/events?open=");
+    expect(src).toContain("closeAttach");
     expect(src).not.toContain('name="url"');
     expect(src).not.toMatch(/src=\{m\.url\}/);
     expect(src).toMatch(/mediaSrcs\.get\(String\(m\.url/);
