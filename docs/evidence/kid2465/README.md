@@ -1,6 +1,7 @@
 # KID-2465 — restore the Chatwoot support widget on the Cloudflare Worker
 
-Status: **staging verified; production cut waiting on founder approval.**
+Status: **complete — staging verified, production cut deployed and verified
+(see [`prod-cut.md`](prod-cut.md)).**
 
 ## Root cause (confirmed)
 
@@ -72,20 +73,12 @@ Signed in as `founder.parent@staging.kiddy.test` (staging-only fixture).
 
 `/favicon.ico` returning 404 is pre-existing and unrelated to the widget.
 
-## Production rollback reference (not yet cut)
+## Production cut (done 2026-11-23T23:10Z)
 
-| Item | Value |
-| --- | --- |
-| Current production version | `c143eb0b-4a07-4856-a043-78a9103733ef` |
-| Current deployment | `a668366c-b694-48cb-9290-66c3e178cab1` |
-| Message | `KID-2463-csp-r2-master-e86efa6` |
+Merged in PR #104 (`97da72e`) and deployed as `kiddy-web` version
+`b02ff0f0-83e1-4f75-814a-e73be305066a`. Rollback target is
+`c143eb0b-4a07-4856-a043-78a9103733ef` (deployment
+`a668366c-b694-48cb-9290-66c3e178cab1`). No route or DNS change was needed.
 
-Rollback is a version rollback on the `kiddy-web` Worker; no route or DNS
-change is needed.
-
-## Production cut (gated)
-
-Rebuild from the merged fix with the production public values exported (the
-token from the Vercel production env, never committed), deploy the same way as
-staging, then repeat the checks above on `https://kiddyapp.net` in EN and AR
-and confirm the two messaging routes stay hidden.
+The production live checks, screenshots, probes and rollback steps are in
+[`prod-cut.md`](prod-cut.md).
