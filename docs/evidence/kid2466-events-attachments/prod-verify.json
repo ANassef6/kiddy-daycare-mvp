@@ -1,0 +1,42 @@
+{
+  "issue": "KID-2466",
+  "checkedAt": "2026-11-24T00:26:00Z",
+  "site": "https://sunshine.kiddyapp.net",
+  "worker": {
+    "name": "kiddy-web",
+    "version": "6cad1a8a-57e2-4366-8428-d6921748c091",
+    "message": "KID-2466-events-attachments-master-32a65f4",
+    "previousVersion": "3f7287fc-0c74-441f-bea8-b0e3bb75dea0",
+    "mergeCommit": "32a65f410e90279e0b5e47a2bb9007c418a122ba"
+  },
+  "bundleMarkers": {
+    "layoutChunk": "layout-60f207383df14807.js",
+    "chatwootTokenInlined": true,
+    "kid2466EventMediaOccurrences": 20,
+    "kid2467DocumentGuardOccurrences": 4
+  },
+  "anonymousProbes": {
+    "GET /": 200,
+    "GET /login": 200,
+    "GET /portal/events": "307 -> https://kiddyapp.net/login",
+    "GET /child/events": "307 -> https://kiddyapp.net/login",
+    "GET /_next/static/chunks/app/layout-60f207383df14807.js": "200 (7540 bytes)",
+    "GET /api/media/presign": 405,
+    "csp": "Content-Security-Policy-Report-Only, R2 origin present, unchanged"
+  },
+  "authenticatedParent": {
+    "account": "parent@example.test (Sunshine demo)",
+    "method": "POST /api/mobile/login -> kiddy_sess cookie",
+    "pages": {
+      "/child": { "status": 200, "signedUrls": 0, "rawR2Refs": 0, "img": 2, "video": 0 },
+      "/child/newsfeed": { "status": 200, "signedUrls": 6, "rawR2Refs": 0, "img": 4, "video": 0 },
+      "/child/drive": { "status": 200, "signedUrls": 8, "rawR2Refs": 0, "img": 2, "video": 0 },
+      "/child/events": { "status": 200, "signedUrls": 0, "rawR2Refs": 0, "img": 2, "video": 0 }
+    }
+  },
+  "notes": [
+    "The staff upload flow was verified end-to-end on staging on the same code; production exposes no staff test credential.",
+    "No media exists on the seeded production events, so /child/events shows zero signed URLs but zero raw r2-private: REFs.",
+    "An intermediate deploy (df20d0a6, 00:19:48Z) was built from the PR branch and omitted the concurrently merged KID-2467 change; it was replaced at 00:24Z by the combined master build 6cad1a8a."
+  ]
+}

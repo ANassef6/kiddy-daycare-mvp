@@ -1,6 +1,6 @@
 # KID-2466 — real photo/video attachments on events
 
-Status: **staging verified. Production cut is gated on founder sign-off.**
+Status: **staging verified and shipped to production** — see `prod-cut.md`.
 
 ## Change
 
@@ -90,5 +90,8 @@ Screenshots: `staging-staff-events-ar.png`, `staging-staff-upload-ar.png`.
 
 ## Production
 
-No production cut was made. Applying this to `master` waits for the founder's
-staging sign-off, per the standing workflow.
+The founder accepted the confirmation card `a71b939d-afe7-439e-951e-347d0d875801`
+on 2026-11-24T00:04:42Z. The change was cherry-picked onto `master` and shipped
+as PR #112 / merge `32a65f4` in Worker version `6cad1a8a-57e2-4366-8428-d6921748c091`.
+The cut record, build inputs, live probes and rollback are in `prod-cut.md` and
+`prod-verify.json`.
