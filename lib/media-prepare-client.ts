@@ -33,7 +33,7 @@ export type MediaPrepareLabels = {
 };
 
 export type MediaDirectUpload = {
-  purpose: "photo" | "proof" | "contract" | "drive" | "newsfeed" | "message";
+  purpose: "photo" | "proof" | "contract" | "drive" | "newsfeed" | "message" | "event";
   entityType?: string;
   entityId?: string;
   /** The file input's name. Defaults to "file". */

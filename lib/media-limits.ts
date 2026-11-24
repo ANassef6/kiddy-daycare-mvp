@@ -32,6 +32,9 @@ export const MAX_VIDEO_UPLOAD_BYTES = 4 * 1024 * 1024;
 export const MAX_MESSAGE_ATTACHMENT_BYTES = 1_500_000;
 export const MAX_NEWSFEED_ATTACHMENT_BYTES = 2_500_000;
 export const MAX_DRIVE_FILE_BYTES = 4 * 1024 * 1024;
+// KID-2466: event attachments are photos/videos only. The ceiling matches the
+// newsfeed request-body boundary and the product's "~4 MB, video <=60s" spec.
+export const MAX_EVENT_ATTACHMENT_BYTES = 4 * 1024 * 1024;
 
 export const PHOTO_MIME_EXT: Record<string, string> = {
   "image/jpeg": "jpg",
