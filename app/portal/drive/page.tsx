@@ -7,7 +7,7 @@ import { i18nForAccount } from "@/lib/i18n-session";
 import { tr, type Dict } from "@/lib/i18n";
 import MediaUploadForm from "@/components/MediaUploadForm";
 import { mediaUploadLabels } from "@/lib/media-i18n";
-import { MAX_DRIVE_FILE_BYTES, MAX_VIDEO_DURATION_SECONDS } from "@/lib/media-limits";
+import { DOCUMENT_ACCEPT, MAX_DRIVE_FILE_BYTES } from "@/lib/media-limits";
 import { signedUrlsForRefs } from "@/lib/storage";
 
 export const dynamic = "force-dynamic";
@@ -36,6 +36,11 @@ export default async function PortalDrivePage(props: {
       <h1 className="title">{tr(dict, "drive.title")}</h1>
       <div className="subtitle">{tr(dict, "driveAdmin.subtitle")}</div>
 
+      {params.error === "document" && (
+        <div role="alert" className="card mb-4" style={{ borderLeft: "4px solid #b91c1c" }}>
+          <p className="small" style={{ margin: 0 }}>{tr(dict, "drive.errorDocumentOnly")}</p>
+        </div>
+      )}
       {params.error === "attachment" && (
         <div role="alert" className="card mb-4" style={{ borderLeft: "4px solid #b91c1c" }}>
           <p className="small" style={{ margin: 0 }}>{tr(dict, "drive.errorAttachment")}</p>
@@ -48,18 +53,16 @@ export default async function PortalDrivePage(props: {
           action={addDriveFileAction}
           encType="multipart/form-data"
           maxImageBytes={MAX_DRIVE_FILE_BYTES}
-          maxVideoBytes={MAX_DRIVE_FILE_BYTES}
-          maxVideoSeconds={MAX_VIDEO_DURATION_SECONDS}
           maxFileBytes={MAX_DRIVE_FILE_BYTES}
           labels={mediaUploadLabels(dict)}
           directUpload={{ purpose: "drive" }}
         >
           <div className="row">
             <div className="col field"><label className="label">{tr(dict, "driveAdmin.fileNameLabel")}</label><input className="input" name="filename" placeholder={tr(dict, "driveAdmin.fileNamePlaceholder")} /></div>
-            <div className="col field"><label className="label">{tr(dict, "driveAdmin.chooseFromDevice")}</label><input className="input" type="file" name="file" required /></div>
+            <div className="col field"><label className="label">{tr(dict, "driveAdmin.chooseFromDevice")}</label><input className="input" type="file" name="file" accept={DOCUMENT_ACCEPT} required /></div>
             <div className="col field">
               <label className="label">{tr(dict, "driveAdmin.typeLabel")}</label>
-              <select className="select" name="kind"><option value="file">{tr(dict, "drive.kindFile")}</option><option value="pdf">{tr(dict, "drive.kindPdf")}</option><option value="photo">{tr(dict, "drive.kindPhoto")}</option><option value="video">{tr(dict, "drive.kindVideo")}</option></select>
+              <select className="select" name="kind"><option value="file">{tr(dict, "drive.kindFile")}</option><option value="pdf">{tr(dict, "drive.kindPdf")}</option></select>
             </div>
           </div>
           <div className="row">
@@ -71,6 +74,7 @@ export default async function PortalDrivePage(props: {
               </select>
             </div>
           </div>
+          <p className="muted small" style={{ margin: "0 0 8px" }}>{tr(dict, "driveAdmin.documentsOnly")}</p>
           <div className="field"><label className="label">{tr(dict, "common.description")}</label><input className="input" name="description" /></div>
           <button className="btn btn-primary" type="submit">{tr(dict, "driveAdmin.shareFileBtn")}</button>
         </MediaUploadForm>
