@@ -1,0 +1,716 @@
+{
+  "baseUrl": "http://localhost:3124",
+  "generatedAt": "2026-11-24T16:21:36.558Z",
+  "viewport": {
+    "width": 1366,
+    "height": 900
+  },
+  "pass": true,
+  "failures": [],
+  "forward": {
+    "direction": "forward",
+    "steps": [
+      {
+        "from": null,
+        "to": "/",
+        "immediate": {
+          "path": "/",
+          "armed": true,
+          "revealTargets": 16,
+          "hero": {
+            "className": "hero",
+            "text": "One app for the whole daycare day.Check-in, chec",
+            "opacity": 1,
+            "inViewport": true
+          },
+          "hiddenAnywhere": [
+            {
+              "className": "feature-row",
+              "text": "MiddayDaily reportsMeals, sleep, mood, diaper, a",
+              "opacity": 0,
+              "inViewport": false
+            },
+            {
+              "className": "feature-row",
+              "text": "All dayNewsfeedPhotos, announcements, and today'",
+              "opacity": 0,
+              "inViewport": false
+            },
+            {
+              "className": "center mt-5",
+              "text": "Explore all features",
+              "opacity": 0,
+              "inViewport": false
+            },
+            {
+              "className": "section-title center",
+              "text": "How a center gets started",
+              "opacity": 0,
+              "inViewport": false
+            },
+            {
+              "className": "step-flow-item",
+              "text": "1Set up your centerRooms, staff, profiles, and e",
+              "opacity": 0,
+              "inViewport": false
+            },
+            {
+              "className": "step-flow-item",
+              "text": "2The day runs on itStaff check children in and o",
+              "opacity": 0,
+              "inViewport": false
+            },
+            {
+              "className": "step-flow-item",
+              "text": "3Families stay closeParents see live status, rea",
+              "opacity": 0,
+              "inViewport": false
+            },
+            {
+              "className": "audience-panel audience-parents",
+              "text": "For parentsYour child's day, without the guesswo",
+              "opacity": 0,
+              "inViewport": false
+            },
+            {
+              "className": "audience-panel audience-centers",
+              "text": "For centersRun the daily operation from one plac",
+              "opacity": 0,
+              "inViewport": false
+            },
+            {
+              "className": "cta-band",
+              "text": "See Kiddy in actionWe work with daycares directl",
+              "opacity": 0,
+              "inViewport": false
+            }
+          ],
+          "hiddenInViewport": []
+        },
+        "afterScroll": null
+      },
+      {
+        "from": "/",
+        "to": "/features",
+        "immediate": {
+          "path": "/features",
+          "armed": true,
+          "revealTargets": 13,
+          "hero": {
+            "className": "container",
+            "text": "Feature overviewEverything a childcare day needs",
+            "opacity": 1,
+            "inViewport": true
+          },
+          "hiddenAnywhere": [
+            {
+              "className": "card cta-card",
+              "text": "See it with your own daycare's dataBook a demo a",
+              "opacity": 0,
+              "inViewport": false
+            }
+          ],
+          "hiddenInViewport": []
+        },
+        "afterScroll": {
+          "path": "/features",
+          "armed": true,
+          "revealTargets": 13,
+          "hero": {
+            "className": "container",
+            "text": "Feature overviewEverything a childcare day needs",
+            "opacity": 1,
+            "inViewport": true
+          },
+          "hiddenAnywhere": [],
+          "hiddenInViewport": []
+        }
+      },
+      {
+        "from": "/features",
+        "to": "/for-parents",
+        "immediate": {
+          "path": "/for-parents",
+          "armed": true,
+          "revealTargets": 7,
+          "hero": {
+            "className": "container",
+            "text": "For parentsYour child's day, in your pocketFrom ",
+            "opacity": 1,
+            "inViewport": true
+          },
+          "hiddenAnywhere": [],
+          "hiddenInViewport": []
+        },
+        "afterScroll": {
+          "path": "/for-parents",
+          "armed": true,
+          "revealTargets": 7,
+          "hero": {
+            "className": "container",
+            "text": "For parentsYour child's day, in your pocketFrom ",
+            "opacity": 1,
+            "inViewport": true
+          },
+          "hiddenAnywhere": [],
+          "hiddenInViewport": []
+        }
+      },
+      {
+        "from": "/for-parents",
+        "to": "/for-centers",
+        "immediate": {
+          "path": "/for-centers",
+          "armed": true,
+          "revealTargets": 9,
+          "hero": {
+            "className": "container",
+            "text": "For centersRun the day from one placeAttendance,",
+            "opacity": 1,
+            "inViewport": true
+          },
+          "hiddenAnywhere": [],
+          "hiddenInViewport": []
+        },
+        "afterScroll": {
+          "path": "/for-centers",
+          "armed": true,
+          "revealTargets": 9,
+          "hero": {
+            "className": "container",
+            "text": "For centersRun the day from one placeAttendance,",
+            "opacity": 1,
+            "inViewport": true
+          },
+          "hiddenAnywhere": [],
+          "hiddenInViewport": []
+        }
+      },
+      {
+        "from": "/for-centers",
+        "to": "/contact",
+        "immediate": {
+          "path": "/contact",
+          "armed": true,
+          "revealTargets": 2,
+          "hero": {
+            "className": "container",
+            "text": "Contact & demosSee Kiddy up closeBook a walkthro",
+            "opacity": 1,
+            "inViewport": true
+          },
+          "hiddenAnywhere": [],
+          "hiddenInViewport": []
+        },
+        "afterScroll": {
+          "path": "/contact",
+          "armed": true,
+          "revealTargets": 2,
+          "hero": {
+            "className": "container",
+            "text": "Contact & demosSee Kiddy up closeBook a walkthro",
+            "opacity": 1,
+            "inViewport": true
+          },
+          "hiddenAnywhere": [],
+          "hiddenInViewport": []
+        }
+      },
+      {
+        "from": "/contact",
+        "to": "/",
+        "immediate": {
+          "path": "/",
+          "armed": true,
+          "revealTargets": 16,
+          "hero": {
+            "className": "hero",
+            "text": "One app for the whole daycare day.Check-in, chec",
+            "opacity": 1,
+            "inViewport": true
+          },
+          "hiddenAnywhere": [
+            {
+              "className": "feature-row",
+              "text": "MiddayDaily reportsMeals, sleep, mood, diaper, a",
+              "opacity": 0,
+              "inViewport": false
+            },
+            {
+              "className": "feature-row",
+              "text": "All dayNewsfeedPhotos, announcements, and today'",
+              "opacity": 0,
+              "inViewport": false
+            },
+            {
+              "className": "center mt-5",
+              "text": "Explore all features",
+              "opacity": 0,
+              "inViewport": false
+            },
+            {
+              "className": "section-title center",
+              "text": "How a center gets started",
+              "opacity": 0,
+              "inViewport": false
+            },
+            {
+              "className": "step-flow-item",
+              "text": "1Set up your centerRooms, staff, profiles, and e",
+              "opacity": 0,
+              "inViewport": false
+            },
+            {
+              "className": "step-flow-item",
+              "text": "2The day runs on itStaff check children in and o",
+              "opacity": 0,
+              "inViewport": false
+            },
+            {
+              "className": "step-flow-item",
+              "text": "3Families stay closeParents see live status, rea",
+              "opacity": 0,
+              "inViewport": false
+            },
+            {
+              "className": "audience-panel audience-parents",
+              "text": "For parentsYour child's day, without the guesswo",
+              "opacity": 0,
+              "inViewport": false
+            },
+            {
+              "className": "audience-panel audience-centers",
+              "text": "For centersRun the daily operation from one plac",
+              "opacity": 0,
+              "inViewport": false
+            },
+            {
+              "className": "cta-band",
+              "text": "See Kiddy in actionWe work with daycares directl",
+              "opacity": 0,
+              "inViewport": false
+            }
+          ],
+          "hiddenInViewport": []
+        },
+        "afterScroll": {
+          "path": "/",
+          "armed": true,
+          "revealTargets": 16,
+          "hero": {
+            "className": "hero",
+            "text": "One app for the whole daycare day.Check-in, chec",
+            "opacity": 1,
+            "inViewport": true
+          },
+          "hiddenAnywhere": [],
+          "hiddenInViewport": []
+        }
+      }
+    ],
+    "failures": []
+  },
+  "reverse": {
+    "direction": "reverse",
+    "steps": [
+      {
+        "from": null,
+        "to": "/",
+        "immediate": {
+          "path": "/",
+          "armed": true,
+          "revealTargets": 16,
+          "hero": {
+            "className": "hero",
+            "text": "One app for the whole daycare day.Check-in, chec",
+            "opacity": 1,
+            "inViewport": true
+          },
+          "hiddenAnywhere": [
+            {
+              "className": "feature-row",
+              "text": "MiddayDaily reportsMeals, sleep, mood, diaper, a",
+              "opacity": 0,
+              "inViewport": false
+            },
+            {
+              "className": "feature-row",
+              "text": "All dayNewsfeedPhotos, announcements, and today'",
+              "opacity": 0,
+              "inViewport": false
+            },
+            {
+              "className": "center mt-5",
+              "text": "Explore all features",
+              "opacity": 0,
+              "inViewport": false
+            },
+            {
+              "className": "section-title center",
+              "text": "How a center gets started",
+              "opacity": 0,
+              "inViewport": false
+            },
+            {
+              "className": "step-flow-item",
+              "text": "1Set up your centerRooms, staff, profiles, and e",
+              "opacity": 0,
+              "inViewport": false
+            },
+            {
+              "className": "step-flow-item",
+              "text": "2The day runs on itStaff check children in and o",
+              "opacity": 0,
+              "inViewport": false
+            },
+            {
+              "className": "step-flow-item",
+              "text": "3Families stay closeParents see live status, rea",
+              "opacity": 0,
+              "inViewport": false
+            },
+            {
+              "className": "audience-panel audience-parents",
+              "text": "For parentsYour child's day, without the guesswo",
+              "opacity": 0,
+              "inViewport": false
+            },
+            {
+              "className": "audience-panel audience-centers",
+              "text": "For centersRun the daily operation from one plac",
+              "opacity": 0,
+              "inViewport": false
+            },
+            {
+              "className": "cta-band",
+              "text": "See Kiddy in actionWe work with daycares directl",
+              "opacity": 0,
+              "inViewport": false
+            }
+          ],
+          "hiddenInViewport": []
+        },
+        "afterScroll": null
+      },
+      {
+        "from": "/",
+        "to": "/contact",
+        "immediate": {
+          "path": "/contact",
+          "armed": true,
+          "revealTargets": 2,
+          "hero": {
+            "className": "container",
+            "text": "Contact & demosSee Kiddy up closeBook a walkthro",
+            "opacity": 1,
+            "inViewport": true
+          },
+          "hiddenAnywhere": [],
+          "hiddenInViewport": []
+        },
+        "afterScroll": {
+          "path": "/contact",
+          "armed": true,
+          "revealTargets": 2,
+          "hero": {
+            "className": "container",
+            "text": "Contact & demosSee Kiddy up closeBook a walkthro",
+            "opacity": 1,
+            "inViewport": true
+          },
+          "hiddenAnywhere": [],
+          "hiddenInViewport": []
+        }
+      },
+      {
+        "from": "/contact",
+        "to": "/for-centers",
+        "immediate": {
+          "path": "/for-centers",
+          "armed": true,
+          "revealTargets": 9,
+          "hero": {
+            "className": "container",
+            "text": "For centersRun the day from one placeAttendance,",
+            "opacity": 1,
+            "inViewport": true
+          },
+          "hiddenAnywhere": [],
+          "hiddenInViewport": []
+        },
+        "afterScroll": {
+          "path": "/for-centers",
+          "armed": true,
+          "revealTargets": 9,
+          "hero": {
+            "className": "container",
+            "text": "For centersRun the day from one placeAttendance,",
+            "opacity": 1,
+            "inViewport": true
+          },
+          "hiddenAnywhere": [],
+          "hiddenInViewport": []
+        }
+      },
+      {
+        "from": "/for-centers",
+        "to": "/for-parents",
+        "immediate": {
+          "path": "/for-parents",
+          "armed": true,
+          "revealTargets": 7,
+          "hero": {
+            "className": "container",
+            "text": "For parentsYour child's day, in your pocketFrom ",
+            "opacity": 1,
+            "inViewport": true
+          },
+          "hiddenAnywhere": [],
+          "hiddenInViewport": []
+        },
+        "afterScroll": {
+          "path": "/for-parents",
+          "armed": true,
+          "revealTargets": 7,
+          "hero": {
+            "className": "container",
+            "text": "For parentsYour child's day, in your pocketFrom ",
+            "opacity": 1,
+            "inViewport": true
+          },
+          "hiddenAnywhere": [],
+          "hiddenInViewport": []
+        }
+      },
+      {
+        "from": "/for-parents",
+        "to": "/features",
+        "immediate": {
+          "path": "/features",
+          "armed": true,
+          "revealTargets": 13,
+          "hero": {
+            "className": "container",
+            "text": "Feature overviewEverything a childcare day needs",
+            "opacity": 1,
+            "inViewport": true
+          },
+          "hiddenAnywhere": [
+            {
+              "className": "card cta-card",
+              "text": "See it with your own daycare's dataBook a demo a",
+              "opacity": 0,
+              "inViewport": false
+            }
+          ],
+          "hiddenInViewport": []
+        },
+        "afterScroll": {
+          "path": "/features",
+          "armed": true,
+          "revealTargets": 13,
+          "hero": {
+            "className": "container",
+            "text": "Feature overviewEverything a childcare day needs",
+            "opacity": 1,
+            "inViewport": true
+          },
+          "hiddenAnywhere": [],
+          "hiddenInViewport": []
+        }
+      },
+      {
+        "from": "/features",
+        "to": "/",
+        "immediate": {
+          "path": "/",
+          "armed": true,
+          "revealTargets": 16,
+          "hero": {
+            "className": "hero",
+            "text": "One app for the whole daycare day.Check-in, chec",
+            "opacity": 1,
+            "inViewport": true
+          },
+          "hiddenAnywhere": [
+            {
+              "className": "feature-row",
+              "text": "MiddayDaily reportsMeals, sleep, mood, diaper, a",
+              "opacity": 0,
+              "inViewport": false
+            },
+            {
+              "className": "feature-row",
+              "text": "All dayNewsfeedPhotos, announcements, and today'",
+              "opacity": 0,
+              "inViewport": false
+            },
+            {
+              "className": "center mt-5",
+              "text": "Explore all features",
+              "opacity": 0,
+              "inViewport": false
+            },
+            {
+              "className": "section-title center",
+              "text": "How a center gets started",
+              "opacity": 0,
+              "inViewport": false
+            },
+            {
+              "className": "step-flow-item",
+              "text": "1Set up your centerRooms, staff, profiles, and e",
+              "opacity": 0,
+              "inViewport": false
+            },
+            {
+              "className": "step-flow-item",
+              "text": "2The day runs on itStaff check children in and o",
+              "opacity": 0,
+              "inViewport": false
+            },
+            {
+              "className": "step-flow-item",
+              "text": "3Families stay closeParents see live status, rea",
+              "opacity": 0,
+              "inViewport": false
+            },
+            {
+              "className": "audience-panel audience-parents",
+              "text": "For parentsYour child's day, without the guesswo",
+              "opacity": 0,
+              "inViewport": false
+            },
+            {
+              "className": "audience-panel audience-centers",
+              "text": "For centersRun the daily operation from one plac",
+              "opacity": 0,
+              "inViewport": false
+            },
+            {
+              "className": "cta-band",
+              "text": "See Kiddy in actionWe work with daycares directl",
+              "opacity": 0,
+              "inViewport": false
+            }
+          ],
+          "hiddenInViewport": []
+        },
+        "afterScroll": {
+          "path": "/",
+          "armed": true,
+          "revealTargets": 16,
+          "hero": {
+            "className": "hero",
+            "text": "One app for the whole daycare day.Check-in, chec",
+            "opacity": 1,
+            "inViewport": true
+          },
+          "hiddenAnywhere": [],
+          "hiddenInViewport": []
+        }
+      }
+    ],
+    "failures": []
+  },
+  "reducedMotion": {
+    "results": [
+      {
+        "path": "/",
+        "armed": false,
+        "revealTargets": 5,
+        "hero": {
+          "className": "hero",
+          "text": "One app for the whole daycare day.Check-in, chec",
+          "opacity": 1,
+          "inViewport": true
+        },
+        "hiddenAnywhere": [],
+        "hiddenInViewport": []
+      },
+      {
+        "path": "/features",
+        "armed": false,
+        "revealTargets": 1,
+        "hero": {
+          "className": "container",
+          "text": "Feature overviewEverything a childcare day needs",
+          "opacity": 1,
+          "inViewport": true
+        },
+        "hiddenAnywhere": [],
+        "hiddenInViewport": []
+      },
+      {
+        "path": "/for-parents",
+        "armed": false,
+        "revealTargets": 1,
+        "hero": {
+          "className": "container",
+          "text": "For parentsYour child's day, in your pocketFrom ",
+          "opacity": 1,
+          "inViewport": true
+        },
+        "hiddenAnywhere": [],
+        "hiddenInViewport": []
+      },
+      {
+        "path": "/for-centers",
+        "armed": false,
+        "revealTargets": 1,
+        "hero": {
+          "className": "container",
+          "text": "For centersRun the day from one placeAttendance,",
+          "opacity": 1,
+          "inViewport": true
+        },
+        "hiddenAnywhere": [],
+        "hiddenInViewport": []
+      },
+      {
+        "path": "/contact",
+        "armed": false,
+        "revealTargets": 0,
+        "hero": {
+          "className": "container",
+          "text": "Contact & demosSee Kiddy up closeBook a walkthro",
+          "opacity": 1,
+          "inViewport": true
+        },
+        "hiddenAnywhere": [],
+        "hiddenInViewport": []
+      }
+    ],
+    "failures": []
+  },
+  "noJs": {
+    "results": [
+      {
+        "path": "/",
+        "heroVisible": true,
+        "armedInHtml": false
+      },
+      {
+        "path": "/features",
+        "heroVisible": true,
+        "armedInHtml": false
+      },
+      {
+        "path": "/for-parents",
+        "heroVisible": true,
+        "armedInHtml": false
+      },
+      {
+        "path": "/for-centers",
+        "heroVisible": true,
+        "armedInHtml": false
+      },
+      {
+        "path": "/contact",
+        "heroVisible": true,
+        "armedInHtml": false
+      }
+    ],
+    "failures": []
+  }
+}
