@@ -183,7 +183,7 @@ const nextConfig = {
     // 1 MB; the client caps every file at 4 MB (Vercel's own request-body
     // ceiling is 4.5 MB), so 5 MB gives multipart overhead room without
     // inviting requests the platform would reject.
-    serverActions: { bodySizeLimit: "5mb" },
+    serverActions: { bodySizeLimit: "6mb" },
   },
   async rewrites() {
     return [
