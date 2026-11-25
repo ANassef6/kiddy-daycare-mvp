@@ -264,6 +264,38 @@ describe("KID-2487: tagging a post photo to children", () => {
     expect(await queryAll("SELECT id FROM media WHERE post_id = ?", leoPost.id)).toHaveLength(0);
   });
 
+  it("keeps another classroom's existing tag when a scoped teacher saves", async () => {
+    const post = await photoPost([ellaId]);
+    // Grace is a parent of both children, so the post audience reaches Leo too.
+    await setNewsfeedPhotoTags({
+      instituteId: iid,
+      accountId: ownerId,
+      role: "owner",
+      postId: post.id,
+      childIds: [ellaId, leoId],
+    });
+    const toddlerStaff = await makeStaff([toddlersId]);
+    const saved = await setNewsfeedPhotoTags({
+      instituteId: iid,
+      accountId: toddlerStaff,
+      role: "staff",
+      postId: post.id,
+      childIds: [ellaId, leoId],
+    });
+    expect(saved.ok).toBe(true);
+    // Unchecking the other classroom's child must not delete that link either.
+    const afterUntick = await setNewsfeedPhotoTags({
+      instituteId: iid,
+      accountId: toddlerStaff,
+      role: "staff",
+      postId: post.id,
+      childIds: [ellaId],
+    });
+    expect(afterUntick.ok).toBe(true);
+    const rows = await queryAll("SELECT child_id FROM media WHERE post_id = ? ORDER BY child_id", post.id);
+    expect(rows.map((r) => String(r.child_id)).sort()).toEqual([ellaId, leoId].sort());
+  });
+
   it("refuses a child outside the staff member's classroom even on a visible post", async () => {
     const toddlerStaff = await makeStaff([toddlersId]);
     const post = await photoPost([ellaId]);

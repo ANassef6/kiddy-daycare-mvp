@@ -2566,10 +2566,22 @@ export async function setNewsfeedPhotoTags(data: {
   const childRoom = new Map<string, string>();
   for (const child of children) childRoom.set(String(child.id), String(child.room_id ?? ""));
 
+  // An existing link is kept as-is when it is still checked. This lets an
+  // editor open a photo that another classroom already tagged and save without
+  // a spurious refusal, and it never removes a link they do not manage.
+  const existingLinks = await queryAll(
+    "SELECT child_id FROM media WHERE post_id = ? AND child_id IS NOT NULL",
+    data.postId
+  );
+  const existingLinkIds = new Set(existingLinks.map((r) => String(r.child_id)));
   const wanted = Array.from(new Set(data.childIds.map((id) => String(id)).filter(Boolean)));
   const allowed: string[] = [];
   const blocked: string[] = [];
   for (const childId of wanted) {
+    if (existingLinkIds.has(childId)) {
+      allowed.push(childId);
+      continue;
+    }
     if (!childRoom.has(childId)) {
       blocked.push(childId);
       continue;
