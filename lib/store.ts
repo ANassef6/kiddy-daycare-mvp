@@ -159,7 +159,7 @@ export async function createRoom(
   return (await getRoom(id))!;
 }
 
-export async function updateRoom(roomId: string, patch: { name?: string; capacity?: number | null; colour?: string }): Promise<void> {
+export async function updateRoom(roomId: string, patch: { name?: string; capacity?: number | null; colour?: string; photoUrl?: string | null }): Promise<void> {
   const fields: string[] = [];
   const values: unknown[] = [];
   if (patch.name !== undefined) {
@@ -174,9 +174,18 @@ export async function updateRoom(roomId: string, patch: { name?: string; capacit
     fields.push("colour = ?");
     values.push(/^#[0-9a-fA-F]{6}$/.test(patch.colour) ? patch.colour : "#3B82F6");
   }
+  if (patch.photoUrl !== undefined) {
+    fields.push("photo_url = ?");
+    values.push(patch.photoUrl);
+  }
   if (fields.length === 0) return;
   values.push(roomId);
   await queryRun(`UPDATE room SET ${fields.join(", ")} WHERE id = ?`, ...values);
+}
+
+// KID-2481: room photos use the same private-REF model as child/staff photos.
+export async function updateRoomPhoto(roomId: string, photoUrl: string | null): Promise<void> {
+  await queryRun("UPDATE room SET photo_url = ? WHERE id = ?", photoUrl, roomId);
 }
 
 export async function roomChildren(roomId: string): Promise<Row[]> {
@@ -297,7 +306,8 @@ export async function listChildren(
 
 export async function getChild(childId: string): Promise<Row | undefined> {
   return queryGet(
-    `SELECT c.*, r.name AS room_name, h.allergies, h.conditions, h.notes
+    `SELECT c.*, r.name AS room_name, r.photo_url AS room_photo_url,
+            r.colour AS room_colour, h.allergies, h.conditions, h.notes
      FROM child c
      LEFT JOIN room r ON r.id = c.room_id
      LEFT JOIN child_health h ON h.child_id = c.id

@@ -53,6 +53,7 @@ export function sqliteSchema(db: any): void {
     name TEXT NOT NULL,
     capacity INTEGER,
     colour TEXT NOT NULL DEFAULT '#3B82F6',
+    photo_url TEXT,
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
   );
 
@@ -981,6 +982,10 @@ export function sqliteSchema(db: any): void {
     db.exec("ALTER TABLE staff_schedule ADD COLUMN schedule_date TEXT");
     db.exec("CREATE INDEX IF NOT EXISTS idx_schedule_date ON staff_schedule (schedule_date)");
     db.exec("CREATE INDEX IF NOT EXISTS idx_schedule_staff_day ON staff_schedule (staff_id, day_of_week)");
+  }
+  // KID-2481: mirror of supabase/migrations/0061_kid2481_room_photo.sql.
+  if (!roomCols.some((c) => c.name === "photo_url")) {
+    db.exec("ALTER TABLE room ADD COLUMN photo_url TEXT");
   }
   // KID-2447 + KID-2448: mirror of the two migrations that add the
   // shared nullable check_in.source marker for databases created before it

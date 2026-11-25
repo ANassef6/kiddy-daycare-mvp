@@ -103,6 +103,7 @@ import {
   setChildBillingPaymentProof,
   updateChildPhoto,
   updateStaffPhoto,
+  updateRoomPhoto,
   toggleLike,
   setNewsfeedPhotoTags,
   saveWorkingHours,
@@ -788,6 +789,12 @@ async function authAccount(opts: { allowReadOnly?: boolean } = {}): Promise<Sess
     if (readOnly) redirect(session.role === "parent" ? "/child" : "/portal/dashboard");
   }
   return session;
+}
+
+// KID-2481: only roles that may edit a child profile may change or remove its
+// photo. Parent-role accounts read the child surface but never edit it.
+function canEditChildren(role: string): boolean {
+  return isAdminRole(role) || role === "staff" || role === "carer";
 }
 
 async function requireAdmin(): Promise<SessionCookie> {
@@ -2697,6 +2704,85 @@ export async function updateRoomAction(formData: FormData) {
   redirect(`/portal/rooms/${roomId}`);
 }
 
+// KID-2481: room photo upload. Admin-only (the same gate that edits a room),
+// and the room must belong to the request tenant before any write.
+export async function uploadRoomPhotoAction(formData: FormData) {
+  await ensureSchema();
+  const me = await requireAdmin();
+  if (!(await throttle("upload", RATE_LIMIT_RULES.uploadAccount, me.accountId)).ok) {
+    throttledRedirect();
+  }
+  const roomId = String(formData.get("roomId") ?? "");
+  if (!roomId) redirect("/portal/rooms");
+  await assertInstituteOwned(me, "room", roomId, "institute_id");
+  const room = await getRoom(roomId);
+  if (!room) redirect("/portal/rooms");
+  const instituteId = String(room.institute_id ?? "");
+  const photoBack = `/portal/rooms/${roomId}`;
+
+  // KID-2453: presigned direct upload first (the REF is re-verified by
+  // takeUploadedRef); the multipart file stays the fallback.
+  const presignedPhoto = await takeUploadedRef(formData, {
+    purpose: "photo",
+    instituteId,
+    field: "fileRef",
+  });
+  let file: File | null = null;
+  let photoPath = "";
+  if (!presignedPhoto.ok) {
+    file = formData.get("file") as File | null;
+    if (!file || file.size === 0) redirect(`${photoBack}?error=photoType`);
+    // The same cap as child/staff avatars (KID-2450/2481).
+    const photo = validatePhotoFile(file);
+    if (!photo.ok) {
+      redirect(`${photoBack}?error=${photo.code === "size" ? "photoSize" : "photoType"}`);
+    }
+    photoPath = `photos/${instituteId}/room/${roomId}/photo-${Date.now()}.${photo.ext}`;
+  }
+
+  if (storageAdminConfigured()) {
+    let storedRef: string | null = presignedPhoto.ok ? presignedPhoto.ref : null;
+    if (!storedRef && file) {
+      const uploaded = await uploadPrivateObject(photoPath, file, file.type);
+      if (!uploaded.error) storedRef = uploaded.ref;
+    }
+    if (storedRef) {
+      await updateRoomPhoto(roomId, storedRef);
+      await recordAuditEvent({
+        instituteId,
+        actorAccountId: me.accountId,
+        action: "update",
+        entityType: "room",
+        entityId: roomId,
+        summary: `Changed the photo for the classroom “${String(room.name ?? "")}”`,
+      });
+    }
+  }
+  redirect(photoBack);
+}
+
+// KID-2481: remove a room photo so the room falls back to its colour dot.
+export async function removeRoomPhotoAction(formData: FormData) {
+  await ensureSchema();
+  const me = await requireAdmin();
+  const roomId = String(formData.get("roomId") ?? "");
+  if (!roomId) redirect("/portal/rooms");
+  await assertInstituteOwned(me, "room", roomId, "institute_id");
+  const room = await getRoom(roomId);
+  if (room) {
+    await updateRoomPhoto(roomId, null);
+    await recordAuditEvent({
+      instituteId: String(room.institute_id ?? ""),
+      actorAccountId: me.accountId,
+      action: "update",
+      entityType: "room",
+      entityId: roomId,
+      summary: `Removed the photo for the classroom “${String(room.name ?? "")}”`,
+    });
+  }
+  redirect(`/portal/rooms/${roomId}`);
+}
+
 // #5b child status log: one timestamped entry per interaction, multiple per day.
 export async function saveChildStatusAction(formData: FormData) {
   const me = await authAccount();
@@ -4392,7 +4478,11 @@ export async function uploadPhotoAction(formData: FormData) {
   if (!entityType || !entityId) {
     redirect(entityType === "child" ? "/portal/children" : "/portal/staff");
   }
-  if (entityType === "child") await assertChildInScope(entityId, me);
+  if (entityType === "child") {
+    // KID-2481: changing a child's photo is a child edit, not a parent action.
+    if (!canEditChildren(me.role)) redirect("/portal/children?error=scope");
+    await assertChildInScope(entityId, me);
+  }
   const photoBack = entityType === "child" ? `/portal/children/${entityId}` : `/portal/staff/${entityId}`;
   const photoInstituteId = String(
     (
@@ -4472,6 +4562,34 @@ export async function uploadPhotoAction(formData: FormData) {
     }
   }
   redirect(entityType === "child" ? `/portal/children/${entityId}` : "/portal/staff");
+}
+
+// KID-2481: remove a child's photo. The stored object is left in place (the
+// same replace-by-upload pattern the avatar upload already uses); the row
+// falls back to initials/colour the moment photo_url is NULL.
+export async function removeChildPhotoAction(formData: FormData) {
+  await ensureSchema();
+  const me = await authAccount();
+  if (!canEditChildren(me.role)) redirect("/portal/children?error=scope");
+  const childId = String(formData.get("childId") ?? "");
+  if (!childId) redirect("/portal/children");
+  await assertChildInScope(childId, me);
+  const child = await queryGet(
+    "SELECT institute_id, first_name, last_name FROM child WHERE id = ?",
+    childId
+  );
+  if (child) {
+    await updateChildPhoto(childId, null);
+    await recordAuditEvent({
+      instituteId: String(child.institute_id ?? ""),
+      actorAccountId: me.accountId,
+      action: "update",
+      entityType: "child",
+      entityId: childId,
+      summary: `Removed the photo for ${String(child.first_name)} ${String(child.last_name)}`.trim(),
+    });
+  }
+  redirect(`/portal/children/${childId}`);
 }
 
 // KID-107: staff upload their own photo from Account Settings.
