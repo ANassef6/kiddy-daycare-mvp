@@ -126,7 +126,10 @@ export function uploadKeyFor(
   const now = Date.now();
   switch (intent.purpose) {
     case "photo": {
-      const entityType = intent.entityType === "staff" ? "staff" : "child";
+      // KID-2481: room photos ride the same photo purpose and private-REF
+      // model as child/staff avatars.
+      const entityType =
+        intent.entityType === "staff" ? "staff" : intent.entityType === "room" ? "room" : "child";
       const entityId = String(intent.entityId ?? "");
       if (!entityId) return null;
       return `${config.folder}/${instituteId}/${entityType}/${entityId}/photo-${now}-${uuid}.${ext}`;
