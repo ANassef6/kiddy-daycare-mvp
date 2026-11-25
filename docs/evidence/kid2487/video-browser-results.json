@@ -1,0 +1,32 @@
+{
+  "base": "http://localhost:3099",
+  "body": "KID-2487 video tag verification 1795633638164",
+  "steps": [
+    {
+      "step": "tag-video",
+      "openVideoCount": 1,
+      "videoCount": 1,
+      "taggedUrl": "http://localhost:3099/portal/newsfeed?tagged=1"
+    },
+    {
+      "step": "video-prechecked",
+      "checked": true
+    },
+    {
+      "step": "ar-video",
+      "arOpenCount": 1,
+      "arLabel": "عارض الفيديو",
+      "arHasTag": true
+    },
+    {
+      "step": "parent-media",
+      "text": "Media (4)",
+      "parentVideoCount": 3
+    }
+  ],
+  "ok": true,
+  "consoleErrors": [
+    "Failed to load resource: the server responded with a status of 404 (Not Found)",
+    "Cannot specify a encType or method for a form that specifies a function as the action. React provides those automatically. They will get overridden."
+  ]
+}

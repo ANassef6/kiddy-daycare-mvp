@@ -190,6 +190,31 @@ describe("KID-2487: tagging a post photo to children", () => {
     expect(leoMedia.some((m) => String(m.post_id) === post.id && String(m.url) === post.mediaUrl)).toBe(true);
   });
 
+  it("links a tagged video to each child and keeps its kind", async () => {
+    const mediaUrl = `r2-private:newsfeed/${iid}/${crypto.randomUUID()}.mp4`;
+    const post = await createNewsfeedPost({
+      instituteId: iid,
+      accountId: ownerId,
+      body: "A clip from today",
+      mediaUrl,
+      tagChildIds: [ellaId],
+    });
+    const result = await setNewsfeedPhotoTags({
+      instituteId: iid,
+      accountId: ownerId,
+      role: "owner",
+      postId: String(post.id),
+      childIds: [ellaId, leoId],
+    });
+    expect(result.ok).toBe(true);
+    const rows = await queryAll("SELECT child_id, url, kind FROM media WHERE post_id = ?", post.id);
+    expect(rows).toHaveLength(2);
+    expect(rows.every((r) => String(r.url) === mediaUrl)).toBe(true);
+    expect(rows.every((r) => String(r.kind) === "video")).toBe(true);
+    const leoMedia = await listMedia(iid, leoId);
+    expect(leoMedia.some((m) => String(m.post_id) === String(post.id) && String(m.kind) === "video")).toBe(true);
+  });
+
   it("untags only the selected child link and keeps the post photo", async () => {
     const post = await photoPost([ellaId]);
     await setNewsfeedPhotoTags({
