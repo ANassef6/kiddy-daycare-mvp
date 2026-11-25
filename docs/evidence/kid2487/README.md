@@ -40,8 +40,8 @@ existing local databases.
 | PR #134 | likers, viewer/tagger, media links, audience + room guards, EN/AR |
 | PR #137 | classify a post photo from its stored REF (staging follow-up) |
 | PR #140 | `mediaRefName` helper + R2/legacy/data-URI classification pins |
-| PR #143 | photo + video media viewer, video media-section rendering, `media-src` CSP |
-| Final staging commit | `staging` head after PR #143 |
+| PR #144 | photo + video media viewer, video media-section rendering, `media-src` CSP |
+| Final staging commit | `staging` head after PR #144 |
 | Public staging | https://kiddy-staging-orcin.vercel.app |
 | Production cut | not performed; gated on founder sign-off |
 
@@ -125,4 +125,4 @@ Raw capture data: `local-browser-results.json` (photo flow) and
 
 Production cut is **not** performed. It stays gated on founder sign-off on
 staging. The only pending item is the Vercel staging re-deploy after the
-rate-limit window; the code is already on the `staging` branch (PR #143).
+rate-limit window; the code is already on the `staging` branch (PR #144).
