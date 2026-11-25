@@ -90,11 +90,11 @@ function deltaLabel(dict: Dict, minutes: number): string {
 }
 
 export default async function PortalStaffHoursPage(
-  props?: {
+  props: {
     searchParams?: Promise<{ view?: string; date?: string; from?: string; to?: string }>;
   }
 ) {
-  const searchParams = (await props?.searchParams) ?? {};
+  const searchParams = (await props.searchParams) ?? {};
   const session = await requireSession();
   const { dict, locale } = await i18nForAccount(session.accountId);
   const iid = await resolveTenantInstituteId();

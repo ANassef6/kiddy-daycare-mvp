@@ -69,7 +69,7 @@ describe("KID-2484 working-hours page", () => {
     await addShift(weekday, "08:00", "16:00");
     mockState.token = ownerCookie();
     const page = await import("@/app/portal/staff/hours/page");
-    const html = renderToStaticMarkup(await page.default());
+    const html = renderToStaticMarkup(await page.default({ searchParams: Promise.resolve({}) }));
     expect(html).toContain(staffName);
     expect(html).toContain("8h 00m");
     expect(html).toContain("0h 00m");
@@ -95,7 +95,7 @@ describe("KID-2484 working-hours page", () => {
     );
     mockState.token = ownerCookie();
     const page = await import("@/app/portal/staff/hours/page");
-    const html = renderToStaticMarkup(await page.default());
+    const html = renderToStaticMarkup(await page.default({ searchParams: Promise.resolve({}) }));
     expect(html).toContain("On time");
     expect(html).toContain("8h 00m");
   });
@@ -119,7 +119,7 @@ describe("KID-2484 working-hours page", () => {
     await setAccountLanguage(ownerId, "ar");
     mockState.token = ownerCookie();
     const page = await import("@/app/portal/staff/hours/page");
-    const html = renderToStaticMarkup(await page.default());
+    const html = renderToStaticMarkup(await page.default({ searchParams: Promise.resolve({}) }));
     expect(html).toContain("المتوقع");
     expect(html).toContain("الفعلي");
     expect(html).toContain("غائب");
