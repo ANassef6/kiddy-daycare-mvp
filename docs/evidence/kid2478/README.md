@@ -17,10 +17,10 @@ Satisfied. The founder reviewed the two draft templates and approved them:
 | Downloads | `GET /api/platform/bulk-upload/template/[children\|staff]` — operator-only, `.xlsx`, `no-store`. |
 | Upload | `bulkUploadAction` in `lib/actions.ts` — operator-only, `.xlsx` only, non-empty, ≤5 MB, ≤500 data rows. |
 | Parsing | `lib/xlsx-lite.ts` reads the first worksheet directly (inline strings, shared strings, cached numbers, Excel date serials). This also reads the approved draft files, which carry cell comments that ExcelJS 4.4 cannot reconcile. |
-| Children rows | child + enrollment + `child_health`; parent contacts; parent account per parent email with `DEFAULT_ACCOUNT_PASSWORD` (`12345678`) and `must_change_password = 1`; existing parent accounts are linked, not duplicated. |
+| Children rows | child + enrollment + `child_health`; parent contacts; parent account per parent email with `DEFAULT_ACCOUNT_PASSWORD` (`12345678`) and `must_change_password = 1`; existing parent accounts are linked, not duplicated. The classroom is required (KID-2482): a blank or unknown classroom is a row error and creates nothing. |
 | Staff rows | staff + `staff_room`; login account with the mapped role (`admin` → admin account, `teacher`/`caregiver` → staff account); default password and forced-change flag; phone stored in `staff.phone`. |
 | Duplicates | Child duplicate = same name + DOB at that daycare → skipped. Staff duplicate = existing account/staff email → skipped. Every skip is listed in the report. |
-| Malformed rows | Reported with the spreadsheet row number and a stable reason (names, DOB, email, role, classroom, duplicate). Unknown child classroom follows the draft note: the child is created with a warning and no classroom. Unknown staff classroom is an error and creates nothing. |
+| Malformed rows | Reported with the spreadsheet row number and a stable reason (names, DOB, email, role, classroom, duplicate). Blank or unknown child classroom is an error and creates nothing (KID-2482, comment `0c8e0961`). Unknown staff classroom is an error and creates nothing. |
 | Atomicity | `withTransaction()` in `lib/db.ts` wraps each row. A late failure (for example a parent email that belongs to a non-parent account) rolls the whole row back. |
 | Report | `bulk_upload` (migration 0055 + SQLite mirror) stores one bounded JSON report per run. `GET /api/platform/bulk-upload/report/[id]` downloads it as UTF-8 CSV with a BOM for Excel. |
 | Settings UI | `app/platform/daycares/[id]/settings/page.tsx` renders `components/BulkUploadCard.tsx`; `app/platform/daycares/[id]/settings/bulk-upload/page.tsx` redirects to that section. The `/platform` daycare row links to Settings. |
@@ -29,7 +29,7 @@ Satisfied. The founder reviewed the two draft templates and approved them:
 
 ## Acceptance mapping
 
-- **Both templates download from Settings and match the approved draft.** Rendered on the Settings page and route; files in this folder show the exact headers/notes/sample row/dropdown.
+- **Both templates download from Settings and match the approved draft (plus the KID-2482 correction).** Rendered on the Settings page and route; files in this folder show the exact headers/notes/sample row/dropdown, with `Classroom name *` required.
 - **Upload creates children, staff accounts and linked parent accounts with the default password + forced-change flag; zero emails.** Pinned in `tests/unit/kid2478-bulk-upload.test.ts` (verify the scrypt hash with `12345678`, read `must_change_password`, no mail path in the writer).
 - **Duplicate/malformed rows skipped and listed; row-level report downloadable.** Tested per kind; CSV includes row, status, reason and record id.
 - **Non-operator upload rejected server-side.** The action calls `requirePlatformOperator()` (sentinel role + env allowlist); both download routes return 403 without it.

@@ -42,7 +42,7 @@ export const CHILDREN_COLUMNS: BulkTemplateColumn[] = [
   { key: "firstName", header: "First name *", width: 16, note: "Required. Child's first (given) name." },
   { key: "lastName", header: "Last name *", width: 16, note: "Required. Child's family name." },
   { key: "dob", header: "Date of birth (YYYY-MM-DD)", width: 18, note: "Optional. Format YYYY-MM-DD, e.g. 2021-03-14." },
-  { key: "classroomName", header: "Classroom name", width: 18, note: "Optional. Must match a classroom that already exists at your center; otherwise the child is added without a classroom." },
+  { key: "classroomName", header: "Classroom name *", width: 18, note: "Required. Must match a classroom that already exists at your center. Every child must have a classroom (KID-2482)." },
   { key: "allergies", header: "Allergies", width: 20, note: "Optional. Free text, e.g. peanuts." },
   { key: "conditions", header: "Medical conditions", width: 20, note: "Optional. Free text, e.g. mild asthma." },
   { key: "notes", header: "Notes", width: 24, note: "Optional. Any other notes for staff." },
@@ -91,9 +91,13 @@ function columnsFor(kind: BulkKind): BulkTemplateColumn[] {
 }
 
 function normalizeHeader(value: SheetCell): string {
+  // KID-2482 changed "Classroom name" to "Classroom name *". Strip a trailing
+  // required marker so a sheet prepared from the earlier approved template
+  // still maps its columns; the required value is enforced below either way.
   return String(value ?? "")
     .replace(/\s+/g, " ")
     .trim()
+    .replace(/\s*\*$/, "")
     .toLowerCase();
 }
 
@@ -170,7 +174,10 @@ export function parseBulkWorkbook(buffer: Buffer, kind: BulkKind): ParsedBulkRow
   const columns = columnsFor(kind);
   const headerRow = sheetRows[0];
   const indexes = headerIndexMap(headerRow, columns);
-  const requiredHeaders = kind === "children" ? ["firstName", "lastName"] : ["fullName", "email", "role"];
+  const requiredHeaders =
+    kind === "children"
+      ? ["firstName", "lastName", "classroomName"]
+      : ["fullName", "email", "role"];
   if (requiredHeaders.some((key) => !indexes.has(key))) {
     throw new BulkUploadError("headers");
   }
@@ -315,13 +322,12 @@ async function processChildRow(
   const dob = normalizeDob(values.dob?.trim() ?? "");
   if ("error" in dob) throw new RowFailure("dob");
 
-  const warnings: string[] = [];
+  // KID-2482: no child may exist without a classroom. A blank or unknown
+  // classroom is a row error, not an unassigned child.
   const classroom = (values.classroomName ?? "").trim();
-  let roomId: string | null = null;
-  if (classroom) {
-    roomId = rooms.get(classroom.toLowerCase()) ?? null;
-    if (!roomId) warnings.push("classroom-not-found");
-  }
+  if (!classroom) throw new RowFailure("classroom");
+  const roomId = rooms.get(classroom.toLowerCase()) ?? null;
+  if (!roomId) throw new RowFailure("classroom");
 
   const parent1Email = normalizeEmail(values.parent1Email ?? "");
   const parent2Email = normalizeEmail(values.parent2Email ?? "");
@@ -384,7 +390,7 @@ async function processChildRow(
     await linkParentToChild(tx, accountId, childId);
   }
 
-  return { status: "created", name: childName, recordId: childId, warnings };
+  return { status: "created", name: childName, recordId: childId };
 }
 
 type StaffRoleMap = { staffRole: string; accountRole: string };
