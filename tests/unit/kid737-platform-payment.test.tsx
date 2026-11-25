@@ -493,7 +493,7 @@ describe("KID-737: the surfaces", () => {
       "TX-9999"
     );
     sessionCookieFor(superadminId, "platform", "superadmin@kiddy.test");
-    const { default: Page } = await import("@/app/platform/daycares/[id]/invoices/page");
+    const { default: Page } = await import("@/app/platform/daycares/[id]/settings/invoices/page");
     const html = await renderToStaticMarkup(await Page({ params: Promise.resolve({ id: sunshineIid }), searchParams: Promise.resolve({}) }));
     expect(html).toContain("View proof");
     expect(html).toContain("TX-9999");
