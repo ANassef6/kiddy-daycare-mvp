@@ -959,6 +959,41 @@ export async function updateDaycareSubdomainAction(formData: FormData) {
   redirect("/platform");
 }
 
+// KID-2486: renaming a center is a platform-operator action. The center's own
+// settings render the name read-only and saveCenterDetailsAction never writes
+// it, so this is the only path that changes institute.name. Every branding
+// surface (login page, brand-banner alt text, /api/branding) already reads that
+// column through lib/theme.ts, so one write updates them all. The short-lived
+// branding cache is purged and the layout revalidated so the new name renders
+// on the next navigation instead of after the TTL window.
+export async function updateDaycareNameAction(formData: FormData) {
+  const operator = await requirePlatformOperator();
+  const instituteId = String(formData.get("instituteId") ?? "");
+  if (!instituteId) redirect("/platform?error=missing-id");
+  const name = String(formData.get("name") ?? "").trim();
+  if (!name || name.length > 120) {
+    redirect(`/platform?error=center-name-invalid&edit=${encodeURIComponent(instituteId)}`);
+  }
+  const inst = await queryGet("SELECT id, name FROM institute WHERE id = ?", instituteId);
+  if (!inst) redirect("/platform?error=missing-id");
+  if (String(inst.name ?? "") === name) redirect("/platform");
+  await updateInstitute(instituteId, { name });
+  // KID-477: center renames are attributed settings changes.
+  await recordAuditEvent({
+    instituteId,
+    actorAccountId: operator.accountId,
+    action: "update",
+    entityType: "institute_settings",
+    entityId: instituteId,
+    summary: "Renamed the center",
+    metadata: { from: String(inst.name ?? ""), to: name },
+  });
+  const { clearBrandingCache } = await import("@/lib/theme");
+  clearBrandingCache();
+  revalidatePath("/", "layout");
+  redirect("/platform");
+}
+
 // KID-199.4: create a new daycare plus its first owner login, so the board can
 // add tenants like "Sunshine Daycare" without a code deploy. Every failure
 // lands back on /platform with a query-tagged friendly message.
@@ -2877,7 +2912,6 @@ export async function saveBrandingAction(formData: FormData) {
   const instituteId = await firstInstituteId();
   if (instituteId) {
     await updateInstitute(String(instituteId), {
-      name: String(formData.get("name") ?? ""),
       primary_color: String(formData.get("primaryColor") ?? "#3B82F6"),
       accent_color: String(formData.get("accentColor") ?? "#10B981"),
       font: String(formData.get("font") ?? "Inter"),
@@ -2907,10 +2941,12 @@ export async function saveCenterDetailsAction(formData: FormData) {
   const instituteId = await firstInstituteId();
   if (instituteId) {
     const patch: Record<string, unknown> = {};
-    const name = String(formData.get("name") ?? "").trim();
+    // KID-2486: the center name is owned by the platform view and is never
+    // written from the center's own settings. A tampered `name` field is
+    // ignored here (the stored institute.name stays the single source of
+    // truth); `updateDaycareNameAction` is the only writer.
     const contact = String(formData.get("contact") ?? "").trim();
     const address = String(formData.get("address") ?? "").trim();
-    if (name) patch.name = name;
     patch.contact = contact || null;
     patch.address = address || null;
     // KID-489 item 1 (KID-490): the center's default currency. Only written
@@ -2950,7 +2986,7 @@ export async function saveCenterDetailsAction(formData: FormData) {
       action: "update",
       entityType: "institute_settings",
       entityId: instituteId,
-      summary: name ? `Updated the center profile (${name})` : "Updated the center profile",
+      summary: "Updated the center profile",
       metadata: {
         ...(patch.default_currency ? { defaultCurrency: String(patch.default_currency) } : {}),
         ...(patch.timezone ? { timezone: String(patch.timezone) } : {}),

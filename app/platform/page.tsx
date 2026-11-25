@@ -18,6 +18,7 @@ import {
   setDaycareActiveAction,
   createDaycareAction,
   updateDaycareSubdomainAction,
+  updateDaycareNameAction,
   enterDaycareAsAdminAction,
   setPlatformInstapayAction,
 } from "@/lib/actions";
@@ -55,6 +56,8 @@ const ROW_ERRORS: Record<string, string> = {
   "subdomain-invalid": "Use letters, numbers and hyphens only for the web prefix.",
   "missing-id": "Something went wrong saving the web prefix. Please try again.",
   unknown: "Something went wrong saving the web prefix. Please try again.",
+  // KID-2486: a blank or over-long center name is refused before any write.
+  "center-name-invalid": "Enter a center name (120 characters or fewer).",
 };
 
 /** KID-236: the "Enter as admin" refusals. The mint action refuses a disabled
@@ -298,6 +301,36 @@ export default async function PlatformDaycaresPage(
                       never a link to a host that cannot resolve. */}
                   <td style={{ padding: 8 }}>
                     <span style={{ fontWeight: 700 }}>{String(inst.name)}</span>
+                    {/* KID-2486: institute.name is the single source of truth
+                        for every branding surface, and only the platform
+                        operator can change it. The center's own settings show
+                        it read-only, so this per-row form is the one writer. */}
+                    <form action={updateDaycareNameAction} style={{ marginTop: 6 }}>
+                      <input type="hidden" name="instituteId" value={instId} />
+                      <label className="label" htmlFor={`center-name-${instId}`} style={{ marginBottom: 2 }}>
+                        {tr(dict, "platform.centerNameLabel")}
+                      </label>
+                      <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
+                        <input
+                          className="input"
+                          id={`center-name-${instId}`}
+                          name="name"
+                          defaultValue={String(inst.name ?? "")}
+                          maxLength={120}
+                          style={{ width: 180, marginBottom: 0 }}
+                          aria-label={`${tr(dict, "platform.centerNameLabel")}: ${String(inst.name)}`}
+                        />
+                        <button className="btn" type="submit">{tr(dict, "platform.centerNameSave")}</button>
+                      </div>
+                    </form>
+                    {rowEditId === instId && searchParams.error === "center-name-invalid" ? (
+                      <span
+                        className="small banner-error"
+                        style={{ display: "inline-block", padding: "4px 10px", borderRadius: 8, marginTop: 6 }}
+                      >
+                        {tr(dict, "platform.centerNameInvalid")}
+                      </span>
+                    ) : null}
                     {openUrl ? (
                       <>
                         <a
@@ -380,7 +413,7 @@ export default async function PlatformDaycaresPage(
                         {tr(dict, "platform.apexMissing")}
                       </span>
                     )}
-                    {editing && rowError ? (
+                    {editing && rowError && searchParams.error !== "center-name-invalid" ? (
                       <span
                         className="small banner-error"
                         style={{ display: "inline-block", padding: "4px 10px", borderRadius: 8, marginTop: 6 }}
