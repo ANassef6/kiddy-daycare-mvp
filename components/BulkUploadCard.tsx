@@ -32,15 +32,7 @@ export const BULK_UPLOAD_ERROR_KEYS: Record<string, string> = {
 };
 
 function rowMessage(dict: Dict, row: BulkRowOutcome): string {
-  if (row.status === "created") {
-    return (row.warnings ?? [])
-      .map((warning) =>
-        warning === "classroom-not-found"
-          ? tr(dict, "platform.bulkUploadWarning_classroomNotFound")
-          : warning
-      )
-      .join(" ");
-  }
+  if (row.status === "created") return "";
   return tr(dict, ROW_MESSAGE_KEYS[row.message ?? "unknown"] ?? ROW_MESSAGE_KEYS.unknown);
 }
 

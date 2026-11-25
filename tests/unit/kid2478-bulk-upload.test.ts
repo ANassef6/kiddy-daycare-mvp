@@ -186,12 +186,16 @@ describe("children upload", () => {
     expect(await queryAll("SELECT id FROM child WHERE first_name = 'Layla'")).toHaveLength(0);
   });
 
-  it("keeps an unknown classroom as a warning and creates the child without a room", async () => {
-    const report = await upload("children", [childRow({ classroomName: "Nursery" })]);
-    expect(report.createdCount).toBe(1);
-    expect(report.rows[0].warnings).toEqual(["classroom-not-found"]);
-    const child = await queryGet("SELECT * FROM child WHERE first_name = 'Layla'");
-    expect(child!.room_id).toBeNull();
+  it("rejects a blank or unknown classroom with the row number and creates nothing", async () => {
+    const report = await upload("children", [
+      childRow({ classroomName: "" }),
+      childRow({ firstName: "Omar", classroomName: "Nursery" }),
+    ]);
+    expect(report.createdCount).toBe(0);
+    expect(report.errorCount).toBe(2);
+    expect(report.rows[0].message).toBe("classroom");
+    expect(report.rows[1].message).toBe("classroom");
+    expect(await queryAll("SELECT id FROM child WHERE first_name IN ('Layla','Omar')")).toHaveLength(0);
   });
 
   it("rolls the whole row back when the parent email belongs to a non-parent account", async () => {
