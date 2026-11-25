@@ -1633,15 +1633,28 @@ async function assertFamilyAction(me: SessionCookie, action: string): Promise<vo
 // allowed to tag. Admin/owner may use the "center" channel; staff and carers
 // are restricted to their assigned classrooms. Forged or out-of-scope values
 // are dropped rather than silently expanded.
-async function resolveNewsfeedRecipients(
+//
+// KID-2485: the same resolution now feeds the survey composer, which also needs
+// the picked channel/classrooms for its stored audience summary. One helper
+// keeps activities, newsfeed, and surveys on exactly the same rules.
+type RecipientAudience = {
+  channel: "center" | "rooms" | "children" | "";
+  roomIds: string[];
+  childIds: string[];
+};
+
+async function resolveRecipientAudience(
   formData: FormData,
   me: SessionCookie,
   instituteId: string
-): Promise<string[]> {
-  const { listChildren, childrenByRooms, staffRooms } = await import("@/lib/store");
+): Promise<RecipientAudience> {
+  const { listChildren, listRooms, childrenByRooms, staffRooms } = await import("@/lib/store");
   const { queryGet } = await import("@/lib/db");
   const isAdmin = me.role === "owner" || me.role === "admin";
-  const channel = String(formData.get("recipientChannel") ?? "").trim();
+  const rawChannel = String(formData.get("recipientChannel") ?? "").trim();
+  // KID-2482 alias: the old admin "Center"/"All classrooms" pair is one
+  // "Everyone (whole center)" channel. Both values mean the same audience.
+  const channel = rawChannel === "everyone" ? "center" : rawChannel;
 
   let allowedRoomIds: string[] = [];
   if (!isAdmin) {
@@ -1658,29 +1671,49 @@ async function resolveNewsfeedRecipients(
     if (!isAdmin) {
       throw new Error(await gateMessage("act.messageEveryoneAdmins", null));
     }
-    return (await listChildren(instituteId)).map((c) => String(c.id));
+    // Resolve at submit time so classrooms created after the composer loaded
+    // are included. Unassigned legacy children stay in the audience so an
+    // announcement never silently misses a family.
+    const rooms = await listRooms(instituteId);
+    const classroomChildren = await childrenByRooms(rooms.map((r) => String(r.id)));
+    const unassigned = (await listChildren(instituteId)).filter((c) => !c.room_id);
+    return {
+      channel: "center",
+      roomIds: [],
+      childIds: Array.from(new Set([...classroomChildren, ...unassigned].map((c) => String(c.id)))),
+    };
   }
 
   if (channel === "rooms") {
     const requestedRoomIds = formData.getAll("recipientRoomIds").map(String).filter(Boolean);
-    const roomIds = isAdmin ? requestedRoomIds : requestedRoomIds.filter((id) => allowedRoomIds.includes(id));
-    return (await childrenByRooms(roomIds)).map((c) => String(c.id));
+    const instituteRooms = new Set((await listRooms(instituteId)).map((r) => String(r.id)));
+    const roomIds = requestedRoomIds.filter(
+      (id) => instituteRooms.has(id) && (isAdmin || allowedRoomIds.includes(id))
+    );
+    return {
+      channel: "rooms",
+      roomIds,
+      childIds: (await childrenByRooms(roomIds)).map((c) => String(c.id)),
+    };
   }
 
   const requestedChildIds = formData.getAll("childIds").map(String).filter(Boolean);
-  if (isAdmin) {
-    return requestedChildIds;
-  }
-  if (allowedRoomIds.length === 0) {
-    return [];
-  }
-
   const children = await listChildren(instituteId);
-  const allowed = new Set(allowedRoomIds);
-  return requestedChildIds.filter((cid) => {
+  const allowedRooms = new Set(allowedRoomIds);
+  const childIds = requestedChildIds.filter((cid) => {
     const child = children.find((c) => String(c.id) === cid);
-    return child && allowed.has(child.room_id ? String(child.room_id) : "");
+    if (!child) return false;
+    return isAdmin || allowedRooms.has(String(child.room_id ?? ""));
   });
+  return { channel: childIds.length > 0 ? "children" : "", roomIds: [], childIds };
+}
+
+async function resolveNewsfeedRecipients(
+  formData: FormData,
+  me: SessionCookie,
+  instituteId: string
+): Promise<string[]> {
+  return (await resolveRecipientAudience(formData, me, instituteId)).childIds;
 }
 
 // KID-57: the app language lives on `account.language` + the kiddy_lang
@@ -3377,6 +3410,26 @@ export async function createFormAction(formData: FormData) {
   if (!title) {
     redirect(`${returnTo}${returnTo.includes("?") ? "&" : "?"}error=form-title`);
   }
+  // KID-2485: a survey is a broadcast, so it needs an explicit audience. The
+  // picker omits every field when nothing was chosen; forged values are
+  // narrowed by the same resolver activities/newsfeed use. Forms and lists
+  // keep their old center-wide behavior (no audience written).
+  let audience: RecipientAudience | undefined;
+  if (kind === "survey") {
+    const isAdmin = me.role === "owner" || me.role === "admin";
+    const rawChannel = String(formData.get("recipientChannel") ?? "").trim();
+    const channel = rawChannel === "everyone" ? "center" : rawChannel;
+    const errorUrl = `${returnTo}${returnTo.includes("?") ? "&" : "?"}error=form-recipients`;
+    // The admin-only whole-center option is enforced server-side, exactly like
+    // the other composers. A staff POST that forges it gets the same refusal.
+    if (channel === "center" && !isAdmin) redirect(errorUrl);
+    audience = await resolveRecipientAudience(formData, me, instituteId);
+    const hasChannel =
+      audience.channel === "center" ||
+      (audience.channel === "rooms" && audience.roomIds.length > 0) ||
+      (audience.channel === "children" && audience.childIds.length > 0);
+    if (!hasChannel) redirect(errorUrl);
+  }
   let fieldsJson = [];
   for (let i = 0; i < 20; i++) {
     const label = String(formData.get(`field_${i}_label`) ?? "").trim();
@@ -3396,6 +3449,7 @@ export async function createFormAction(formData: FormData) {
       description: String(formData.get("description") ?? ""),
       fieldsJson: JSON.stringify(fieldsJson),
       accountId: me.accountId,
+      audience,
     });
     // KID-477: a published form/survey is an admin change parents see —
     // attributed without the field structure.
@@ -3407,7 +3461,11 @@ export async function createFormAction(formData: FormData) {
         entityType: "form_template",
         entityId: String(form.id),
         summary: `Created the ${kind === "survey" ? "survey" : "form"} “${title}”`,
-        metadata: { fields: fieldsJson.length },
+        metadata: {
+          fields: fieldsJson.length,
+          audienceChannel: audience?.channel ?? null,
+          audienceCount: audience?.childIds.length ?? 0,
+        },
       });
     }
   }

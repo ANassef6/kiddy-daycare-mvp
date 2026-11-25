@@ -363,6 +363,9 @@ export function sqliteSchema(db: any): void {
     description TEXT,
     fields_json TEXT NOT NULL DEFAULT '[]',
     created_by_account_id TEXT REFERENCES account(id),
+    audience_channel TEXT,
+    audience_room_ids TEXT,
+    audience_child_ids TEXT,
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
   );
 
@@ -1149,6 +1152,13 @@ export function sqliteSchema(db: any): void {
     const formCols = db.prepare("PRAGMA table_info(form_template)").all() as { name: string }[];
     if (!formCols.some((c) => c.name === "share_token")) {
       db.exec("ALTER TABLE form_template ADD COLUMN share_token TEXT");
+    }
+    // KID-2485: mirror of 0057_kid2485_survey_audience.sql — the stored survey
+    // audience for databases created before these columns existed.
+    for (const col of ["audience_channel", "audience_room_ids", "audience_child_ids"]) {
+      if (!formCols.some((c) => c.name === col)) {
+        db.exec(`ALTER TABLE form_template ADD COLUMN ${col} TEXT`);
+      }
     }
   } catch {}
 

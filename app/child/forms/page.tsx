@@ -1,10 +1,11 @@
 import { requireFamilyPage } from "@/lib/require";
-import { listForms, responsesByAccount, getForm } from "@/lib/store";
+import { listForms, responsesByAccount, getForm, childIdsForAccount } from "@/lib/store";
 import { firstInstituteId, safeJson, cap } from "@/lib/helpers";
 import { submitFormAction } from "@/lib/actions";
 import { i18nForAccount } from "@/lib/i18n-session";
 import { tr } from "@/lib/i18n";
 import { recordToolUsage } from "@/lib/tool-usage";
+import { surveyVisibleToChildren } from "@/lib/survey-audience";
 import Link from "next/link";
 
 export const dynamic = "force-dynamic";
@@ -29,7 +30,17 @@ export default async function ParentFormsPage({ searchParams }: { searchParams: 
   const instituteId = await firstInstituteId();
   if (!instituteId) return <p className="muted">{t("forms.noInstitute")}</p>;
   await recordToolUsage({ instituteId: String(instituteId ?? "") || null, accountId: session.accountId, toolKey: "forms", source: "child", metadata: null });
-  const [forms, mine] = await Promise.all([listForms(instituteId), responsesByAccount(session.accountId)]);
+  const [allForms, mine] = await Promise.all([listForms(instituteId), responsesByAccount(session.accountId)]);
+  // KID-2485: a targeted survey is shown only to families with a child in its
+  // audience. Forms, lists, and pre-change surveys (NULL audience) stay
+  // visible to everyone, exactly as before.
+  let forms = allForms;
+  if (session.role === "parent") {
+    const myChildIds = await childIdsForAccount(session.accountId);
+    forms = allForms.filter(
+      (f: any) => String(f.kind ?? "form") !== "survey" || surveyVisibleToChildren(f, myChildIds)
+    );
+  }
   const search = await searchParams;
   const openId = search.open || search.sent;
 
