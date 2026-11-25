@@ -165,6 +165,7 @@ function statusCard(staff: any, dict: Dict, locale: Locale, requireLocation: boo
           placeholder: tr(dict, "staff.statusPlaceholder"),
           options: {
             checkin: tr(dict, "attendees.checkedIn"),
+            out: tr(dict, "attendees.checkedOut"),
             sick: tr(dict, "profile.sick"),
             vacation: tr(dict, "staff.statusVacation"),
             absent: tr(dict, "staff.statusAbsent"),
