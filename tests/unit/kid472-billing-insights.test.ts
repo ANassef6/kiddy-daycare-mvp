@@ -289,7 +289,7 @@ describe("operator guards on the Billing/Insights surface (KID-481 static pins)"
   const read = (p: string) => readFileSync(p, "utf8");
 
   it("the billing page double-checks role AND email allowlist for both tabs", () => {
-    const page = read("app/platform/daycares/[id]/billing/page.tsx");
+    const page = read("app/platform/daycares/[id]/settings/billing/page.tsx");
     expect(page).toContain("isPlatformOperatorRole(session.role)");
     expect(page).toContain("isPlatformOperatorEmail(session.email)");
     expect(page).toContain('redirect("/login")');
@@ -299,11 +299,11 @@ describe("operator guards on the Billing/Insights surface (KID-481 static pins)"
 
   it("the gear link on the platform list still targets the tabbed page", () => {
     const listPage = read("app/platform/page.tsx");
-    expect(listPage).toContain("href={`/platform/daycares/${instId}/billing`}");
+    expect(listPage).toContain("href={`/platform/daycares/${instId}/settings/billing`}");
   });
 
   it("the tab bar exists with Billing and Insights, and insights view renders aggregate tables", () => {
-    const insightsView = read("app/platform/daycares/[id]/billing/insights-view.tsx");
+    const insightsView = read("app/platform/daycares/[id]/settings/billing/insights-view.tsx");
     expect(insightsView).toContain("insightsTopUsed");
     expect(insightsView).toContain("insightsNeglected");
     expect(insightsView).toContain("insightsPerDaycare");
@@ -311,7 +311,7 @@ describe("operator guards on the Billing/Insights surface (KID-481 static pins)"
     // Labels must resolve through the platform.* dot path, or the table
     // renders raw "toolDashboard" keys (regression pinned from KID-481 QA).
     expect(insightsView).toContain("`platform.${toolDictKey(toolKey)}`");
-    const page = read("app/platform/daycares/[id]/billing/page.tsx");
+    const page = read("app/platform/daycares/[id]/settings/billing/page.tsx");
     expect(page).toContain("platform.billingTab");
     expect(page).toContain("platform.insightsTab");
   });

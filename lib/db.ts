@@ -354,6 +354,83 @@ export async function queryRun(sql: string, ...args: unknown[]): Promise<{ rowCo
   return isPostgresMode() ? pgRun(sql, args) : sqliteRun(sql, args);
 }
 
+/** A query surface bound to one open transaction. Only the bulk-upload writer
+ *  needs this today: a spreadsheet row creates a child/staff row, its contact
+ *  rows and one or two account rows, and a failure halfway must roll all of
+ *  them back. */
+export type DbTransaction = {
+  queryAll: typeof queryAll;
+  queryGet: typeof queryGet;
+  queryRun: typeof queryRun;
+};
+
+/**
+ * KID-2478: run a unit of work atomically, per row. The callback receives
+ * transaction-bound helpers so every write lands on the same connection.
+ *
+ * SQLite has one in-process connection, so BEGIN/COMMIT is safe under the
+ * single-threaded better-sqlite3 driver (local dev only). Postgres borrows a
+ * client from its pool for the whole callback. A thrown error always rolls the
+ * row back; nothing is left half-created.
+ */
+export async function withTransaction<T>(
+  run: (tx: DbTransaction) => Promise<T>
+): Promise<T> {
+  if (isPostgresMode()) {
+    // KID-2457/KID-2477: borrow one pooled client for the whole row so every
+    // statement runs inside the same transaction. withPgClient only retries the
+    // connection, never the statements, so a retry cannot duplicate a write.
+    return withPgClient(async (client) => {
+      const txAll = async (sql: string, args: unknown[]): Promise<Row[]> => {
+        const r = await client.query(render(sql, args));
+        return r.rows as Row[];
+      };
+      const txRun = async (sql: string, args: unknown[]): Promise<{ rowCount: number }> => {
+        const r = await client.query(render(sql, args));
+        return { rowCount: r.rowCount ?? 0 };
+      };
+      const tx: DbTransaction = {
+        queryAll: (sql: string, ...args: unknown[]) => txAll(sql, args),
+        queryGet: async (sql: string, ...args: unknown[]) => (await txAll(sql, args))[0],
+        queryRun: (sql: string, ...args: unknown[]) => txRun(sql, args),
+      };
+      await client.query("BEGIN");
+      try {
+        const result = await run(tx);
+        await client.query("COMMIT");
+        return result;
+      } catch (error) {
+        try {
+          await client.query("ROLLBACK");
+        } catch (rollbackError) {
+          console.error("[KID-2478] Postgres transaction rollback failed", rollbackError);
+        }
+        throw error;
+      }
+    });
+  }
+
+  const db = getSqlite();
+  const tx: DbTransaction = {
+    queryAll: (sql: string, ...args: unknown[]) => sqliteAll(sql, args),
+    queryGet: async (sql: string, ...args: unknown[]) => (await sqliteAll(sql, args))[0],
+    queryRun: (sql: string, ...args: unknown[]) => sqliteRun(sql, args),
+  };
+  db.exec("BEGIN");
+  try {
+    const result = await run(tx);
+    db.exec("COMMIT");
+    return result;
+  } catch (error) {
+    try {
+      db.exec("ROLLBACK");
+    } catch (rollbackError) {
+      console.error("[KID-2478] SQLite transaction rollback failed", rollbackError);
+    }
+    throw error;
+  }
+}
+
 // Applies the Kiddy schema. Postgres mode reads supabase/migrations; SQLite
 // mode keeps its inline migration so local dev stays self-contained.
 //

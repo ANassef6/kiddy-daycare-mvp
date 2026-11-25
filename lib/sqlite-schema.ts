@@ -900,6 +900,25 @@ export function sqliteSchema(db: any): void {
     created_at TEXT NOT NULL DEFAULT (datetime('now')),
     updated_at TEXT NOT NULL DEFAULT (datetime('now'))
   );
+
+  -- KID-2478: mirror of supabase/migrations/0055_kid2478_bulk_upload.sql —
+  -- one row per Excel upload (children or staff) with the bounded JSON report
+  -- the operator downloads afterwards. details never holds passwords.
+  CREATE TABLE IF NOT EXISTS bulk_upload (
+    id TEXT PRIMARY KEY,
+    institute_id TEXT NOT NULL REFERENCES institute(id) ON DELETE CASCADE,
+    kind TEXT NOT NULL CHECK (kind IN ('children', 'staff')),
+    actor_account_id TEXT REFERENCES account(id) ON DELETE SET NULL,
+    file_name TEXT NOT NULL DEFAULT '',
+    total_rows INTEGER NOT NULL DEFAULT 0,
+    created_count INTEGER NOT NULL DEFAULT 0,
+    skipped_count INTEGER NOT NULL DEFAULT 0,
+    error_count INTEGER NOT NULL DEFAULT 0,
+    details TEXT NOT NULL DEFAULT '[]',
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+  CREATE INDEX IF NOT EXISTS idx_bulk_upload_institute
+    ON bulk_upload (institute_id, created_at DESC);
   `);
 
   // KID-746: mirror of supabase/migrations/0039_kid746_contract_drafts.sql —

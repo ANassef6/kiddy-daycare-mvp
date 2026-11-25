@@ -859,6 +859,61 @@ export async function resetAccountPasswordAction(formData: FormData) {
   redirect(`/platform/password-reset?reset=1&email=${encodeURIComponent(reset.email)}`);
 }
 
+// KID-2478: the superadmin Excel bulk upload. Lives on the per-daycare
+// Settings surface; the guard is the same double check every /platform action
+// uses (internal sentinel session AND the env allowlist), so a daycare
+// admin/staff/parent POST is redirected to /login before a byte is parsed.
+// The file is validated before processing: .xlsx only, non-empty, under 5 MB,
+// at most 500 data rows. Each row commits on its own (lib/bulk-upload.ts); a
+// malformed row is reported with its row number and writes nothing.
+export async function bulkUploadAction(formData: FormData) {
+  const operator = await requirePlatformOperator();
+  await ensureSchema();
+  const instituteId = String(formData.get("instituteId") ?? "").trim();
+  const kindRaw = String(formData.get("kind") ?? "");
+  const kind = kindRaw === "children" || kindRaw === "staff" ? kindRaw : null;
+  if (!instituteId) redirect("/platform?error=missing-id");
+  // KID-2477: bulk upload is its own tab under the per-daycare Settings
+  // section, so the result banner/report comes back to that tab.
+  const back = `/platform/daycares/${encodeURIComponent(instituteId)}/settings/bulk-upload`;
+  if (!kind) redirect(`${back}?error=kind`);
+
+  // Re-read the daycare from the database; the hidden id is not trusted.
+  const institute = await getInstitute(instituteId);
+  if (!institute) redirect("/platform?error=missing-id");
+
+  const file = formData.get("file");
+  if (!(file instanceof File) || file.size === 0) redirect(`${back}?error=file`);
+  if (!/\.xlsx$/i.test(file.name)) redirect(`${back}?error=type`);
+
+  const { BulkUploadError, MAX_BULK_FILE_BYTES, processBulkUpload } = await import("@/lib/bulk-upload");
+  if (file.size > MAX_BULK_FILE_BYTES) redirect(`${back}?error=size`);
+
+  const buffer = Buffer.from(await file.arrayBuffer());
+  let report;
+  try {
+    report = await processBulkUpload({
+      instituteId,
+      kind,
+      fileName: file.name,
+      buffer,
+      actorAccountId: operator.accountId,
+    });
+  } catch (error) {
+    if (error instanceof BulkUploadError) {
+      redirect(`${back}?error=${encodeURIComponent(error.code)}`);
+    }
+    console.error(
+      `[KID-2478] bulk upload failed for ${instituteId} (${kind}):`,
+      error instanceof Error ? error.message : error
+    );
+    redirect(`${back}?error=unknown`);
+  }
+
+  revalidatePath(back);
+  redirect(`${back}?report=${encodeURIComponent(report.id)}`);
+}
+
 /** Validate the /platform hex color fields without trusting the form: accept
  *  `#RRGGBB` only, everything else falls back to the theme default. */
 function platformColor(value: FormDataEntryValue | null, fallback: string): string {
@@ -1154,7 +1209,7 @@ export async function updateDaycareBillingAction(formData: FormData) {
   if (!instituteId) redirect("/platform?error=missing-id");
   const inst = await queryGet("SELECT id FROM institute WHERE id = ?", instituteId);
   if (!inst) redirect("/platform?error=missing-id");
-  const back = `/platform/daycares/${instituteId}/billing`;
+  const back = `/platform/daycares/${instituteId}/settings/billing`;
   const planRaw = String(formData.get("plan") ?? "").trim();
   const plan = planRaw === "monthly" || planRaw === "demo" ? planRaw : "";
   if (!plan) redirect(`${back}?error=billing-plan-invalid`);
@@ -1220,8 +1275,8 @@ export async function updateBranchBillingAction(formData: FormData) {
     branchId,
     instituteId
   );
-  if (!branch) redirect(`/platform/daycares/${instituteId}/billing?error=unknown`);
-  const back = `/platform/daycares/${instituteId}/billing`;
+  if (!branch) redirect(`/platform/daycares/${instituteId}/settings/billing?error=unknown`);
+  const back = `/platform/daycares/${instituteId}/settings/billing`;
   const planRaw = String(formData.get("plan") ?? "").trim();
   const plan = planRaw === "monthly" || planRaw === "demo" ? planRaw : "";
   if (!plan) redirect(`${back}?error=billing-plan-invalid`);
@@ -1420,7 +1475,7 @@ export async function updateInvoiceAmountAction(formData: FormData) {
   const { getInvoice } = await import("@/lib/billing");
   const invoice = invoiceId ? await getInvoice(invoiceId) : undefined;
   if (!invoice) redirect("/platform?error=missing-invoice");
-  const back = `/platform/daycares/${invoice.instituteId}/invoices`;
+  const back = `/platform/daycares/${invoice.instituteId}/settings/invoices`;
   const rawTotal = String(formData.get("totalAmountEgp") ?? "").trim();
   const rawNote = String(formData.get("manualAdjustment") ?? "");
   const { updateInvoiceAmount } = await import("@/lib/billing");
@@ -1504,7 +1559,7 @@ export async function markInvoicePaidAction(formData: FormData) {
   const { getInvoice, markInvoicePaid } = await import("@/lib/billing");
   const invoice = invoiceId ? await getInvoice(invoiceId) : undefined;
   if (!invoice) redirect("/platform?error=missing-invoice");
-  const back = `/platform/daycares/${invoice.instituteId}/invoices`;
+  const back = `/platform/daycares/${invoice.instituteId}/settings/invoices`;
   try {
     await markInvoicePaid(invoiceId);
   } catch (err) {
@@ -4604,7 +4659,7 @@ export async function uploadDaycareContractAction(formData: FormData) {
     ? await queryGet("SELECT id FROM institute WHERE id = ?", instituteId)
     : null;
   if (!inst) redirect("/platform?error=missing-id");
-  const back = `/platform/daycares/${instituteId}/billing`;
+  const back = `/platform/daycares/${instituteId}/settings/billing`;
   // Boundary validation — before any storage or DB write. Wrong type,
   // oversize and empty files are refused with a localized error code.
   if (!file || file.size === 0) redirect(`${back}?error=contractType`);
