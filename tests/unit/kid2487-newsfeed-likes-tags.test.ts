@@ -26,6 +26,7 @@ import {
   toggleLike,
 } from "@/lib/store";
 import { getDictionary } from "@/lib/i18n";
+import { attachmentKind, mediaRefName } from "@/lib/media-limits";
 import NewsfeedLikers from "@/components/NewsfeedLikers";
 import { seedFixture, mustGet } from "../helpers";
 
@@ -145,6 +146,20 @@ describe("KID-2487: who liked a post", () => {
     );
     expect(arHtml).toContain("1 إعجاب");
     expect(arHtml).toContain("ولي أمر");
+  });
+});
+
+describe("KID-2487: post photo kind from its stored ref", () => {
+  it("classifies R2 and legacy private refs from the URL's last segment", () => {
+    const r2 = "r2-private:newsfeed/inst-1/0b8f0e0e-aaaa-4bbb-8ccc-1234567890ab.PNG";
+    const legacy = "kiddy-private:newsfeed/inst-1/8b1c.png";
+    const video = "r2-private:newsfeed/inst-1/8b1c.mp4";
+    expect(mediaRefName(r2)).toBe("0b8f0e0e-aaaa-4bbb-8ccc-1234567890ab.PNG");
+    expect(attachmentKind(mediaRefName(r2), r2)).toBe("image");
+    expect(attachmentKind(mediaRefName(legacy), legacy)).toBe("image");
+    expect(attachmentKind(mediaRefName(video), video)).toBe("video");
+    const data = "data:image/png;base64,iVBORw0KGgo=";
+    expect(attachmentKind(mediaRefName(data), data)).toBe("image");
   });
 });
 

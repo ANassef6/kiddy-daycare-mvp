@@ -111,6 +111,13 @@ export function isDocumentMime(mime: string | undefined | null): boolean {
 const IMAGE_EXTENSIONS = new Set(["jpg", "jpeg", "png", "webp", "gif", "heic", "heif", "avif"]);
 const VIDEO_EXTENSIONS = new Set(["mp4", "mov", "webm", "m4v", "3gp", "ogv"]);
 
+// KID-2487: a private media REF is the only name a stored photo has. The last
+// path segment carries its extension (newsfeed/<iid>/<uuid>.png), so callers
+// can classify the post photo without a separate file-name column.
+export function mediaRefName(url: string | undefined | null): string {
+  return String(url ?? "").split("?")[0].split("#")[0].split("/").pop() ?? "";
+}
+
 export function attachmentKind(
   name: string | undefined | null,
   url?: string | null

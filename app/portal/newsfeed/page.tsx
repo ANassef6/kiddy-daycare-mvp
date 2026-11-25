@@ -7,6 +7,7 @@ import MediaUploadForm from "@/components/MediaUploadForm";
 import { mediaUploadLabels } from "@/lib/media-i18n";
 import {
   attachmentKind,
+  mediaRefName,
   MAX_NEWSFEED_ATTACHMENT_BYTES,
   MAX_VIDEO_DURATION_SECONDS,
 } from "@/lib/media-limits";
@@ -141,8 +142,8 @@ export default async function PortalNewsfeedPage(props: {
       </details>
 
       {posts.map((post: any) => {
-        const mediaName = String(post.media_url ?? "").split("?")[0].split("#")[0].split("/").pop() ?? "";
-        const isImage = !!post.media_url && attachmentKind(mediaName, String(post.media_url)) === "image";
+        const isImage =
+          !!post.media_url && attachmentKind(mediaRefName(post.media_url), String(post.media_url)) === "image";
         const mediaSrc = mediaSrcs.get(String(post.media_url)) ?? "";
         return (
           <div className="card mb-4" key={post.id}>
