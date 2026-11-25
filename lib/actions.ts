@@ -83,6 +83,8 @@ import {
   updateInstitute,
   createContactRequest,
   createEvent,
+  getEvent,
+  updateEvent,
   addEventMedia,
   createForm,
   saveFormResponse,
@@ -3046,6 +3048,10 @@ export async function createEventAction(formData: FormData) {
   const me = await authAccount();
   const instituteId = await requireInstitute();
   if (instituteId) {
+    // KID-2480: empty = whole center; otherwise the room must be this tenant's
+    // (the raw form value must never authorize another center's classroom).
+    const classroomId = String(formData.get("classroomId") ?? "").trim() || null;
+    if (classroomId) await assertInstituteOwned(me, "room", classroomId, "institute_id");
     const event = await createEvent({
       instituteId,
       title: String(formData.get("title") ?? ""),
@@ -3054,6 +3060,7 @@ export async function createEventAction(formData: FormData) {
       endTime: String(formData.get("endTime") ?? "") || undefined,
       location: String(formData.get("location") ?? "") || undefined,
       description: String(formData.get("description") ?? "") || undefined,
+      classroomId,
       accountId: me.accountId,
     });
     // KID-477: events are user-visible records — attributed on the trail.
@@ -3081,6 +3088,36 @@ export async function createEventAction(formData: FormData) {
   // KID-55 #10: activities page posts inline with returnTo=/portal/learning/activities.
   const returnTo = String(formData.get("returnTo") ?? "");
   redirect(returnTo.startsWith("/portal/") ? returnTo : "/portal/events");
+}
+
+// KID-2480: edit an existing activity, including its classroom target.
+export async function updateEventAction(formData: FormData) {
+  const me = await authAccount();
+  const instituteId = await requireInstitute();
+  const eventId = String(formData.get("eventId") ?? "").trim();
+  if (!instituteId || !eventId) redirect("/portal/events");
+  await assertInstituteOwned(me, "event", eventId, "institute_id");
+  const classroomId = String(formData.get("classroomId") ?? "").trim() || null;
+  if (classroomId) await assertInstituteOwned(me, "room", classroomId, "institute_id");
+  await updateEvent(eventId, {
+    title: String(formData.get("title") ?? ""),
+    eventDate: String(formData.get("eventDate") ?? ""),
+    startTime: String(formData.get("startTime") ?? "") || null,
+    endTime: String(formData.get("endTime") ?? "") || null,
+    location: String(formData.get("location") ?? "") || null,
+    description: String(formData.get("description") ?? "") || null,
+    classroomId,
+  });
+  await recordAuditEvent({
+    instituteId,
+    actorAccountId: me.accountId,
+    action: "update",
+    entityType: "event",
+    entityId: eventId,
+    summary: `Updated the activity “${String(formData.get("title") ?? "")}”`,
+    metadata: { classroomId: classroomId ?? null },
+  });
+  redirect("/portal/events");
 }
 
 export async function addEventMediaAction(formData: FormData) {
