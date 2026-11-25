@@ -601,6 +601,9 @@ export const en = {
     roomsPage: "Rooms",
     centerDetails: "Center details",
     centerName: "Center name",
+    // KID-2486: the center name is read-only here — the platform sets it.
+    centerNameLockedHint:
+      "Your center name is set by the platform team. Contact support to change it.",
     contact: "Contact",
     address: "Address",
     // KID-489 item 1 (KID-490): the center-level default currency, used for
@@ -990,6 +993,11 @@ export const en = {
     enterNoAddress: "This daycare has no web address yet. Set a web prefix first.",
     operatorViewBanner: "Viewing {daycare} as platform operator",
     exitView: "Exit",
+    // KID-2486: the per-daycare center rename field (the only writer of the
+    // name every branding surface reads).
+    centerNameLabel: "Center name",
+    centerNameSave: "Save name",
+    centerNameInvalid: "Enter a center name (120 characters or fewer).",
     // KID-244: the per-daycare billing module (gear icon on the list row, the
     // billing settings page, and the create-daycare billing options).
     billingSettings: "Billing",
@@ -2950,6 +2958,9 @@ export const ar = {
     roomsPage: "الفصول",
     centerDetails: "بيانات المركز",
     centerName: "اسم المركز",
+    // KID-2486: اسم المركز للقراءة فقط هنا — تضبطه المنصة.
+    centerNameLockedHint:
+      "اسم مركزك تحدده إدارة المنصة. تواصل مع الدعم لتغييره.",
     contact: "جهة الاتصال",
     address: "العنوان",
     // KID-489 item 1 (KID-490): العملة الافتراضية للمركز.
@@ -3317,6 +3328,11 @@ export const ar = {
     enterNoAddress: "لا توجد بادئة عنوان لهذه الحضانة بعد. اضبط بادئة أولًا.",
     operatorViewBanner: "تستعرض بيانات {daycare} بحساب مشغّل المنصة",
     exitView: "خروج",
+    // KID-2486: حقل إعادة تسمية المركز لكل حضانة (الكاتب الوحيد للاسم الذي
+    // تقرأه كل واجهات العلامة التجارية).
+    centerNameLabel: "اسم المركز",
+    centerNameSave: "حفظ الاسم",
+    centerNameInvalid: "أدخل اسمًا للمركز (120 حرفًا أو أقل).",
     // KID-244: وحدة الفاتورة لكل روضة (أيقونة الترس في جدول الروضات، صفحة
     // إعدادات الفاتورة، وخيارات الفاتورة عند إنشاء روضة).
     billingSettings: "الفاتورة",
