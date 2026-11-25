@@ -23,7 +23,7 @@ Satisfied. The founder reviewed the two draft templates and approved them:
 | Malformed rows | Reported with the spreadsheet row number and a stable reason (names, DOB, email, role, classroom, duplicate). Blank or unknown child classroom is an error and creates nothing (KID-2482, comment `0c8e0961`). Unknown staff classroom is an error and creates nothing. |
 | Atomicity | `withTransaction()` in `lib/db.ts` wraps each row. A late failure (for example a parent email that belongs to a non-parent account) rolls the whole row back. |
 | Report | `bulk_upload` (migration 0055 + SQLite mirror) stores one bounded JSON report per run. `GET /api/platform/bulk-upload/report/[id]` downloads it as UTF-8 CSV with a BOM for Excel. |
-| Settings UI | `app/platform/daycares/[id]/settings/page.tsx` renders `components/BulkUploadCard.tsx`; `app/platform/daycares/[id]/settings/bulk-upload/page.tsx` redirects to that section. The `/platform` daycare row links to Settings. |
+| Settings UI | KID-2477 integration: `app/platform/daycares/[id]/settings/bulk-upload/page.tsx` is the operator-only "Bulk upload" tab and renders `components/BulkUploadCard.tsx`; the Settings section nav (`settings/layout.tsx`) lists it beside Billing, Invoices and Center configuration. The action returns to that tab with the report. The `/platform` daycare row keeps KID-2477's gear link into Settings. |
 | Emails | None. The uploader never calls GoTrue signUp, an invite path, or a mail helper. |
 | i18n | EN + AR strings under `platform.bulkUpload*` / `platform.daycareSettings*`; the existing parity and divergence guards cover them. |
 
@@ -38,23 +38,28 @@ Satisfied. The founder reviewed the two draft templates and approved them:
 ## Verification run (local, 2026-11-25)
 
 ```
-npx tsc --noEmit                                  clean
-npm run lint                                      clean (only pre-existing <img> warnings)
-SESSION_SECRET=<random> npm run build             green
-npx vitest run kid2478-* i18n-page-coverage       25 passed / 25
+npx tsc --noEmit                                          clean
+npm run lint                                              clean (only pre-existing <img> warnings)
+SESSION_SECRET=<random> npm run build                     green
+npx vitest run kid2478-* kid2477-platform-settings i18n-page-coverage
+                                                          33 passed / 33
 env -u DATABASE_URL -u KIDDY_DATABASE_URL \
-  npm run db:verify-migrations                    all checks passed (PGlite)
+  npm run db:verify-migrations                            all checks passed (PGlite)
 ```
 
-`db:verify-migrations` was run against PGlite because this workspace shares a
-live `DATABASE_URL` with a concurrent run; the shared schema produced a DDL
-deadlock in 0040. The isolated PGlite run applied the full chain (including
-0055) and its checks. 0055 also enables RLS on `bulk_upload` and revokes
-anon/authenticated, because 0040 only covered tables that existed when it ran.
+The first four lines were re-run after rebasing onto `origin/staging`
+(`b56ad75`, KID-2477) and wiring the card as the Settings → Bulk upload tab.
+`db:verify-migrations` was run against PGlite on the pre-rebase branch because
+this workspace shares a live `DATABASE_URL` with a concurrent run; the shared
+schema produced a DDL deadlock in 0040. The migration (0055) is unchanged by the
+rebase. The isolated PGlite run applied the full chain (including 0055) and its
+checks. 0055 also enables RLS on `bulk_upload` and revokes anon/authenticated,
+because 0040 only covered tables that existed when it ran.
 
 ## Staging / production cut
 
-- Branch: `kid2478-bulk-upload` (based on `origin/master` `75aa732`).
+- Branch: `kid2478-bulk-upload`, based on `origin/staging` `b56ad75` (KID-2477).
+  `kid2478-staging` tracks the same commit for the staging cut.
 - The staging Worker build needs the deployment `NEXT_PUBLIC_*`, Supabase and
   `SESSION_SECRET` values (see `docs/CLOUDFLARE_MIGRATION.md`); those secrets
   are not present in this workspace, so the live staging deploy is the next
@@ -65,8 +70,8 @@ anon/authenticated, because 0040 only covered tables that existed when it ran.
 
 ## Coordination with KID-2477 (Platform Settings restructure)
 
-KID-2477 is moving `Billing` / `Invoices` under Settings. This task adds the
-same Settings landing page (`app/platform/daycares/[id]/settings/page.tsx`) with
-the bulk-upload card. If KID-2477's navigation lands first, keep the card as the
-"Bulk upload" tab/section and keep the two template/download routes unchanged;
-the card is self-contained (`components/BulkUploadCard.tsx`).
+KID-2477 (merged to `origin/staging` as `b56ad75`) owns the Settings chrome. This
+task keeps `components/BulkUploadCard.tsx` self-contained and mounts it as the
+"Bulk upload" tab (`settings/bulk-upload/page.tsx`) with a nav entry in
+`settings/layout.tsx`. The two template/download routes and the report route are
+unchanged.

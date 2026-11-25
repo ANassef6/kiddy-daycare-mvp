@@ -377,6 +377,9 @@ export async function withTransaction<T>(
   run: (tx: DbTransaction) => Promise<T>
 ): Promise<T> {
   if (isPostgresMode()) {
+    // KID-2457/KID-2477: borrow one pooled client for the whole row so every
+    // statement runs inside the same transaction. withPgClient only retries the
+    // connection, never the statements, so a retry cannot duplicate a write.
     return withPgClient(async (client) => {
       const txAll = async (sql: string, args: unknown[]): Promise<Row[]> => {
         const r = await client.query(render(sql, args));
@@ -400,12 +403,7 @@ export async function withTransaction<T>(
         try {
           await client.query("ROLLBACK");
         } catch (rollbackError) {
-          console.error(
-            JSON.stringify({
-              fmt: "KID-2478 transaction rollback failed",
-              error: describePgError(rollbackError),
-            })
-          );
+          console.error("[KID-2478] Postgres transaction rollback failed", rollbackError);
         }
         throw error;
       }
