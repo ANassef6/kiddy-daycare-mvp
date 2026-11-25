@@ -16,9 +16,11 @@ import {
   centerToday,
   familyAccessForAccount,
   parentCheckInOutAllowed,
+  listMedia,
 } from "@/lib/store";
 import { CheckInButton } from "@/components/CheckInButton";
 import Avatar from "@/components/Avatar";
+import NewsfeedLikers from "@/components/NewsfeedLikers";
 import ContactBadges from "@/components/ContactBadges";
 import DailyReportDateNav from "@/components/DailyReportDateNav";
 import Attribution from "@/components/Attribution";
@@ -144,7 +146,7 @@ export default async function ChildDetailPage(
   const bus = await latestBusEvent(String(child.id), busDay);
   const busPhase = bus ? busPhaseForCount(Number(bus.day_count ?? 0)) : null;
   const onBus = bus ? String(bus.type) === "on" : false;
-  const [report, contacts, feed, incidents, statuses, invoices] = await Promise.all([
+  const [report, contacts, feed, incidents, statuses, invoices, media] = await Promise.all([
     reportFor(child.id, reportDate),
     listContacts(child.id),
     newsfeedForChild(child.id, session.accountId),
@@ -155,6 +157,9 @@ export default async function ChildDetailPage(
     // family link to, so this read can only surface the viewer's own
     // family's billing data — never another daycare family's.
     listChildBilling(child.id),
+    // KID-2487: the child's photo media, including newsfeed photos tagged to
+    // this child. The child access gate above already authorized the viewer.
+    requestIid ? listMedia(requestIid, child.id) : Promise.resolve([]),
   ]);
   // KID-1177: the proof links resolve to short-lived signed URLs here, in the
   // authorized render context; legacy public URLs pass through unchanged.
@@ -163,6 +168,9 @@ export default async function ChildDetailPage(
   );
   // KID-2453: newsfeed attachments may be private R2 refs now.
   const feedMediaSrcs = await signedUrlsForRefs(feed.map((p: any) => String(p.media_url ?? "")));
+  // KID-2487: child media (including tagged newsfeed photos) uses the same
+  // private-REF → signed-URL resolution as the staff profile gallery.
+  const mediaSrcs = await signedUrlsForRefs(media.map((m: any) => String(m.url ?? "")));
 
   const meal = safeJson(report?.meal);
   const sleep = report?.sleep ? String(report.sleep) : "";
@@ -415,17 +423,49 @@ export default async function ChildDetailPage(
                 <button
                   type="submit"
                   className={post.liked ? "badge badge-green" : "badge badge-gray"}
-                  style={{ cursor: "pointer", border: "none", fontSize: 12 }}
+                  style={{ cursor: "pointer", border: "none", fontSize: 14 }}
                   title={post.liked ? t("child.unlike") : t("child.like")}
+                  aria-label={post.liked ? t("child.unlike") : t("child.like")}
+                  aria-pressed={!!post.liked}
                 >
-                  {post.liked ? "♥" : "♡"} {post.like_count}
+                  {post.liked ? "♥" : "♡"}
                 </button>
               </form>
             </div>
             <p className="mt-2">{post.body}</p>
             {post.media_url && <img src={feedMediaSrcs.get(String(post.media_url)) ?? ""} alt="" style={{ width: "100%", maxHeight: 360, objectFit: "cover", borderRadius: 8, marginTop: 10 }} />}
+            <div className="small muted mt-2">
+              <NewsfeedLikers likers={post.likers ?? []} count={Number(post.like_count ?? 0)} dict={dict} />
+            </div>
           </div>
         ))
+      )}
+
+      <h2 className="title mt-5">{t("profile.media", { count: media.length })}</h2>
+      {media.length === 0 ? (
+        <p className="muted small">{t("profile.noMedia")}</p>
+      ) : (
+        <div className="row" style={{ gap: 10, flexWrap: "wrap" }}>
+          {media.map((m: any) => {
+            const src = mediaSrcs.get(String(m.url ?? "")) ?? String(m.url ?? "");
+            const isVideo = String(m.kind ?? "") === "video";
+            return (
+              <a
+                key={String(m.id)}
+                href={src}
+                target="_blank"
+                rel="noreferrer"
+                style={{ display: "block", width: 120, height: 120, borderRadius: 10, overflow: "hidden", border: "1px solid var(--color-border)" }}
+              >
+                {isVideo ? (
+                  <video src={src} muted playsInline style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                ) : (
+                  <img src={src} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                )}
+              </a>
+            );
+          })}
+        </div>
       )}
 
       <h2 className="title mt-5">{t("child.pickupContacts")}</h2>

@@ -295,11 +295,15 @@ export function sqliteSchema(db: any): void {
     institute_id TEXT NOT NULL REFERENCES institute(id) ON DELETE CASCADE,
     child_id TEXT REFERENCES child(id) ON DELETE CASCADE,
     account_id TEXT REFERENCES account(id) ON DELETE CASCADE,
+    -- KID-2487: set when this row is a child link for a newsfeed post photo.
+    post_id TEXT REFERENCES newsfeed_post(id) ON DELETE CASCADE,
     url TEXT NOT NULL,
     kind TEXT NOT NULL DEFAULT 'image',
     caption TEXT,
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
   );
+  CREATE INDEX IF NOT EXISTS idx_media_post ON media (post_id);
+  CREATE INDEX IF NOT EXISTS idx_media_child ON media (institute_id, child_id);
 
   CREATE TABLE IF NOT EXISTS consent_request (
     id TEXT PRIMARY KEY,
@@ -951,6 +955,14 @@ export function sqliteSchema(db: any): void {
   // KID-2481: mirror of supabase/migrations/0055_kid2481_room_photo.sql.
   if (!roomCols.some((c) => c.name === "photo_url")) {
     db.exec("ALTER TABLE room ADD COLUMN photo_url TEXT");
+  }
+  // KID-2487: mirror of supabase/migrations/0058. Existing media rows have no
+  // newsfeed post link (NULL) and keep rendering exactly as before.
+  const mediaCols = db.prepare("PRAGMA table_info(media)").all() as { name: string }[];
+  if (mediaCols.length > 0 && !mediaCols.some((c) => c.name === "post_id")) {
+    db.exec("ALTER TABLE media ADD COLUMN post_id TEXT REFERENCES newsfeed_post(id) ON DELETE CASCADE");
+    db.exec("CREATE INDEX IF NOT EXISTS idx_media_post ON media (post_id)");
+    db.exec("CREATE INDEX IF NOT EXISTS idx_media_child ON media (institute_id, child_id)");
   }
   // KID-2483: mirror of supabase/migrations/0056 for databases created before
   // a shift could target a specific date.

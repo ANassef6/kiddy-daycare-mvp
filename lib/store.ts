@@ -1,4 +1,4 @@
-import { isPostgresMode, queryAll, queryGet, queryRun, uid, type Row } from "./db";
+import { isPostgresMode, queryAll, queryGet, queryRun, uid, withTransaction, type Row } from "./db";
 import { normalizeCurrency } from "./currency";
 import { normalizeSubdomainSlug } from "./subdomain";
 import { hasOverdueInvoice, nextMonthStart, type BillingPlan } from "./billing";
@@ -2325,14 +2325,21 @@ async function listNewsfeedImpl(instituteId: string, forAccountId?: string): Pro
      ORDER BY p.created_at DESC`,
     ...args
   );
-  // KID-472: batch tags + comments in two fixed queries instead of N+1
-  // per-post lookups, so query count no longer scales with post count.
-  const results: Row[] = rows.map((row) => ({ ...row, tags: [], comments: [] }));
+  // KID-472/KID-2487: batch tags, comments, likers and photo child links in
+  // fixed queries instead of N+1 per-post lookups, so query count no longer
+  // scales with post count.
+  const results: Row[] = rows.map((row) => ({
+    ...row,
+    tags: [],
+    comments: [],
+    likers: [],
+    mediaTags: [],
+  }));
   if (rows.length > 0) {
     const byId = new Map<string, Row>(rows.map((row, i) => [String(row.id), results[i]]));
     const postIds = rows.map((row) => String(row.id));
     const placeholders = postIds.map(() => "?").join(", ");
-    const [tagRows, commentRows] = await Promise.all([
+    const [tagRows, commentRows, likeRows, mediaRows] = await Promise.all([
       queryAll(
         `SELECT t.post_id, c.id, c.first_name, c.last_name
          FROM newsfeed_tag t JOIN child c ON c.id = t.child_id
@@ -2346,6 +2353,20 @@ async function listNewsfeedImpl(instituteId: string, forAccountId?: string): Pro
          ORDER BY c.created_at ASC`,
         ...postIds
       ),
+      queryAll(
+        `SELECT l.post_id, a.id, a.full_name, a.role
+         FROM newsfeed_like l JOIN account a ON a.id = l.account_id
+         WHERE l.post_id IN (${placeholders})
+         ORDER BY lower(a.full_name) ASC, a.id ASC`,
+        ...postIds
+      ),
+      queryAll(
+        `SELECT m.post_id, c.id, c.first_name, c.last_name
+         FROM media m JOIN child c ON c.id = m.child_id
+         WHERE m.post_id IN (${placeholders})
+         ORDER BY c.first_name ASC, c.last_name ASC`,
+        ...postIds
+      ),
     ]);
     for (const tagRow of tagRows as Array<Row & { post_id: string }>) {
       const post = byId.get(String(tagRow.post_id));
@@ -2355,12 +2376,32 @@ async function listNewsfeedImpl(instituteId: string, forAccountId?: string): Pro
       const post = byId.get(String(commentRow.post_id));
       if (post) (post.comments as unknown[]).push(commentRow);
     }
+    for (const likeRow of likeRows as Array<Row & { post_id: string }>) {
+      const post = byId.get(String(likeRow.post_id));
+      if (post) {
+        (post.likers as unknown[]).push({
+          id: likeRow.id,
+          full_name: likeRow.full_name,
+          role: likeRow.role,
+        });
+      }
+    }
+    for (const mediaRow of mediaRows as Array<Row & { post_id: string }>) {
+      const post = byId.get(String(mediaRow.post_id));
+      if (post) {
+        (post.mediaTags as unknown[]).push({
+          id: mediaRow.id,
+          first_name: mediaRow.first_name,
+          last_name: mediaRow.last_name,
+        });
+      }
+    }
   }
   return results;
 }
 
 export async function newsfeedForChild(childId: string, forAccountId?: string): Promise<Row[]> {
-  return queryAll(
+  const rows = await queryAll(
     `SELECT p.*, a.full_name AS author_name,
             (SELECT COUNT(*) FROM newsfeed_like l WHERE l.post_id = p.id) AS like_count,
             EXISTS(SELECT 1 FROM newsfeed_like l WHERE l.post_id = p.id AND l.account_id = ?) AS liked
@@ -2372,6 +2413,247 @@ export async function newsfeedForChild(childId: string, forAccountId?: string): 
     forAccountId ?? "",
     childId
   );
+  const results: Row[] = rows.map((row) => ({ ...row, likers: [] }));
+  if (rows.length > 0) {
+    const byId = new Map<string, Row>(rows.map((row, i) => [String(row.id), results[i]]));
+    const postIds = rows.map((row) => String(row.id));
+    const placeholders = postIds.map(() => "?").join(", ");
+    const likeRows = await queryAll(
+      `SELECT l.post_id, a.id, a.full_name, a.role
+       FROM newsfeed_like l JOIN account a ON a.id = l.account_id
+       WHERE l.post_id IN (${placeholders})
+       ORDER BY lower(a.full_name) ASC, a.id ASC`,
+      ...postIds
+    );
+    for (const likeRow of likeRows as Array<Row & { post_id: string }>) {
+      const post = byId.get(String(likeRow.post_id));
+      if (post) {
+        (post.likers as unknown[]).push({
+          id: likeRow.id,
+          full_name: likeRow.full_name,
+          role: likeRow.role,
+        });
+      }
+    }
+  }
+  return results;
+}
+
+// KID-2487: who liked a post. The caller has already authorized the viewer, and
+// only audience members can reach the like action, so the list stays inside
+// the post's audience by construction.
+export async function listPostLikers(postId: string): Promise<Row[]> {
+  return queryAll(
+    `SELECT a.id, a.full_name, a.role
+     FROM newsfeed_like l JOIN account a ON a.id = l.account_id
+     WHERE l.post_id = ?
+     ORDER BY lower(a.full_name) ASC, a.id ASC`,
+    postId
+  );
+}
+
+// KID-2487: photos are tagged by linking each child to the post's existing
+// stored object. The URL/REF is shared, so one physical file backs every link.
+function newsfeedPhotoKind(url: string): "image" | "video" {
+  const stored = String(url ?? "");
+  if (stored.startsWith("data:video/")) return "video";
+  if (stored.startsWith("data:image/")) return "image";
+  const ext = stored.split("?")[0].split("#")[0].split(".").pop()?.toLowerCase() ?? "";
+  return ["mp4", "mov", "webm", "m4v", "3gp", "ogv"].includes(ext) ? "video" : "image";
+}
+
+// KID-2480/KID-2487: staff room scope for managing a post photo. Owners and
+// admins are unscoped (null); teachers/caregivers get only their assigned
+// rooms, and an unlinked staff account gets [] rather than an accidental
+// whole-center scope.
+async function newsfeedManageableRoomIds(
+  instituteId: string,
+  accountId: string,
+  role: string
+): Promise<string[] | null> {
+  if (role === "owner" || role === "admin") return null;
+  const acct = await queryGet("SELECT staff_id FROM account WHERE id = ?", accountId);
+  const staffId = acct?.staff_id ? String(acct.staff_id) : null;
+  if (!staffId) return [];
+  const rooms = await queryAll(
+    `SELECT r.id FROM room r JOIN staff_room sr ON sr.room_id = r.id
+     JOIN staff s ON s.id = sr.staff_id
+     WHERE s.institute_id = ? AND sr.staff_id = ? ORDER BY r.name`,
+    instituteId,
+    staffId
+  );
+  return rooms.map((r) => String(r.id));
+}
+
+// KID-2487: mirrors listNewsfeed's single-post visibility for staff. An
+// untagged post is center-wide only for owners/admins; a scoped teacher sees a
+// post only when one of its tags belongs to an assigned classroom.
+export async function newsfeedPostVisibleToStaff(
+  instituteId: string,
+  accountId: string,
+  role: string,
+  postId: string
+): Promise<boolean> {
+  const post = await queryGet("SELECT institute_id FROM newsfeed_post WHERE id = ?", postId);
+  if (!post || String(post.institute_id) !== instituteId) return false;
+  const roomIds = await newsfeedManageableRoomIds(instituteId, accountId, role);
+  if (roomIds === null) return true;
+  if (roomIds.length === 0) return false;
+  const row = await queryGet(
+    `SELECT 1 AS ok FROM newsfeed_tag t JOIN child c ON c.id = t.child_id
+     WHERE t.post_id = ? AND c.room_id IN (${roomIds.map(() => "?").join(", ")})`,
+    postId,
+    ...roomIds
+  );
+  return !!row;
+}
+
+// KID-2487: tagging a child adds the photo to that child's media section, so
+// every parent account linked to the child becomes an audience of the photo.
+// A post whose tags restrict its audience must already reach all of those
+// parents; otherwise the tag would expose the photo to an audience smaller
+// than the child's own parents and is refused.
+export async function newsfeedTagAudienceAllowsChild(postId: string, childId: string): Promise<boolean> {
+  const tagged = await queryAll("SELECT child_id FROM newsfeed_tag WHERE post_id = ?", postId);
+  if (tagged.length === 0) return true;
+  const taggedIds = tagged.map((r) => String(r.child_id));
+  if (taggedIds.includes(childId)) return true;
+  const candidateParents = await queryAll(
+    `SELECT DISTINCT fm.account_id FROM family_member fm
+     JOIN account a ON a.id = fm.account_id
+     WHERE fm.child_id = ? AND a.role = 'parent'`,
+    childId
+  );
+  const candidateIds = candidateParents.map((r) => String(r.account_id));
+  if (candidateIds.length === 0) return true;
+  const audience = await queryAll(
+    `SELECT DISTINCT fm.account_id FROM family_member fm
+     JOIN account a ON a.id = fm.account_id
+     WHERE fm.child_id IN (${taggedIds.map(() => "?").join(", ")}) AND a.role = 'parent'`,
+    ...taggedIds
+  );
+  const allowed = new Set(audience.map((r) => String(r.account_id)));
+  return candidateIds.every((id) => allowed.has(id));
+}
+
+export type NewsfeedPhotoTagResult = {
+  ok: boolean;
+  error?: "post_not_found" | "no_media" | "forbidden" | "audience";
+  blockedChildIds: string[];
+  taggedChildIds: string[];
+};
+
+// KID-2487: replace the photo's child tags with `childIds`, atomically.
+// - Untagging deletes only the link row; the post photo object is untouched.
+// - Links outside the actor's room scope are preserved, so one teacher cannot
+//   remove another classroom's tag.
+// - Children outside the actor's scope or the post's audience are refused and
+//   reported, while the allowed children still save.
+export async function setNewsfeedPhotoTags(data: {
+  instituteId: string;
+  accountId: string;
+  role: string;
+  postId: string;
+  childIds: string[];
+}): Promise<NewsfeedPhotoTagResult> {
+  const post = await queryGet(
+    "SELECT * FROM newsfeed_post WHERE id = ? AND institute_id = ?",
+    data.postId,
+    data.instituteId
+  );
+  if (!post) {
+    return { ok: false, error: "post_not_found", blockedChildIds: [], taggedChildIds: [] };
+  }
+  if (!post.media_url) {
+    return { ok: false, error: "no_media", blockedChildIds: [], taggedChildIds: [] };
+  }
+  if (!(await newsfeedPostVisibleToStaff(data.instituteId, data.accountId, data.role, data.postId))) {
+    return { ok: false, error: "forbidden", blockedChildIds: [], taggedChildIds: [] };
+  }
+
+  const allowedRoomIds = await newsfeedManageableRoomIds(data.instituteId, data.accountId, data.role);
+  const children = await queryAll("SELECT id, room_id FROM child WHERE institute_id = ?", data.instituteId);
+  const childRoom = new Map<string, string>();
+  for (const child of children) childRoom.set(String(child.id), String(child.room_id ?? ""));
+
+  // An existing link is kept as-is when it is still checked. This lets an
+  // editor open a photo that another classroom already tagged and save without
+  // a spurious refusal, and it never removes a link they do not manage.
+  const existingLinks = await queryAll(
+    "SELECT child_id FROM media WHERE post_id = ? AND child_id IS NOT NULL",
+    data.postId
+  );
+  const existingLinkIds = new Set(existingLinks.map((r) => String(r.child_id)));
+  const wanted = Array.from(new Set(data.childIds.map((id) => String(id)).filter(Boolean)));
+  const allowed: string[] = [];
+  const blocked: string[] = [];
+  for (const childId of wanted) {
+    if (existingLinkIds.has(childId)) {
+      allowed.push(childId);
+      continue;
+    }
+    if (!childRoom.has(childId)) {
+      blocked.push(childId);
+      continue;
+    }
+    if (allowedRoomIds !== null && !allowedRoomIds.includes(childRoom.get(childId) ?? "")) {
+      blocked.push(childId);
+      continue;
+    }
+    if (!(await newsfeedTagAudienceAllowsChild(data.postId, childId))) {
+      blocked.push(childId);
+      continue;
+    }
+    allowed.push(childId);
+  }
+
+  const url = String(post.media_url);
+  const kind = newsfeedPhotoKind(url);
+  await withTransaction(async (tx) => {
+    const existing = await tx.queryAll(
+      `SELECT m.child_id, c.room_id FROM media m
+       JOIN child c ON c.id = m.child_id
+       WHERE m.post_id = ? AND m.child_id IS NOT NULL`,
+      data.postId
+    );
+    const existingIds = new Set(existing.map((r) => String(r.child_id)));
+    const removable: string[] = [];
+    for (const row of existing) {
+      const childId = String(row.child_id);
+      // Leave another classroom's link alone.
+      if (allowedRoomIds !== null && !allowedRoomIds.includes(String(row.room_id ?? ""))) continue;
+      if (!allowed.includes(childId)) removable.push(childId);
+    }
+    for (const childId of removable) {
+      await tx.queryRun("DELETE FROM media WHERE post_id = ? AND child_id = ?", data.postId, childId);
+    }
+    for (const childId of allowed) {
+      if (existingIds.has(childId)) continue;
+      await tx.queryRun(
+        `INSERT INTO media (id, institute_id, url, kind, caption, child_id, account_id, post_id)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        uid(),
+        data.instituteId,
+        url,
+        kind,
+        null,
+        childId,
+        data.accountId,
+        data.postId
+      );
+    }
+  });
+
+  const linked = await queryAll(
+    "SELECT child_id FROM media WHERE post_id = ? AND child_id IS NOT NULL",
+    data.postId
+  );
+  return {
+    ok: blocked.length === 0,
+    error: blocked.length > 0 ? "audience" : undefined,
+    blockedChildIds: blocked,
+    taggedChildIds: linked.map((r) => String(r.child_id)),
+  };
 }
 
 export async function toggleLike(postId: string, accountId: string): Promise<{ liked: boolean }> {
