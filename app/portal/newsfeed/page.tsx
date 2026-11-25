@@ -13,7 +13,7 @@ import {
 } from "@/lib/media-limits";
 import Avatar from "@/components/Avatar";
 import NewsfeedLikers from "@/components/NewsfeedLikers";
-import NewsfeedPhotoViewer from "@/components/NewsfeedPhotoViewer";
+import NewsfeedMediaViewer from "@/components/NewsfeedMediaViewer";
 import { queryGet } from "@/lib/db";
 import { i18nForAccount } from "@/lib/i18n-session";
 import { fmtDateTimeFor, tr } from "@/lib/i18n";
@@ -142,8 +142,9 @@ export default async function PortalNewsfeedPage(props: {
       </details>
 
       {posts.map((post: any) => {
-        const isImage =
-          !!post.media_url && attachmentKind(mediaRefName(post.media_url), String(post.media_url)) === "image";
+        const mediaKind = post.media_url
+          ? attachmentKind(mediaRefName(post.media_url), String(post.media_url))
+          : "other";
         const mediaSrc = mediaSrcs.get(String(post.media_url)) ?? "";
         return (
           <div className="card mb-4" key={post.id}>
@@ -177,17 +178,20 @@ export default async function PortalNewsfeedPage(props: {
               </div>
             )}
             {post.media_url &&
-              (isImage ? (
-                <NewsfeedPhotoViewer
+              (mediaKind === "image" || mediaKind === "video" ? (
+                <NewsfeedMediaViewer
                   postId={String(post.id)}
-                  imageSrc={mediaSrc}
+                  mediaSrc={mediaSrc}
+                  kind={mediaKind}
                   canTag
                   childOptions={photoTagOptions}
                   taggedChildIds={(post.mediaTags ?? []).map((tag: any) => String(tag.id))}
                   dict={dict}
                 />
               ) : (
-                <img src={mediaSrc} alt="" style={{ width: "100%", maxHeight: 360, objectFit: "cover", borderRadius: 8, marginTop: 10 }} />
+                <a href={mediaSrc} target="_blank" rel="noreferrer" className="small">
+                  {mediaRefName(post.media_url)}
+                </a>
               ))}
             <div className="small muted mt-2" style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
               <NewsfeedLikers likers={post.likers ?? []} count={Number(post.like_count ?? 0)} dict={dict} />

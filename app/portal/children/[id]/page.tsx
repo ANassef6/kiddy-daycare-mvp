@@ -685,7 +685,12 @@ async function mediaTab(media: any[], dict: any) {
       <div className="row" style={{ gap: 10, flexWrap: "wrap" }}>
         {media.map((m: any) => (
           <a key={m.id} href={srcFor(m)} target="_blank" rel="noreferrer" style={{ display: "block", width: 120, height: 120, borderRadius: 10, overflow: "hidden", border: "1px solid var(--color-border)" }}>
-            <img src={srcFor(m)} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+            {/* KID-2487: a tagged post video renders as video, same as photos. */}
+            {String(m.kind ?? "") === "video" ? (
+              <video src={srcFor(m)} muted playsInline style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+            ) : (
+              <img src={srcFor(m)} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+            )}
           </a>
         ))}
       </div>
