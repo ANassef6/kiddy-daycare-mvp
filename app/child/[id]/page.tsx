@@ -64,6 +64,9 @@ export default async function ChildDetailPage(
     ? await isChildVisibleToAccount(requestIid, session.accountId, String(child.id))
     : false;
   if (!visible && !(isPlatformOperatorRole(session.role) && requestIid)) notFound();
+  // KID-2481: a room photo renders beside the room name on the parent surface,
+  // with the room colour dot as the fallback.
+  const roomPhotoSrc = await storageSrcFor(child.room_photo_url);
   await recordToolUsage({ instituteId: String(child.institute_id ?? "") || null, accountId: session.accountId, toolKey: "children", source: "child", metadata: null });
 
   // KID-112: the family link decides what a parent-role account may read here.
@@ -179,7 +182,25 @@ export default async function ChildDetailPage(
               <div style={{ fontWeight: 800, fontSize: 22 }}>
                 {child.first_name} {child.last_name}
               </div>
-              <div className="muted small">{child.dob ?? t("child.noDob")} · {child.room_name ?? t("child.noRoom")}</div>
+              <div className="row muted small" style={{ alignItems: "center", gap: 6 }}>
+                {roomPhotoSrc ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={roomPhotoSrc}
+                    alt={String(child.room_name ?? "")}
+                    width={20}
+                    height={20}
+                    style={{ width: 20, height: 20, borderRadius: 6, objectFit: "cover" }}
+                  />
+                ) : child.room_colour ? (
+                  <span
+                    className="room-dot"
+                    aria-hidden="true"
+                    style={{ background: String(child.room_colour), width: 10, height: 10 }}
+                  />
+                ) : null}
+                <span>{child.dob ?? t("child.noDob")} · {child.room_name ?? t("child.noRoom")}</span>
+              </div>
             </div>
           </div>
           {checkedIn ? (

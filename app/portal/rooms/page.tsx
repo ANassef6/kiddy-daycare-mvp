@@ -8,6 +8,7 @@ import { addRoomAction } from "@/lib/actions";
 import { i18nForAccount } from "@/lib/i18n-session";
 import { tr } from "@/lib/i18n";
 import { recordToolUsage } from "@/lib/tool-usage";
+import { signedUrlsForRefs } from "@/lib/storage";
 
 export const dynamic = "force-dynamic";
 
@@ -36,6 +37,10 @@ export default async function PortalRoomsPage() {
     }
   }
 
+  // KID-2481: resolve every room photo in one batch (private refs need a
+  // signed URL); rooms without a photo keep the colour dot.
+  const roomPhotoSrcs = await signedUrlsForRefs(rooms.map((r: any) => String(r.photo_url ?? "")));
+
   return (
     <div>
       <h1 className="title">{t("rooms.title")}</h1>
@@ -55,8 +60,19 @@ export default async function PortalRoomsPage() {
           const inRoom = children.filter((c) => c.room_id === r.id).length;
           return (
             <Link key={r.id} href={`/portal/rooms/${r.id}`} className="card room-card" style={{ color: "var(--color-text)", textDecoration: "none" }}>
-              <div style={{ display: "flex", alignItems: "center" }}>
-                <span className="room-dot" style={{ background: String(r.colour ?? "#3B82F6") }} />
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                {roomPhotoSrcs.get(String(r.photo_url ?? "")) ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={roomPhotoSrcs.get(String(r.photo_url ?? "")) as string}
+                    alt={String(r.name ?? "")}
+                    width={40}
+                    height={40}
+                    style={{ width: 40, height: 40, borderRadius: 10, objectFit: "cover" }}
+                  />
+                ) : (
+                  <span className="room-dot" style={{ background: String(r.colour ?? "#3B82F6") }} />
+                )}
                 <span style={{ fontWeight: 700, fontSize: 18 }}>{r.name}</span>
               </div>
               <div className="muted small">{t("rooms.capacityOf", { n: r.capacity ?? "—" })}</div>
