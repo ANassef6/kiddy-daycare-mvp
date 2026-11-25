@@ -105,6 +105,7 @@ import {
   updateChildPhoto,
   updateStaffPhoto,
   toggleLike,
+  setNewsfeedPhotoTags,
   saveWorkingHours,
   checkInAllowed,
   parentCheckInOutAllowed,
@@ -4890,6 +4891,71 @@ export async function toggleLikeAction(formData: FormData) {
   }
   const referer = (await headers()).get("referer") || "/portal/newsfeed";
   redirect(referer);
+}
+
+// KID-2487: staff tag/untag children on a newsfeed post photo. The store
+// enforces the room scope and the audience guard; this action only adds the
+// audit trail and turns the structured result into a visible outcome.
+export async function setNewsfeedPhotoTagsAction(formData: FormData) {
+  const me = await authAccount();
+  const postId = String(formData.get("postId") ?? "");
+  const instituteId = await firstInstituteId();
+  const referer = (await headers()).get("referer") || "/portal/newsfeed";
+  const back = pathAndQuery(referer);
+  const canTag = me.role === "owner" || me.role === "admin" || me.role === "staff" || me.role === "carer";
+  if (!canTag || !postId || !instituteId) {
+    redirect(withQueryParam(back, "tagError", "forbidden"));
+  }
+  const childIds = formData.getAll("childIds").map((id) => String(id)).filter(Boolean);
+  const result = await setNewsfeedPhotoTags({
+    instituteId: String(instituteId),
+    accountId: me.accountId,
+    role: me.role,
+    postId,
+    childIds,
+  });
+  if (result.ok) {
+    await recordAuditEvent({
+      instituteId: String(instituteId),
+      actorAccountId: me.accountId,
+      action: "update",
+      entityType: "newsfeed_post",
+      entityId: postId,
+      summary: "Updated photo tags on a newsfeed post",
+      metadata: { taggedChildren: result.taggedChildIds.length },
+    });
+    revalidatePath(pathOnly(back));
+    redirect(withQueryParam(back, "tagged", "1"));
+  }
+  revalidatePath(pathOnly(back));
+  redirect(withQueryParam(back, "tagError", result.error ?? "audience"));
+}
+
+function pathOnly(url: string): string {
+  try {
+    return new URL(url, "http://kiddy.local").pathname || "/portal/newsfeed";
+  } catch {
+    return "/portal/newsfeed";
+  }
+}
+
+function pathAndQuery(url: string): string {
+  try {
+    const parsed = new URL(url, "http://kiddy.local");
+    return parsed.pathname + parsed.search;
+  } catch {
+    return "/portal/newsfeed";
+  }
+}
+
+function withQueryParam(url: string, key: string, value: string): string {
+  try {
+    const parsed = new URL(url, "http://kiddy.local");
+    parsed.searchParams.set(key, value);
+    return parsed.pathname + parsed.search;
+  } catch {
+    return url;
+  }
 }
 
 // ---- #3 Newsfeed post with local-drive attachment (no URL field) ----
