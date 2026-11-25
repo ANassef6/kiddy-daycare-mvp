@@ -1154,7 +1154,7 @@ export async function updateDaycareBillingAction(formData: FormData) {
   if (!instituteId) redirect("/platform?error=missing-id");
   const inst = await queryGet("SELECT id FROM institute WHERE id = ?", instituteId);
   if (!inst) redirect("/platform?error=missing-id");
-  const back = `/platform/daycares/${instituteId}/billing`;
+  const back = `/platform/daycares/${instituteId}/settings/billing`;
   const planRaw = String(formData.get("plan") ?? "").trim();
   const plan = planRaw === "monthly" || planRaw === "demo" ? planRaw : "";
   if (!plan) redirect(`${back}?error=billing-plan-invalid`);
@@ -1220,8 +1220,8 @@ export async function updateBranchBillingAction(formData: FormData) {
     branchId,
     instituteId
   );
-  if (!branch) redirect(`/platform/daycares/${instituteId}/billing?error=unknown`);
-  const back = `/platform/daycares/${instituteId}/billing`;
+  if (!branch) redirect(`/platform/daycares/${instituteId}/settings/billing?error=unknown`);
+  const back = `/platform/daycares/${instituteId}/settings/billing`;
   const planRaw = String(formData.get("plan") ?? "").trim();
   const plan = planRaw === "monthly" || planRaw === "demo" ? planRaw : "";
   if (!plan) redirect(`${back}?error=billing-plan-invalid`);
@@ -1420,7 +1420,7 @@ export async function updateInvoiceAmountAction(formData: FormData) {
   const { getInvoice } = await import("@/lib/billing");
   const invoice = invoiceId ? await getInvoice(invoiceId) : undefined;
   if (!invoice) redirect("/platform?error=missing-invoice");
-  const back = `/platform/daycares/${invoice.instituteId}/invoices`;
+  const back = `/platform/daycares/${invoice.instituteId}/settings/invoices`;
   const rawTotal = String(formData.get("totalAmountEgp") ?? "").trim();
   const rawNote = String(formData.get("manualAdjustment") ?? "");
   const { updateInvoiceAmount } = await import("@/lib/billing");
@@ -1504,7 +1504,7 @@ export async function markInvoicePaidAction(formData: FormData) {
   const { getInvoice, markInvoicePaid } = await import("@/lib/billing");
   const invoice = invoiceId ? await getInvoice(invoiceId) : undefined;
   if (!invoice) redirect("/platform?error=missing-invoice");
-  const back = `/platform/daycares/${invoice.instituteId}/invoices`;
+  const back = `/platform/daycares/${invoice.instituteId}/settings/invoices`;
   try {
     await markInvoicePaid(invoiceId);
   } catch (err) {
@@ -4604,7 +4604,7 @@ export async function uploadDaycareContractAction(formData: FormData) {
     ? await queryGet("SELECT id FROM institute WHERE id = ?", instituteId)
     : null;
   if (!inst) redirect("/platform?error=missing-id");
-  const back = `/platform/daycares/${instituteId}/billing`;
+  const back = `/platform/daycares/${instituteId}/settings/billing`;
   // Boundary validation — before any storage or DB write. Wrong type,
   // oversize and empty files are refused with a localized error code.
   if (!file || file.size === 0) redirect(`${back}?error=contractType`);

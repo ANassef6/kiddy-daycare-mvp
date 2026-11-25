@@ -31,7 +31,7 @@ import { mediaUploadLabels } from "@/lib/media-i18n";
 import { MAX_PHOTO_UPLOAD_BYTES } from "@/lib/media-limits";
 import ColorField from "./color-field";
 import CopyUrlButton from "./copy-url-button";
-import { BillingPlanFields } from "./daycares/[id]/billing/billing-plan-fields";
+import { BillingPlanFields } from "./daycares/[id]/settings/billing/billing-plan-fields";
 import { PricingReference } from "./pricing-reference";
 
 export const dynamic = "force-dynamic";
@@ -221,7 +221,7 @@ export default async function PlatformDaycaresPage(
                 return (
                   <tr key={String(inst.id)} style={{ borderTop: "1px solid #e5e7eb" }}>
                     <td style={{ padding: 8 }}>
-                      <a href={`/platform/daycares/${String(inst.id)}/billing`} style={{ fontWeight: 700 }}>
+                      <a href={`/platform/daycares/${String(inst.id)}/settings/billing`} style={{ fontWeight: 700 }}>
                         {String(inst.name)}
                       </a>
                     </td>
@@ -451,7 +451,7 @@ export default async function PlatformDaycaresPage(
                         cell's toggle, into the operator's billing module for
                         THIS daycare. */}
                     <a
-                      href={`/platform/daycares/${instId}/billing`}
+                      href={`/platform/daycares/${instId}/settings/billing`}
                       className="btn"
                       style={{ marginLeft: 8, textDecoration: "none" }}
                       aria-label={`${tr(dict, "platform.billingSettings")}: ${String(inst.name)}`}

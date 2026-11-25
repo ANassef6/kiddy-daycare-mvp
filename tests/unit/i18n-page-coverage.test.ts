@@ -24,6 +24,12 @@ const ALLOWLIST: Record<string, string> = {
     "pure redirect to /portal/learning (KID-52) — no rendered copy",
   "platform/daycares/page.tsx":
     "pure redirect alias for the operator /platform daycares list — no rendered copy",
+  "platform/daycares/[id]/billing/page.tsx":
+    "KID-2477 legacy URL — pure redirect to Settings → Billing, no rendered copy",
+  "platform/daycares/[id]/invoices/page.tsx":
+    "KID-2477 legacy URL — pure redirect to Settings → Invoices, no rendered copy",
+  "platform/daycares/[id]/settings/page.tsx":
+    "KID-2477 Settings root — pure redirect to Settings → Billing, no rendered copy",
 };
 
 function walkPages(dir: string): string[] {

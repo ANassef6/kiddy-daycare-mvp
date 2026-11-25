@@ -351,7 +351,7 @@ describe("KID-746: the /platform queue, badge and push card", () => {
     expect(html).toContain("Contracts awaiting review");
     expect(html).toContain("Sunshine Daycare");
     expect(html).toContain("demo");
-    expect(html).toContain(`/platform/daycares/${sunshineIid}/billing`);
+    expect(html).toContain(`/platform/daycares/${sunshineIid}/settings/billing`);
     expect(html).toContain("Contract: awaiting review");
     expect(html).toContain("Operator push notifications");
     expect(html).toContain("push-notifications-card");
@@ -388,7 +388,7 @@ describe("KID-746: the /platform queue, badge and push card", () => {
 // ---- 5. the billing-page draft links ----------------------------------------
 describe("KID-746: the contract card draft links", () => {
   async function renderBilling(): Promise<string> {
-    const { default: Page } = await import("@/app/platform/daycares/[id]/billing/page");
+    const { default: Page } = await import("@/app/platform/daycares/[id]/settings/billing/page");
     return renderToStaticMarkup(await Page({ params: Promise.resolve({ id: sunshineIid }), searchParams: Promise.resolve({}) }));
   }
 

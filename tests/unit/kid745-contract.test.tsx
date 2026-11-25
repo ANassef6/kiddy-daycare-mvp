@@ -1,5 +1,5 @@
 // KID-745: the signed daycare contract on the superadmin per-daycare
-// settings surface (/platform/daycares/[id]/billing — the gear icon on
+// settings surface (/platform/daycares/[id]/settings/billing — the gear icon on
 // /platform).
 //
 // Pinned here:
@@ -228,7 +228,7 @@ describe("KID-745: uploadDaycareContractAction (operator-only)", () => {
   it("stores the signed contract with its file name, date and uploader — audit ids only", async () => {
     sessionCookieFor(superadminId, "platform", "superadmin@kiddy.test");
     const target = await uploadContract(sunshineIid);
-    expect(target).toBe(`/platform/daycares/${sunshineIid}/billing?contract=uploaded`);
+    expect(target).toBe(`/platform/daycares/${sunshineIid}/settings/billing?contract=uploaded`);
     const row = await contractRowFor(sunshineIid);
     expect(String(row.signed_url)).toMatch(
       new RegExp(`^kiddy-private:contracts/${sunshineIid}/signed-\\d+-[0-9a-f-]+\\.pdf$`)
@@ -271,7 +271,7 @@ describe("KID-745: uploadDaycareContractAction (operator-only)", () => {
 
   it("oversize, wrong-type and empty files are refused with nothing written", async () => {
     sessionCookieFor(superadminId, "platform", "superadmin@kiddy.test");
-    const back = `/platform/daycares/${sunshineIid}/billing`;
+    const back = `/platform/daycares/${sunshineIid}/settings/billing`;
     expect(await uploadContract(sunshineIid, { size: MAX_CONTRACT_BYTES + 1 })).toBe(`${back}?error=contractSize`);
     expect(await uploadContract(sunshineIid, { type: "text/plain" })).toBe(`${back}?error=contractType`);
     expect(await uploadContract(sunshineIid, { size: 0 })).toBe(`${back}?error=contractType`);
@@ -283,7 +283,7 @@ describe("KID-745: uploadDaycareContractAction (operator-only)", () => {
     mockState.uploadError = { message: "boom" };
     storage1177.uploadError = { message: "boom" };
     const target = await uploadContract(sunshineIid);
-    expect(target).toBe(`/platform/daycares/${sunshineIid}/billing?error=contractUpload`);
+    expect(target).toBe(`/platform/daycares/${sunshineIid}/settings/billing?error=contractUpload`);
     expect(await contractRowFor(sunshineIid)).toBeUndefined();
   });
 
@@ -319,7 +319,7 @@ describe("KID-745: uploadDaycareContractAction (operator-only)", () => {
     );
     expect(
       await uploadContract("iid-kid745-maple")
-    ).toBe("/platform/daycares/iid-kid745-maple/billing?contract=uploaded");
+    ).toBe("/platform/daycares/iid-kid745-maple/settings/billing?contract=uploaded");
     // The upload names the daycare it writes: Sunshine's row stayed empty.
     expect(await contractRowFor(sunshineIid)).toBeUndefined();
     expect(await contractRowFor("iid-kid745-maple")).toBeDefined();
@@ -345,7 +345,7 @@ describe("KID-745: uploadDaycareContractAction (operator-only)", () => {
 // ---- 4. the card -------------------------------------------------------------
 describe("KID-745: the contract card on the billing settings page", () => {
   async function renderBilling(searchParams: Record<string, string> = {}): Promise<string> {
-    const { default: Page } = await import("@/app/platform/daycares/[id]/billing/page");
+    const { default: Page } = await import("@/app/platform/daycares/[id]/settings/billing/page");
     return renderToStaticMarkup(await Page({ params: Promise.resolve({ id: sunshineIid }), searchParams: Promise.resolve(searchParams) }));
   }
 
