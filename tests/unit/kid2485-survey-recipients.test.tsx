@@ -40,6 +40,7 @@ import { createAccount, createSessionToken, setAccountLanguage } from "@/lib/aut
 import { queryGet, queryRun } from "@/lib/db";
 import { getDictionary, tr } from "@/lib/i18n";
 import { describeSurveyAudience, surveyVisibleToChildren } from "@/lib/survey-audience";
+import RecipientsPicker from "@/components/RecipientsPicker";
 import { seedFixture } from "../helpers";
 
 let iid: string;
@@ -249,5 +250,47 @@ describe("KID-2485 audience display and parent visibility", () => {
     const html = renderToStaticMarkup(await page.default({ searchParams: Promise.resolve({}) }));
     expect(html).toContain("KID2485 Legacy");
     expect(html).not.toContain("KID2485 Leo Only");
+  });
+});
+
+describe("KID-2485 unified picker rules", () => {
+  it("renders one Everyone option for admins and no duplicate All classrooms", () => {
+    const dict = getDictionary("en");
+    const html = renderToStaticMarkup(
+      <RecipientsPicker
+        dict={dict}
+        defaultOpen
+        role="admin"
+        assignedRoomIds={[]}
+        rooms={[
+          { id: roomA, name: "Toddlers" },
+          { id: roomB, name: "Preschool" },
+        ]}
+        childOptions={[]}
+      />
+    );
+    expect(html).toContain("Everyone (whole center)");
+    expect(html).not.toContain("All classrooms");
+    expect(html).not.toContain("Center (everyone)");
+  });
+
+  it("keeps staff on My classrooms only", () => {
+    const dict = getDictionary("en");
+    const html = renderToStaticMarkup(
+      <RecipientsPicker
+        dict={dict}
+        defaultOpen
+        role="staff"
+        assignedRoomIds={[roomA]}
+        rooms={[
+          { id: roomA, name: "Toddlers" },
+          { id: roomB, name: "Preschool" },
+        ]}
+        childOptions={[]}
+      />
+    );
+    expect(html).toContain("My classrooms");
+    expect(html).not.toContain("Everyone (whole center)");
+    expect(html).not.toContain("All classrooms");
   });
 });
