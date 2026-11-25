@@ -13,6 +13,7 @@ import {
   type WorkingWeek,
 } from "./working-hours";
 import { localDayBoundsUtc, normalizeTimeZone, zonedDateKey } from "./timezone";
+import { weekdayOf } from "./staff-schedule";
 import { feedCopyFor, type FeedCopy } from "./i18n";
 import { syncChatwootContactForAccount } from "./chatwoot-contacts";
 import { withPerfTiming } from "./perf";
@@ -3996,36 +3997,157 @@ export async function updateSupplyStatus(id: string, status: string): Promise<vo
 }
 
 // ---- KID-47 Round 6: staff schedules ----
+// KID-2483: a row is either a weekly pattern (`schedule_date` NULL) or a
+// one-off dated shift, and can carry several rooms through
+// `staff_schedule_room`. The dated row overrides the pattern for that staff
+// member on that day (see lib/staff-schedule.ts).
+
+async function attachScheduleRooms(rows: Row[]): Promise<Row[]> {
+  if (rows.length === 0) return rows;
+  const ids = rows.map((r) => String(r.id));
+  const links = await queryAll(
+    `SELECT sr.schedule_id, r.id AS room_id, r.name AS room_name
+     FROM staff_schedule_room sr
+     JOIN room r ON r.id = sr.room_id
+     WHERE sr.schedule_id IN (${ids.map(() => "?").join(", ")})
+     ORDER BY r.name`,
+    ...ids
+  );
+  const bySchedule = new Map<string, { ids: string[]; names: string[] }>();
+  for (const link of links) {
+    const key = String(link.schedule_id);
+    const rooms = bySchedule.get(key) ?? { ids: [], names: [] };
+    const roomId = String(link.room_id);
+    if (!rooms.ids.includes(roomId)) {
+      rooms.ids.push(roomId);
+      rooms.names.push(String(link.room_name));
+    }
+    bySchedule.set(key, rooms);
+  }
+  return rows.map((row) => {
+    const rooms = bySchedule.get(String(row.id)) ?? { ids: [], names: [] };
+    return { ...row, room_ids: rooms.ids, room_names: rooms.names };
+  });
+}
+
+async function replaceScheduleRooms(scheduleId: string, roomIds: string[]): Promise<void> {
+  await queryRun("DELETE FROM staff_schedule_room WHERE schedule_id = ?", scheduleId);
+  const unique = Array.from(new Set(roomIds.map((id) => String(id)).filter(Boolean)));
+  if (unique.length === 0) return;
+  const args: unknown[] = [];
+  for (const roomId of unique) args.push(scheduleId, roomId);
+  await queryRun(
+    `INSERT INTO staff_schedule_room (schedule_id, room_id) VALUES ${unique.map(() => "(?, ?)").join(", ")}`,
+    ...args
+  );
+}
+
 export async function listStaffSchedules(staffId: string): Promise<Row[]> {
   try {
-    return await queryAll(
-      `SELECT * FROM staff_schedule WHERE staff_id = ? ORDER BY day_of_week, start_time`,
+    const rows = await queryAll(
+      `SELECT * FROM staff_schedule WHERE staff_id = ?
+       ORDER BY CASE WHEN schedule_date IS NULL THEN 1 ELSE 0 END, schedule_date, day_of_week, start_time`,
       staffId
     );
-  } catch {
+    return await attachScheduleRooms(rows);
+  } catch (err) {
+    console.error("listStaffSchedules failed:", err);
     return [];
   }
 }
 
 export async function createStaffSchedule(data: {
   staffId: string;
-  dayOfWeek: number;
+  dayOfWeek?: number;
+  scheduleDate?: string | null;
   startTime: string;
   endTime: string;
   notes?: string;
+  roomIds?: string[];
 }): Promise<Row> {
   const id = uid();
+  const scheduleDate = data.scheduleDate ? String(data.scheduleDate) : null;
+  const dayOfWeek = scheduleDate ? weekdayOf(scheduleDate) : Number(data.dayOfWeek ?? 1);
   await queryRun(
-    `INSERT INTO staff_schedule (id, staff_id, day_of_week, start_time, end_time, notes)
-     VALUES (?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO staff_schedule (id, staff_id, day_of_week, schedule_date, start_time, end_time, notes)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`,
     id,
     data.staffId,
-    data.dayOfWeek,
+    dayOfWeek,
+    scheduleDate,
     data.startTime,
     data.endTime,
     data.notes ?? ""
   );
-  return (await queryGet("SELECT * FROM staff_schedule WHERE id = ?", id))!;
+  try {
+    await replaceScheduleRooms(id, data.roomIds ?? []);
+  } catch (err) {
+    // Keep a shift and its rooms consistent: never leave a roomless shift
+    // behind when the room write fails.
+    await queryRun("DELETE FROM staff_schedule WHERE id = ?", id);
+    throw err;
+  }
+  const saved = (await queryGet("SELECT * FROM staff_schedule WHERE id = ?", id))!;
+  const [withRooms] = await attachScheduleRooms([saved]);
+  return withRooms;
+}
+
+/**
+ * KID-2483: create one concrete row per date. Used by the "repeat daily /
+ * weekly" form options; there is no hidden recurrence rule stored.
+ */
+export async function createStaffScheduleSeries(data: {
+  staffId: string;
+  startTime: string;
+  endTime: string;
+  notes?: string;
+  roomIds?: string[];
+  dates: string[];
+}): Promise<Row[]> {
+  const created: Row[] = [];
+  try {
+    for (const date of data.dates) {
+      created.push(await createStaffSchedule({ ...data, scheduleDate: date }));
+    }
+  } catch (err) {
+    // Roll back the rows already written so a failed repeat never leaves a
+    // half-built series.
+    for (const row of created) {
+      try {
+        await deleteStaffSchedule(String(row.id));
+      } catch (cleanupErr) {
+        console.error("createStaffScheduleSeries cleanup failed:", cleanupErr);
+      }
+    }
+    throw err;
+  }
+  return created;
+}
+
+/**
+ * KID-2483: the shifts that apply on one calendar day across the center.
+ * A staff member's dated row(s) replace their weekly pattern for that day.
+ */
+export async function listStaffSchedulesForDate(instituteId: string, date: string): Promise<Row[]> {
+  const weekday = weekdayOf(date);
+  const rows = await queryAll(
+    `SELECT s.*, st.full_name, st.role
+     FROM staff_schedule s
+     JOIN staff st ON st.id = s.staff_id
+     WHERE st.institute_id = ? AND st.active = 1
+       AND (s.schedule_date = ? OR (s.schedule_date IS NULL AND s.day_of_week = ?))
+     ORDER BY st.full_name, s.start_time`,
+    instituteId,
+    date,
+    weekday
+  );
+  const datedStaff = new Set(
+    rows.filter((r) => String(r.schedule_date ?? "") === date).map((r) => String(r.staff_id))
+  );
+  const effective = rows.filter(
+    (r) => !(datedStaff.has(String(r.staff_id)) && !r.schedule_date)
+  );
+  return attachScheduleRooms(effective);
 }
 
 export async function deleteStaffSchedule(id: string): Promise<void> {

@@ -89,7 +89,7 @@ export default async function StaffProfilePage({ params, searchParams }: { param
         error: search.error,
       }, dict, locale),
     },
-    { id: "calendar", label: tr(dict, "nav.calendar"), node: calendarTab(schedules, dict) },
+    { id: "calendar", label: tr(dict, "nav.calendar"), node: calendarTab(schedules, dict, locale) },
   ];
 
   return (
@@ -350,14 +350,27 @@ const CALENDAR_DAY_KEY = [
   "staff.daySat",
 ];
 
-function calendarTab(schedules: any[], dict: Dict) {
+function calendarTab(schedules: any[], dict: Dict, locale: Locale) {
   return (
     <div className="card">
       <h3 className="subtitle">{tr(dict, "staff.weeklyScheduleTitle")}</h3>
       {schedules.length === 0 && <p className="muted small">{tr(dict, "staff.noShiftsYet")}</p>}
       {schedules.map((s: any) => (
         <div className="list-item" key={s.id}>
-          <span className="small"><strong>{CALENDAR_DAY_KEY[Number(s.day_of_week)] ? tr(dict, CALENDAR_DAY_KEY[Number(s.day_of_week)]) : s.day_of_week}</strong> · {s.start_time}–{s.end_time}{s.notes ? ` — ${s.notes}` : ""}</span>
+          <span className="small">
+            <strong>
+              {s.schedule_date
+                ? fmtDateFor(locale, s.schedule_date)
+                : CALENDAR_DAY_KEY[Number(s.day_of_week)]
+                  ? tr(dict, CALENDAR_DAY_KEY[Number(s.day_of_week)])
+                  : s.day_of_week}
+            </strong>{" "}
+            · {s.start_time}–{s.end_time}
+            {Array.isArray(s.room_names) && s.room_names.length > 0
+              ? ` · ${tr(dict, "staff.roomsPrefix", { rooms: s.room_names.join(", ") })}`
+              : ""}
+            {s.notes ? ` — ${s.notes}` : ""}
+          </span>
         </div>
       ))}
       <Link className="btn btn-ghost small mt-2" href="/portal/staff/schedule">{tr(dict, "staff.manageScheduleBtn")}</Link>
