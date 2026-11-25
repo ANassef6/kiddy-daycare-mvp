@@ -1,9 +1,10 @@
 # Cloudflare Workers migration (KID-2452)
 
-Status: **production cutover rolled back 2026-11-22T07:24Z; fix prepared and
-re-cutover is gated on founder sign-off.** All four hosts are served by Vercel
-again. The Worker, Hyperdrive config and zone-route rollback path are intact.
-See "Production regression and rollback" below.
+Status: **re-cutover executed 2026-11-22T16:18Z; all four hosts are served by
+`kiddy-web` on Cloudflare Workers, with Vercel warm as rollback through at least
+2026-11-23T16:18Z.** The Worker, Hyperdrive config and zone-route rollback path
+are intact. See "Production regression and rollback" and "Re-cutover executed"
+below.
 
 ## Why Hyperdrive
 
@@ -232,7 +233,8 @@ returns 200 with `x-vercel-id`. The `*.kiddyapp.net` record stays DNS-only.
 
 ## Re-cutover fix
 
-Code on branch `kid2452-connect-fix` (PR pending) changes only the Workers
+Merged in PR #85 (`e9e0244`) and deployed to `kiddy-web` (version
+`be27393c-e44d-4602-aaeb-c93a58c9ac9c`). The fix changes only the Workers
 connection path:
 
 1. **One connection per request.** `worker.ts` now creates the per-request pool
@@ -274,6 +276,32 @@ Re-cutover sequence (each step gated on the prior one being green):
    Logs for `KID-2452 db connect failed` and HTTP 5xx for 15-30 minutes.
 3. Re-create `kiddyapp.net`, `sunshine`, `maple-grove` only if the canary is
    clean. Vercel stays warm for the full rollback window.
+
+## Re-cutover executed (2026-11-22T16:18Z)
+
+The founder accepted the canary re-cutover card at 16:14Z. Preconditions were
+re-checked against live state, not replayed: all four hosts were on Vercel with
+zero Worker routes, `kiddy-web` ran version `be27393c` with `HYPERDRIVE` bound
+to `kiddy-prod` and `CRON_SECRET` set, and direct Worker checks were 200 with
+bad-credential logins returning 401.
+
+1. Only `www.kiddyapp.net/*` was routed to `kiddy-web` first
+   (`e2719e1ad5e847c1b9622417b7102a31`); the other hosts stayed on Vercel.
+2. The canary ran ~28 minutes with 125 Worker events, 0 exceptions, 0 HTTP 5xx
+   and 0 `KID-2452 db connect failed`; the `*/5` cron logged
+   `[cron] attendance sweep ok` five times.
+3. The remaining routes were then restored: `kiddyapp.net/*`
+   (`e6b6484dbe9643558ef0f0798c7ac796`), `sunshine.kiddyapp.net/*`
+   (`290823ce0c5d45b1b9b8b8e8370fb1a6`) and `maple-grove.kiddyapp.net/*`
+   (`9ab917b720c5425a8cc2f551c9063f66`).
+
+Post-cutover verification: all four hosts return 200 with `x-opennext: 1` and no
+`x-vercel-id`; `/api/branding` resolves Kiddy, Sunshine Daycare and Maple Grove
+Daycare per host; marketing pages, Arabic/RTL, security headers, `sw.js`,
+manifest, login redirects and the guarded sweep match the parity checklist; 12
+bad-credential logins across the four hosts all returned 401. Monitoring to
+~16:47Z stayed clean. Deleting a route is still the instant rollback and no DNS
+record changed.
 
 ## Production cutover (executed 2026-11-22, rolled back 2026-11-22T07:24Z)
 
