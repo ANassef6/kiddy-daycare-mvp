@@ -4975,24 +4975,75 @@ export async function updateSupplyStatusAction(formData: FormData) {
 }
 
 // ---- KID-47 Round 6: staff schedules (#13) ----
+// KID-2483: optional specific date (overrides the weekly pattern), per-shift
+// rooms, and concrete daily/weekly duplication over a date range.
 export async function createStaffScheduleAction(formData: FormData) {
   const me = await authAccount();
   await ensureSchema();
-  const { createStaffSchedule } = await import("@/lib/store");
-  let staffId = String(formData.get("staffId") ?? "");
+  const {
+    createStaffSchedule,
+    createStaffScheduleSeries,
+    scopedRoomIds,
+  } = await import("@/lib/store");
+  const { isIsoDate, repeatDates } = await import("@/lib/staff-schedule");
+  const instituteId = await firstInstituteId();
+  const fail = (code: string) => redirect(`/portal/staff/schedule?error=${code}`);
+
+  const staffId = String(formData.get("staffId") ?? "");
   // KID-105 #13: non-admins can only schedule themselves.
   if (!isAdminRole(me.role)) {
     const myStaffId = await staffIdForAccount(me.accountId);
     if (!myStaffId || myStaffId !== staffId) redirect("/portal/staff/schedule");
   }
-  if (staffId) {
+  if (!staffId) redirect("/portal/staff/schedule");
+
+  const scheduleDate = String(formData.get("scheduleDate") ?? "").trim();
+  if (scheduleDate && !isIsoDate(scheduleDate)) fail("date");
+
+  const timePattern = /^([01]\d|2[0-3]):[0-5]\d$/;
+  const startTime = String(formData.get("startTime") ?? "08:00");
+  const endTime = String(formData.get("endTime") ?? "16:00");
+  if (!timePattern.test(startTime) || !timePattern.test(endTime)) fail("time");
+
+  const repeat = String(formData.get("repeat") ?? "none");
+  if (!["none", "daily", "weekly"].includes(repeat)) fail("repeat");
+
+  let dates: string[] = [];
+  if (repeat !== "none") {
+    const repeatUntil = String(formData.get("repeatUntil") ?? "").trim();
+    if (!scheduleDate || !isIsoDate(repeatUntil)) fail("range");
+    dates = repeatDates(scheduleDate, repeatUntil, repeat === "weekly" ? "weekly" : "daily");
+    if (dates.length === 0) fail("range");
+  }
+
+  // The form only ever offers this tenant's rooms; a forged id must still be
+  // refused. Non-admins are further limited to their assigned classrooms.
+  const roomIds = Array.from(
+    new Set(formData.getAll("roomIds").map((value) => String(value)).filter(Boolean))
+  );
+  for (const roomId of roomIds) {
+    await assertInstituteOwned(me, "room", roomId, "institute_id");
+  }
+  if (roomIds.length > 0 && !isAdminRole(me.role) && instituteId) {
+    const allowed = await scopedRoomIds(instituteId, me.accountId);
+    if (allowed !== null && roomIds.some((roomId) => !allowed.includes(roomId))) fail("rooms");
+  }
+
+  const base = {
+    staffId,
+    startTime,
+    endTime,
+    notes: String(formData.get("notes") ?? ""),
+    roomIds,
+  };
+  if (repeat === "none") {
     await createStaffSchedule({
-      staffId,
+      ...base,
+      scheduleDate: scheduleDate || null,
       dayOfWeek: Number(formData.get("dayOfWeek") ?? 1),
-      startTime: String(formData.get("startTime") ?? "08:00"),
-      endTime: String(formData.get("endTime") ?? "16:00"),
-      notes: String(formData.get("notes") ?? ""),
     });
+  } else {
+    await createStaffScheduleSeries({ ...base, dates });
   }
   redirect("/portal/staff/schedule");
 }
