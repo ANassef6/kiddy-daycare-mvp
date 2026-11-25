@@ -3078,12 +3078,13 @@ export async function createEvent(data: {
   endTime?: string;
   location?: string;
   description?: string;
+  classroomId?: string | null;
   accountId?: string;
 }): Promise<Row> {
   const id = uid();
   await queryRun(
-    `INSERT INTO event (id, institute_id, title, event_date, start_time, end_time, location, description, created_by_account_id)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO event (id, institute_id, title, event_date, start_time, end_time, location, description, classroom_id, created_by_account_id)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     id,
     data.instituteId,
     data.title,
@@ -3092,21 +3093,150 @@ export async function createEvent(data: {
     data.endTime ?? null,
     data.location ?? null,
     data.description ?? "",
+    data.classroomId ?? null,
     data.accountId ?? null
   );
   return (await queryGet("SELECT * FROM event WHERE id = ?", id))!;
 }
 
-export async function listEvents(instituteId: string, upcoming = false): Promise<Row[]> {
+/** KID-2480: one event with its classroom name for the edit form. */
+export async function getEvent(eventId: string): Promise<Row | undefined> {
+  return queryGet(
+    `SELECT e.*, r.name AS classroom_name FROM event e
+     LEFT JOIN room r ON r.id = e.classroom_id
+     WHERE e.id = ?`,
+    eventId
+  );
+}
+
+/** KID-2480: edit an event, including moving it between classrooms or back to
+ *  center-wide (`classroomId: null`). Only the supplied fields are touched. */
+export async function updateEvent(
+  eventId: string,
+  data: {
+    title?: string;
+    eventDate?: string;
+    startTime?: string | null;
+    endTime?: string | null;
+    location?: string | null;
+    description?: string | null;
+    classroomId?: string | null;
+  }
+): Promise<void> {
+  const fields: string[] = [];
+  const values: unknown[] = [];
+  if (data.title !== undefined) { fields.push("title = ?"); values.push(data.title); }
+  if (data.eventDate !== undefined) { fields.push("event_date = ?"); values.push(data.eventDate); }
+  if (data.startTime !== undefined) { fields.push("start_time = ?"); values.push(data.startTime); }
+  if (data.endTime !== undefined) { fields.push("end_time = ?"); values.push(data.endTime); }
+  if (data.location !== undefined) { fields.push("location = ?"); values.push(data.location); }
+  if (data.description !== undefined) { fields.push("description = ?"); values.push(data.description); }
+  if (data.classroomId !== undefined) { fields.push("classroom_id = ?"); values.push(data.classroomId); }
+  if (fields.length === 0) return;
+  values.push(eventId);
+  await queryRun(`UPDATE event SET ${fields.join(", ")} WHERE id = ?`, ...values);
+}
+
+/**
+ * KID-2480: rooms whose targeted events an account may see.
+ *
+ * `null` = unrestricted (owner/admin). Otherwise the account's audience:
+ * teachers/caregivers get their `staff_room` assignments, parents/family get
+ * the rooms of their own children. An empty list is the fail-closed case and
+ * means "center-wide events only" — never another classroom's event.
+ */
+export async function eventAudienceRoomIds(
+  instituteId: string,
+  accountId: string,
+  role: string
+): Promise<string[] | null> {
+  const { isAdminRole } = await import("./role");
+  if (isAdminRole(role)) return null;
+  if (role === "staff" || role === "carer") {
+    return (await scopedRoomIds(instituteId, accountId)) ?? [];
+  }
+  const rooms = await queryAll(
+    `SELECT DISTINCT c.room_id AS room_id FROM family_member fm
+     JOIN child c ON c.id = fm.child_id
+     WHERE fm.account_id = ? AND c.institute_id = ? AND c.room_id IS NOT NULL
+     ORDER BY c.room_id`,
+    accountId,
+    instituteId
+  );
+  return rooms.map((r) => String(r.room_id));
+}
+
+/** KID-2480: only owner/admin may post a whole-center event. */
+export function canTargetWholeCenter(role: string): boolean {
+  return role === "owner" || role === "admin";
+}
+
+/** KID-2480: is this classroom target allowed for the account's scope?
+ *  Owners/admins may pick any room; teachers/caregivers only their own and
+ *  never the whole center. */
+export function canTargetClassroom(
+  role: string,
+  allowedRoomIds: string[] | null,
+  classroomId: string | null
+): boolean {
+  if (canTargetWholeCenter(role)) return true;
+  if (!classroomId) return false;
+  return (allowedRoomIds ?? []).includes(classroomId);
+}
+
+/** KID-2480: teachers/caregivers may edit only events already targeted at
+ *  one of their rooms. Owners/admins may edit anything, including
+ *  center-wide events. */
+export function eventEditableBy(
+  role: string,
+  allowedRoomIds: string[] | null,
+  eventClassroomId: string | null
+): boolean {
+  if (canTargetWholeCenter(role)) return true;
+  if (!eventClassroomId) return false;
+  return (allowedRoomIds ?? []).includes(eventClassroomId);
+}
+
+/**
+ * KID-2480: event listing with the audience rules.
+ *
+ * Passing `viewerAccountId` + `viewerRole` scopes the result to what that
+ * account may see: center-wide events plus targeted events for the rooms in
+ * `eventAudienceRoomIds`. Admins/owners see everything. Omitting the viewer
+ * is the legacy unfiltered listing (internal callers only).
+ */
+export async function listEvents(
+  instituteId: string,
+  upcoming = false,
+  opts: { viewerAccountId?: string; viewerRole?: string } = {}
+): Promise<Row[]> {
   const today = new Date().toISOString().slice(0, 10);
+  const conditions = ["e.institute_id = ?"];
   const args: unknown[] = [instituteId];
-  if (upcoming) args.push(today);
+  if (upcoming) {
+    conditions.push("e.event_date >= ?");
+    args.push(today);
+  }
+  if (opts.viewerAccountId && opts.viewerRole) {
+    const roomIds = await eventAudienceRoomIds(instituteId, opts.viewerAccountId, opts.viewerRole);
+    if (roomIds !== null) {
+      if (roomIds.length === 0) {
+        conditions.push("e.classroom_id IS NULL");
+      } else {
+        conditions.push(
+          `(e.classroom_id IS NULL OR e.classroom_id IN (${roomIds.map(() => "?").join(", ")}))`
+        );
+        args.push(...roomIds);
+      }
+    }
+  }
   return queryAll(
-    `SELECT e.*, a.full_name AS created_by_name,
+    `SELECT e.*, a.full_name AS created_by_name, r.name AS classroom_name,
             (SELECT COUNT(*) FROM media_event me JOIN media m ON m.id = me.media_id WHERE me.event_id = e.id) AS media_count
      FROM event e
      LEFT JOIN account a ON a.id = e.created_by_account_id
-     WHERE e.institute_id = ? ${upcoming ? "AND e.event_date >= ?" : ""}
+     LEFT JOIN room r ON r.id = e.classroom_id
+     WHERE ${conditions.join(" AND ")}
      ORDER BY e.event_date ASC, e.start_time ASC`,
     ...args
   );

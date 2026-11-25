@@ -27,7 +27,13 @@ export default async function ParentEventsPage() {
   if (!instituteId) return <p className="muted">{t("events.noInstitute")}</p>;
   await recordToolUsage({ instituteId: String(instituteId ?? "") || null, accountId: session.accountId, toolKey: "events", source: "child", metadata: null });
 
-  const [events, videos] = await Promise.all([listEvents(instituteId, true), listVideos(instituteId)]);
+  // KID-2480 (founder rule): a family sees center-wide events plus events
+  // targeted at its own children's classrooms. The store fails closed (no
+  // links = no class events), so another room's event is never rendered here.
+  const [events, videos] = await Promise.all([
+    listEvents(instituteId, true, { viewerAccountId: session.accountId, viewerRole: session.role }),
+    listVideos(instituteId),
+  ]);
   const withMedia = await Promise.all(
     events.map(async (e: any) => ({ ...e, media: await eventMedia(e.id) }))
   );
@@ -46,7 +52,10 @@ export default async function ParentEventsPage() {
       <div className="grid mb-4">
         {withMedia.map((e: any) => (
           <div className="card" key={e.id}>
-            <div className="badge" style={{ marginBottom: 8 }}>{cap(e.event_date)}</div>
+            <div style={{ marginBottom: 8 }}>
+              <span className="badge">{cap(e.event_date)}</span>
+              {e.classroom_name && <span className="badge" style={{ marginInlineStart: 6 }}>{e.classroom_name}</span>}
+            </div>
             <div style={{ fontWeight: 700, fontSize: 17 }}>{e.title}</div>
             {e.start_time && <div className="muted small">{prettyEventTime(e.start_time, locale)}{e.end_time ? ` – ${prettyEventTime(e.end_time, locale)}` : ""}</div>}
             {e.location && <div className="muted small">📍 {e.location}</div>}

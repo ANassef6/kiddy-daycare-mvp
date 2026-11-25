@@ -344,6 +344,7 @@ export function sqliteSchema(db: any): void {
     location TEXT,
     description TEXT,
     created_by_account_id TEXT REFERENCES account(id),
+    classroom_id TEXT REFERENCES room(id) ON DELETE SET NULL,
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
   );
 
@@ -480,6 +481,7 @@ export function sqliteSchema(db: any): void {
 
   CREATE INDEX IF NOT EXISTS idx_billing_child ON child_billing (child_id);
   CREATE INDEX IF NOT EXISTS idx_event_date ON event (institute_id, event_date);
+  CREATE INDEX IF NOT EXISTS idx_event_classroom ON event (classroom_id);
   CREATE INDEX IF NOT EXISTS idx_drive_child ON drive_file (child_id);
   CREATE INDEX IF NOT EXISTS idx_obs_child ON learning_observation (child_id);
   CREATE INDEX IF NOT EXISTS idx_form_resp_form ON form_response (form_id);
@@ -898,6 +900,12 @@ export function sqliteSchema(db: any): void {
 
   // Idempotent column backfills for databases created before these columns
   // existed (CREATE TABLE IF NOT EXISTS does not alter existing tables).
+  // KID-2480: mirror of supabase/migrations/0056_kid2480_event_classroom.sql.
+  // Existing events stay center-wide (NULL = every family).
+  const eventCols = db.prepare("PRAGMA table_info(event)").all() as { name: string }[];
+  if (eventCols.length > 0 && !eventCols.some((c) => c.name === "classroom_id")) {
+    db.exec("ALTER TABLE event ADD COLUMN classroom_id TEXT REFERENCES room(id) ON DELETE SET NULL");
+  }
   const roomCols = db.prepare("PRAGMA table_info(room)").all() as { name: string }[];
   if (!roomCols.some((c) => c.name === "colour")) {
     db.exec("ALTER TABLE room ADD COLUMN colour TEXT NOT NULL DEFAULT '#3B82F6'");
