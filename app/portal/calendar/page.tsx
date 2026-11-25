@@ -14,7 +14,12 @@ export default async function PortalCalendarPage() {
   const instituteId = await firstInstituteId();
   if (!instituteId) return <p className="muted">{tr(dict, "learning.noInstitute")}</p>;
   await recordToolUsage({ instituteId: String(instituteId ?? "") || null, accountId: session.accountId, toolKey: "calendar", source: "portal", metadata: null });
-  const events = await listEvents(instituteId, true);
+  // KID-2480: the calendar carries the same audience scope as the events list
+  // (center-wide + the viewer's own classrooms for teachers/parents).
+  const events = await listEvents(instituteId, true, {
+    viewerAccountId: session.accountId,
+    viewerRole: session.role,
+  });
 
   return (
     <div>

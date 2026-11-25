@@ -901,7 +901,7 @@ export function sqliteSchema(db: any): void {
 
   // Idempotent column backfills for databases created before these columns
   // existed (CREATE TABLE IF NOT EXISTS does not alter existing tables).
-  // KID-2480: mirror of supabase/migrations/0055_kid2480_event_classroom.sql.
+  // KID-2480: mirror of supabase/migrations/0056_kid2480_event_classroom.sql.
   // Existing events stay center-wide (NULL = every family).
   const eventCols = db.prepare("PRAGMA table_info(event)").all() as { name: string }[];
   if (eventCols.length > 0 && !eventCols.some((c) => c.name === "classroom_id")) {

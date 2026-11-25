@@ -344,6 +344,10 @@ export const en = {
     editTitle: "Edit event",
     saveChanges: "Save changes",
     cancel: "Cancel",
+    errorClassPick:
+      "That class is not available to you. Teachers and caregivers can post only to their own classrooms; only an admin can post a whole-center event.",
+    noAssignedClass:
+      "You are not assigned to a classroom yet. Ask an admin to assign you before you post an activity.",
     addBtn: "Add event",
     mediaCount: "{count} media",
     mediaUrlPlaceholder: "Media URL (photo/video)",
@@ -2725,6 +2729,10 @@ export const ar = {
     editTitle: "تعديل الفعالية",
     saveChanges: "حفظ التغييرات",
     cancel: "إلغاء",
+    errorClassPick:
+      "هذا الفصل غير متاح لك. يمكن للمدرسين ومقدمي الرعاية النشر في فصولهم فقط، بينما ينشر المدير أو المالك فعالية للمركز بالكامل.",
+    noAssignedClass:
+      "لم يتم تعيينك إلى فصل بعد. اطلب من المدير تعيينك قبل نشر فعالية.",
     addBtn: "إضافة الفعالية",
     mediaCount: "{count} وسائط",
     mediaUrlPlaceholder: "رابط الوسيط (صورة/فيديو)",

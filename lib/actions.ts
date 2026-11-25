@@ -56,6 +56,9 @@ import {
   scopedRoomIds,
   messagingRoomIds,
   setBusStatus,
+  canTargetWholeCenter,
+  canTargetClassroom,
+  eventEditableBy,
   BusCycleError,
   type BusCycleErrorCode,
 } from "@/lib/store";
@@ -3134,10 +3137,21 @@ export async function createEventAction(formData: FormData) {
   const me = await authAccount();
   const instituteId = await requireInstitute();
   if (instituteId) {
-    // KID-2480: empty = whole center; otherwise the room must be this tenant's
-    // (the raw form value must never authorize another center's classroom).
+    // KID-2480 (founder rule): owners/admins may post center-wide or to any
+    // class; teachers/caregivers may post only to one of their own classrooms.
+    if (!canTargetWholeCenter(me.role) && me.role !== "staff" && me.role !== "carer") {
+      redirect("/portal/events");
+    }
     const classroomId = String(formData.get("classroomId") ?? "").trim() || null;
+    const allowedRoomIds = canTargetWholeCenter(me.role)
+      ? null
+      : (await scopedRoomIds(instituteId, me.accountId)) ?? [];
+    // Empty = whole center. The room must be this tenant's, and a teacher may
+    // not target a class outside their staff_room assignments.
     if (classroomId) await assertInstituteOwned(me, "room", classroomId, "institute_id");
+    if (!canTargetClassroom(me.role, allowedRoomIds, classroomId)) {
+      redirect("/portal/events?error=eventClass");
+    }
     const event = await createEvent({
       instituteId,
       title: String(formData.get("title") ?? ""),
@@ -3182,9 +3196,26 @@ export async function updateEventAction(formData: FormData) {
   const instituteId = await requireInstitute();
   const eventId = String(formData.get("eventId") ?? "").trim();
   if (!instituteId || !eventId) redirect("/portal/events");
+  if (!canTargetWholeCenter(me.role) && me.role !== "staff" && me.role !== "carer") {
+    redirect("/portal/events");
+  }
   await assertInstituteOwned(me, "event", eventId, "institute_id");
+  const existing = await getEvent(eventId);
+  if (!existing) redirect("/portal/events");
+  const allowedRoomIds = canTargetWholeCenter(me.role)
+    ? null
+    : (await scopedRoomIds(instituteId, me.accountId)) ?? [];
+  // KID-2480 (founder rule): a teacher may edit only events already targeted
+  // at one of their rooms — never a center-wide or another class's event.
+  const existingClassroomId = existing.classroom_id ? String(existing.classroom_id) : null;
+  if (!eventEditableBy(me.role, allowedRoomIds, existingClassroomId)) {
+    redirect("/portal/events?error=eventClass");
+  }
   const classroomId = String(formData.get("classroomId") ?? "").trim() || null;
   if (classroomId) await assertInstituteOwned(me, "room", classroomId, "institute_id");
+  if (!canTargetClassroom(me.role, allowedRoomIds, classroomId)) {
+    redirect("/portal/events?error=eventClass");
+  }
   await updateEvent(eventId, {
     title: String(formData.get("title") ?? ""),
     eventDate: String(formData.get("eventDate") ?? ""),
