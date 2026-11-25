@@ -56,10 +56,13 @@ async function countAccounts(email: string): Promise<number> {
 
 let iid: string;
 let adminId: string;
+// KID-2482: every child now requires a classroom.
+let roomId: string;
 
 beforeEach(async () => {
   await seedFixture();
   iid = String((await queryGet("SELECT id FROM institute LIMIT 1"))!.id);
+  roomId = String((await queryGet("SELECT id FROM room ORDER BY name LIMIT 1"))!.id);
   const admin = await createAccount({
     email: "kid733-admin@sunshine.example",
     password: "admin-password-1",
@@ -77,6 +80,7 @@ describe("KID-733 addChildAction parent-login flow", () => {
       addChildAction(form(
         ["firstName", "Maya"],
         ["lastName", "Khalil"],
+        ["roomId", roomId],
         ["guardianName", "Dina Khalil"],
         ["guardianRelationship", "parent"],
         ["guardianEmail", "dina@sunshine.example"],
@@ -121,6 +125,7 @@ describe("KID-733 addChildAction parent-login flow", () => {
       addChildAction(form(
         ["firstName", "Nour"],
         ["lastName", "Fahmy"],
+        ["roomId", roomId],
         ["guardianName", "Hala Fahmy"],
         ["guardianRelationship", "family"],
         ["guardianPhone", "+1 555 0733"],
@@ -145,6 +150,7 @@ describe("KID-733 addChildAction parent-login flow", () => {
       addChildAction(form(
         ["firstName", "Lina"],
         ["lastName", "Razi"],
+        ["roomId", roomId],
         ["guardianName", "Sami Razi"],
         ["guardianRelationship", "parent"],
         ["guardianEmail", "linked-parent@sunshine.example"],
