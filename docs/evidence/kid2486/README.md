@@ -60,5 +60,6 @@ mirrored, with the Arabic hint.
 
 ## Gates
 
-Production cut is **not** performed. It stays gated on founder sign-off on
-staging, per the issue acceptance criteria.
+Production cut was gated on founder sign-off on staging. The founder accepted
+confirmation `117dbf08-5ea7-4f7e-983a-c85be2237160` on 2026-11-25T17:50:10Z and
+the cut shipped. See [`prod-cut.md`](prod-cut.md) for the production record.
