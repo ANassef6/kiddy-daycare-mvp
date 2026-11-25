@@ -5,21 +5,25 @@ import { setNewsfeedPhotoTagsAction } from "@/lib/actions";
 import { tr, type Dict } from "@/lib/i18n";
 
 type ViewerChild = { id: string; first_name: string; last_name: string };
+export type ViewerMediaKind = "image" | "video";
 
-// KID-2487: staff photo viewer. Opening a post photo shows a lightbox with a
-// searchable child checklist. Saving links the children to the same stored
-// object via the media table; unchecking a child removes only that link. The
-// server re-checks the room scope and the post's audience before it writes.
-export default function NewsfeedPhotoViewer({
+// KID-2487: staff media viewer. Opening a post photo or video shows a lightbox
+// with a searchable child checklist. Saving links the children to the same
+// stored object via the media table; unchecking a child removes only that
+// link. The server re-checks the room scope and the post's audience before it
+// writes.
+export default function NewsfeedMediaViewer({
   postId,
-  imageSrc,
+  mediaSrc,
+  kind,
   canTag,
   childOptions,
   taggedChildIds,
   dict,
 }: {
   postId: string;
-  imageSrc: string;
+  mediaSrc: string;
+  kind: ViewerMediaKind;
   canTag: boolean;
   childOptions: ViewerChild[];
   taggedChildIds: string[];
@@ -57,12 +61,21 @@ export default function NewsfeedPhotoViewer({
     });
   };
 
+  const openLabel = kind === "video" ? t("newsfeed.openVideo") : t("newsfeed.openPhoto");
+  const viewerLabel = kind === "video" ? t("newsfeed.videoViewer") : t("newsfeed.photoViewer");
+  const mediaStyle = {
+    maxWidth: "min(92vw, 900px)",
+    maxHeight: "70vh",
+    objectFit: "contain" as const,
+    borderRadius: 8,
+  };
+
   return (
     <div>
       <button
         type="button"
         onClick={() => setOpen(true)}
-        aria-label={t("newsfeed.openPhoto")}
+        aria-label={openLabel}
         style={{
           display: "block",
           width: "100%",
@@ -73,12 +86,22 @@ export default function NewsfeedPhotoViewer({
           marginTop: 10,
         }}
       >
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={imageSrc}
-          alt=""
-          style={{ width: "100%", maxHeight: 360, objectFit: "cover", borderRadius: 8 }}
-        />
+        {kind === "video" ? (
+          <video
+            src={mediaSrc}
+            muted
+            playsInline
+            preload="metadata"
+            style={{ width: "100%", maxHeight: 360, objectFit: "cover", borderRadius: 8 }}
+          />
+        ) : (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={mediaSrc}
+            alt=""
+            style={{ width: "100%", maxHeight: 360, objectFit: "cover", borderRadius: 8 }}
+          />
+        )}
       </button>
 
       {open ? (
@@ -86,7 +109,7 @@ export default function NewsfeedPhotoViewer({
           ref={dialogRef}
           role="dialog"
           aria-modal="true"
-          aria-label={t("newsfeed.photoViewer")}
+          aria-label={viewerLabel}
           onClick={(event) => {
             if (event.target === event.currentTarget) setOpen(false);
           }}
@@ -130,17 +153,12 @@ export default function NewsfeedPhotoViewer({
               alignItems: "flex-start",
             }}
           >
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={imageSrc}
-              alt=""
-              style={{
-                maxWidth: "min(92vw, 900px)",
-                maxHeight: "70vh",
-                objectFit: "contain",
-                borderRadius: 8,
-              }}
-            />
+            {kind === "video" ? (
+              <video src={mediaSrc} controls playsInline style={mediaStyle} />
+            ) : (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={mediaSrc} alt="" style={mediaStyle} />
+            )}
             {canTag ? (
               <form
                 action={setNewsfeedPhotoTagsAction}

@@ -73,6 +73,8 @@ export function contentSecurityPolicy() {
     ["script-src", ["'self'", "'unsafe-inline'"]],
     ["style-src", ["'self'", "'unsafe-inline'"]],
     ["img-src", ["'self'", "data:", "blob:"]],
+    // KID-2487: tagged post videos render in the child media section.
+    ["media-src", ["'self'", "data:", "blob:"]],
     ["font-src", ["'self'", "data:"]],
     ["connect-src", ["'self'"]],
     ["frame-src", ["'self'"]],
@@ -88,6 +90,7 @@ export function contentSecurityPolicy() {
   const supabase = supabaseOrigin();
   if (supabase) {
     csp.get("img-src").push(supabase, "https://*.supabase.co", "https://*.supabase.in");
+    csp.get("media-src").push(supabase, "https://*.supabase.co", "https://*.supabase.in");
     csp
       .get("connect-src")
       .push(supabase, `wss://${hostOf(supabase)}`);
@@ -112,6 +115,7 @@ export function contentSecurityPolicy() {
   // KID-2463: signed media reads (img) and presigned direct uploads
   // (fetch/XHR) target the R2 S3 endpoint directly, not the app origin.
   csp.get("img-src").push(R2_MEDIA_ORIGIN);
+  csp.get("media-src").push(R2_MEDIA_ORIGIN);
   csp.get("connect-src").push(R2_MEDIA_ORIGIN);
 
   if (process.env.NODE_ENV !== "production") {

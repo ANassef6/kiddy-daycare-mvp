@@ -117,6 +117,8 @@ describe("KID-1178/F-03 the CSP is tailored to this app", () => {
     const directive = (name: string) =>
       csp.split("; ").find((entry) => entry.startsWith(`${name} `)) ?? "";
     expect(directive("img-src").split(" ")).toContain(r2Origin);
+    // KID-2487: tagged post videos use the same private R2 origin.
+    expect(directive("media-src").split(" ")).toContain(r2Origin);
     expect(directive("connect-src").split(" ")).toContain(r2Origin);
     // The media origin is never granted script or frame privileges.
     expect(directive("script-src")).not.toContain(r2Origin);
