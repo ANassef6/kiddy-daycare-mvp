@@ -328,3 +328,49 @@ export function formatDurationParts(minutes: number): { hours: number; minutes: 
   const safe = Math.max(0, Math.round(minutes));
   return { hours: Math.floor(safe / 60), minutes: safe % 60 };
 }
+
+export type StaffHoursComputation = {
+  staffId: string;
+  expected: number;
+  actual: ActualHours;
+  delta: StaffHoursDelta;
+};
+
+// KID-2484 item 7: one shared computation for the working-hours tab and the
+// report-center CSV export, so both surfaces report the same numbers.
+export function computeStaffHoursRows(input: {
+  staffIds: string[];
+  schedulesByStaff: Record<string, StaffScheduleLike[]>;
+  statusesByStaff: Record<string, StaffStatusLike[]>;
+  days: string[];
+  timeZone: string;
+  now?: Date;
+  rangeEnd?: Date;
+  upcoming?: boolean;
+}): StaffHoursComputation[] {
+  const now = input.now ?? new Date();
+  return input.staffIds.map((staffId) => {
+    const expected = expectedMinutesForDays(
+      input.schedulesByStaff[staffId] ?? [],
+      input.days
+    );
+    const actual = actualMinutesForStaff(
+      input.statusesByStaff[staffId] ?? [],
+      input.days,
+      input.timeZone,
+      { now, rangeEnd: input.rangeEnd }
+    );
+    const delta = classifyStaffHours({
+      expected,
+      actual: actual.minutes,
+      upcoming: input.upcoming,
+    });
+    return { staffId, expected, actual, delta };
+  });
+}
+
+export function decimalHours(minutes: number): string {
+  const rounded = Math.round(minutes);
+  const sign = rounded < 0 ? "-" : "";
+  return `${sign}${(Math.abs(rounded) / 60).toFixed(2)}`;
+}
