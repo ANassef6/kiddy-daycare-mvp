@@ -48,6 +48,7 @@ export function sqliteSchema(db: any): void {
     name TEXT NOT NULL,
     capacity INTEGER,
     colour TEXT NOT NULL DEFAULT '#3B82F6',
+    photo_url TEXT,
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
   );
 
@@ -909,6 +910,10 @@ export function sqliteSchema(db: any): void {
   const roomCols = db.prepare("PRAGMA table_info(room)").all() as { name: string }[];
   if (!roomCols.some((c) => c.name === "colour")) {
     db.exec("ALTER TABLE room ADD COLUMN colour TEXT NOT NULL DEFAULT '#3B82F6'");
+  }
+  // KID-2481: mirror of supabase/migrations/0055_kid2481_room_photo.sql.
+  if (!roomCols.some((c) => c.name === "photo_url")) {
+    db.exec("ALTER TABLE room ADD COLUMN photo_url TEXT");
   }
   // KID-2447 + KID-2448: mirror of the two migrations that add the
   // shared nullable check_in.source marker for databases created before it
