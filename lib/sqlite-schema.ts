@@ -552,6 +552,7 @@ export function sqliteSchema(db: any): void {
   );
 
   CREATE INDEX IF NOT EXISTS idx_staff_status ON staff_status (staff_id, created_at DESC);
+  CREATE INDEX IF NOT EXISTS idx_staff_schedule_staff_day ON staff_schedule (staff_id, day_of_week);
   CREATE INDEX IF NOT EXISTS idx_notification_account_recent ON notification (account_id, created_at DESC);
   CREATE INDEX IF NOT EXISTS idx_notification_unread ON notification (account_id, read_at);
 
