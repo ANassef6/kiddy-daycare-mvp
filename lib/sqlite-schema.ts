@@ -513,11 +513,25 @@ export function sqliteSchema(db: any): void {
     id TEXT PRIMARY KEY,
     staff_id TEXT NOT NULL REFERENCES staff(id) ON DELETE CASCADE,
     day_of_week INTEGER NOT NULL DEFAULT 1,
+    -- KID-2483: mirror of supabase/migrations/0056 — NULL is the weekly
+    -- pattern, an ISO date is a one-off shift that overrides it.
+    schedule_date TEXT,
     start_time TEXT NOT NULL DEFAULT '08:00',
     end_time TEXT NOT NULL DEFAULT '16:00',
     notes TEXT NOT NULL DEFAULT '',
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
   );
+  CREATE INDEX IF NOT EXISTS idx_schedule_staff ON staff_schedule (staff_id);
+  CREATE INDEX IF NOT EXISTS idx_schedule_date ON staff_schedule (schedule_date);
+  CREATE INDEX IF NOT EXISTS idx_schedule_staff_day ON staff_schedule (staff_id, day_of_week);
+
+  -- KID-2483: mirror of supabase/migrations/0056 — the rooms worked per shift.
+  CREATE TABLE IF NOT EXISTS staff_schedule_room (
+    schedule_id TEXT NOT NULL REFERENCES staff_schedule(id) ON DELETE CASCADE,
+    room_id TEXT NOT NULL REFERENCES room(id) ON DELETE CASCADE,
+    PRIMARY KEY (schedule_id, room_id)
+  );
+  CREATE INDEX IF NOT EXISTS idx_schedule_room_room ON staff_schedule_room (room_id);
 
   CREATE TABLE IF NOT EXISTS notification_pref (
     account_id TEXT NOT NULL,
@@ -909,6 +923,14 @@ export function sqliteSchema(db: any): void {
   const roomCols = db.prepare("PRAGMA table_info(room)").all() as { name: string }[];
   if (!roomCols.some((c) => c.name === "colour")) {
     db.exec("ALTER TABLE room ADD COLUMN colour TEXT NOT NULL DEFAULT '#3B82F6'");
+  }
+  // KID-2483: mirror of supabase/migrations/0056 for databases created before
+  // a shift could target a specific date.
+  const scheduleCols = db.prepare("PRAGMA table_info(staff_schedule)").all() as { name: string }[];
+  if (scheduleCols.length > 0 && !scheduleCols.some((c) => c.name === "schedule_date")) {
+    db.exec("ALTER TABLE staff_schedule ADD COLUMN schedule_date TEXT");
+    db.exec("CREATE INDEX IF NOT EXISTS idx_schedule_date ON staff_schedule (schedule_date)");
+    db.exec("CREATE INDEX IF NOT EXISTS idx_schedule_staff_day ON staff_schedule (staff_id, day_of_week)");
   }
   // KID-2447 + KID-2448: mirror of the two migrations that add the
   // shared nullable check_in.source marker for databases created before it
