@@ -141,7 +141,8 @@ export default async function PortalNewsfeedPage(props: {
       </details>
 
       {posts.map((post: any) => {
-        const isImage = !!post.media_url && attachmentKind("", String(post.media_url)) === "image";
+        const mediaName = String(post.media_url ?? "").split("?")[0].split("#")[0].split("/").pop() ?? "";
+        const isImage = !!post.media_url && attachmentKind(mediaName, String(post.media_url)) === "image";
         const mediaSrc = mediaSrcs.get(String(post.media_url)) ?? "";
         return (
           <div className="card mb-4" key={post.id}>
