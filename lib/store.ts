@@ -3078,12 +3078,13 @@ export async function createEvent(data: {
   endTime?: string;
   location?: string;
   description?: string;
+  classroomId?: string | null;
   accountId?: string;
 }): Promise<Row> {
   const id = uid();
   await queryRun(
-    `INSERT INTO event (id, institute_id, title, event_date, start_time, end_time, location, description, created_by_account_id)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO event (id, institute_id, title, event_date, start_time, end_time, location, description, classroom_id, created_by_account_id)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     id,
     data.instituteId,
     data.title,
@@ -3092,21 +3093,88 @@ export async function createEvent(data: {
     data.endTime ?? null,
     data.location ?? null,
     data.description ?? "",
+    data.classroomId ?? null,
     data.accountId ?? null
   );
   return (await queryGet("SELECT * FROM event WHERE id = ?", id))!;
 }
 
-export async function listEvents(instituteId: string, upcoming = false): Promise<Row[]> {
+/** KID-2480: one event with its classroom name for the edit form. */
+export async function getEvent(eventId: string): Promise<Row | undefined> {
+  return queryGet(
+    `SELECT e.*, r.name AS classroom_name FROM event e
+     LEFT JOIN room r ON r.id = e.classroom_id
+     WHERE e.id = ?`,
+    eventId
+  );
+}
+
+/** KID-2480: edit an event, including moving it between classrooms or back to
+ *  center-wide (`classroomId: null`). Only the supplied fields are touched. */
+export async function updateEvent(
+  eventId: string,
+  data: {
+    title?: string;
+    eventDate?: string;
+    startTime?: string | null;
+    endTime?: string | null;
+    location?: string | null;
+    description?: string | null;
+    classroomId?: string | null;
+  }
+): Promise<void> {
+  const fields: string[] = [];
+  const values: unknown[] = [];
+  if (data.title !== undefined) { fields.push("title = ?"); values.push(data.title); }
+  if (data.eventDate !== undefined) { fields.push("event_date = ?"); values.push(data.eventDate); }
+  if (data.startTime !== undefined) { fields.push("start_time = ?"); values.push(data.startTime); }
+  if (data.endTime !== undefined) { fields.push("end_time = ?"); values.push(data.endTime); }
+  if (data.location !== undefined) { fields.push("location = ?"); values.push(data.location); }
+  if (data.description !== undefined) { fields.push("description = ?"); values.push(data.description); }
+  if (data.classroomId !== undefined) { fields.push("classroom_id = ?"); values.push(data.classroomId); }
+  if (fields.length === 0) return;
+  values.push(eventId);
+  await queryRun(`UPDATE event SET ${fields.join(", ")} WHERE id = ?`, ...values);
+}
+
+/**
+ * KID-2480: event listing.
+ *
+ * `parentAccountId` scopes the result to the family audience: center-wide
+ * events (classroom_id IS NULL) plus events targeted at a room one of the
+ * account's children belongs to. It fails closed — an account with no family
+ * links (or children with no room) sees only center-wide events, never
+ * another classroom's event. Staff callers omit it and see every event.
+ */
+export async function listEvents(
+  instituteId: string,
+  upcoming = false,
+  opts: { parentAccountId?: string } = {}
+): Promise<Row[]> {
   const today = new Date().toISOString().slice(0, 10);
+  const conditions = ["e.institute_id = ?"];
   const args: unknown[] = [instituteId];
-  if (upcoming) args.push(today);
+  if (upcoming) {
+    conditions.push("e.event_date >= ?");
+    args.push(today);
+  }
+  if (opts.parentAccountId) {
+    conditions.push(
+      `(e.classroom_id IS NULL OR e.classroom_id IN (
+         SELECT DISTINCT c.room_id FROM family_member fm
+         JOIN child c ON c.id = fm.child_id
+         WHERE fm.account_id = ? AND c.institute_id = ? AND c.room_id IS NOT NULL
+       ))`
+    );
+    args.push(opts.parentAccountId, instituteId);
+  }
   return queryAll(
-    `SELECT e.*, a.full_name AS created_by_name,
+    `SELECT e.*, a.full_name AS created_by_name, r.name AS classroom_name,
             (SELECT COUNT(*) FROM media_event me JOIN media m ON m.id = me.media_id WHERE me.event_id = e.id) AS media_count
      FROM event e
      LEFT JOIN account a ON a.id = e.created_by_account_id
-     WHERE e.institute_id = ? ${upcoming ? "AND e.event_date >= ?" : ""}
+     LEFT JOIN room r ON r.id = e.classroom_id
+     WHERE ${conditions.join(" AND ")}
      ORDER BY e.event_date ASC, e.start_time ASC`,
     ...args
   );
