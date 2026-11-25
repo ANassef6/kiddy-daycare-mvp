@@ -42,7 +42,7 @@ export default async function PortalHomeworkPage() {
                 options={children.map((c: any) => ({ id: String(c.id), label: `${c.first_name} ${c.last_name}` }))}
                 allLabel={canAssignCenterWide ? t("homework.allChildren") : undefined}
                 placeholder={t("childrenAdd.searchChildrenPlaceholder")}
-                noResultsMessage={t("pickerNoChildrenFound")}
+                noResultsMessage={t("parent.pickerNoChildrenFound")}
               />
             </div>
             <div className="col field"><label className="label">{t("homework.dueDate")}</label><input className="input" type="date" name="dueDate" /></div>

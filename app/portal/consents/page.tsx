@@ -44,7 +44,7 @@ export default async function PortalConsentsPage() {
               options={children.map((c: any) => ({ id: String(c.id), label: `${c.first_name} ${c.last_name}` }))}
               allLabel={t("consents.childAll")}
               placeholder={t("childrenAdd.searchChildrenPlaceholder")}
-              noResultsMessage={t("pickerNoChildrenFound")}
+              noResultsMessage={t("parent.pickerNoChildrenFound")}
             />
           </div>
         </div>

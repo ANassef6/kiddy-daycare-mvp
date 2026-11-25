@@ -74,7 +74,7 @@ export default async function PortalDrivePage(props: {
                 options={children.map((c: any) => ({ id: String(c.id), label: `${c.first_name} ${c.last_name}` }))}
                 allLabel={tr(dict, "driveAdmin.allFamilies")}
                 placeholder={tr(dict, "childrenAdd.searchChildrenPlaceholder")}
-                noResultsMessage={tr(dict, "pickerNoChildrenFound")}
+                noResultsMessage={tr(dict, "parent.pickerNoChildrenFound")}
               />
             </div>
           </div>
