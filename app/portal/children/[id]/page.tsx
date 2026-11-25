@@ -25,6 +25,7 @@ import {
   createIncidentAction,
   saveChildStatusAction,
   uploadPhotoAction,
+  removeChildPhotoAction,
   acknowledgeIncidentAction,
 } from "@/lib/actions";
 import Avatar from "@/components/Avatar";
@@ -354,6 +355,12 @@ export default async function PortalChildPage(
           <label htmlFor={`photo-${child.id}`} className="btn btn-ghost" style={{ cursor: "pointer", fontSize: 13 }}>{child.photo_url ? t("profile.changePhoto") : t("profile.addPhoto")}</label>
           <button className="btn btn-primary" type="submit" style={{ fontSize: 13 }}>{t("profile.save")}</button>
         </MediaUploadForm>
+        {child.photo_url ? (
+          <form action={removeChildPhotoAction}>
+            <input type="hidden" name="childId" value={child.id as string} />
+            <button className="btn btn-ghost" type="submit" style={{ fontSize: 13 }}>{t("profile.removePhoto")}</button>
+          </form>
+        ) : null}
         <Link href={`/portal/children/${child.id}/development`} className="btn btn-ghost" style={{ fontSize: 13 }}>{t("profile.development")}</Link>
       </div>
       <div style={{ marginTop: 18 }}>

@@ -478,7 +478,7 @@ export async function generateDaycareContractDrafts(input: {
           daycareId: input.instituteId,
           daycareName: data.tradeName,
           plan: data.plan,
-          deepLink: `/platform/daycares/${input.instituteId}/billing`,
+          deepLink: `/platform/daycares/${input.instituteId}/settings/billing`,
         },
         ref: `contract-draft-${input.instituteId}`,
       });

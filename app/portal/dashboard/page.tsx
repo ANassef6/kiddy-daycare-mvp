@@ -10,6 +10,8 @@ import {
   recentReports,
   listContactRequests,
   runAutoCheckoutSweep,
+  centerToday,
+  listStaffSchedulesForDate,
 } from "@/lib/store";
 import { i18nForAccount } from "@/lib/i18n-session";
 import { fmtDateFor, fmtTimeFor } from "@/lib/i18n";
@@ -49,6 +51,8 @@ export default async function PortalDashboard() {
   const openIncidents = ((incidentCount as any)?.c as number) ?? 0;
   const reports = await recentReports(instituteId, 1, session.accountId);
   const latestReport = reports[0];
+  const today = await centerToday(instituteId);
+  const staffToday = await listStaffSchedulesForDate(instituteId, today);
 
   return (
     <div>
@@ -78,6 +82,26 @@ export default async function PortalDashboard() {
             ))
           )}
           <Link className="small mt-2" href="/portal/attendance">{tr(dict, "dashboard.viewFullAttendance")} →</Link>
+        </div>
+        <div className="card">
+          <h3 className="subtitle">{tr(dict, "dashboard.staffOnDuty")}</h3>
+          {staffToday.length === 0 ? (
+            <p className="muted small">{tr(dict, "dashboard.noStaffScheduled")}</p>
+          ) : (
+            staffToday.map((s: any) => (
+              <div className="list-item" key={s.id}>
+                <span className="small">
+                  <strong>{s.full_name}</strong> · {s.start_time}–{s.end_time}
+                </span>
+                <span className="small muted">
+                  {Array.isArray(s.room_names) && s.room_names.length > 0
+                    ? s.room_names.join(", ")
+                    : tr(dict, "dashboard.noRoom")}
+                </span>
+              </div>
+            ))
+          )}
+          <Link className="small mt-2" href="/portal/staff/schedule">{tr(dict, "dashboard.viewStaffSchedule")} →</Link>
         </div>
       </div>
 

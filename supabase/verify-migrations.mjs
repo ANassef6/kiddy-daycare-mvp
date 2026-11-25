@@ -708,6 +708,7 @@ try {
       "daycare_invoice", "push_subscription", "daycare_contract",
       "platform_setting", "audit_event", "notification", "enhancement_request",
       "tool_usage_event", "platform_access_log", "bus_event", "child_status",
+      "bulk_upload",
     ];
     const rlsStates = async (names) =>
       (

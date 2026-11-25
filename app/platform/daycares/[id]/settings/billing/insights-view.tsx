@@ -38,7 +38,7 @@ export function toolLabel(dict: Dict, toolKey: string): string {
 }
 
 export function InsightsView({ inst, insights, dict, backfilled, warnCustom }: InsightsViewProps) {
-  const base = `/platform/daycares/${String(inst.id)}/billing`;
+  const base = `/platform/daycares/${String(inst.id)}/settings/billing`;
   const tabHref = (extra: Record<string, string>) => {
     const q = new URLSearchParams({ tab: "insights", ...extra });
     return `${base}?${q.toString()}`;

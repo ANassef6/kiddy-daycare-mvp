@@ -56,6 +56,9 @@ import {
   scopedRoomIds,
   messagingRoomIds,
   setBusStatus,
+  canTargetWholeCenter,
+  canTargetClassroom,
+  eventEditableBy,
   BusCycleError,
   type BusCycleErrorCode,
 } from "@/lib/store";
@@ -83,6 +86,8 @@ import {
   updateInstitute,
   createContactRequest,
   createEvent,
+  getEvent,
+  updateEvent,
   addEventMedia,
   createForm,
   saveFormResponse,
@@ -99,6 +104,7 @@ import {
   setChildBillingPaymentProof,
   updateChildPhoto,
   updateStaffPhoto,
+  updateRoomPhoto,
   toggleLike,
   saveWorkingHours,
   checkInAllowed,
@@ -778,6 +784,12 @@ async function authAccount(opts: { allowReadOnly?: boolean } = {}): Promise<Sess
   return session;
 }
 
+// KID-2481: only roles that may edit a child profile may change or remove its
+// photo. Parent-role accounts read the child surface but never edit it.
+function canEditChildren(role: string): boolean {
+  return isAdminRole(role) || role === "staff" || role === "carer";
+}
+
 async function requireAdmin(): Promise<SessionCookie> {
   const me = await authAccount();
   if (!isAdminRole(me.role)) {
@@ -852,6 +864,61 @@ export async function resetAccountPasswordAction(formData: FormData) {
 
   revalidatePath("/platform");
   redirect(`/platform/password-reset?reset=1&email=${encodeURIComponent(reset.email)}`);
+}
+
+// KID-2478: the superadmin Excel bulk upload. Lives on the per-daycare
+// Settings surface; the guard is the same double check every /platform action
+// uses (internal sentinel session AND the env allowlist), so a daycare
+// admin/staff/parent POST is redirected to /login before a byte is parsed.
+// The file is validated before processing: .xlsx only, non-empty, under 5 MB,
+// at most 500 data rows. Each row commits on its own (lib/bulk-upload.ts); a
+// malformed row is reported with its row number and writes nothing.
+export async function bulkUploadAction(formData: FormData) {
+  const operator = await requirePlatformOperator();
+  await ensureSchema();
+  const instituteId = String(formData.get("instituteId") ?? "").trim();
+  const kindRaw = String(formData.get("kind") ?? "");
+  const kind = kindRaw === "children" || kindRaw === "staff" ? kindRaw : null;
+  if (!instituteId) redirect("/platform?error=missing-id");
+  // KID-2477: bulk upload is its own tab under the per-daycare Settings
+  // section, so the result banner/report comes back to that tab.
+  const back = `/platform/daycares/${encodeURIComponent(instituteId)}/settings/bulk-upload`;
+  if (!kind) redirect(`${back}?error=kind`);
+
+  // Re-read the daycare from the database; the hidden id is not trusted.
+  const institute = await getInstitute(instituteId);
+  if (!institute) redirect("/platform?error=missing-id");
+
+  const file = formData.get("file");
+  if (!(file instanceof File) || file.size === 0) redirect(`${back}?error=file`);
+  if (!/\.xlsx$/i.test(file.name)) redirect(`${back}?error=type`);
+
+  const { BulkUploadError, MAX_BULK_FILE_BYTES, processBulkUpload } = await import("@/lib/bulk-upload");
+  if (file.size > MAX_BULK_FILE_BYTES) redirect(`${back}?error=size`);
+
+  const buffer = Buffer.from(await file.arrayBuffer());
+  let report;
+  try {
+    report = await processBulkUpload({
+      instituteId,
+      kind,
+      fileName: file.name,
+      buffer,
+      actorAccountId: operator.accountId,
+    });
+  } catch (error) {
+    if (error instanceof BulkUploadError) {
+      redirect(`${back}?error=${encodeURIComponent(error.code)}`);
+    }
+    console.error(
+      `[KID-2478] bulk upload failed for ${instituteId} (${kind}):`,
+      error instanceof Error ? error.message : error
+    );
+    redirect(`${back}?error=unknown`);
+  }
+
+  revalidatePath(back);
+  redirect(`${back}?report=${encodeURIComponent(report.id)}`);
 }
 
 /** Validate the /platform hex color fields without trusting the form: accept
@@ -956,6 +1023,41 @@ export async function updateDaycareSubdomainAction(formData: FormData) {
     redirect(subdomainEditErrorPath(instituteId, typed, "unknown"));
   }
   revalidatePath("/platform");
+  redirect("/platform");
+}
+
+// KID-2486: renaming a center is a platform-operator action. The center's own
+// settings render the name read-only and saveCenterDetailsAction never writes
+// it, so this is the only path that changes institute.name. Every branding
+// surface (login page, brand-banner alt text, /api/branding) already reads that
+// column through lib/theme.ts, so one write updates them all. The short-lived
+// branding cache is purged and the layout revalidated so the new name renders
+// on the next navigation instead of after the TTL window.
+export async function updateDaycareNameAction(formData: FormData) {
+  const operator = await requirePlatformOperator();
+  const instituteId = String(formData.get("instituteId") ?? "");
+  if (!instituteId) redirect("/platform?error=missing-id");
+  const name = String(formData.get("name") ?? "").trim();
+  if (!name || name.length > 120) {
+    redirect(`/platform?error=center-name-invalid&edit=${encodeURIComponent(instituteId)}`);
+  }
+  const inst = await queryGet("SELECT id, name FROM institute WHERE id = ?", instituteId);
+  if (!inst) redirect("/platform?error=missing-id");
+  if (String(inst.name ?? "") === name) redirect("/platform");
+  await updateInstitute(instituteId, { name });
+  // KID-477: center renames are attributed settings changes.
+  await recordAuditEvent({
+    instituteId,
+    actorAccountId: operator.accountId,
+    action: "update",
+    entityType: "institute_settings",
+    entityId: instituteId,
+    summary: "Renamed the center",
+    metadata: { from: String(inst.name ?? ""), to: name },
+  });
+  const { clearBrandingCache } = await import("@/lib/theme");
+  clearBrandingCache();
+  revalidatePath("/", "layout");
   redirect("/platform");
 }
 
@@ -1114,7 +1216,7 @@ export async function updateDaycareBillingAction(formData: FormData) {
   if (!instituteId) redirect("/platform?error=missing-id");
   const inst = await queryGet("SELECT id FROM institute WHERE id = ?", instituteId);
   if (!inst) redirect("/platform?error=missing-id");
-  const back = `/platform/daycares/${instituteId}/billing`;
+  const back = `/platform/daycares/${instituteId}/settings/billing`;
   const planRaw = String(formData.get("plan") ?? "").trim();
   const plan = planRaw === "monthly" || planRaw === "demo" ? planRaw : "";
   if (!plan) redirect(`${back}?error=billing-plan-invalid`);
@@ -1180,8 +1282,8 @@ export async function updateBranchBillingAction(formData: FormData) {
     branchId,
     instituteId
   );
-  if (!branch) redirect(`/platform/daycares/${instituteId}/billing?error=unknown`);
-  const back = `/platform/daycares/${instituteId}/billing`;
+  if (!branch) redirect(`/platform/daycares/${instituteId}/settings/billing?error=unknown`);
+  const back = `/platform/daycares/${instituteId}/settings/billing`;
   const planRaw = String(formData.get("plan") ?? "").trim();
   const plan = planRaw === "monthly" || planRaw === "demo" ? planRaw : "";
   if (!plan) redirect(`${back}?error=billing-plan-invalid`);
@@ -1380,7 +1482,7 @@ export async function updateInvoiceAmountAction(formData: FormData) {
   const { getInvoice } = await import("@/lib/billing");
   const invoice = invoiceId ? await getInvoice(invoiceId) : undefined;
   if (!invoice) redirect("/platform?error=missing-invoice");
-  const back = `/platform/daycares/${invoice.instituteId}/invoices`;
+  const back = `/platform/daycares/${invoice.instituteId}/settings/invoices`;
   const rawTotal = String(formData.get("totalAmountEgp") ?? "").trim();
   const rawNote = String(formData.get("manualAdjustment") ?? "");
   const { updateInvoiceAmount } = await import("@/lib/billing");
@@ -1464,7 +1566,7 @@ export async function markInvoicePaidAction(formData: FormData) {
   const { getInvoice, markInvoicePaid } = await import("@/lib/billing");
   const invoice = invoiceId ? await getInvoice(invoiceId) : undefined;
   if (!invoice) redirect("/platform?error=missing-invoice");
-  const back = `/platform/daycares/${invoice.instituteId}/invoices`;
+  const back = `/platform/daycares/${invoice.instituteId}/settings/invoices`;
   try {
     await markInvoicePaid(invoiceId);
   } catch (err) {
@@ -1586,15 +1688,28 @@ async function assertFamilyAction(me: SessionCookie, action: string): Promise<vo
 // allowed to tag. Admin/owner may use the "center" channel; staff and carers
 // are restricted to their assigned classrooms. Forged or out-of-scope values
 // are dropped rather than silently expanded.
-async function resolveNewsfeedRecipients(
+//
+// KID-2485: the same resolution now feeds the survey composer, which also needs
+// the picked channel/classrooms for its stored audience summary. One helper
+// keeps activities, newsfeed, and surveys on exactly the same rules.
+type RecipientAudience = {
+  channel: "center" | "rooms" | "children" | "";
+  roomIds: string[];
+  childIds: string[];
+};
+
+async function resolveRecipientAudience(
   formData: FormData,
   me: SessionCookie,
   instituteId: string
-): Promise<string[]> {
-  const { listChildren, childrenByRooms, staffRooms } = await import("@/lib/store");
+): Promise<RecipientAudience> {
+  const { listChildren, listRooms, childrenByRooms, staffRooms } = await import("@/lib/store");
   const { queryGet } = await import("@/lib/db");
   const isAdmin = me.role === "owner" || me.role === "admin";
-  const channel = String(formData.get("recipientChannel") ?? "").trim();
+  const rawChannel = String(formData.get("recipientChannel") ?? "").trim();
+  // KID-2482 alias: the old admin "Center"/"All classrooms" pair is one
+  // "Everyone (whole center)" channel. Both values mean the same audience.
+  const channel = rawChannel === "everyone" ? "center" : rawChannel;
 
   let allowedRoomIds: string[] = [];
   if (!isAdmin) {
@@ -1611,29 +1726,49 @@ async function resolveNewsfeedRecipients(
     if (!isAdmin) {
       throw new Error(await gateMessage("act.messageEveryoneAdmins", null));
     }
-    return (await listChildren(instituteId)).map((c) => String(c.id));
+    // Resolve at submit time so classrooms created after the composer loaded
+    // are included. Unassigned legacy children stay in the audience so an
+    // announcement never silently misses a family.
+    const rooms = await listRooms(instituteId);
+    const classroomChildren = await childrenByRooms(rooms.map((r) => String(r.id)));
+    const unassigned = (await listChildren(instituteId)).filter((c) => !c.room_id);
+    return {
+      channel: "center",
+      roomIds: [],
+      childIds: Array.from(new Set([...classroomChildren, ...unassigned].map((c) => String(c.id)))),
+    };
   }
 
   if (channel === "rooms") {
     const requestedRoomIds = formData.getAll("recipientRoomIds").map(String).filter(Boolean);
-    const roomIds = isAdmin ? requestedRoomIds : requestedRoomIds.filter((id) => allowedRoomIds.includes(id));
-    return (await childrenByRooms(roomIds)).map((c) => String(c.id));
+    const instituteRooms = new Set((await listRooms(instituteId)).map((r) => String(r.id)));
+    const roomIds = requestedRoomIds.filter(
+      (id) => instituteRooms.has(id) && (isAdmin || allowedRoomIds.includes(id))
+    );
+    return {
+      channel: "rooms",
+      roomIds,
+      childIds: (await childrenByRooms(roomIds)).map((c) => String(c.id)),
+    };
   }
 
   const requestedChildIds = formData.getAll("childIds").map(String).filter(Boolean);
-  if (isAdmin) {
-    return requestedChildIds;
-  }
-  if (allowedRoomIds.length === 0) {
-    return [];
-  }
-
   const children = await listChildren(instituteId);
-  const allowed = new Set(allowedRoomIds);
-  return requestedChildIds.filter((cid) => {
+  const allowedRooms = new Set(allowedRoomIds);
+  const childIds = requestedChildIds.filter((cid) => {
     const child = children.find((c) => String(c.id) === cid);
-    return child && allowed.has(child.room_id ? String(child.room_id) : "");
+    if (!child) return false;
+    return isAdmin || allowedRooms.has(String(child.room_id ?? ""));
   });
+  return { channel: childIds.length > 0 ? "children" : "", roomIds: [], childIds };
+}
+
+async function resolveNewsfeedRecipients(
+  formData: FormData,
+  me: SessionCookie,
+  instituteId: string
+): Promise<string[]> {
+  return (await resolveRecipientAudience(formData, me, instituteId)).childIds;
 }
 
 // KID-57: the app language lives on `account.language` + the kiddy_lang
@@ -2525,6 +2660,85 @@ export async function updateRoomAction(formData: FormData) {
   redirect(`/portal/rooms/${roomId}`);
 }
 
+// KID-2481: room photo upload. Admin-only (the same gate that edits a room),
+// and the room must belong to the request tenant before any write.
+export async function uploadRoomPhotoAction(formData: FormData) {
+  await ensureSchema();
+  const me = await requireAdmin();
+  if (!(await throttle("upload", RATE_LIMIT_RULES.uploadAccount, me.accountId)).ok) {
+    throttledRedirect();
+  }
+  const roomId = String(formData.get("roomId") ?? "");
+  if (!roomId) redirect("/portal/rooms");
+  await assertInstituteOwned(me, "room", roomId, "institute_id");
+  const room = await getRoom(roomId);
+  if (!room) redirect("/portal/rooms");
+  const instituteId = String(room.institute_id ?? "");
+  const photoBack = `/portal/rooms/${roomId}`;
+
+  // KID-2453: presigned direct upload first (the REF is re-verified by
+  // takeUploadedRef); the multipart file stays the fallback.
+  const presignedPhoto = await takeUploadedRef(formData, {
+    purpose: "photo",
+    instituteId,
+    field: "fileRef",
+  });
+  let file: File | null = null;
+  let photoPath = "";
+  if (!presignedPhoto.ok) {
+    file = formData.get("file") as File | null;
+    if (!file || file.size === 0) redirect(`${photoBack}?error=photoType`);
+    // The same cap as child/staff avatars (KID-2450/2481).
+    const photo = validatePhotoFile(file);
+    if (!photo.ok) {
+      redirect(`${photoBack}?error=${photo.code === "size" ? "photoSize" : "photoType"}`);
+    }
+    photoPath = `photos/${instituteId}/room/${roomId}/photo-${Date.now()}.${photo.ext}`;
+  }
+
+  if (storageAdminConfigured()) {
+    let storedRef: string | null = presignedPhoto.ok ? presignedPhoto.ref : null;
+    if (!storedRef && file) {
+      const uploaded = await uploadPrivateObject(photoPath, file, file.type);
+      if (!uploaded.error) storedRef = uploaded.ref;
+    }
+    if (storedRef) {
+      await updateRoomPhoto(roomId, storedRef);
+      await recordAuditEvent({
+        instituteId,
+        actorAccountId: me.accountId,
+        action: "update",
+        entityType: "room",
+        entityId: roomId,
+        summary: `Changed the photo for the classroom “${String(room.name ?? "")}”`,
+      });
+    }
+  }
+  redirect(photoBack);
+}
+
+// KID-2481: remove a room photo so the room falls back to its colour dot.
+export async function removeRoomPhotoAction(formData: FormData) {
+  await ensureSchema();
+  const me = await requireAdmin();
+  const roomId = String(formData.get("roomId") ?? "");
+  if (!roomId) redirect("/portal/rooms");
+  await assertInstituteOwned(me, "room", roomId, "institute_id");
+  const room = await getRoom(roomId);
+  if (room) {
+    await updateRoomPhoto(roomId, null);
+    await recordAuditEvent({
+      instituteId: String(room.institute_id ?? ""),
+      actorAccountId: me.accountId,
+      action: "update",
+      entityType: "room",
+      entityId: roomId,
+      summary: `Removed the photo for the classroom “${String(room.name ?? "")}”`,
+    });
+  }
+  redirect(`/portal/rooms/${roomId}`);
+}
+
 // #5b child status log: one timestamped entry per interaction, multiple per day.
 export async function saveChildStatusAction(formData: FormData) {
   const me = await authAccount();
@@ -2877,7 +3091,6 @@ export async function saveBrandingAction(formData: FormData) {
   const instituteId = await firstInstituteId();
   if (instituteId) {
     await updateInstitute(String(instituteId), {
-      name: String(formData.get("name") ?? ""),
       primary_color: String(formData.get("primaryColor") ?? "#3B82F6"),
       accent_color: String(formData.get("accentColor") ?? "#10B981"),
       font: String(formData.get("font") ?? "Inter"),
@@ -2907,10 +3120,12 @@ export async function saveCenterDetailsAction(formData: FormData) {
   const instituteId = await firstInstituteId();
   if (instituteId) {
     const patch: Record<string, unknown> = {};
-    const name = String(formData.get("name") ?? "").trim();
+    // KID-2486: the center name is owned by the platform view and is never
+    // written from the center's own settings. A tampered `name` field is
+    // ignored here (the stored institute.name stays the single source of
+    // truth); `updateDaycareNameAction` is the only writer.
     const contact = String(formData.get("contact") ?? "").trim();
     const address = String(formData.get("address") ?? "").trim();
-    if (name) patch.name = name;
     patch.contact = contact || null;
     patch.address = address || null;
     // KID-489 item 1 (KID-490): the center's default currency. Only written
@@ -2950,7 +3165,7 @@ export async function saveCenterDetailsAction(formData: FormData) {
       action: "update",
       entityType: "institute_settings",
       entityId: instituteId,
-      summary: name ? `Updated the center profile (${name})` : "Updated the center profile",
+      summary: "Updated the center profile",
       metadata: {
         ...(patch.default_currency ? { defaultCurrency: String(patch.default_currency) } : {}),
         ...(patch.timezone ? { timezone: String(patch.timezone) } : {}),
@@ -3046,6 +3261,21 @@ export async function createEventAction(formData: FormData) {
   const me = await authAccount();
   const instituteId = await requireInstitute();
   if (instituteId) {
+    // KID-2480 (founder rule): owners/admins may post center-wide or to any
+    // class; teachers/caregivers may post only to one of their own classrooms.
+    if (!canTargetWholeCenter(me.role) && me.role !== "staff" && me.role !== "carer") {
+      redirect("/portal/events");
+    }
+    const classroomId = String(formData.get("classroomId") ?? "").trim() || null;
+    const allowedRoomIds = canTargetWholeCenter(me.role)
+      ? null
+      : (await scopedRoomIds(instituteId, me.accountId)) ?? [];
+    // Empty = whole center. The room must be this tenant's, and a teacher may
+    // not target a class outside their staff_room assignments.
+    if (classroomId) await assertInstituteOwned(me, "room", classroomId, "institute_id");
+    if (!canTargetClassroom(me.role, allowedRoomIds, classroomId)) {
+      redirect("/portal/events?error=eventClass");
+    }
     const event = await createEvent({
       instituteId,
       title: String(formData.get("title") ?? ""),
@@ -3054,6 +3284,7 @@ export async function createEventAction(formData: FormData) {
       endTime: String(formData.get("endTime") ?? "") || undefined,
       location: String(formData.get("location") ?? "") || undefined,
       description: String(formData.get("description") ?? "") || undefined,
+      classroomId,
       accountId: me.accountId,
     });
     // KID-477: events are user-visible records — attributed on the trail.
@@ -3081,6 +3312,53 @@ export async function createEventAction(formData: FormData) {
   // KID-55 #10: activities page posts inline with returnTo=/portal/learning/activities.
   const returnTo = String(formData.get("returnTo") ?? "");
   redirect(returnTo.startsWith("/portal/") ? returnTo : "/portal/events");
+}
+
+// KID-2480: edit an existing activity, including its classroom target.
+export async function updateEventAction(formData: FormData) {
+  const me = await authAccount();
+  const instituteId = await requireInstitute();
+  const eventId = String(formData.get("eventId") ?? "").trim();
+  if (!instituteId || !eventId) redirect("/portal/events");
+  if (!canTargetWholeCenter(me.role) && me.role !== "staff" && me.role !== "carer") {
+    redirect("/portal/events");
+  }
+  await assertInstituteOwned(me, "event", eventId, "institute_id");
+  const existing = await getEvent(eventId);
+  if (!existing) redirect("/portal/events");
+  const allowedRoomIds = canTargetWholeCenter(me.role)
+    ? null
+    : (await scopedRoomIds(instituteId, me.accountId)) ?? [];
+  // KID-2480 (founder rule): a teacher may edit only events already targeted
+  // at one of their rooms — never a center-wide or another class's event.
+  const existingClassroomId = existing.classroom_id ? String(existing.classroom_id) : null;
+  if (!eventEditableBy(me.role, allowedRoomIds, existingClassroomId)) {
+    redirect("/portal/events?error=eventClass");
+  }
+  const classroomId = String(formData.get("classroomId") ?? "").trim() || null;
+  if (classroomId) await assertInstituteOwned(me, "room", classroomId, "institute_id");
+  if (!canTargetClassroom(me.role, allowedRoomIds, classroomId)) {
+    redirect("/portal/events?error=eventClass");
+  }
+  await updateEvent(eventId, {
+    title: String(formData.get("title") ?? ""),
+    eventDate: String(formData.get("eventDate") ?? ""),
+    startTime: String(formData.get("startTime") ?? "") || null,
+    endTime: String(formData.get("endTime") ?? "") || null,
+    location: String(formData.get("location") ?? "") || null,
+    description: String(formData.get("description") ?? "") || null,
+    classroomId,
+  });
+  await recordAuditEvent({
+    instituteId,
+    actorAccountId: me.accountId,
+    action: "update",
+    entityType: "event",
+    entityId: eventId,
+    summary: `Updated the activity “${String(formData.get("title") ?? "")}”`,
+    metadata: { classroomId: classroomId ?? null },
+  });
+  redirect("/portal/events");
 }
 
 export async function addEventMediaAction(formData: FormData) {
@@ -3187,6 +3465,26 @@ export async function createFormAction(formData: FormData) {
   if (!title) {
     redirect(`${returnTo}${returnTo.includes("?") ? "&" : "?"}error=form-title`);
   }
+  // KID-2485: a survey is a broadcast, so it needs an explicit audience. The
+  // picker omits every field when nothing was chosen; forged values are
+  // narrowed by the same resolver activities/newsfeed use. Forms and lists
+  // keep their old center-wide behavior (no audience written).
+  let audience: RecipientAudience | undefined;
+  if (kind === "survey") {
+    const isAdmin = me.role === "owner" || me.role === "admin";
+    const rawChannel = String(formData.get("recipientChannel") ?? "").trim();
+    const channel = rawChannel === "everyone" ? "center" : rawChannel;
+    const errorUrl = `${returnTo}${returnTo.includes("?") ? "&" : "?"}error=form-recipients`;
+    // The admin-only whole-center option is enforced server-side, exactly like
+    // the other composers. A staff POST that forges it gets the same refusal.
+    if (channel === "center" && !isAdmin) redirect(errorUrl);
+    audience = await resolveRecipientAudience(formData, me, instituteId);
+    const hasChannel =
+      audience.channel === "center" ||
+      (audience.channel === "rooms" && audience.roomIds.length > 0) ||
+      (audience.channel === "children" && audience.childIds.length > 0);
+    if (!hasChannel) redirect(errorUrl);
+  }
   let fieldsJson = [];
   for (let i = 0; i < 20; i++) {
     const label = String(formData.get(`field_${i}_label`) ?? "").trim();
@@ -3206,6 +3504,7 @@ export async function createFormAction(formData: FormData) {
       description: String(formData.get("description") ?? ""),
       fieldsJson: JSON.stringify(fieldsJson),
       accountId: me.accountId,
+      audience,
     });
     // KID-477: a published form/survey is an admin change parents see —
     // attributed without the field structure.
@@ -3217,7 +3516,11 @@ export async function createFormAction(formData: FormData) {
         entityType: "form_template",
         entityId: String(form.id),
         summary: `Created the ${kind === "survey" ? "survey" : "form"} “${title}”`,
-        metadata: { fields: fieldsJson.length },
+        metadata: {
+          fields: fieldsJson.length,
+          audienceChannel: audience?.channel ?? null,
+          audienceCount: audience?.childIds.length ?? 0,
+        },
       });
     }
   }
@@ -4016,7 +4319,11 @@ export async function uploadPhotoAction(formData: FormData) {
   if (!entityType || !entityId) {
     redirect(entityType === "child" ? "/portal/children" : "/portal/staff");
   }
-  if (entityType === "child") await assertChildInScope(entityId, me);
+  if (entityType === "child") {
+    // KID-2481: changing a child's photo is a child edit, not a parent action.
+    if (!canEditChildren(me.role)) redirect("/portal/children?error=scope");
+    await assertChildInScope(entityId, me);
+  }
   const photoBack = entityType === "child" ? `/portal/children/${entityId}` : `/portal/staff/${entityId}`;
   const photoInstituteId = String(
     (
@@ -4096,6 +4403,34 @@ export async function uploadPhotoAction(formData: FormData) {
     }
   }
   redirect(entityType === "child" ? `/portal/children/${entityId}` : "/portal/staff");
+}
+
+// KID-2481: remove a child's photo. The stored object is left in place (the
+// same replace-by-upload pattern the avatar upload already uses); the row
+// falls back to initials/colour the moment photo_url is NULL.
+export async function removeChildPhotoAction(formData: FormData) {
+  await ensureSchema();
+  const me = await authAccount();
+  if (!canEditChildren(me.role)) redirect("/portal/children?error=scope");
+  const childId = String(formData.get("childId") ?? "");
+  if (!childId) redirect("/portal/children");
+  await assertChildInScope(childId, me);
+  const child = await queryGet(
+    "SELECT institute_id, first_name, last_name FROM child WHERE id = ?",
+    childId
+  );
+  if (child) {
+    await updateChildPhoto(childId, null);
+    await recordAuditEvent({
+      instituteId: String(child.institute_id ?? ""),
+      actorAccountId: me.accountId,
+      action: "update",
+      entityType: "child",
+      entityId: childId,
+      summary: `Removed the photo for ${String(child.first_name)} ${String(child.last_name)}`.trim(),
+    });
+  }
+  redirect(`/portal/children/${childId}`);
 }
 
 // KID-107: staff upload their own photo from Account Settings.
@@ -4500,7 +4835,7 @@ export async function uploadDaycareContractAction(formData: FormData) {
     ? await queryGet("SELECT id FROM institute WHERE id = ?", instituteId)
     : null;
   if (!inst) redirect("/platform?error=missing-id");
-  const back = `/platform/daycares/${instituteId}/billing`;
+  const back = `/platform/daycares/${instituteId}/settings/billing`;
   // Boundary validation — before any storage or DB write. Wrong type,
   // oversize and empty files are refused with a localized error code.
   if (!file || file.size === 0) redirect(`${back}?error=contractType`);
@@ -4784,24 +5119,75 @@ export async function updateSupplyStatusAction(formData: FormData) {
 }
 
 // ---- KID-47 Round 6: staff schedules (#13) ----
+// KID-2483: optional specific date (overrides the weekly pattern), per-shift
+// rooms, and concrete daily/weekly duplication over a date range.
 export async function createStaffScheduleAction(formData: FormData) {
   const me = await authAccount();
   await ensureSchema();
-  const { createStaffSchedule } = await import("@/lib/store");
-  let staffId = String(formData.get("staffId") ?? "");
+  const {
+    createStaffSchedule,
+    createStaffScheduleSeries,
+    scopedRoomIds,
+  } = await import("@/lib/store");
+  const { isIsoDate, repeatDates } = await import("@/lib/staff-schedule");
+  const instituteId = await firstInstituteId();
+  const fail = (code: string) => redirect(`/portal/staff/schedule?error=${code}`);
+
+  const staffId = String(formData.get("staffId") ?? "");
   // KID-105 #13: non-admins can only schedule themselves.
   if (!isAdminRole(me.role)) {
     const myStaffId = await staffIdForAccount(me.accountId);
     if (!myStaffId || myStaffId !== staffId) redirect("/portal/staff/schedule");
   }
-  if (staffId) {
+  if (!staffId) redirect("/portal/staff/schedule");
+
+  const scheduleDate = String(formData.get("scheduleDate") ?? "").trim();
+  if (scheduleDate && !isIsoDate(scheduleDate)) fail("date");
+
+  const timePattern = /^([01]\d|2[0-3]):[0-5]\d$/;
+  const startTime = String(formData.get("startTime") ?? "08:00");
+  const endTime = String(formData.get("endTime") ?? "16:00");
+  if (!timePattern.test(startTime) || !timePattern.test(endTime)) fail("time");
+
+  const repeat = String(formData.get("repeat") ?? "none");
+  if (!["none", "daily", "weekly"].includes(repeat)) fail("repeat");
+
+  let dates: string[] = [];
+  if (repeat !== "none") {
+    const repeatUntil = String(formData.get("repeatUntil") ?? "").trim();
+    if (!scheduleDate || !isIsoDate(repeatUntil)) fail("range");
+    dates = repeatDates(scheduleDate, repeatUntil, repeat === "weekly" ? "weekly" : "daily");
+    if (dates.length === 0) fail("range");
+  }
+
+  // The form only ever offers this tenant's rooms; a forged id must still be
+  // refused. Non-admins are further limited to their assigned classrooms.
+  const roomIds = Array.from(
+    new Set(formData.getAll("roomIds").map((value) => String(value)).filter(Boolean))
+  );
+  for (const roomId of roomIds) {
+    await assertInstituteOwned(me, "room", roomId, "institute_id");
+  }
+  if (roomIds.length > 0 && !isAdminRole(me.role) && instituteId) {
+    const allowed = await scopedRoomIds(instituteId, me.accountId);
+    if (allowed !== null && roomIds.some((roomId) => !allowed.includes(roomId))) fail("rooms");
+  }
+
+  const base = {
+    staffId,
+    startTime,
+    endTime,
+    notes: String(formData.get("notes") ?? ""),
+    roomIds,
+  };
+  if (repeat === "none") {
     await createStaffSchedule({
-      staffId,
+      ...base,
+      scheduleDate: scheduleDate || null,
       dayOfWeek: Number(formData.get("dayOfWeek") ?? 1),
-      startTime: String(formData.get("startTime") ?? "08:00"),
-      endTime: String(formData.get("endTime") ?? "16:00"),
-      notes: String(formData.get("notes") ?? ""),
     });
+  } else {
+    await createStaffScheduleSeries({ ...base, dates });
   }
   redirect("/portal/staff/schedule");
 }
