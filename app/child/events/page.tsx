@@ -27,11 +27,11 @@ export default async function ParentEventsPage() {
   if (!instituteId) return <p className="muted">{t("events.noInstitute")}</p>;
   await recordToolUsage({ instituteId: String(instituteId ?? "") || null, accountId: session.accountId, toolKey: "events", source: "child", metadata: null });
 
-  // KID-2480: a family sees center-wide events plus events targeted at its
-  // own children's classrooms. The store fails closed (no links = no class
-  // events), so another room's event is never rendered here.
+  // KID-2480 (founder rule): a family sees center-wide events plus events
+  // targeted at its own children's classrooms. The store fails closed (no
+  // links = no class events), so another room's event is never rendered here.
   const [events, videos] = await Promise.all([
-    listEvents(instituteId, true, session.role === "parent" ? { parentAccountId: session.accountId } : {}),
+    listEvents(instituteId, true, { viewerAccountId: session.accountId, viewerRole: session.role }),
     listVideos(instituteId),
   ]);
   const withMedia = await Promise.all(

@@ -22,7 +22,7 @@ export default async function PortalActivitiesPage() {
   // KID-103: activity newsfeed, child picker, and room choices respect classroom scoping.
   const [media, events, newsfeed, children, rooms] = await Promise.all([
     listMedia(instituteId),
-    listEvents(instituteId, true),
+    listEvents(instituteId, true, { viewerAccountId: session.accountId, viewerRole: session.role }),
     listNewsfeed(instituteId, session.accountId),
     listChildren(instituteId, { accountId: session.accountId }),
     listRooms(instituteId),

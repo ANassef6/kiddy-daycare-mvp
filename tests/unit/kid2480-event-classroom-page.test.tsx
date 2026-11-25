@@ -32,14 +32,39 @@ vi.mock("next/navigation", async (importOriginal) => {
   };
 });
 
-import { createSessionToken } from "@/lib/auth";
-import { queryGet } from "@/lib/db";
-import { createEvent } from "@/lib/store";
+import { createAccount, createSessionToken } from "@/lib/auth";
+import { queryGet, queryRun } from "@/lib/db";
+import { createEvent, createStaff } from "@/lib/store";
 import { seedFixture } from "../helpers";
 
 let iid: string;
 let toddlerRoom: string;
+let preschoolRoom: string;
 let ownerId: string;
+
+function signIn(accountId: string, role: string, email = "viewer@example.test"): void {
+  mockState.host = "daycare.test";
+  mockState.cookie = `kiddy_sess=${encodeURIComponent(
+    createSessionToken({ accountId, role, email, emailConfirmed: true })
+  )}`;
+}
+
+async function makeTeacher(roomIds: string[]): Promise<string> {
+  const staff = await createStaff({
+    instituteId: iid,
+    fullName: "Kim Teacher",
+    role: "carer",
+    roomIds,
+  });
+  const account = await createAccount({
+    email: `teacher-${Math.random().toString(36).slice(2, 8)}@example.test`,
+    password: "kiddy-staff",
+    fullName: "Kim Teacher",
+    role: "staff",
+  });
+  await queryRun("UPDATE account SET staff_id = ? WHERE id = ?", String(staff.id), String(account.id));
+  return String(account.id);
+}
 
 beforeEach(async () => {
   mockState.cookie = "";
@@ -47,11 +72,9 @@ beforeEach(async () => {
   await seedFixture();
   iid = String((await queryGet("SELECT id FROM institute LIMIT 1"))!.id);
   toddlerRoom = String((await queryGet("SELECT id FROM room WHERE name = 'Toddlers' LIMIT 1"))!.id);
+  preschoolRoom = String((await queryGet("SELECT id FROM room WHERE name = 'Preschool' LIMIT 1"))!.id);
   ownerId = String((await queryGet("SELECT id FROM account WHERE role = 'owner' LIMIT 1"))!.id);
-  mockState.host = "daycare.test";
-  mockState.cookie = `kiddy_sess=${encodeURIComponent(
-    createSessionToken({ accountId: ownerId, role: "owner", email: "owner@example.test", emailConfirmed: true })
-  )}`;
+  signIn(ownerId, "owner");
 });
 
 afterEach(() => {
@@ -100,5 +123,47 @@ describe("KID-2480: staff events page", () => {
     expect(html).toContain('value="Museum"');
     expect(html).toContain('name="eventId"');
     expect(html).toContain(`value="${event.id}"`);
+  });
+
+  it("a teacher gets only their own room and no whole-center option", async () => {
+    const teacherId = await makeTeacher([toddlerRoom]);
+    signIn(teacherId, "staff");
+
+    const centre = await createEvent({ instituteId: iid, title: "Centre fair", eventDate: "2026-12-01" });
+    const toddlerEvent = await createEvent({
+      instituteId: iid,
+      title: "Toddler picnic",
+      eventDate: "2026-12-02",
+      classroomId: toddlerRoom,
+    });
+    await createEvent({
+      instituteId: iid,
+      title: "Preschool trip",
+      eventDate: "2026-12-03",
+      classroomId: preschoolRoom,
+    });
+
+    const html = await renderEvents();
+    expect(html).not.toContain("Whole center");
+    expect(html).toContain(`value="${toddlerRoom}"`);
+    expect(html).not.toContain(`value="${preschoolRoom}"`);
+
+    // Audience: center-wide + their own room; another class is not rendered.
+    expect(html).toContain("Centre fair");
+    expect(html).toContain("Toddler picnic");
+    expect(html).not.toContain("Preschool trip");
+
+    // A teacher may edit only the class event they are assigned to.
+    expect(html).toContain(`/portal/events?edit=${toddlerEvent.id}`);
+    expect(html).not.toContain(`/portal/events?edit=${centre.id}`);
+  });
+
+  it("a teacher with no classroom assignment cannot open the create form", async () => {
+    const teacherId = await makeTeacher([]);
+    signIn(teacherId, "staff");
+
+    const html = await renderEvents();
+    expect(html).toContain("You are not assigned to a classroom yet.");
+    expect(html).not.toContain("Add an event");
   });
 });

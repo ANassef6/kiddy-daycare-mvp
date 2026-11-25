@@ -3149,18 +3149,77 @@ export async function updateEvent(
 }
 
 /**
- * KID-2480: event listing.
+ * KID-2480: rooms whose targeted events an account may see.
  *
- * `parentAccountId` scopes the result to the family audience: center-wide
- * events (classroom_id IS NULL) plus events targeted at a room one of the
- * account's children belongs to. It fails closed — an account with no family
- * links (or children with no room) sees only center-wide events, never
- * another classroom's event. Staff callers omit it and see every event.
+ * `null` = unrestricted (owner/admin). Otherwise the account's audience:
+ * teachers/caregivers get their `staff_room` assignments, parents/family get
+ * the rooms of their own children. An empty list is the fail-closed case and
+ * means "center-wide events only" — never another classroom's event.
+ */
+export async function eventAudienceRoomIds(
+  instituteId: string,
+  accountId: string,
+  role: string
+): Promise<string[] | null> {
+  const { isAdminRole } = await import("./role");
+  if (isAdminRole(role)) return null;
+  if (role === "staff" || role === "carer") {
+    return (await scopedRoomIds(instituteId, accountId)) ?? [];
+  }
+  const rooms = await queryAll(
+    `SELECT DISTINCT c.room_id AS room_id FROM family_member fm
+     JOIN child c ON c.id = fm.child_id
+     WHERE fm.account_id = ? AND c.institute_id = ? AND c.room_id IS NOT NULL
+     ORDER BY c.room_id`,
+    accountId,
+    instituteId
+  );
+  return rooms.map((r) => String(r.room_id));
+}
+
+/** KID-2480: only owner/admin may post a whole-center event. */
+export function canTargetWholeCenter(role: string): boolean {
+  return role === "owner" || role === "admin";
+}
+
+/** KID-2480: is this classroom target allowed for the account's scope?
+ *  Owners/admins may pick any room; teachers/caregivers only their own and
+ *  never the whole center. */
+export function canTargetClassroom(
+  role: string,
+  allowedRoomIds: string[] | null,
+  classroomId: string | null
+): boolean {
+  if (canTargetWholeCenter(role)) return true;
+  if (!classroomId) return false;
+  return (allowedRoomIds ?? []).includes(classroomId);
+}
+
+/** KID-2480: teachers/caregivers may edit only events already targeted at
+ *  one of their rooms. Owners/admins may edit anything, including
+ *  center-wide events. */
+export function eventEditableBy(
+  role: string,
+  allowedRoomIds: string[] | null,
+  eventClassroomId: string | null
+): boolean {
+  if (canTargetWholeCenter(role)) return true;
+  if (!eventClassroomId) return false;
+  return (allowedRoomIds ?? []).includes(eventClassroomId);
+}
+
+/**
+ * KID-2480: event listing with the audience rules.
+ *
+ * Passing `viewerAccountId` + `viewerRole` scopes the result to what that
+ * account may see: center-wide events plus targeted events for the rooms in
+ * `eventAudienceRoomIds`. Admins/owners see everything. Omitting the viewer
+ * is the legacy unfiltered listing (internal callers only).
  */
 export async function listEvents(
   instituteId: string,
   upcoming = false,
-  opts: { parentAccountId?: string } = {}
+  opts: { viewerAccountId?: string; viewerRole?: string } = {}
 ): Promise<Row[]> {
   const today = new Date().toISOString().slice(0, 10);
   const conditions = ["e.institute_id = ?"];
@@ -3169,15 +3228,18 @@ export async function listEvents(
     conditions.push("e.event_date >= ?");
     args.push(today);
   }
-  if (opts.parentAccountId) {
-    conditions.push(
-      `(e.classroom_id IS NULL OR e.classroom_id IN (
-         SELECT DISTINCT c.room_id FROM family_member fm
-         JOIN child c ON c.id = fm.child_id
-         WHERE fm.account_id = ? AND c.institute_id = ? AND c.room_id IS NOT NULL
-       ))`
-    );
-    args.push(opts.parentAccountId, instituteId);
+  if (opts.viewerAccountId && opts.viewerRole) {
+    const roomIds = await eventAudienceRoomIds(instituteId, opts.viewerAccountId, opts.viewerRole);
+    if (roomIds !== null) {
+      if (roomIds.length === 0) {
+        conditions.push("e.classroom_id IS NULL");
+      } else {
+        conditions.push(
+          `(e.classroom_id IS NULL OR e.classroom_id IN (${roomIds.map(() => "?").join(", ")}))`
+        );
+        args.push(...roomIds);
+      }
+    }
   }
   return queryAll(
     `SELECT e.*, a.full_name AS created_by_name, r.name AS classroom_name,
