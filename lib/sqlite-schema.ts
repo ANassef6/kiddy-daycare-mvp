@@ -48,6 +48,7 @@ export function sqliteSchema(db: any): void {
     name TEXT NOT NULL,
     capacity INTEGER,
     colour TEXT NOT NULL DEFAULT '#3B82F6',
+    photo_url TEXT,
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
   );
 
@@ -344,6 +345,7 @@ export function sqliteSchema(db: any): void {
     location TEXT,
     description TEXT,
     created_by_account_id TEXT REFERENCES account(id),
+    classroom_id TEXT REFERENCES room(id) ON DELETE SET NULL,
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
   );
 
@@ -361,6 +363,9 @@ export function sqliteSchema(db: any): void {
     description TEXT,
     fields_json TEXT NOT NULL DEFAULT '[]',
     created_by_account_id TEXT REFERENCES account(id),
+    audience_channel TEXT,
+    audience_room_ids TEXT,
+    audience_child_ids TEXT,
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
   );
 
@@ -480,6 +485,7 @@ export function sqliteSchema(db: any): void {
 
   CREATE INDEX IF NOT EXISTS idx_billing_child ON child_billing (child_id);
   CREATE INDEX IF NOT EXISTS idx_event_date ON event (institute_id, event_date);
+  CREATE INDEX IF NOT EXISTS idx_event_classroom ON event (classroom_id);
   CREATE INDEX IF NOT EXISTS idx_drive_child ON drive_file (child_id);
   CREATE INDEX IF NOT EXISTS idx_obs_child ON learning_observation (child_id);
   CREATE INDEX IF NOT EXISTS idx_form_resp_form ON form_response (form_id);
@@ -511,11 +517,25 @@ export function sqliteSchema(db: any): void {
     id TEXT PRIMARY KEY,
     staff_id TEXT NOT NULL REFERENCES staff(id) ON DELETE CASCADE,
     day_of_week INTEGER NOT NULL DEFAULT 1,
+    -- KID-2483: mirror of supabase/migrations/0056 — NULL is the weekly
+    -- pattern, an ISO date is a one-off shift that overrides it.
+    schedule_date TEXT,
     start_time TEXT NOT NULL DEFAULT '08:00',
     end_time TEXT NOT NULL DEFAULT '16:00',
     notes TEXT NOT NULL DEFAULT '',
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
   );
+  CREATE INDEX IF NOT EXISTS idx_schedule_staff ON staff_schedule (staff_id);
+  CREATE INDEX IF NOT EXISTS idx_schedule_date ON staff_schedule (schedule_date);
+  CREATE INDEX IF NOT EXISTS idx_schedule_staff_day ON staff_schedule (staff_id, day_of_week);
+
+  -- KID-2483: mirror of supabase/migrations/0056 — the rooms worked per shift.
+  CREATE TABLE IF NOT EXISTS staff_schedule_room (
+    schedule_id TEXT NOT NULL REFERENCES staff_schedule(id) ON DELETE CASCADE,
+    room_id TEXT NOT NULL REFERENCES room(id) ON DELETE CASCADE,
+    PRIMARY KEY (schedule_id, room_id)
+  );
+  CREATE INDEX IF NOT EXISTS idx_schedule_room_room ON staff_schedule_room (room_id);
 
   CREATE TABLE IF NOT EXISTS notification_pref (
     account_id TEXT NOT NULL,
@@ -884,6 +904,25 @@ export function sqliteSchema(db: any): void {
     created_at TEXT NOT NULL DEFAULT (datetime('now')),
     updated_at TEXT NOT NULL DEFAULT (datetime('now'))
   );
+
+  -- KID-2478: mirror of supabase/migrations/0055_kid2478_bulk_upload.sql —
+  -- one row per Excel upload (children or staff) with the bounded JSON report
+  -- the operator downloads afterwards. details never holds passwords.
+  CREATE TABLE IF NOT EXISTS bulk_upload (
+    id TEXT PRIMARY KEY,
+    institute_id TEXT NOT NULL REFERENCES institute(id) ON DELETE CASCADE,
+    kind TEXT NOT NULL CHECK (kind IN ('children', 'staff')),
+    actor_account_id TEXT REFERENCES account(id) ON DELETE SET NULL,
+    file_name TEXT NOT NULL DEFAULT '',
+    total_rows INTEGER NOT NULL DEFAULT 0,
+    created_count INTEGER NOT NULL DEFAULT 0,
+    skipped_count INTEGER NOT NULL DEFAULT 0,
+    error_count INTEGER NOT NULL DEFAULT 0,
+    details TEXT NOT NULL DEFAULT '[]',
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+  CREATE INDEX IF NOT EXISTS idx_bulk_upload_institute
+    ON bulk_upload (institute_id, created_at DESC);
   `);
 
   // KID-746: mirror of supabase/migrations/0039_kid746_contract_drafts.sql —
@@ -898,9 +937,27 @@ export function sqliteSchema(db: any): void {
 
   // Idempotent column backfills for databases created before these columns
   // existed (CREATE TABLE IF NOT EXISTS does not alter existing tables).
+  // KID-2480: mirror of supabase/migrations/0056_kid2480_event_classroom.sql.
+  // Existing events stay center-wide (NULL = every family).
+  const eventCols = db.prepare("PRAGMA table_info(event)").all() as { name: string }[];
+  if (eventCols.length > 0 && !eventCols.some((c) => c.name === "classroom_id")) {
+    db.exec("ALTER TABLE event ADD COLUMN classroom_id TEXT REFERENCES room(id) ON DELETE SET NULL");
+  }
   const roomCols = db.prepare("PRAGMA table_info(room)").all() as { name: string }[];
   if (!roomCols.some((c) => c.name === "colour")) {
     db.exec("ALTER TABLE room ADD COLUMN colour TEXT NOT NULL DEFAULT '#3B82F6'");
+  }
+  // KID-2481: mirror of supabase/migrations/0055_kid2481_room_photo.sql.
+  if (!roomCols.some((c) => c.name === "photo_url")) {
+    db.exec("ALTER TABLE room ADD COLUMN photo_url TEXT");
+  }
+  // KID-2483: mirror of supabase/migrations/0056 for databases created before
+  // a shift could target a specific date.
+  const scheduleCols = db.prepare("PRAGMA table_info(staff_schedule)").all() as { name: string }[];
+  if (scheduleCols.length > 0 && !scheduleCols.some((c) => c.name === "schedule_date")) {
+    db.exec("ALTER TABLE staff_schedule ADD COLUMN schedule_date TEXT");
+    db.exec("CREATE INDEX IF NOT EXISTS idx_schedule_date ON staff_schedule (schedule_date)");
+    db.exec("CREATE INDEX IF NOT EXISTS idx_schedule_staff_day ON staff_schedule (staff_id, day_of_week)");
   }
   // KID-2447 + KID-2448: mirror of the two migrations that add the
   // shared nullable check_in.source marker for databases created before it
@@ -1114,6 +1171,13 @@ export function sqliteSchema(db: any): void {
     const formCols = db.prepare("PRAGMA table_info(form_template)").all() as { name: string }[];
     if (!formCols.some((c) => c.name === "share_token")) {
       db.exec("ALTER TABLE form_template ADD COLUMN share_token TEXT");
+    }
+    // KID-2485: mirror of 0057_kid2485_survey_audience.sql — the stored survey
+    // audience for databases created before these columns existed.
+    for (const col of ["audience_channel", "audience_room_ids", "audience_child_ids"]) {
+      if (!formCols.some((c) => c.name === col)) {
+        db.exec(`ALTER TABLE form_template ADD COLUMN ${col} TEXT`);
+      }
     }
   } catch {}
 

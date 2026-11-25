@@ -4,9 +4,8 @@
 // The attendance sweep is idempotent (see app/api/attendance/sweep/route.ts),
 // but the handler still fails closed so a misconfigured worker can never sweep
 // the wrong deployment: it requires NEXT_PUBLIC_SITE_URL and CRON_SECRET.
-import { Pool } from "pg";
-import openNextWorker from "./.open-next/worker.js";
-import { dbRequestStore } from "./lib/db-request";
+import { default as handler } from "./.open-next/worker.js";
+import { withRequestPool } from "./lib/db-request";
 
 type Env = {
   NEXT_PUBLIC_SITE_URL?: string;
@@ -15,36 +14,16 @@ type Env = {
   WORKER_SELF_REFERENCE?: { fetch: (request: Request) => Promise<Response> };
 };
 
-// KID-2452: Workers cannot reuse a TCP connection across requests. One
-// short-lived pool per request (never per isolate) keeps Hyperdrive connections
-// inside the request's I/O context.
+// KID-2452: Workers cannot reuse a TCP connection across requests. A pool per
+// request (not per isolate) keeps Hyperdrive connections short-lived and
+// avoids the cross-request promise/liveness failures a cached module pool
+// causes under any real concurrency.
 //
-// `max: 1` is deliberate. A page can issue several queries in parallel, but
-// Hyperdrive already pools the origin connections; a single client here queues
-// those queries instead of opening up to four sockets per request. The Workers
-// runtime allows only six simultaneous open connections per invocation, and
-// oversubscribing it was one suspected cause of the intermittent connect
-// failures that forced the 2026-11-22 rollback.
-//
-// Do not call pool.end() in ctx.waitUntil(): the runtime closes the sockets at
-// the end of the invocation, while an early end() can race work scheduled for
-// after the response (the `after()`/background paths) and turn a healthy
-// request into a "pool after end" error.
-function requestPool(connectionString: string): Pool {
-  return new Pool({
-    connectionString: connectionString.split("?")[0],
-    max: 1,
-    connectionTimeoutMillis: 5000,
-    idleTimeoutMillis: 15000,
-  });
-}
-
-function withRequestPool<T>(env: Env, run: () => Promise<T>): Promise<T> {
-  const connectionString = env.HYPERDRIVE?.connectionString;
-  if (!connectionString) return run();
-  const pool = requestPool(connectionString);
-  return dbRequestStore.run({ pool }, run);
-}
+// KID-2457: the pool is deliberately NOT ended when `handler.fetch` resolves.
+// OpenNext streams the response and keeps rendering after that point; ending
+// the pool there rejected the remaining DB queries ("Cannot use a pool after
+// calling end on the pool"). Workers/Hyperdrive clean up the invocation's
+// connections when the invocation ends, which is where the lifecycle belongs.
 
 async function runAttendanceSweep(env: Env): Promise<void> {
   const base = (env.NEXT_PUBLIC_SITE_URL || "").replace(/\/+$/, "");
@@ -68,7 +47,7 @@ async function runAttendanceSweep(env: Env): Promise<void> {
 
 export default {
   fetch: (request: Request, env: Env, ctx: ExecutionContext) =>
-    withRequestPool(env, () => openNextWorker.fetch(request, env, ctx)),
+    withRequestPool(env, () => handler.fetch(request, env, ctx)),
   async scheduled(_controller: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
     ctx.waitUntil(runAttendanceSweep(env));
   },

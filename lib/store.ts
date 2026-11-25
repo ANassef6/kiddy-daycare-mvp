@@ -13,6 +13,7 @@ import {
   type WorkingWeek,
 } from "./working-hours";
 import { localDayBoundsUtc, normalizeTimeZone, zonedDateKey } from "./timezone";
+import { weekdayOf } from "./staff-schedule";
 import { feedCopyFor, type FeedCopy } from "./i18n";
 import { syncChatwootContactForAccount } from "./chatwoot-contacts";
 import { withPerfTiming } from "./perf";
@@ -158,7 +159,7 @@ export async function createRoom(
   return (await getRoom(id))!;
 }
 
-export async function updateRoom(roomId: string, patch: { name?: string; capacity?: number | null; colour?: string }): Promise<void> {
+export async function updateRoom(roomId: string, patch: { name?: string; capacity?: number | null; colour?: string; photoUrl?: string | null }): Promise<void> {
   const fields: string[] = [];
   const values: unknown[] = [];
   if (patch.name !== undefined) {
@@ -173,9 +174,18 @@ export async function updateRoom(roomId: string, patch: { name?: string; capacit
     fields.push("colour = ?");
     values.push(/^#[0-9a-fA-F]{6}$/.test(patch.colour) ? patch.colour : "#3B82F6");
   }
+  if (patch.photoUrl !== undefined) {
+    fields.push("photo_url = ?");
+    values.push(patch.photoUrl);
+  }
   if (fields.length === 0) return;
   values.push(roomId);
   await queryRun(`UPDATE room SET ${fields.join(", ")} WHERE id = ?`, ...values);
+}
+
+// KID-2481: room photos use the same private-REF model as child/staff photos.
+export async function updateRoomPhoto(roomId: string, photoUrl: string | null): Promise<void> {
+  await queryRun("UPDATE room SET photo_url = ? WHERE id = ?", photoUrl, roomId);
 }
 
 export async function roomChildren(roomId: string): Promise<Row[]> {
@@ -296,7 +306,8 @@ export async function listChildren(
 
 export async function getChild(childId: string): Promise<Row | undefined> {
   return queryGet(
-    `SELECT c.*, r.name AS room_name, h.allergies, h.conditions, h.notes
+    `SELECT c.*, r.name AS room_name, r.photo_url AS room_photo_url,
+            r.colour AS room_colour, h.allergies, h.conditions, h.notes
      FROM child c
      LEFT JOIN room r ON r.id = c.room_id
      LEFT JOIN child_health h ON h.child_id = c.id
@@ -3078,12 +3089,13 @@ export async function createEvent(data: {
   endTime?: string;
   location?: string;
   description?: string;
+  classroomId?: string | null;
   accountId?: string;
 }): Promise<Row> {
   const id = uid();
   await queryRun(
-    `INSERT INTO event (id, institute_id, title, event_date, start_time, end_time, location, description, created_by_account_id)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO event (id, institute_id, title, event_date, start_time, end_time, location, description, classroom_id, created_by_account_id)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     id,
     data.instituteId,
     data.title,
@@ -3092,21 +3104,150 @@ export async function createEvent(data: {
     data.endTime ?? null,
     data.location ?? null,
     data.description ?? "",
+    data.classroomId ?? null,
     data.accountId ?? null
   );
   return (await queryGet("SELECT * FROM event WHERE id = ?", id))!;
 }
 
-export async function listEvents(instituteId: string, upcoming = false): Promise<Row[]> {
+/** KID-2480: one event with its classroom name for the edit form. */
+export async function getEvent(eventId: string): Promise<Row | undefined> {
+  return queryGet(
+    `SELECT e.*, r.name AS classroom_name FROM event e
+     LEFT JOIN room r ON r.id = e.classroom_id
+     WHERE e.id = ?`,
+    eventId
+  );
+}
+
+/** KID-2480: edit an event, including moving it between classrooms or back to
+ *  center-wide (`classroomId: null`). Only the supplied fields are touched. */
+export async function updateEvent(
+  eventId: string,
+  data: {
+    title?: string;
+    eventDate?: string;
+    startTime?: string | null;
+    endTime?: string | null;
+    location?: string | null;
+    description?: string | null;
+    classroomId?: string | null;
+  }
+): Promise<void> {
+  const fields: string[] = [];
+  const values: unknown[] = [];
+  if (data.title !== undefined) { fields.push("title = ?"); values.push(data.title); }
+  if (data.eventDate !== undefined) { fields.push("event_date = ?"); values.push(data.eventDate); }
+  if (data.startTime !== undefined) { fields.push("start_time = ?"); values.push(data.startTime); }
+  if (data.endTime !== undefined) { fields.push("end_time = ?"); values.push(data.endTime); }
+  if (data.location !== undefined) { fields.push("location = ?"); values.push(data.location); }
+  if (data.description !== undefined) { fields.push("description = ?"); values.push(data.description); }
+  if (data.classroomId !== undefined) { fields.push("classroom_id = ?"); values.push(data.classroomId); }
+  if (fields.length === 0) return;
+  values.push(eventId);
+  await queryRun(`UPDATE event SET ${fields.join(", ")} WHERE id = ?`, ...values);
+}
+
+/**
+ * KID-2480: rooms whose targeted events an account may see.
+ *
+ * `null` = unrestricted (owner/admin). Otherwise the account's audience:
+ * teachers/caregivers get their `staff_room` assignments, parents/family get
+ * the rooms of their own children. An empty list is the fail-closed case and
+ * means "center-wide events only" — never another classroom's event.
+ */
+export async function eventAudienceRoomIds(
+  instituteId: string,
+  accountId: string,
+  role: string
+): Promise<string[] | null> {
+  const { isAdminRole } = await import("./role");
+  if (isAdminRole(role)) return null;
+  if (role === "staff" || role === "carer") {
+    return (await scopedRoomIds(instituteId, accountId)) ?? [];
+  }
+  const rooms = await queryAll(
+    `SELECT DISTINCT c.room_id AS room_id FROM family_member fm
+     JOIN child c ON c.id = fm.child_id
+     WHERE fm.account_id = ? AND c.institute_id = ? AND c.room_id IS NOT NULL
+     ORDER BY c.room_id`,
+    accountId,
+    instituteId
+  );
+  return rooms.map((r) => String(r.room_id));
+}
+
+/** KID-2480: only owner/admin may post a whole-center event. */
+export function canTargetWholeCenter(role: string): boolean {
+  return role === "owner" || role === "admin";
+}
+
+/** KID-2480: is this classroom target allowed for the account's scope?
+ *  Owners/admins may pick any room; teachers/caregivers only their own and
+ *  never the whole center. */
+export function canTargetClassroom(
+  role: string,
+  allowedRoomIds: string[] | null,
+  classroomId: string | null
+): boolean {
+  if (canTargetWholeCenter(role)) return true;
+  if (!classroomId) return false;
+  return (allowedRoomIds ?? []).includes(classroomId);
+}
+
+/** KID-2480: teachers/caregivers may edit only events already targeted at
+ *  one of their rooms. Owners/admins may edit anything, including
+ *  center-wide events. */
+export function eventEditableBy(
+  role: string,
+  allowedRoomIds: string[] | null,
+  eventClassroomId: string | null
+): boolean {
+  if (canTargetWholeCenter(role)) return true;
+  if (!eventClassroomId) return false;
+  return (allowedRoomIds ?? []).includes(eventClassroomId);
+}
+
+/**
+ * KID-2480: event listing with the audience rules.
+ *
+ * Passing `viewerAccountId` + `viewerRole` scopes the result to what that
+ * account may see: center-wide events plus targeted events for the rooms in
+ * `eventAudienceRoomIds`. Admins/owners see everything. Omitting the viewer
+ * is the legacy unfiltered listing (internal callers only).
+ */
+export async function listEvents(
+  instituteId: string,
+  upcoming = false,
+  opts: { viewerAccountId?: string; viewerRole?: string } = {}
+): Promise<Row[]> {
   const today = new Date().toISOString().slice(0, 10);
+  const conditions = ["e.institute_id = ?"];
   const args: unknown[] = [instituteId];
-  if (upcoming) args.push(today);
+  if (upcoming) {
+    conditions.push("e.event_date >= ?");
+    args.push(today);
+  }
+  if (opts.viewerAccountId && opts.viewerRole) {
+    const roomIds = await eventAudienceRoomIds(instituteId, opts.viewerAccountId, opts.viewerRole);
+    if (roomIds !== null) {
+      if (roomIds.length === 0) {
+        conditions.push("e.classroom_id IS NULL");
+      } else {
+        conditions.push(
+          `(e.classroom_id IS NULL OR e.classroom_id IN (${roomIds.map(() => "?").join(", ")}))`
+        );
+        args.push(...roomIds);
+      }
+    }
+  }
   return queryAll(
-    `SELECT e.*, a.full_name AS created_by_name,
+    `SELECT e.*, a.full_name AS created_by_name, r.name AS classroom_name,
             (SELECT COUNT(*) FROM media_event me JOIN media m ON m.id = me.media_id WHERE me.event_id = e.id) AS media_count
      FROM event e
      LEFT JOIN account a ON a.id = e.created_by_account_id
-     WHERE e.institute_id = ? ${upcoming ? "AND e.event_date >= ?" : ""}
+     LEFT JOIN room r ON r.id = e.classroom_id
+     WHERE ${conditions.join(" AND ")}
      ORDER BY e.event_date ASC, e.start_time ASC`,
     ...args
   );
@@ -3156,20 +3297,36 @@ export async function createForm(data: {
   description?: string;
   fieldsJson?: string;
   accountId?: string;
+  // KID-2485: surveys carry the resolved audience. Forms and lists leave it
+  // undefined so their rows stay center-wide (NULL channel = legacy default).
+  audience?: { channel: string; roomIds: string[]; childIds: string[] };
 }): Promise<Row> {
   const id = uid();
   await queryRun(
-    `INSERT INTO form_template (id, institute_id, kind, title, description, fields_json, created_by_account_id)
-     VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO form_template
+       (id, institute_id, kind, title, description, fields_json, created_by_account_id,
+        audience_channel, audience_room_ids, audience_child_ids)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     id,
     data.instituteId,
     data.kind ?? "form",
     data.title,
     data.description ?? "",
     data.fieldsJson ?? "[]",
-    data.accountId ?? null
+    data.accountId ?? null,
+    data.audience?.channel ?? null,
+    data.audience ? JSON.stringify(data.audience.roomIds) : null,
+    data.audience ? JSON.stringify(data.audience.childIds) : null
   );
   return (await queryGet("SELECT * FROM form_template WHERE id = ?", id))!;
+}
+
+// KID-2485: the child ids linked to a family account (used by the parent
+// survey list to show only surveys whose audience includes one of the
+// family's children).
+export async function childIdsForAccount(accountId: string): Promise<string[]> {
+  const rows = await queryAll("SELECT child_id FROM family_member WHERE account_id = ?", accountId);
+  return rows.map((r) => String(r.child_id));
 }
 
 export async function listForms(instituteId: string, kind?: string): Promise<Row[]> {
@@ -3866,36 +4023,157 @@ export async function updateSupplyStatus(id: string, status: string): Promise<vo
 }
 
 // ---- KID-47 Round 6: staff schedules ----
+// KID-2483: a row is either a weekly pattern (`schedule_date` NULL) or a
+// one-off dated shift, and can carry several rooms through
+// `staff_schedule_room`. The dated row overrides the pattern for that staff
+// member on that day (see lib/staff-schedule.ts).
+
+async function attachScheduleRooms(rows: Row[]): Promise<Row[]> {
+  if (rows.length === 0) return rows;
+  const ids = rows.map((r) => String(r.id));
+  const links = await queryAll(
+    `SELECT sr.schedule_id, r.id AS room_id, r.name AS room_name
+     FROM staff_schedule_room sr
+     JOIN room r ON r.id = sr.room_id
+     WHERE sr.schedule_id IN (${ids.map(() => "?").join(", ")})
+     ORDER BY r.name`,
+    ...ids
+  );
+  const bySchedule = new Map<string, { ids: string[]; names: string[] }>();
+  for (const link of links) {
+    const key = String(link.schedule_id);
+    const rooms = bySchedule.get(key) ?? { ids: [], names: [] };
+    const roomId = String(link.room_id);
+    if (!rooms.ids.includes(roomId)) {
+      rooms.ids.push(roomId);
+      rooms.names.push(String(link.room_name));
+    }
+    bySchedule.set(key, rooms);
+  }
+  return rows.map((row) => {
+    const rooms = bySchedule.get(String(row.id)) ?? { ids: [], names: [] };
+    return { ...row, room_ids: rooms.ids, room_names: rooms.names };
+  });
+}
+
+async function replaceScheduleRooms(scheduleId: string, roomIds: string[]): Promise<void> {
+  await queryRun("DELETE FROM staff_schedule_room WHERE schedule_id = ?", scheduleId);
+  const unique = Array.from(new Set(roomIds.map((id) => String(id)).filter(Boolean)));
+  if (unique.length === 0) return;
+  const args: unknown[] = [];
+  for (const roomId of unique) args.push(scheduleId, roomId);
+  await queryRun(
+    `INSERT INTO staff_schedule_room (schedule_id, room_id) VALUES ${unique.map(() => "(?, ?)").join(", ")}`,
+    ...args
+  );
+}
+
 export async function listStaffSchedules(staffId: string): Promise<Row[]> {
   try {
-    return await queryAll(
-      `SELECT * FROM staff_schedule WHERE staff_id = ? ORDER BY day_of_week, start_time`,
+    const rows = await queryAll(
+      `SELECT * FROM staff_schedule WHERE staff_id = ?
+       ORDER BY CASE WHEN schedule_date IS NULL THEN 1 ELSE 0 END, schedule_date, day_of_week, start_time`,
       staffId
     );
-  } catch {
+    return await attachScheduleRooms(rows);
+  } catch (err) {
+    console.error("listStaffSchedules failed:", err);
     return [];
   }
 }
 
 export async function createStaffSchedule(data: {
   staffId: string;
-  dayOfWeek: number;
+  dayOfWeek?: number;
+  scheduleDate?: string | null;
   startTime: string;
   endTime: string;
   notes?: string;
+  roomIds?: string[];
 }): Promise<Row> {
   const id = uid();
+  const scheduleDate = data.scheduleDate ? String(data.scheduleDate) : null;
+  const dayOfWeek = scheduleDate ? weekdayOf(scheduleDate) : Number(data.dayOfWeek ?? 1);
   await queryRun(
-    `INSERT INTO staff_schedule (id, staff_id, day_of_week, start_time, end_time, notes)
-     VALUES (?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO staff_schedule (id, staff_id, day_of_week, schedule_date, start_time, end_time, notes)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`,
     id,
     data.staffId,
-    data.dayOfWeek,
+    dayOfWeek,
+    scheduleDate,
     data.startTime,
     data.endTime,
     data.notes ?? ""
   );
-  return (await queryGet("SELECT * FROM staff_schedule WHERE id = ?", id))!;
+  try {
+    await replaceScheduleRooms(id, data.roomIds ?? []);
+  } catch (err) {
+    // Keep a shift and its rooms consistent: never leave a roomless shift
+    // behind when the room write fails.
+    await queryRun("DELETE FROM staff_schedule WHERE id = ?", id);
+    throw err;
+  }
+  const saved = (await queryGet("SELECT * FROM staff_schedule WHERE id = ?", id))!;
+  const [withRooms] = await attachScheduleRooms([saved]);
+  return withRooms;
+}
+
+/**
+ * KID-2483: create one concrete row per date. Used by the "repeat daily /
+ * weekly" form options; there is no hidden recurrence rule stored.
+ */
+export async function createStaffScheduleSeries(data: {
+  staffId: string;
+  startTime: string;
+  endTime: string;
+  notes?: string;
+  roomIds?: string[];
+  dates: string[];
+}): Promise<Row[]> {
+  const created: Row[] = [];
+  try {
+    for (const date of data.dates) {
+      created.push(await createStaffSchedule({ ...data, scheduleDate: date }));
+    }
+  } catch (err) {
+    // Roll back the rows already written so a failed repeat never leaves a
+    // half-built series.
+    for (const row of created) {
+      try {
+        await deleteStaffSchedule(String(row.id));
+      } catch (cleanupErr) {
+        console.error("createStaffScheduleSeries cleanup failed:", cleanupErr);
+      }
+    }
+    throw err;
+  }
+  return created;
+}
+
+/**
+ * KID-2483: the shifts that apply on one calendar day across the center.
+ * A staff member's dated row(s) replace their weekly pattern for that day.
+ */
+export async function listStaffSchedulesForDate(instituteId: string, date: string): Promise<Row[]> {
+  const weekday = weekdayOf(date);
+  const rows = await queryAll(
+    `SELECT s.*, st.full_name, st.role
+     FROM staff_schedule s
+     JOIN staff st ON st.id = s.staff_id
+     WHERE st.institute_id = ? AND st.active = 1
+       AND (s.schedule_date = ? OR (s.schedule_date IS NULL AND s.day_of_week = ?))
+     ORDER BY st.full_name, s.start_time`,
+    instituteId,
+    date,
+    weekday
+  );
+  const datedStaff = new Set(
+    rows.filter((r) => String(r.schedule_date ?? "") === date).map((r) => String(r.staff_id))
+  );
+  const effective = rows.filter(
+    (r) => !(datedStaff.has(String(r.staff_id)) && !r.schedule_date)
+  );
+  return attachScheduleRooms(effective);
 }
 
 export async function deleteStaffSchedule(id: string): Promise<void> {

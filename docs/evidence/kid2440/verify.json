@@ -1,0 +1,49 @@
+{
+  "base": "https://kiddy-staging-orcin.vercel.app",
+  "at": "2026-11-18T18:50:31.809Z",
+  "pages": [
+    {
+      "name": "login",
+      "url": "https://kiddy-staging-orcin.vercel.app/login",
+      "title": "Kiddy — childcare, in your pocket",
+      "h1": "Sign in"
+    }
+  ],
+  "logins": [
+    {
+      "role": "owner",
+      "email": "founder.owner@staging.kiddy.test",
+      "landed": "/portal/dashboard",
+      "expected": "/portal/dashboard",
+      "error": null,
+      "h1": "Dashboard",
+      "title": "Founder Test Daycare — childcare, in your pocket",
+      "consoleErrors": [
+        "Failed to load resource: the server responded with a status of 404 ()"
+      ],
+      "badResponses": []
+    },
+    {
+      "role": "teacher",
+      "email": "founder.teacher@staging.kiddy.test",
+      "landed": "/portal/dashboard",
+      "expected": "/portal/dashboard",
+      "error": null,
+      "h1": "Dashboard",
+      "title": "Founder Test Daycare — childcare, in your pocket",
+      "consoleErrors": [],
+      "badResponses": []
+    },
+    {
+      "role": "parent",
+      "email": "founder.parent@staging.kiddy.test",
+      "landed": "/child",
+      "expected": "/child",
+      "error": null,
+      "h1": "My children",
+      "title": "Founder Test Daycare — childcare, in your pocket",
+      "consoleErrors": [],
+      "badResponses": []
+    }
+  ]
+}

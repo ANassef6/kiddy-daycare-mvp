@@ -6,8 +6,7 @@
 // path or unset. All query helpers are async so pages/actions don't care which
 // engine is behind them.
 
-import { dbRequestStore } from "./db-request";
-import { connectWithRetry, describePgError } from "./pg-retry";
+import { acquireClientWithRetry, dbRequestStore } from "./db-request";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type Row = Record<string, any>;
@@ -54,11 +53,26 @@ export function isPostgresMode(): boolean {
 // ---------------------------------------------------------------------------
 // Postgres (Supabase)
 // ---------------------------------------------------------------------------
-type PgDatabase = { url: string | undefined; hyperdrive: boolean };
+let _pool: import("pg").Pool | null = null;
 
-function createPool(database: PgDatabase, max: number): import("pg").Pool {
+function getPool(): import("pg").Pool {
+  // KID-2452: on Workers the entry point opens one pool per request and stores
+  // it here; sockets cannot be shared across requests. Node keeps the shared
+  // module-level pool below.
+  const requestPool = dbRequestStore.getStore()?.pool;
+  if (requestPool) return requestPool;
+  // KID-2457: never fall back to a module-level pool on Workers. A pool reused
+  // across requests fails intermittently (Workers I/O is request-scoped), so
+  // fail fast and visibly instead of silently corrupting the request.
+  if (isCloudflareWorkers()) {
+    throw new Error(
+      "KID-2457: no per-request database pool in the Workers request scope. " +
+        "The Worker entry must wrap the request with withRequestPool()."
+    );
+  }
+  if (_pool) return _pool;
   const { Pool } = require("pg") as typeof import("pg");
-  const { url, hyperdrive } = database;
+  const { url, hyperdrive } = runtimeDatabase();
   if (!url) throw new Error("No database URL configured (HYPERDRIVE binding or KIDDY_DATABASE_URL).");
   // Strip the query string (sslmode=require is treated as verify-full by newer
   // pg). Direct Supabase pooler connections set TLS explicitly; Hyperdrive
@@ -66,83 +80,15 @@ function createPool(database: PgDatabase, max: number): import("pg").Pool {
   // the handshake. Do not infer this from the connection string: the runtime
   // Hyperdrive host is not guaranteed to contain "hyperdrive", so the binding
   // we actually resolved above is the only reliable signal.
-  return new Pool({
-    connectionString: url.split("?")[0],
+  const base = url.split("?")[0];
+  _pool = new Pool({
+    connectionString: base,
     ...(hyperdrive ? {} : { ssl: { rejectUnauthorized: false } }),
-    max,
-    connectionTimeoutMillis: 5000,
-    idleTimeoutMillis: 15000,
+    max: 5,
+    connectionTimeoutMillis: 10000,
+    idleTimeoutMillis: 30000,
   });
-}
-
-// Node only (Vercel/local). Workers never reuse a pool across requests; see
-// withPgClient() below.
-let _nodePool: import("pg").Pool | null = null;
-
-function nodePool(): import("pg").Pool {
-  if (!_nodePool) _nodePool = createPool(runtimeDatabase(), 5);
-  return _nodePool;
-}
-
-type PgClient = import("pg").PoolClient;
-
-// KID-2452: a Workers invocation can fail to open the edge connection to
-// Hyperdrive under load. Retry only the connect (never the query): a connect
-// failure means no SQL ran, so a retry cannot replay a write.
-async function acquireClient(pool: import("pg").Pool): Promise<PgClient> {
-  return connectWithRetry(pool, {
-    attempts: 3,
-    baseDelayMs: 100,
-    onFailure: (error, attempt, willRetry) => {
-      console.error(
-        JSON.stringify({
-          fmt: "KID-2452 db connect failed",
-          attempt,
-          willRetry,
-          error: describePgError(error),
-        })
-      );
-    },
-  });
-}
-
-async function runOnPool<T>(
-  pool: import("pg").Pool,
-  run: (client: PgClient) => Promise<T>
-): Promise<T> {
-  const client = await acquireClient(pool);
-  try {
-    return await run(client);
-  } finally {
-    client.release();
-  }
-}
-
-async function withPgClient<T>(run: (client: PgClient) => Promise<T>): Promise<T> {
-  // The Workers entry opens exactly one pool per request and stores it here.
-  // Sockets cannot cross request contexts, so this path is the only one used
-  // on Workers in the normal case.
-  const requestPool = dbRequestStore.getStore()?.pool;
-  if (requestPool) return runOnPool(requestPool, run);
-
-  if (isCloudflareWorkers()) {
-    // No request store (for example a callback that escaped the request's
-    // async context). Never fall back to a module-level pool on Workers: that
-    // is the cross-request socket reuse this data layer must not do. Use a
-    // single short-lived pool for this call instead.
-    const pool = createPool(runtimeDatabase(), 1);
-    try {
-      return await runOnPool(pool, run);
-    } finally {
-      await pool.end().catch((error) => {
-        console.error(
-          JSON.stringify({ fmt: "KID-2452 db pool close failed", error: describePgError(error) })
-        );
-      });
-    }
-  }
-
-  return runOnPool(nodePool(), run);
+  return _pool;
 }
 
 // Converts `?` positional placeholders (SQLite style) to `$1..$n` for pg.
@@ -160,18 +106,34 @@ function render(sql: string, args: unknown[]): { text: string; values: unknown[]
   return { text: out, values: args };
 }
 
+/**
+ * Runs one statement on a checked-out client. KID-2457: only the client
+ * *connection* is retried (once) inside acquireClientWithRetry; the statement
+ * itself is executed exactly once, so a retry can never duplicate a write.
+ */
+async function pgQuery<T>(
+  sql: string,
+  args: unknown[],
+  map: (result: import("pg").QueryResult) => T
+): Promise<T> {
+  const client = await acquireClientWithRetry(getPool());
+  let queryError: unknown;
+  try {
+    return map(await client.query(render(sql, args)));
+  } catch (error) {
+    queryError = error;
+    throw error;
+  } finally {
+    client.release(queryError instanceof Error ? queryError : undefined);
+  }
+}
+
 async function pgAll(sql: string, args: unknown[]): Promise<Row[]> {
-  return withPgClient(async (client) => {
-    const r = await client.query(render(sql, args));
-    return r.rows as Row[];
-  });
+  return pgQuery(sql, args, (r) => r.rows as Row[]);
 }
 
 async function pgRun(sql: string, args: unknown[]): Promise<{ rowCount: number }> {
-  return withPgClient(async (client) => {
-    const r = await client.query(render(sql, args));
-    return { rowCount: r.rowCount ?? 0 };
-  });
+  return pgQuery(sql, args, (r) => ({ rowCount: r.rowCount ?? 0 }));
 }
 
 // Applies a multi-statement SQL script (used for the migration file).
@@ -296,6 +258,13 @@ export function splitStatements(sql: string): string[] {
   return out;
 }
 
+async function pgExec(sql: string): Promise<void> {
+  const pool = getPool();
+  for (const statement of splitStatements(sql)) {
+    await pool.query(statement);
+  }
+}
+
 // ---------------------------------------------------------------------------
 // SQLite (local fallback)
 // ---------------------------------------------------------------------------
@@ -354,6 +323,92 @@ export async function queryRun(sql: string, ...args: unknown[]): Promise<{ rowCo
   return isPostgresMode() ? pgRun(sql, args) : sqliteRun(sql, args);
 }
 
+/** A query surface bound to one open transaction. Only the bulk-upload writer
+ *  needs this today: a spreadsheet row creates a child/staff row, its contact
+ *  rows and one or two account rows, and a failure halfway must roll all of
+ *  them back. */
+export type DbTransaction = {
+  queryAll: typeof queryAll;
+  queryGet: typeof queryGet;
+  queryRun: typeof queryRun;
+};
+
+/**
+ * KID-2478: run a unit of work atomically, per row. The callback receives
+ * transaction-bound helpers so every write lands on the same connection.
+ *
+ * SQLite has one in-process connection, so BEGIN/COMMIT is safe under the
+ * single-threaded better-sqlite3 driver (local dev only). Postgres borrows a
+ * client from its pool for the whole callback. A thrown error always rolls the
+ * row back; nothing is left half-created.
+ */
+export async function withTransaction<T>(
+  run: (tx: DbTransaction) => Promise<T>
+): Promise<T> {
+  if (isPostgresMode()) {
+    // KID-2457/KID-2477: borrow one pooled client for the whole row so every
+    // statement runs inside the same transaction. acquireClientWithRetry only
+    // retries the connection, never the statements, so a retry cannot duplicate
+    // a write.
+    const client = await acquireClientWithRetry(getPool());
+    let failure: unknown;
+    try {
+      const txAll = async (sql: string, args: unknown[]): Promise<Row[]> => {
+        const r = await client.query(render(sql, args));
+        return r.rows as Row[];
+      };
+      const txRun = async (sql: string, args: unknown[]): Promise<{ rowCount: number }> => {
+        const r = await client.query(render(sql, args));
+        return { rowCount: r.rowCount ?? 0 };
+      };
+      const tx: DbTransaction = {
+        queryAll: (sql: string, ...args: unknown[]) => txAll(sql, args),
+        queryGet: async (sql: string, ...args: unknown[]) => (await txAll(sql, args))[0],
+        queryRun: (sql: string, ...args: unknown[]) => txRun(sql, args),
+      };
+      await client.query("BEGIN");
+      try {
+        const result = await run(tx);
+        await client.query("COMMIT");
+        return result;
+      } catch (error) {
+        failure = error;
+        try {
+          await client.query("ROLLBACK");
+        } catch (rollbackError) {
+          console.error("[KID-2478] Postgres transaction rollback failed", rollbackError);
+        }
+        throw error;
+      }
+    } catch (error) {
+      failure = error;
+      throw error;
+    } finally {
+      client.release(failure instanceof Error ? failure : undefined);
+    }
+  }
+
+  const db = getSqlite();
+  const tx: DbTransaction = {
+    queryAll: (sql: string, ...args: unknown[]) => sqliteAll(sql, args),
+    queryGet: async (sql: string, ...args: unknown[]) => (await sqliteAll(sql, args))[0],
+    queryRun: (sql: string, ...args: unknown[]) => sqliteRun(sql, args),
+  };
+  db.exec("BEGIN");
+  try {
+    const result = await run(tx);
+    db.exec("COMMIT");
+    return result;
+  } catch (error) {
+    try {
+      db.exec("ROLLBACK");
+    } catch (rollbackError) {
+      console.error("[KID-2478] SQLite transaction rollback failed", rollbackError);
+    }
+    throw error;
+  }
+}
+
 // Applies the Kiddy schema. Postgres mode reads supabase/migrations; SQLite
 // mode keeps its inline migration so local dev stays self-contained.
 //
@@ -379,29 +434,23 @@ async function ensurePgSchema(): Promise<void> {
   const migrationDir = path.join(process.cwd(), "supabase", "migrations");
   if (!fs.existsSync(migrationDir)) return;
 
-  // One client for the whole pass: the ledger read and every statement that
-  // follows must see a consistent session, and a single connection avoids a
-  // burst of sockets on Workers.
-  await withPgClient(async (client) => {
-    await client.query(
-      `CREATE TABLE IF NOT EXISTS schema_migrations (
-        file TEXT PRIMARY KEY,
-        applied_at TIMESTAMPTZ NOT NULL DEFAULT now()
-      )`
-    );
-    const res = await client.query("SELECT file FROM schema_migrations");
-    const appliedSet = new Set(res.rows.map((r) => String(r.file)));
+  const pool = getPool();
+  await pool.query(
+    `CREATE TABLE IF NOT EXISTS schema_migrations (
+      file TEXT PRIMARY KEY,
+      applied_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    )`
+  );
+  const res = await pool.query("SELECT file FROM schema_migrations");
+  const appliedSet = new Set(res.rows.map((r) => String(r.file)));
 
-    const files = fs.readdirSync(migrationDir).filter((f: string) => f.endsWith(".sql")).sort();
-    for (const file of files) {
-      if (appliedSet.has(file)) continue;
-      for (const statement of splitStatements(fs.readFileSync(path.join(migrationDir, file), "utf8"))) {
-        await client.query(statement);
-      }
-      await client.query("INSERT INTO schema_migrations (file) VALUES ($1)", [file]);
-    }
-    _pgMigrated = new Set(files);
-  });
+  const files = fs.readdirSync(migrationDir).filter((f: string) => f.endsWith(".sql")).sort();
+  for (const file of files) {
+    if (appliedSet.has(file)) continue;
+    await pgExec(fs.readFileSync(path.join(migrationDir, file), "utf8"));
+    await pool.query("INSERT INTO schema_migrations (file) VALUES ($1)", [file]);
+  }
+  _pgMigrated = new Set(files);
 }
 
 export function uid(): string {

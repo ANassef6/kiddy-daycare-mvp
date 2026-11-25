@@ -8,7 +8,6 @@ import { saveBrandingAction, saveCenterDetailsAction, uploadBrandingImageAction 
 import { brandingFromInstitute } from "@/lib/theme";
 import { DEFAULT_CURRENCY, SUPPORTED_CURRENCIES } from "@/lib/currency";
 import Avatar from "@/components/Avatar";
-import LanguageSettingsCard from "@/components/LanguageSettingsCard";
 import { i18nForAccount } from "@/lib/i18n-session";
 import { tr } from "@/lib/i18n";
 import { WorkingHoursEditor } from "@/components/WorkingHoursEditor";
@@ -34,7 +33,7 @@ export default async function PortalSettingsPage(
   if (!isAdminRole(session.role)) {
     redirect("/portal/dashboard");
   }
-  const { locale, dict } = await i18nForAccount(session.accountId);
+  const { dict } = await i18nForAccount(session.accountId);
   const iid = await resolveTenantInstituteId();
   const institute = iid ? await getInstitute(iid) : undefined;
   const week = iid ? await getWorkingHours(iid) : {};
@@ -70,8 +69,6 @@ export default async function PortalSettingsPage(
         {tr(dict, "settings.subtitleTail")}
       </p>
 
-      <LanguageSettingsCard locale={locale} dict={dict} />
-
       <div className="card mb-4" id="working-hours">
         <h3 className="subtitle">{tr(dict, "settings.workingHoursTitle")}</h3>
         <p className="small muted">{tr(dict, "settings.workingHoursHint")}</p>
@@ -98,7 +95,26 @@ export default async function PortalSettingsPage(
       <form className="card mb-4" action={saveCenterDetailsAction}>
         <h3 className="subtitle">{tr(dict, "settings.centerDetails")}</h3>
         <div className="row">
-          <div className="col field"><label className="label">{tr(dict, "settings.centerName")}</label><input className="input" name="name" defaultValue={institute?.name ?? ""} placeholder={tr(dict, "settings.centerNamePlaceholder")} /></div>
+          {/* KID-2486: the center name is the single source of truth for every
+              branding surface and only the platform operator may change it.
+              Center admins see the value read-only (dimmed); the server action
+              never writes it, so a tampered POST cannot rename the center. */}
+          <div className="col field">
+            <label className="label" htmlFor="center-name">{tr(dict, "settings.centerName")}</label>
+            <input
+              className="input"
+              id="center-name"
+              name="name"
+              defaultValue={institute?.name ?? ""}
+              placeholder={tr(dict, "settings.centerNamePlaceholder")}
+              readOnly
+              aria-describedby="center-name-locked"
+              style={{ opacity: 0.65, cursor: "not-allowed", background: "#f1f5f9" }}
+            />
+            <p className="small muted" id="center-name-locked" style={{ marginTop: 4 }}>
+              {tr(dict, "settings.centerNameLockedHint")}
+            </p>
+          </div>
           <div className="col field"><label className="label">{tr(dict, "settings.contact")}</label><input className="input" name="contact" defaultValue={String(institute?.contact ?? "")} placeholder={tr(dict, "settings.contactPlaceholder")} /></div>
         </div>
         <div className="row">
@@ -244,7 +260,6 @@ export default async function PortalSettingsPage(
 
       <form className="card" action={saveBrandingAction}>
         <div className="row">
-          <div className="col field"><label className="label">{tr(dict, "settings.daycareName")}</label><input className="input" name="name" defaultValue={b.name} /></div>
           <div className="col field"><label className="label">{tr(dict, "settings.primaryColor")}</label><input className="input" name="primaryColor" type="color" defaultValue={b.primaryColor} style={{ height: 44 }} /></div>
           <div className="col field"><label className="label">{tr(dict, "settings.accentColor")}</label><input className="input" name="accentColor" type="color" defaultValue={b.accentColor} style={{ height: 44 }} /></div>
         </div>

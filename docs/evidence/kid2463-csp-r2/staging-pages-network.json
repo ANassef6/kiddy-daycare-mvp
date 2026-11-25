@@ -1,0 +1,101 @@
+{
+  "base": "https://kiddy-staging-orcin.vercel.app",
+  "mode": "discover",
+  "urlAfterLogin": "https://kiddy-staging-orcin.vercel.app/portal/dashboard",
+  "pages": [
+    {
+      "path": "/portal/children",
+      "title": "Founder Test Daycare — childcare, in your pocket",
+      "url": "https://kiddy-staging-orcin.vercel.app/portal/children",
+      "r2Imgs": 2,
+      "r2ImgSample": [
+        "https://85c675833ff17bc65e8b5b5ae43455cd.r2.cloudflarestorage.com/kiddy-media-staging/photos/mwmgz2us-lrvm80et/child/mwmgz47k-k1b15bbk/photo-1795148093194-a221c899-7837-4673-8bb6-8b4a7dba0f0d.webp",
+        "https://85c675833ff17bc65e8b5b5ae43455cd.r2.cloudflarestorage.com/kiddy-media-staging/child/mwmgz4gn-s71wfgue/legacy-photo.png"
+      ],
+      "violations": [],
+      "r2Delta": [
+        {
+          "kind": "response",
+          "method": "GET",
+          "status": 200,
+          "origin": "https://85c675833ff17bc65e8b5b5ae43455cd.r2.cloudflarestorage.com",
+          "path": "/kiddy-media-staging/photos/mwmgz2us-lrvm80et/child/mwmgz47k-k1b15bbk/photo-1795"
+        },
+        {
+          "kind": "response",
+          "method": "GET",
+          "status": 200,
+          "origin": "https://85c675833ff17bc65e8b5b5ae43455cd.r2.cloudflarestorage.com",
+          "path": "/kiddy-media-staging/child/mwmgz4gn-s71wfgue/legacy-photo.png"
+        }
+      ]
+    },
+    {
+      "path": "/portal/newsfeed",
+      "title": "Founder Test Daycare — childcare, in your pocket",
+      "url": "https://kiddy-staging-orcin.vercel.app/portal/newsfeed",
+      "r2Imgs": 1,
+      "r2ImgSample": [
+        "https://85c675833ff17bc65e8b5b5ae43455cd.r2.cloudflarestorage.com/kiddy-media-staging/newsfeed/mwmgz2us-lrvm80et/72ac9615-4cab-49cd-92fb-1ed12f8608e1.webp"
+      ],
+      "violations": [],
+      "r2Delta": [
+        {
+          "kind": "response",
+          "method": "GET",
+          "status": 200,
+          "origin": "https://85c675833ff17bc65e8b5b5ae43455cd.r2.cloudflarestorage.com",
+          "path": "/kiddy-media-staging/newsfeed/mwmgz2us-lrvm80et/72ac9615-4cab-49cd-92fb-1ed12f86"
+        }
+      ]
+    },
+    {
+      "path": "/portal/drive",
+      "title": "Founder Test Daycare — childcare, in your pocket",
+      "url": "https://kiddy-staging-orcin.vercel.app/portal/drive",
+      "r2Imgs": 0,
+      "r2ImgSample": [],
+      "violations": [],
+      "r2Delta": []
+    },
+    {
+      "path": "/portal/messages",
+      "title": "Founder Test Daycare — childcare, in your pocket",
+      "url": "https://kiddy-staging-orcin.vercel.app/portal/messages",
+      "r2Imgs": 0,
+      "r2ImgSample": [],
+      "violations": [],
+      "r2Delta": []
+    }
+  ],
+  "r2Events": [
+    {
+      "kind": "response",
+      "method": "GET",
+      "status": 200,
+      "origin": "https://85c675833ff17bc65e8b5b5ae43455cd.r2.cloudflarestorage.com",
+      "path": "/kiddy-media-staging/photos/mwmgz2us-lrvm80et/child/mwmgz47k-k1b15bbk/photo-1795"
+    },
+    {
+      "kind": "response",
+      "method": "GET",
+      "status": 200,
+      "origin": "https://85c675833ff17bc65e8b5b5ae43455cd.r2.cloudflarestorage.com",
+      "path": "/kiddy-media-staging/child/mwmgz4gn-s71wfgue/legacy-photo.png"
+    },
+    {
+      "kind": "response",
+      "method": "GET",
+      "status": 200,
+      "origin": "https://85c675833ff17bc65e8b5b5ae43455cd.r2.cloudflarestorage.com",
+      "path": "/kiddy-media-staging/newsfeed/mwmgz2us-lrvm80et/72ac9615-4cab-49cd-92fb-1ed12f86"
+    }
+  ],
+  "consoleErrors": [
+    {
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 404 ()"
+    }
+  ],
+  "finalViolations": []
+}
