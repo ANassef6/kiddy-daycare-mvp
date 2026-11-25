@@ -15,6 +15,7 @@ const DEFAULT_LABELS: StaffStatusFormLabels = {
   placeholder: "Set status…",
   options: {
     checkin: "Checked in",
+    out: "Checked out",
     sick: "Sick",
     vacation: "Vacation",
     absent: "Absent",
@@ -25,7 +26,7 @@ const DEFAULT_LABELS: StaffStatusFormLabels = {
   saving: "Saving…",
 };
 
-const STATUS_VALUES = ["checkin", "sick", "vacation", "absent", "child_sick"];
+const STATUS_VALUES = ["checkin", "out", "sick", "vacation", "absent", "child_sick"];
 
 // Staff presence card control. Uses the staff check-in flow path so the
 // before-opening guard returns a clear error here too.

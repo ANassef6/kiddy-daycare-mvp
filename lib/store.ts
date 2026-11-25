@@ -4180,6 +4180,44 @@ export async function deleteStaffSchedule(id: string): Promise<void> {
   await queryRun("DELETE FROM staff_schedule WHERE id = ?", id);
 }
 
+// KID-2484: the working-hours tab reads every staff member's schedule in one
+// query instead of one round trip per row.
+export async function listStaffSchedulesForStaffIds(staffIds: string[]): Promise<Row[]> {
+  if (staffIds.length === 0) return [];
+  const placeholders = staffIds.map(() => "?").join(", ");
+  return queryAll(
+    `SELECT * FROM staff_schedule WHERE staff_id IN (${placeholders})
+     ORDER BY staff_id, day_of_week, start_time`,
+    ...staffIds
+  );
+}
+
+// KID-2484: staff check-in/out events for the selected center-local period.
+// Reads from the same staff_status ledger the presence card writes, including
+// the system's auto check-out rows.
+export async function staffStatusEventsBetween(
+  staffIds: string[],
+  start: Date,
+  end: Date
+): Promise<Row[]> {
+  if (staffIds.length === 0) return [];
+  const placeholders = staffIds.map(() => "?").join(", ");
+  const bounds = [start.toISOString(), end.toISOString()];
+  const range = isPostgresMode()
+    ? { sql: "created_at >= ? AND created_at < ?", args: bounds }
+    : {
+        sql: "datetime(created_at) >= datetime(?) AND datetime(created_at) < datetime(?)",
+        args: bounds,
+      };
+  return queryAll(
+    `SELECT staff_id, kind, created_at FROM staff_status
+     WHERE staff_id IN (${placeholders}) AND ${range.sql}
+     ORDER BY staff_id, created_at`,
+    ...staffIds,
+    ...range.args
+  );
+}
+
 // ---- KID-47 Round 6: notification prefs ----
 // KID-474: "daily_report" and "events" join so parents (and staff) can opt
 // in/out per activity; the durable emissions below honor the same rows.
@@ -4862,7 +4900,7 @@ export async function childrenByRooms(roomIds: string[]): Promise<Row[]> {
 }
 
 // Staff availability / presence status card.
-export const STAFF_STATUS_KINDS = ["checkin", "sick", "vacation", "absent", "child_sick"] as const;
+export const STAFF_STATUS_KINDS = ["checkin", "out", "sick", "vacation", "absent", "child_sick"] as const;
 
 export async function logStaffStatus(data: {
   staffId: string;
