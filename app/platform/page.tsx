@@ -459,15 +459,6 @@ export default async function PlatformDaycaresPage(
                     >
                       ⚙ {tr(dict, "platform.billingSettings")}
                     </a>
-                    <a
-                      href={`/platform/daycares/${instId}/settings`}
-                      className="btn"
-                      style={{ marginLeft: 8, textDecoration: "none" }}
-                      aria-label={`${tr(dict, "platform.daycareSettingsTitle")}: ${String(inst.name)}`}
-                      title={tr(dict, "platform.daycareSettingsTitle")}
-                    >
-                      {tr(dict, "platform.daycareSettingsTitle")}
-                    </a>
                     {/* KID-746: the contract status badge — which daycares
                         still owe a review, which already signed. */}
                     {contractStatus.get(instId)?.hasDraft ? (

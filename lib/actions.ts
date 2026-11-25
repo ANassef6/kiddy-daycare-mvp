@@ -877,7 +877,9 @@ export async function bulkUploadAction(formData: FormData) {
   const kindRaw = String(formData.get("kind") ?? "");
   const kind = kindRaw === "children" || kindRaw === "staff" ? kindRaw : null;
   if (!instituteId) redirect("/platform?error=missing-id");
-  const back = `/platform/daycares/${encodeURIComponent(instituteId)}/settings`;
+  // KID-2477: bulk upload is its own tab under the per-daycare Settings
+  // section, so the result banner/report comes back to that tab.
+  const back = `/platform/daycares/${encodeURIComponent(instituteId)}/settings/bulk-upload`;
   if (!kind) redirect(`${back}?error=kind`);
 
   // Re-read the daycare from the database; the hidden id is not trusted.
