@@ -1,15 +1,30 @@
 // KID-2480: events can target one classroom (event.classroom_id, nullable).
 //
-// Staff create a center-wide event or a classroom event; the staff listing
-// carries the classroom name for the badge. Families see center-wide events
-// plus events targeted at their own children's classrooms and nothing else.
-// The scope fails closed: a parent with no family links (or children with no
-// room) gets only the center-wide events.
+// Founder rules (KID-215 comment d5db93bd):
+//   - only owner/admin may post a whole-center event;
+//   - teachers/caregivers may target only their staff_room classrooms;
+//   - a targeted event is visible only to that class's families, its assigned
+//     staff, and admins/owner — never to other parents or other classes' staff.
+//
+// The store scope fails closed: an account with no matching room sees only the
+// center-wide events.
 
 import { beforeEach, describe, expect, it } from "vitest";
 import { createAccount } from "@/lib/auth";
-import { queryGet } from "@/lib/db";
-import { createChild, createEvent, getEvent, linkFamily, listEvents, updateEvent } from "@/lib/store";
+import { queryGet, queryRun } from "@/lib/db";
+import {
+  canTargetClassroom,
+  canTargetWholeCenter,
+  createChild,
+  createEvent,
+  createStaff,
+  eventAudienceRoomIds,
+  eventEditableBy,
+  getEvent,
+  linkFamily,
+  listEvents,
+  updateEvent,
+} from "@/lib/store";
 import { seedFixture } from "../helpers";
 
 let iid: string;
@@ -25,6 +40,25 @@ function titles(rows: Awaited<ReturnType<typeof listEvents>>): string[] {
 const TEST_TITLES = new Set(["Centre", "Toddlers only", "Preschool only", "Move me", "Moved"]);
 function ours(rows: Awaited<ReturnType<typeof listEvents>>): string[] {
   return titles(rows).filter((t) => TEST_TITLES.has(t));
+}
+
+async function seedThreeEvents(): Promise<void> {
+  await createEvent({ instituteId: iid, title: "Centre", eventDate: "2026-12-01" });
+  await createEvent({ instituteId: iid, title: "Toddlers only", eventDate: "2026-12-02", classroomId: toddlers });
+  await createEvent({ instituteId: iid, title: "Preschool only", eventDate: "2026-12-03", classroomId: preschool });
+}
+
+async function staffAccount(roomIds: string[]): Promise<string> {
+  const email = `kid2480-staff-${Math.random().toString(36).slice(2, 8)}@example.test`;
+  const staff = await createStaff({
+    instituteId: iid,
+    fullName: "Test Teacher",
+    role: "carer",
+    roomIds,
+  });
+  const account = await createAccount({ email, password: "kiddy-staff", fullName: "Test Teacher", role: "staff" });
+  await queryRun("UPDATE account SET staff_id = ? WHERE id = ?", String(staff.id), String(account.id));
+  return String(account.id);
 }
 
 beforeEach(async () => {
@@ -47,7 +81,7 @@ describe("KID-2480: event classroom target", () => {
     expect(String(targeted.classroom_id)).toBe(toddlers);
   });
 
-  it("staff listing keeps every event and joins the classroom name", async () => {
+  it("owner/admin listing keeps every event and joins the classroom name", async () => {
     const centre = await createEvent({ instituteId: iid, title: "Centre", eventDate: "2026-12-01" });
     const targeted = await createEvent({
       instituteId: iid,
@@ -55,18 +89,19 @@ describe("KID-2480: event classroom target", () => {
       eventDate: "2026-12-02",
       classroomId: toddlers,
     });
+    const owner = await queryGet("SELECT id FROM account WHERE role = 'owner' LIMIT 1");
 
-    const all = await listEvents(iid);
+    const all = await listEvents(iid, false, {
+      viewerAccountId: String(owner!.id),
+      viewerRole: "owner",
+    });
     expect(ours(all)).toEqual(["Centre", "Toddlers only"]);
     expect(all.find((e) => String(e.id) === String(centre.id))!.classroom_name).toBeNull();
     expect(String(all.find((e) => String(e.id) === String(targeted.id))!.classroom_name)).toBe("Toddlers");
   });
 
   it("a parent sees center-wide events plus their own child's classroom only", async () => {
-    await createEvent({ instituteId: iid, title: "Centre", eventDate: "2026-12-01" });
-    await createEvent({ instituteId: iid, title: "Toddlers only", eventDate: "2026-12-02", classroomId: toddlers });
-    await createEvent({ instituteId: iid, title: "Preschool only", eventDate: "2026-12-03", classroomId: preschool });
-
+    await seedThreeEvents();
     const parent = await createAccount({
       email: "kid2480-toddler@example.test",
       password: "kiddy-parent",
@@ -81,28 +116,53 @@ describe("KID-2480: event classroom target", () => {
     });
     await linkFamily(String(parent.id), String(child.id));
 
-    const visible = await listEvents(iid, false, { parentAccountId: String(parent.id) });
+    const visible = await listEvents(iid, false, {
+      viewerAccountId: String(parent.id),
+      viewerRole: "parent",
+    });
     expect(ours(visible)).toEqual(["Centre", "Toddlers only"]);
   });
 
-  it("fails closed: a parent with no family links sees only center-wide events", async () => {
-    await createEvent({ instituteId: iid, title: "Centre", eventDate: "2026-12-01" });
-    await createEvent({ instituteId: iid, title: "Toddlers only", eventDate: "2026-12-02", classroomId: toddlers });
+  it("a parent without a child in the class sees only center-wide events", async () => {
+    await seedThreeEvents();
+    const parent = await createAccount({
+      email: "kid2480-preschool@example.test",
+      password: "kiddy-parent",
+      fullName: "Preschool Parent",
+      role: "parent",
+    });
+    const child = await createChild({
+      instituteId: iid,
+      firstName: "Pia",
+      lastName: "Preschool",
+      roomId: preschool,
+    });
+    await linkFamily(String(parent.id), String(child.id));
 
+    const visible = await listEvents(iid, false, {
+      viewerAccountId: String(parent.id),
+      viewerRole: "parent",
+    });
+    expect(ours(visible)).toEqual(["Centre", "Preschool only"]);
+  });
+
+  it("fails closed: a parent with no family links sees only center-wide events", async () => {
+    await seedThreeEvents();
     const stranger = await createAccount({
       email: "kid2480-stranger@example.test",
       password: "kiddy-parent",
       fullName: "No Links",
       role: "parent",
     });
-    const visible = await listEvents(iid, false, { parentAccountId: String(stranger.id) });
+    const visible = await listEvents(iid, false, {
+      viewerAccountId: String(stranger.id),
+      viewerRole: "parent",
+    });
     expect(ours(visible)).toEqual(["Centre"]);
   });
 
   it("a child with no classroom does not widen the parent's scope", async () => {
-    await createEvent({ instituteId: iid, title: "Centre", eventDate: "2026-12-01" });
-    await createEvent({ instituteId: iid, title: "Toddlers only", eventDate: "2026-12-02", classroomId: toddlers });
-
+    await seedThreeEvents();
     const parent = await createAccount({
       email: "kid2480-noroom@example.test",
       password: "kiddy-parent",
@@ -112,7 +172,27 @@ describe("KID-2480: event classroom target", () => {
     const child = await createChild({ instituteId: iid, firstName: "Nora", lastName: "NoRoom" });
     await linkFamily(String(parent.id), String(child.id));
 
-    const visible = await listEvents(iid, false, { parentAccountId: String(parent.id) });
+    const visible = await listEvents(iid, false, {
+      viewerAccountId: String(parent.id),
+      viewerRole: "parent",
+    });
+    expect(ours(visible)).toEqual(["Centre"]);
+  });
+
+  it("a teacher sees center-wide events plus only their assigned classroom", async () => {
+    await seedThreeEvents();
+    const teacher = await staffAccount([toddlers]);
+
+    expect(await eventAudienceRoomIds(iid, teacher, "staff")).toEqual([toddlers]);
+    const visible = await listEvents(iid, false, { viewerAccountId: teacher, viewerRole: "staff" });
+    expect(ours(visible)).toEqual(["Centre", "Toddlers only"]);
+  });
+
+  it("a teacher with no classroom assignment sees only center-wide events", async () => {
+    await seedThreeEvents();
+    const teacher = await staffAccount([]);
+
+    const visible = await listEvents(iid, false, { viewerAccountId: teacher, viewerRole: "carer" });
     expect(ours(visible)).toEqual(["Centre"]);
   });
 
@@ -135,5 +215,31 @@ describe("KID-2480: event classroom target", () => {
     row = (await getEvent(id))!;
     expect(row.classroom_id).toBeNull();
     expect(row.classroom_name).toBeNull();
+  });
+});
+
+describe("KID-2480: who may pick/change a classroom", () => {
+  it("only owner/admin may post a whole-center event", () => {
+    expect(canTargetWholeCenter("owner")).toBe(true);
+    expect(canTargetWholeCenter("admin")).toBe(true);
+    expect(canTargetWholeCenter("staff")).toBe(false);
+    expect(canTargetWholeCenter("carer")).toBe(false);
+    expect(canTargetWholeCenter("parent")).toBe(false);
+  });
+
+  it("teachers are limited to their assigned rooms", () => {
+    expect(canTargetClassroom("staff", [toddlers], toddlers)).toBe(true);
+    expect(canTargetClassroom("staff", [toddlers], preschool)).toBe(false);
+    expect(canTargetClassroom("staff", [toddlers], null)).toBe(false);
+    expect(canTargetClassroom("carer", [], null)).toBe(false);
+    expect(canTargetClassroom("admin", null, preschool)).toBe(true);
+  });
+
+  it("teachers may edit only events already targeted at their rooms", () => {
+    expect(eventEditableBy("staff", [toddlers], toddlers)).toBe(true);
+    expect(eventEditableBy("staff", [toddlers], preschool)).toBe(false);
+    expect(eventEditableBy("staff", [toddlers], null)).toBe(false);
+    expect(eventEditableBy("admin", null, null)).toBe(true);
+    expect(eventEditableBy("admin", null, preschool)).toBe(true);
   });
 });

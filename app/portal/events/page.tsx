@@ -1,6 +1,13 @@
 import Link from "next/link";
 import { requireSession } from "@/lib/require";
-import { listEvents, eventMedia, listRooms } from "@/lib/store";
+import {
+  listEvents,
+  eventMedia,
+  listRooms,
+  eventAudienceRoomIds,
+  eventEditableBy,
+  canTargetWholeCenter,
+} from "@/lib/store";
 import { firstInstituteId } from "@/lib/helpers";
 import { createEventAction, updateEventAction, addEventMediaAction } from "@/lib/actions";
 import MediaUploadForm from "@/components/MediaUploadForm";
@@ -25,9 +32,18 @@ export default async function PortalEventsPage({ searchParams }: { searchParams:
   const instituteId = await firstInstituteId();
   if (!instituteId) return <p className="muted">{t("events.noInstitute")}</p>;
   await recordToolUsage({ instituteId: String(instituteId ?? "") || null, accountId: session.accountId, toolKey: "events", source: "portal", metadata: null });
-  // KID-2480: the class dropdown offers the center's classrooms; the empty
-  // option keeps the event center-wide (every family).
-  const [events, rooms] = await Promise.all([listEvents(instituteId), listRooms(instituteId)]);
+  // KID-2480 (founder rule): admins/owner see every room and may post a
+  // whole-center event; teachers/caregivers see only their assigned rooms and
+  // can never post center-wide. The list is filtered to the same audience.
+  const canManageAll = canTargetWholeCenter(session.role);
+  const [events, allRooms, allowedRoomIds] = await Promise.all([
+    listEvents(instituteId, false, { viewerAccountId: session.accountId, viewerRole: session.role }),
+    listRooms(instituteId),
+    eventAudienceRoomIds(instituteId, session.accountId, session.role),
+  ]);
+  const rooms = canManageAll
+    ? allRooms
+    : allRooms.filter((r: any) => (allowedRoomIds ?? []).includes(String(r.id)));
   const withMedia = await Promise.all(events.map(async (e: any) => ({ ...e, media: await eventMedia(e.id) })));
   // KID-2466: private media rows keep a REF; sign them for this authorized view.
   const mediaSrcs = await signedUrlsForRefs(
@@ -35,7 +51,12 @@ export default async function PortalEventsPage({ searchParams }: { searchParams:
   );
   const params = await searchParams;
   const openId = params.open;
-  const editing = params.edit ? (events.find((e: any) => String(e.id) === params.edit) as any) : undefined;
+  const canEdit = (e: any) =>
+    eventEditableBy(session.role, allowedRoomIds, e.classroom_id ? String(e.classroom_id) : null);
+  const editing = params.edit
+    ? (events.find((e: any) => String(e.id) === params.edit && canEdit(e)) as any)
+    : undefined;
+  const canCreate = canManageAll || rooms.length > 0;
   const weekdayLabel = (raw: unknown) => {
     const idx = WEEKDAYS.indexOf(String(raw ?? "").toLowerCase());
     if (idx < 0) return String(raw ?? "");
@@ -50,6 +71,12 @@ export default async function PortalEventsPage({ searchParams }: { searchParams:
       {params.error === "eventMedia" && (
         <div role="alert" className="card mb-4" style={{ borderInlineStart: "4px solid #b91c1c" }}>
           <p className="small" style={{ margin: 0 }}>{t("events.errorAttachment")}</p>
+        </div>
+      )}
+
+      {params.error === "eventClass" && (
+        <div role="alert" className="card mb-4" style={{ borderInlineStart: "4px solid #b91c1c" }}>
+          <p className="small" style={{ margin: 0 }}>{t("events.errorClassPick")}</p>
         </div>
       )}
 
@@ -68,8 +95,8 @@ export default async function PortalEventsPage({ searchParams }: { searchParams:
               <div className="col field"><label className="label">{t("events.locationLabel")}</label><input className="input" name="location" defaultValue={editing.location ?? ""} placeholder={t("events.locationPlaceholder")} /></div>
               <div className="col field">
                 <label className="label">{t("events.classLabel")}</label>
-                <select className="select" name="classroomId" defaultValue={editing.classroom_id ?? ""}>
-                  <option value="">{t("events.allClasses")}</option>
+                <select className="select" name="classroomId" defaultValue={editing.classroom_id ?? ""} required={!canManageAll}>
+                  {canManageAll && <option value="">{t("events.allClasses")}</option>}
                   {(rooms as any[]).map((r: any) => <option key={r.id} value={r.id}>{r.name}</option>)}
                 </select>
               </div>
@@ -83,7 +110,13 @@ export default async function PortalEventsPage({ searchParams }: { searchParams:
         </div>
       )}
 
-      {!editing && (
+      {!editing && !canCreate && (
+        <div className="card mb-4">
+          <p className="small muted" style={{ margin: 0 }}>{t("events.noAssignedClass")}</p>
+        </div>
+      )}
+
+      {!editing && canCreate && (
         <div className="card mb-4">
           <h3 className="subtitle">{t("events.addEvent")}</h3>
           <form action={createEventAction}>
@@ -97,8 +130,8 @@ export default async function PortalEventsPage({ searchParams }: { searchParams:
               <div className="col field"><label className="label">{t("events.locationLabel")}</label><input className="input" name="location" placeholder={t("events.locationPlaceholder")} /></div>
               <div className="col field">
                 <label className="label">{t("events.classLabel")}</label>
-                <select className="select" name="classroomId" defaultValue="">
-                  <option value="">{t("events.allClasses")}</option>
+                <select className="select" name="classroomId" defaultValue="" required={!canManageAll}>
+                  {canManageAll && <option value="">{t("events.allClasses")}</option>}
                   {(rooms as any[]).map((r: any) => <option key={r.id} value={r.id}>{r.name}</option>)}
                 </select>
               </div>
@@ -119,7 +152,9 @@ export default async function PortalEventsPage({ searchParams }: { searchParams:
               </div>
               <div className="row" style={{ gap: 8, alignItems: "center" }}>
                 <div className="muted small">{t("events.mediaCount", { count: e.media_count })}</div>
-                <Link className="small" href={`/portal/events?edit=${e.id}`} style={{ fontWeight: 600 }}>{t("events.edit")}</Link>
+                {canEdit(e) && (
+                  <Link className="small" href={`/portal/events?edit=${e.id}`} style={{ fontWeight: 600 }}>{t("events.edit")}</Link>
+                )}
               </div>
             </div>
             <div style={{ fontWeight: 700, fontSize: 17, marginTop: 8 }}>{e.title}</div>
