@@ -1,0 +1,171 @@
+[
+  {
+    "path": "/",
+    "status": 200,
+    "headers": {
+      "server": "cloudflare",
+      "x-opennext": "1",
+      "content-type": "text/html; charset=utf-8",
+      "location": null,
+      "content-security-policy-report-only": "default-src 'self'; script-src 'self' 'unsafe-inline' https://chatwoot.kiddyapp.net; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://sfetmfmtoubtdyyeyudd.supabase.co https://*.supabase.co https://*.supabase.in https://chatwoot.kiddyapp.net https://85c675833ff17bc65e8b5b5ae43455cd.r2.cloudflarestorage.com; font-src 'self' data:; connect-src 'self' https://sfetmfmtoubtdyyeyudd.supabase.co wss://sfetmfmtoubtdyyeyudd.supabase.co https://*.supabase.co wss://*.supabase.co https://chatwoot.kiddyapp.net wss://chatwoot.kiddyapp.net https://fcm.googleapis.com https://85c675833ff17bc65e8b5b5ae43455cd.r2.cloudflarestorage.com; frame-src 'self' https://chatwoot.kiddyapp.net; frame-ancestors 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; worker-src 'self' blob:; report-uri /api/csp-report"
+    },
+    "htmlDir": null,
+    "htmlLang": null
+  },
+  {
+    "path": "/features",
+    "status": 200,
+    "headers": {
+      "server": "cloudflare",
+      "x-opennext": "1",
+      "content-type": "text/html; charset=utf-8",
+      "location": null,
+      "content-security-policy-report-only": "default-src 'self'; script-src 'self' 'unsafe-inline' https://chatwoot.kiddyapp.net; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://sfetmfmtoubtdyyeyudd.supabase.co https://*.supabase.co https://*.supabase.in https://chatwoot.kiddyapp.net https://85c675833ff17bc65e8b5b5ae43455cd.r2.cloudflarestorage.com; font-src 'self' data:; connect-src 'self' https://sfetmfmtoubtdyyeyudd.supabase.co wss://sfetmfmtoubtdyyeyudd.supabase.co https://*.supabase.co wss://*.supabase.co https://chatwoot.kiddyapp.net wss://chatwoot.kiddyapp.net https://fcm.googleapis.com https://85c675833ff17bc65e8b5b5ae43455cd.r2.cloudflarestorage.com; frame-src 'self' https://chatwoot.kiddyapp.net; frame-ancestors 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; worker-src 'self' blob:; report-uri /api/csp-report"
+    },
+    "htmlDir": null,
+    "htmlLang": null
+  },
+  {
+    "path": "/for-parents",
+    "status": 200,
+    "headers": {
+      "server": "cloudflare",
+      "x-opennext": "1",
+      "content-type": "text/html; charset=utf-8",
+      "location": null,
+      "content-security-policy-report-only": "default-src 'self'; script-src 'self' 'unsafe-inline' https://chatwoot.kiddyapp.net; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://sfetmfmtoubtdyyeyudd.supabase.co https://*.supabase.co https://*.supabase.in https://chatwoot.kiddyapp.net https://85c675833ff17bc65e8b5b5ae43455cd.r2.cloudflarestorage.com; font-src 'self' data:; connect-src 'self' https://sfetmfmtoubtdyyeyudd.supabase.co wss://sfetmfmtoubtdyyeyudd.supabase.co https://*.supabase.co wss://*.supabase.co https://chatwoot.kiddyapp.net wss://chatwoot.kiddyapp.net https://fcm.googleapis.com https://85c675833ff17bc65e8b5b5ae43455cd.r2.cloudflarestorage.com; frame-src 'self' https://chatwoot.kiddyapp.net; frame-ancestors 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; worker-src 'self' blob:; report-uri /api/csp-report"
+    },
+    "htmlDir": null,
+    "htmlLang": null
+  },
+  {
+    "path": "/for-centers",
+    "status": 200,
+    "headers": {
+      "server": "cloudflare",
+      "x-opennext": "1",
+      "content-type": "text/html; charset=utf-8",
+      "location": null,
+      "content-security-policy-report-only": "default-src 'self'; script-src 'self' 'unsafe-inline' https://chatwoot.kiddyapp.net; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://sfetmfmtoubtdyyeyudd.supabase.co https://*.supabase.co https://*.supabase.in https://chatwoot.kiddyapp.net https://85c675833ff17bc65e8b5b5ae43455cd.r2.cloudflarestorage.com; font-src 'self' data:; connect-src 'self' https://sfetmfmtoubtdyyeyudd.supabase.co wss://sfetmfmtoubtdyyeyudd.supabase.co https://*.supabase.co wss://*.supabase.co https://chatwoot.kiddyapp.net wss://chatwoot.kiddyapp.net https://fcm.googleapis.com https://85c675833ff17bc65e8b5b5ae43455cd.r2.cloudflarestorage.com; frame-src 'self' https://chatwoot.kiddyapp.net; frame-ancestors 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; worker-src 'self' blob:; report-uri /api/csp-report"
+    },
+    "htmlDir": null,
+    "htmlLang": null
+  },
+  {
+    "path": "/contact",
+    "status": 200,
+    "headers": {
+      "server": "cloudflare",
+      "x-opennext": "1",
+      "content-type": "text/html; charset=utf-8",
+      "location": null,
+      "content-security-policy-report-only": "default-src 'self'; script-src 'self' 'unsafe-inline' https://chatwoot.kiddyapp.net; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://sfetmfmtoubtdyyeyudd.supabase.co https://*.supabase.co https://*.supabase.in https://chatwoot.kiddyapp.net https://85c675833ff17bc65e8b5b5ae43455cd.r2.cloudflarestorage.com; font-src 'self' data:; connect-src 'self' https://sfetmfmtoubtdyyeyudd.supabase.co wss://sfetmfmtoubtdyyeyudd.supabase.co https://*.supabase.co wss://*.supabase.co https://chatwoot.kiddyapp.net wss://chatwoot.kiddyapp.net https://fcm.googleapis.com https://85c675833ff17bc65e8b5b5ae43455cd.r2.cloudflarestorage.com; frame-src 'self' https://chatwoot.kiddyapp.net; frame-ancestors 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; worker-src 'self' blob:; report-uri /api/csp-report"
+    },
+    "htmlDir": null,
+    "htmlLang": null
+  },
+  {
+    "path": "/login",
+    "status": 200,
+    "headers": {
+      "server": "cloudflare",
+      "x-opennext": "1",
+      "content-type": "text/html; charset=utf-8",
+      "location": null,
+      "content-security-policy-report-only": "default-src 'self'; script-src 'self' 'unsafe-inline' https://chatwoot.kiddyapp.net; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://sfetmfmtoubtdyyeyudd.supabase.co https://*.supabase.co https://*.supabase.in https://chatwoot.kiddyapp.net https://85c675833ff17bc65e8b5b5ae43455cd.r2.cloudflarestorage.com; font-src 'self' data:; connect-src 'self' https://sfetmfmtoubtdyyeyudd.supabase.co wss://sfetmfmtoubtdyyeyudd.supabase.co https://*.supabase.co wss://*.supabase.co https://chatwoot.kiddyapp.net wss://chatwoot.kiddyapp.net https://fcm.googleapis.com https://85c675833ff17bc65e8b5b5ae43455cd.r2.cloudflarestorage.com; frame-src 'self' https://chatwoot.kiddyapp.net; frame-ancestors 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; worker-src 'self' blob:; report-uri /api/csp-report"
+    },
+    "htmlDir": null,
+    "htmlLang": null
+  },
+  {
+    "path": "/platform",
+    "status": 307,
+    "headers": {
+      "server": "cloudflare",
+      "x-opennext": "1",
+      "content-type": "text/html; charset=utf-8",
+      "location": "/login",
+      "content-security-policy-report-only": "default-src 'self'; script-src 'self' 'unsafe-inline' https://chatwoot.kiddyapp.net; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://sfetmfmtoubtdyyeyudd.supabase.co https://*.supabase.co https://*.supabase.in https://chatwoot.kiddyapp.net https://85c675833ff17bc65e8b5b5ae43455cd.r2.cloudflarestorage.com; font-src 'self' data:; connect-src 'self' https://sfetmfmtoubtdyyeyudd.supabase.co wss://sfetmfmtoubtdyyeyudd.supabase.co https://*.supabase.co wss://*.supabase.co https://chatwoot.kiddyapp.net wss://chatwoot.kiddyapp.net https://fcm.googleapis.com https://85c675833ff17bc65e8b5b5ae43455cd.r2.cloudflarestorage.com; frame-src 'self' https://chatwoot.kiddyapp.net; frame-ancestors 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; worker-src 'self' blob:; report-uri /api/csp-report"
+    },
+    "htmlDir": null,
+    "htmlLang": null
+  },
+  {
+    "path": "/portal",
+    "status": 404,
+    "headers": {
+      "server": "cloudflare",
+      "x-opennext": "1",
+      "content-type": "text/html; charset=utf-8",
+      "location": null,
+      "content-security-policy-report-only": "default-src 'self'; script-src 'self' 'unsafe-inline' https://chatwoot.kiddyapp.net; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://sfetmfmtoubtdyyeyudd.supabase.co https://*.supabase.co https://*.supabase.in https://chatwoot.kiddyapp.net https://85c675833ff17bc65e8b5b5ae43455cd.r2.cloudflarestorage.com; font-src 'self' data:; connect-src 'self' https://sfetmfmtoubtdyyeyudd.supabase.co wss://sfetmfmtoubtdyyeyudd.supabase.co https://*.supabase.co wss://*.supabase.co https://chatwoot.kiddyapp.net wss://chatwoot.kiddyapp.net https://fcm.googleapis.com https://85c675833ff17bc65e8b5b5ae43455cd.r2.cloudflarestorage.com; frame-src 'self' https://chatwoot.kiddyapp.net; frame-ancestors 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; worker-src 'self' blob:; report-uri /api/csp-report"
+    },
+    "htmlDir": null,
+    "htmlLang": null
+  },
+  {
+    "path": "/child",
+    "status": 307,
+    "headers": {
+      "server": "cloudflare",
+      "x-opennext": "1",
+      "content-type": "text/html; charset=utf-8",
+      "location": "/login",
+      "content-security-policy-report-only": "default-src 'self'; script-src 'self' 'unsafe-inline' https://chatwoot.kiddyapp.net; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://sfetmfmtoubtdyyeyudd.supabase.co https://*.supabase.co https://*.supabase.in https://chatwoot.kiddyapp.net https://85c675833ff17bc65e8b5b5ae43455cd.r2.cloudflarestorage.com; font-src 'self' data:; connect-src 'self' https://sfetmfmtoubtdyyeyudd.supabase.co wss://sfetmfmtoubtdyyeyudd.supabase.co https://*.supabase.co wss://*.supabase.co https://chatwoot.kiddyapp.net wss://chatwoot.kiddyapp.net https://fcm.googleapis.com https://85c675833ff17bc65e8b5b5ae43455cd.r2.cloudflarestorage.com; frame-src 'self' https://chatwoot.kiddyapp.net; frame-ancestors 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; worker-src 'self' blob:; report-uri /api/csp-report"
+    },
+    "htmlDir": null,
+    "htmlLang": null
+  },
+  {
+    "path": "/manifest.webmanifest",
+    "status": 200,
+    "headers": {
+      "server": "cloudflare",
+      "x-opennext": "1",
+      "content-type": "application/manifest+json; charset=utf-8",
+      "location": null,
+      "content-security-policy-report-only": "default-src 'self'; script-src 'self' 'unsafe-inline' https://chatwoot.kiddyapp.net; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://sfetmfmtoubtdyyeyudd.supabase.co https://*.supabase.co https://*.supabase.in https://chatwoot.kiddyapp.net https://85c675833ff17bc65e8b5b5ae43455cd.r2.cloudflarestorage.com; font-src 'self' data:; connect-src 'self' https://sfetmfmtoubtdyyeyudd.supabase.co wss://sfetmfmtoubtdyyeyudd.supabase.co https://*.supabase.co wss://*.supabase.co https://chatwoot.kiddyapp.net wss://chatwoot.kiddyapp.net https://fcm.googleapis.com https://85c675833ff17bc65e8b5b5ae43455cd.r2.cloudflarestorage.com; frame-src 'self' https://chatwoot.kiddyapp.net; frame-ancestors 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; worker-src 'self' blob:; report-uri /api/csp-report"
+    },
+    "htmlDir": null,
+    "htmlLang": null
+  },
+  {
+    "path": "/sw.js",
+    "status": 200,
+    "headers": {
+      "server": "cloudflare",
+      "x-opennext": null,
+      "content-type": "text/javascript",
+      "location": null,
+      "content-security-policy-report-only": null
+    },
+    "htmlDir": null,
+    "htmlLang": null
+  },
+  {
+    "path": "/?lang=ar",
+    "status": 200,
+    "headers": {
+      "server": "cloudflare",
+      "x-opennext": "1",
+      "content-type": "text/html; charset=utf-8",
+      "location": null,
+      "content-security-policy-report-only": "default-src 'self'; script-src 'self' 'unsafe-inline' https://chatwoot.kiddyapp.net; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://sfetmfmtoubtdyyeyudd.supabase.co https://*.supabase.co https://*.supabase.in https://chatwoot.kiddyapp.net https://85c675833ff17bc65e8b5b5ae43455cd.r2.cloudflarestorage.com; font-src 'self' data:; connect-src 'self' https://sfetmfmtoubtdyyeyudd.supabase.co wss://sfetmfmtoubtdyyeyudd.supabase.co https://*.supabase.co wss://*.supabase.co https://chatwoot.kiddyapp.net wss://chatwoot.kiddyapp.net https://fcm.googleapis.com https://85c675833ff17bc65e8b5b5ae43455cd.r2.cloudflarestorage.com; frame-src 'self' https://chatwoot.kiddyapp.net; frame-ancestors 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; worker-src 'self' blob:; report-uri /api/csp-report"
+    },
+    "htmlDir": "rtl",
+    "htmlLang": "ar"
+  },
+  {
+    "path": "/api/platform/bulk-upload/template/children",
+    "status": 403,
+    "headers": {
+      "server": "cloudflare",
+      "x-opennext": "1",
+      "content-type": "application/json",
+      "location": null,
+      "content-security-policy-report-only": "default-src 'self'; script-src 'self' 'unsafe-inline' https://chatwoot.kiddyapp.net; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://sfetmfmtoubtdyyeyudd.supabase.co https://*.supabase.co https://*.supabase.in https://chatwoot.kiddyapp.net https://85c675833ff17bc65e8b5b5ae43455cd.r2.cloudflarestorage.com; font-src 'self' data:; connect-src 'self' https://sfetmfmtoubtdyyeyudd.supabase.co wss://sfetmfmtoubtdyyeyudd.supabase.co https://*.supabase.co wss://*.supabase.co https://chatwoot.kiddyapp.net wss://chatwoot.kiddyapp.net https://fcm.googleapis.com https://85c675833ff17bc65e8b5b5ae43455cd.r2.cloudflarestorage.com; frame-src 'self' https://chatwoot.kiddyapp.net; frame-ancestors 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; worker-src 'self' blob:; report-uri /api/csp-report"
+    },
+    "htmlDir": null,
+    "htmlLang": null
+  }
+]

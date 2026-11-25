@@ -60,13 +60,14 @@ because 0040 only covered tables that existed when it ran.
 
 - Branch: `kid2478-bulk-upload`, based on `origin/staging` `b56ad75` (KID-2477).
   `kid2478-staging` tracks the same commit for the staging cut.
-- The staging Worker build needs the deployment `NEXT_PUBLIC_*`, Supabase and
-  `SESSION_SECRET` values (see `docs/CLOUDFLARE_MIGRATION.md`); those secrets
-  are not present in this workspace, so the live staging deploy is the next
-  step on a machine/CI with the deploy environment.
-- Production remains gated on the founder's production sign-off after the
-  template review (already approved at draft level). Do not cut production
-  before that sign-off.
+- **Production: cut and deployed.** The founder accepted the production card
+  `aead9583` on 2026-11-25T17:50:13Z. The controlled cut (KID-2477 `b56ad75` +
+  KID-2478 `68bc236`, `169119f`, `e3812c5`) merged as PR #141, merge `6980d96`,
+  and shipped as Worker `kiddy-web` version
+  `0ab3d408-3020-44cb-a265-21af71680a32`. The cut record, build inputs, live
+  probes and rollback version are in `prod-cut.md` and `prod-verify.json`.
+- The production deploy needed the deployment `NEXT_PUBLIC_*`, Supabase and
+  `SESSION_SECRET` values (see `docs/CLOUDFLARE_MIGRATION.md`).
 
 ## Coordination with KID-2477 (Platform Settings restructure)
 
