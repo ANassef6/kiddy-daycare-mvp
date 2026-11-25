@@ -5,6 +5,8 @@ import {
   actualMinutesForStaff,
   addDays,
   classifyStaffHours,
+  computeStaffHoursRows,
+  decimalHours,
   expectedMinutesForDate,
   expectedMinutesForDays,
   isDateKey,
@@ -230,5 +232,32 @@ describe("KID-2484 store reads", () => {
       rangeEnd: new Date("2026-01-06T00:00:00.000Z"),
     });
     expect(actual.minutes).toBe(480);
+  });
+});
+
+describe("KID-2484 shared report rows", () => {
+  it("computes the same expected/actual/difference used by the CSV export", () => {
+    const rows = computeStaffHoursRows({
+      staffIds: ["s1"],
+      schedulesByStaff: {
+        s1: [{ day_of_week: 1, start_time: "08:00", end_time: "16:00" }],
+      },
+      statusesByStaff: {
+        s1: [
+          { kind: "checkin", created_at: "2026-01-05T08:00:00.000Z" },
+          { kind: "out", created_at: "2026-01-05T14:00:00.000Z" },
+        ],
+      },
+      days: ["2026-01-05"],
+      timeZone: "UTC",
+      now: new Date("2026-01-06T00:00:00.000Z"),
+      rangeEnd: new Date("2026-01-06T00:00:00.000Z"),
+    });
+    expect(rows).toHaveLength(1);
+    expect(rows[0].expected).toBe(480);
+    expect(rows[0].actual.minutes).toBe(360);
+    expect(rows[0].delta.status).toBe("short");
+    expect(decimalHours(rows[0].expected)).toBe("8.00");
+    expect(decimalHours(rows[0].delta.minutes)).toBe("-2.00");
   });
 });

@@ -12,10 +12,9 @@ import {
 import { normalizeWorkingHours, dayLabelFor } from "@/lib/working-hours";
 import { localDayBoundsUtc, normalizeTimeZone, zonedDateKey } from "@/lib/timezone";
 import {
-  actualMinutesForStaff,
   addDays,
   classifyStaffHours,
-  expectedMinutesForDays,
+  computeStaffHoursRows,
   formatDurationParts,
   isDateKey,
   resolveHoursFilter,
@@ -142,23 +141,25 @@ export default async function PortalStaffHoursPage(
   }
 
   const upcoming = filter.from > filter.today;
-  const rows: StaffHoursRow[] = staff.map((s: any) => {
-    const key = String(s.id);
-    const expected = expectedMinutesForDays(scheduleByStaff[key] ?? [], filter.days);
-    const actual = actualMinutesForStaff(statusByStaff[key] ?? [], filter.days, timeZone, {
-      now,
-      rangeEnd: toBounds.end,
-    });
-    const delta = classifyStaffHours({
-      expected,
-      actual: actual.minutes,
-      upcoming,
-    });
-    return { staff: s, expected, actual, delta };
+  const computed = computeStaffHoursRows({
+    staffIds,
+    schedulesByStaff: scheduleByStaff,
+    statusesByStaff: statusByStaff,
+    days: filter.days,
+    timeZone,
+    now,
+    rangeEnd: toBounds.end,
+    upcoming,
   });
+  const rows: StaffHoursRow[] = staff.map((s: any, i) => ({
+    staff: s,
+    expected: computed[i].expected,
+    actual: computed[i].actual,
+    delta: computed[i].delta,
+  }));
 
-  const totalExpected = rows.reduce((sum, r) => sum + r.expected, 0);
-  const totalActual = rows.reduce((sum, r) => sum + r.actual.minutes, 0);
+  const totalExpected = computed.reduce((sum, r) => sum + r.expected, 0);
+  const totalActual = computed.reduce((sum, r) => sum + r.actual.minutes, 0);
   const totalDelta = classifyStaffHours({
     expected: totalExpected,
     actual: totalActual,
