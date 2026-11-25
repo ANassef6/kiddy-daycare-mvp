@@ -116,7 +116,7 @@ describe("KID-2413 bug 1: the working-hours page renders stored DayHours objects
     );
     signIn(ownerCookie());
     const page = await import("@/app/portal/staff/hours/page");
-    const html = renderToStaticMarkup(await page.default());
+    const html = renderToStaticMarkup(await page.default({ searchParams: Promise.resolve({}) }));
     expect(html).toContain("07:00 - 18:00");
     expect(html).toContain("Monday");
     expect(html).not.toContain("[object Object]");
@@ -132,7 +132,7 @@ describe("KID-2413 bug 1: the working-hours page renders stored DayHours objects
     );
     signIn(ownerCookie());
     const page = await import("@/app/portal/staff/hours/page");
-    const html = renderToStaticMarkup(await page.default());
+    const html = renderToStaticMarkup(await page.default({ searchParams: Promise.resolve({}) }));
     expect(html).toContain(tr(ar, "settings.dayMonday"));
     expect(html).not.toContain("Monday");
   });

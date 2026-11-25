@@ -91,11 +91,11 @@ function deltaLabel(dict: Dict, minutes: number): string {
 }
 
 export default async function PortalStaffHoursPage(
-  props?: {
+  props: {
     searchParams?: Promise<{ view?: string; date?: string; from?: string; to?: string }>;
   }
 ) {
-  const searchParams = (await props?.searchParams) ?? {};
+  const searchParams = (await props.searchParams) ?? {};
   const session = await requireSession();
   // KID-2502: this admin surface is closed to non-admin staff — they keep
   // their own schedule on their profile's Calendar tab.
