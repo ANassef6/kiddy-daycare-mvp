@@ -1,7 +1,8 @@
 // KID-2477: the per-daycare Settings section chrome. The old Billing section
 // becomes Settings, with Billing, Invoices and the read-only Center
-// configuration as sub-pages. Every entry is a real href so it stays
-// middle-clickable and works without client JS.
+// configuration as sub-pages. KID-2478 adds the operator-only Bulk upload tab.
+// Every entry is a real href so it stays middle-clickable and works without
+// client JS.
 import { requireSession } from "@/lib/require";
 import { i18nForAccount } from "@/lib/i18n-session";
 import { tr } from "@/lib/i18n";
@@ -22,6 +23,7 @@ export default async function DaycareSettingsLayout({
   const entries = [
     { href: `${base}/billing`, key: "settingsNavBilling" },
     { href: `${base}/invoices`, key: "settingsNavInvoices" },
+    { href: `${base}/bulk-upload`, key: "settingsNavBulkUpload" },
     { href: `${base}/center`, key: "settingsNavCenter" },
   ];
 
