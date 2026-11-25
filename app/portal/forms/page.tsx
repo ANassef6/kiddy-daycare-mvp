@@ -1,11 +1,13 @@
 import Link from "next/link";
 import { requireSession } from "@/lib/require";
-import { listForms, formResponses, formResponseStatusCounts, formResponsesForInstitute, FORM_RESPONSE_STATUSES } from "@/lib/store";
+import { listForms, formResponses, formResponseStatusCounts, formResponsesForInstitute, FORM_RESPONSE_STATUSES, listChildren, listRooms, staffRooms } from "@/lib/store";
 import { firstInstituteId, cap } from "@/lib/helpers";
 import { createFormAction, generateFormShareLinkAction, setFormResponseStatusAction } from "@/lib/actions";
 import { recordToolUsage } from "@/lib/tool-usage";
 import { i18nForAccount } from "@/lib/i18n-session";
 import { tr, fmtDateTimeFor, type Dict } from "@/lib/i18n";
+import { queryGet } from "@/lib/db";
+import RecipientsPicker from "@/components/RecipientsPicker";
 
 export const dynamic = "force-dynamic";
 
@@ -216,6 +218,16 @@ export default async function PortalFormsPage(
     );
   }
 
+  // KID-2485: the builder can create surveys too, so it receives the same
+  // picker inputs as the dedicated Surveys composer.
+  const [children, rooms] = await Promise.all([listChildren(instituteId), listRooms(instituteId)]);
+  let assignedRoomIds: string[] = [];
+  if (session.role === "staff" || session.role === "carer") {
+    const me = await queryGet("SELECT staff_id FROM account WHERE id = ?", session.accountId);
+    if (me?.staff_id) {
+      assignedRoomIds = (await staffRooms(String(me.staff_id))).map((r) => String(r.id));
+    }
+  }
   const q = (searchParams.q ?? "").toLowerCase();
   const statusFilter = searchParams.status ?? "";
   const typeFilter = searchParams.type ?? "";
@@ -234,6 +246,11 @@ export default async function PortalFormsPage(
           <p className="small" style={{ margin: 0 }}>{tr(dict, "formsAdmin.titleRequired")}</p>
         </div>
       )}
+      {searchParams.error === "form-recipients" && (
+        <div role="alert" className="card mb-3" style={{ borderLeft: "4px solid #b91c1c" }}>
+          <p className="small" style={{ margin: 0 }}>{tr(dict, "surveysAdmin.recipientsRequired")}</p>
+        </div>
+      )}
       <div className="row" style={{ justifyContent: "space-between", alignItems: "center" }}>
         <div>
           <h1 className="title" style={{ marginBottom: 0 }}>{tr(dict, "formsAdmin.pageTitle")}</h1>
@@ -244,7 +261,13 @@ export default async function PortalFormsPage(
           <details style={{ position: "relative" }}>
             <summary className="btn btn-primary" style={{ cursor: "pointer", listStyle: "none" }}>{tr(dict, "formsAdmin.buildNewFormBtn")}</summary>
             <div style={{ position: "absolute", insetInlineEnd: 0, top: "calc(100% + 6px)", width: 560, maxWidth: "92vw", zIndex: 50 }}>
-              <CreateFormCard dict={dict} />
+              <CreateFormCard
+                dict={dict}
+                role={session.role}
+                assignedRoomIds={assignedRoomIds}
+                childOptions={children}
+                rooms={rooms}
+              />
             </div>
           </details>
         </div>
@@ -310,7 +333,19 @@ export default async function PortalFormsPage(
   );
 }
 
-function CreateFormCard({ dict }: { dict: Dict }) {
+function CreateFormCard({
+  dict,
+  role,
+  assignedRoomIds,
+  childOptions,
+  rooms,
+}: {
+  dict: Dict;
+  role: string;
+  assignedRoomIds: string[];
+  childOptions: any[];
+  rooms: any[];
+}) {
   return (
     <div className="card">
       <form action={createFormAction}>
@@ -326,6 +361,17 @@ function CreateFormCard({ dict }: { dict: Dict }) {
           </div>
         </div>
         <div className="field"><label className="label">{tr(dict, "common.description")}</label><input className="input" name="description" /></div>
+        <div className="field">
+          <label className="label">{tr(dict, "surveysAdmin.recipientsLabel")}</label>
+          <RecipientsPicker
+            dict={dict}
+            childOptions={childOptions.map((c: any) => ({ id: String(c.id), first_name: String(c.first_name), last_name: String(c.last_name), room_id: c.room_id ? String(c.room_id) : null, room_name: c.room_name ? String(c.room_name) : null }))}
+            rooms={rooms.map((r: any) => ({ id: String(r.id), name: String(r.name) }))}
+            role={role}
+            assignedRoomIds={assignedRoomIds}
+          />
+          <span className="small muted">{tr(dict, "formsAdmin.recipientsSurveyHint")}</span>
+        </div>
         <h4 className="subtitle">{tr(dict, "formsAdmin.questionsHeading")}</h4>
         {Array.from({ length: 3 }).map((_, i) => (
           <div className="row" key={i}>
