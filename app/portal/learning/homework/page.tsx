@@ -5,6 +5,7 @@ import { assignHomeworkAction } from "@/lib/actions";
 import { i18nForAccount } from "@/lib/i18n-session";
 import { fmtDateFor, tr } from "@/lib/i18n";
 import { recordToolUsage } from "@/lib/tool-usage";
+import SearchableSelect from "@/components/SearchableSelect";
 
 export const dynamic = "force-dynamic";
 
@@ -36,10 +37,13 @@ export default async function PortalHomeworkPage() {
           <div className="row">
             <div className="col field">
               <label className="label">{t("homework.child")}</label>
-              <select className="select" name="childId">
-                {canAssignCenterWide && <option value="">{t("homework.allChildren")}</option>}
-                {children.map((c: any) => <option key={c.id} value={c.id}>{c.first_name} {c.last_name}</option>)}
-              </select>
+              <SearchableSelect
+                name="childId"
+                options={children.map((c: any) => ({ id: String(c.id), label: `${c.first_name} ${c.last_name}` }))}
+                allLabel={canAssignCenterWide ? t("homework.allChildren") : undefined}
+                placeholder={t("childrenAdd.searchChildrenPlaceholder")}
+                noResultsMessage={t("pickerNoChildrenFound")}
+              />
             </div>
             <div className="col field"><label className="label">{t("homework.dueDate")}</label><input className="input" type="date" name="dueDate" /></div>
           </div>

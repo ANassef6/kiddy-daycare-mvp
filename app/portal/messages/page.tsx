@@ -27,6 +27,7 @@ import MessageAttachment from "@/components/MessageAttachment";
 import { mediaUploadLabels } from "@/lib/media-i18n";
 import { MAX_MESSAGE_ATTACHMENT_BYTES, MAX_VIDEO_DURATION_SECONDS } from "@/lib/media-limits";
 import { formatParticipantNames } from "@/lib/thread-display";
+import SearchableChecklist from "@/components/SearchableChecklist";
 
 export const dynamic = "force-dynamic";
 
@@ -315,13 +316,14 @@ export default async function PortalMessagesPage(
                     </>
                   )}
                   <div className="label mt-2">{t("messages.parents")}</div>
-                  {parents.length === 0 && <p className="muted small">{t("messages.noParentsInClassroomsShort")}</p>}
-                  {parents.map((p: any) => (
-                    <label key={p.id} className="row small" style={{ gap: 8, alignItems: "center", padding: "4px 0" }}>
-                      <input type="checkbox" name="recipients" value={String(p.id)} />
-                      <span>{p.full_name}</span>
-                    </label>
-                  ))}
+                  {/* KID-2482: every recipient list gets child/parent search. */}
+                  <SearchableChecklist
+                    name="recipients"
+                    items={parents.map((p: any) => ({ id: String(p.id), label: String(p.full_name ?? "") }))}
+                    placeholder={t("messages.searchRecipientsPlaceholder")}
+                    emptyMessage={t("messages.noParentsInClassroomsShort")}
+                    noResultsMessage={t("messages.noRecipientsFound")}
+                  />
                 </div>
               </div>
               <div className="field mt-2">

@@ -224,6 +224,8 @@ export default async function PortalChildPage(
             : null;
   // KID-2450: server-side photo cap refusal (old clients / direct posts).
   const photoError = searchParams.error === "photoType" || searchParams.error === "photoSize";
+  // KID-2482: update refused because no classroom was selected.
+  const classroomError = searchParams.error === "classroom";
   // KID-733: the Add-a-child flow reports its parent-login outcome here
   // (created = fresh login, linked = the guardian email already had a parent
   // account and it was connected to this child) — the same banner the children
@@ -253,6 +255,17 @@ export default async function PortalChildPage(
               {loginOutcomeEmail ? <> — <strong>{loginOutcomeEmail}</strong></> : null}
             </p>
           </div>
+        </div>
+      )}
+      {classroomError && (
+        <div
+          role="alert"
+          className="card mt-3"
+          style={{ borderLeft: "4px solid #b91c1c" }}
+        >
+          <p className="small" style={{ margin: 0 }}>
+            {t("childrenAdd.classroomRequiredError")}
+          </p>
         </div>
       )}
       {relationshipError && (
@@ -587,9 +600,10 @@ function aboutTab(child: any, status: any, rooms: any[], dict: any, locale: Loca
               </select>
             </div>
           </div>
-          <div className="field"><label className="label">{t("common.room")}</label>
-            <select className="select" name="roomId" defaultValue={String(child.room_id ?? "")}>
-              <option value="">—</option>
+          <div className="field">
+            <label className="label">{t("common.room")} <span style={{ color: "#b91c1c" }}>*</span></label>
+            <select className="select" name="roomId" required defaultValue={String(child.room_id ?? "")}>
+              <option value="" disabled>{t("childrenAdd.selectOption")}</option>
               {(rooms as any[]).map((r: any) => (
                 <option key={r.id} value={String(r.id)}>{r.name}</option>
               ))}

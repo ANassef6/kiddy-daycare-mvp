@@ -2160,15 +2160,20 @@ export async function addChildAction(formData: FormData) {
     }
   }
 
-  // KID-103: staff can only add children to their assigned classrooms.
-  const roomId = String(formData.get("roomId") ?? "") || undefined;
-  if (instituteId && roomId) {
+  // KID-2482: every child must have a classroom. Refuse the whole create
+  // (nothing is written) when the room is missing, does not belong to this
+  // center, or is outside a staff member's assigned classrooms.
+  const roomId = String(formData.get("roomId") ?? "").trim();
+  if (!roomId) redirect("/portal/children?error=classroom");
+  if (instituteId) {
+    const room = await getRoom(roomId);
+    if (!room || String(room.institute_id ?? "") !== instituteId) {
+      redirect("/portal/children?error=classroom");
+    }
     const allowed = await scopedRoomIds(instituteId, me.accountId);
     if (allowed !== null && !allowed.includes(roomId)) {
       redirect("/portal/children?error=scope");
     }
-  } else if ((me.role === "staff" || me.role === "carer") && !roomId) {
-    redirect("/portal/children?error=scope");
   }
 
   const child = await createChild({
@@ -4492,10 +4497,16 @@ export async function updateChildDetailsAction(formData: FormData) {
   const childId = String(formData.get("childId") ?? "");
   if (!childId) redirect("/portal/children");
   await assertChildInScope(childId, me);
-  // KID-103: staff cannot move a child to an unassigned classroom.
+  // KID-103 / KID-2482: a child can never be edited to have no classroom.
+  // Staff also cannot move a child into a classroom they are not assigned to.
   const instituteId = await firstInstituteId();
-  const roomId = String(formData.get("roomId") ?? "") || null;
-  if (instituteId && roomId) {
+  const roomId = String(formData.get("roomId") ?? "").trim();
+  if (!roomId) redirect(`/portal/children/${childId}?error=classroom`);
+  if (instituteId) {
+    const room = await getRoom(roomId);
+    if (!room || String(room.institute_id ?? "") !== instituteId) {
+      redirect(`/portal/children/${childId}?error=classroom`);
+    }
     const allowed = await scopedRoomIds(instituteId, me.accountId);
     if (allowed !== null && !allowed.includes(roomId)) {
       redirect("/portal/children?error=scope");
