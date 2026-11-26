@@ -1,15 +1,19 @@
-// KID-2494: consents can target whole classrooms (and/or specific children)
-// instead of picking every child one by one. The pins are behavioural: they
-// drive the real server action and inspect the consent_request rows, so a
-// classroom audience is verified against the roster at send time rather than
-// against the JSX.
+// KID-2494: consents can target whole classrooms instead of picking every
+// child one by one. The pins are behavioural: they drive the real server
+// action and inspect the consent_request rows, so a classroom audience is
+// verified against the roster at send time rather than against the JSX. The
+// founder later removed per-child picking and asked for per-recipient response
+// tracking, so the detail view and its data are covered here too.
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
 
 const mockState = vi.hoisted(() => ({ cookies: {} as Record<string, string> }));
 vi.mock("next/headers", () => ({
-  headers: () => new Headers(),
+  headers: () =>
+    new Headers(
+      mockState.cookies.kiddy_sess ? { cookie: `kiddy_sess=${mockState.cookies.kiddy_sess}` } : {}
+    ),
   cookies: () => ({
     get: (name: string) => (mockState.cookies[name] ? { name, value: mockState.cookies[name] } : undefined),
     set: () => undefined,
@@ -20,6 +24,9 @@ vi.mock("next/navigation", () => ({
     const err = new Error(`NEXT_REDIRECT: ${url}`) as Error & { digest?: string };
     err.digest = `NEXT_REDIRECT;replace;${url};`;
     throw err;
+  },
+  notFound: () => {
+    throw new Error("NEXT_NOT_FOUND");
   },
 }));
 
@@ -52,12 +59,11 @@ async function redirectTargetFor(run: () => Promise<unknown>): Promise<string> {
   }
 }
 
-async function sendConsent(fields: { title: string; roomIds?: string[]; childIds?: string[] }): Promise<string> {
+async function sendConsent(fields: { title: string; roomIds?: string[] }): Promise<string> {
   const form = new FormData();
   form.set("title", fields.title);
   form.set("body", "Please review.");
   for (const roomId of fields.roomIds ?? []) form.append("recipientRoomIds", roomId);
-  for (const childId of fields.childIds ?? []) form.append("childIds", childId);
   const { createConsentAction } = await import("@/lib/actions");
   return redirectTargetFor(() => createConsentAction(form));
 }
@@ -73,6 +79,10 @@ async function consentRows(title: string) {
 
 async function childIdByName(firstName: string): Promise<string> {
   return String((await queryGet("SELECT id FROM child WHERE first_name = ? LIMIT 1", firstName))!.id);
+}
+
+async function parentAccountId(): Promise<string> {
+  return String((await queryGet("SELECT id FROM account WHERE email = 'parent@example.test' LIMIT 1"))!.id);
 }
 
 beforeEach(async () => {
@@ -99,6 +109,7 @@ describe("KID-2494 classroom consent targeting", () => {
     const ids = rows.map((r) => String(r.child_id)).sort();
     expect(ids).toEqual([extra.id as string, await childIdByName("Ella")].sort());
     expect(ids).not.toContain(await childIdByName("Leo"));
+    expect(new Set(rows.map((r) => String(r.batch_id))).size).toBe(1);
   });
 
   it("lets the owner target any classroom, with the same scope as an admin", async () => {
@@ -121,38 +132,42 @@ describe("KID-2494 classroom consent targeting", () => {
     expect(rows.map((r) => String(r.child_id))).toContain(String(late.id));
   });
 
-  it("unions a classroom and specific children without duplicates", async () => {
-    await store.createChild({ instituteId: iid, firstName: "Mila", lastName: "Toddler", roomId: roomA });
-    const ella = await childIdByName("Ella");
-    const leo = await childIdByName("Leo");
-    // Ella is already in the picked room; Leo is in the other room. Both the
-    // classroom roster and the explicit pick must contribute exactly once.
-    await sendConsent({ title: "KID2494 Union", roomIds: [roomA], childIds: [ella, leo] });
-    const rows = await consentRows("KID2494 Union");
+  it("sends All / general to every visible child as per-child rows", async () => {
+    await sendConsent({ title: "KID2494 General" });
+    const rows = await consentRows("KID2494 General");
     const ids = rows.map((r) => String(r.child_id));
-    expect(ids.filter((id) => id === ella)).toHaveLength(1);
+    expect(ids).toContain(await childIdByName("Ella"));
+    expect(ids).toContain(await childIdByName("Leo"));
+    expect(rows.every((r) => r.child_id !== null)).toBe(true);
     expect(new Set(ids).size).toBe(ids.length);
-    expect(ids).toContain(leo);
-    expect(ids).toHaveLength(3);
   });
 
-  it("keeps per-child response tracking", async () => {
+  it("records who answered and when, and keeps the batch together", async () => {
     await store.createChild({ instituteId: iid, firstName: "Mila", lastName: "Toddler", roomId: roomA });
     await sendConsent({ title: "KID2494 Responses", roomIds: [roomA] });
     const rows = await consentRows("KID2494 Responses");
     const ellaRow = rows.find((r) => r.child_first_name === "Ella")!;
-    await store.respondConsent(String(ellaRow.id), "approved");
+    const parent = await parentAccountId();
+    await store.respondConsent(String(ellaRow.id), "approved", parent);
 
     const after = await consentRows("KID2494 Responses");
-    expect(after.find((r) => r.child_first_name === "Ella")!.status).toBe("approved");
+    const ellaAfter = after.find((r) => r.child_first_name === "Ella")!;
+    expect(ellaAfter.status).toBe("approved");
+    expect(ellaAfter.responded_at).toBeTruthy();
+    expect(String(ellaAfter.responded_by_account_id)).toBe(parent);
     expect(after.find((r) => r.child_first_name === "Mila")!.status).toBe("pending");
-  });
 
-  it("keeps all / general as one request with no child", async () => {
-    await sendConsent({ title: "KID2494 General" });
-    const rows = await consentRows("KID2494 General");
-    expect(rows).toHaveLength(1);
-    expect(rows[0].child_id).toBeNull();
+    const batchId = String(ellaRow.batch_id);
+    const batch = await store.getConsentBatch(iid, batchId);
+    expect(Number(batch!.total)).toBe(2);
+    expect(Number(batch!.approved)).toBe(1);
+    expect(Number(batch!.pending)).toBe(1);
+
+    const recipients = await store.listConsentRecipients(iid, batchId);
+    const ellaRecipient = recipients.find((r) => r.first_name === "Ella")!;
+    expect(String(ellaRecipient.parent_names)).toContain("Grace Nguyen");
+    expect(String(ellaRecipient.responded_by_name)).toBe("Grace Nguyen");
+    expect(String(ellaRecipient.room_name)).toBe("Toddlers");
   });
 
   it("refuses a classroom outside a teacher's assignment without falling back to general", async () => {
@@ -181,6 +196,67 @@ describe("KID-2494 classroom consent targeting", () => {
     expect(ids).toContain(await childIdByName("Ella"));
     expect(ids).not.toContain(await childIdByName("Leo"));
   });
+
+  it("keeps All / general inside a teacher's assigned rooms", async () => {
+    const teacherStaff = await store.createStaff({ instituteId: iid, fullName: "KID2494 All Teacher", role: "carer", roomIds: [roomA] });
+    const teacherAcc = String(
+      (await createAccount({ email: "kid2494-all-teacher@example.com", password: "x", fullName: "KID2494 All Teacher", role: "staff" })).id
+    );
+    await queryRun("UPDATE account SET staff_id = ? WHERE id = ?", String(teacherStaff.id), teacherAcc);
+    signInAs(teacherAcc, "staff", "kid2494-all-teacher@example.com");
+
+    await sendConsent({ title: "KID2494 Teacher all" });
+    const ids = (await consentRows("KID2494 Teacher all")).map((r) => String(r.child_id));
+    expect(ids).toContain(await childIdByName("Ella"));
+    expect(ids).not.toContain(await childIdByName("Leo"));
+  });
+});
+
+describe("KID-2494 recipient list", () => {
+  it("lists one row per send with counts and a recipient link", async () => {
+    await store.createChild({ instituteId: iid, firstName: "Mila", lastName: "Toddler", roomId: roomA });
+    await sendConsent({ title: "KID2494 List", roomIds: [roomA] });
+    const { default: Page } = await import("@/app/portal/consents/page");
+    const html = renderToStaticMarkup(await Page({ searchParams: Promise.resolve({}) }));
+
+    expect(html).toContain("KID2494 List");
+    expect(html).toContain("Toddlers");
+    expect(html).toContain("0 answered, 2 pending");
+    expect(html.match(/View recipients/g)?.length).toBeGreaterThanOrEqual(1);
+    expect(html).toContain("/portal/consents/");
+  });
+
+  it("shows every recipient, the parent, the response and the responder in EN", async () => {
+    await store.createChild({ instituteId: iid, firstName: "Mila", lastName: "Toddler", roomId: roomA });
+    await sendConsent({ title: "KID2494 Detail EN", roomIds: [roomA] });
+    const rows = await consentRows("KID2494 Detail EN");
+    const ellaRow = rows.find((r) => r.child_first_name === "Ella")!;
+    await store.respondConsent(String(ellaRow.id), "approved", await parentAccountId());
+    const { default: Page } = await import("@/app/portal/consents/[id]/page");
+    const html = renderToStaticMarkup(await Page({ params: Promise.resolve({ id: String(ellaRow.batch_id) }) }));
+
+    expect(html).toContain("KID2494 Detail EN");
+    expect(html).toContain("Recipients");
+    expect(html).toContain("Toddlers");
+    expect(html).toContain("Ella");
+    expect(html).toContain("Grace Nguyen");
+    expect(html).toContain("Approved");
+    expect(html).toContain("Pending");
+    expect(html).toContain("Answered by");
+  });
+
+  it("shows the Arabic recipient labels", async () => {
+    await sendConsent({ title: "KID2494 Detail AR", roomIds: [roomA] });
+    const rows = await consentRows("KID2494 Detail AR");
+    await queryRun("UPDATE account SET language = 'ar' WHERE id = ?", adminAcc);
+    const { default: Page } = await import("@/app/portal/consents/[id]/page");
+    const html = renderToStaticMarkup(await Page({ params: Promise.resolve({ id: String(rows[0].batch_id) }) }));
+
+    expect(html).toContain("المستلمون");
+    expect(html).toContain("ولي الأمر");
+    expect(html).toContain("تم الرد بواسطة");
+    expect(html).toContain("معلّق");
+  });
 });
 
 describe("KID-2494 audience labels", () => {
@@ -189,7 +265,7 @@ describe("KID-2494 audience labels", () => {
     { id: roomB, name: "Preschool" },
   ];
 
-  it("renders the EN classroom and child options", () => {
+  it("renders the EN classroom options and no child picker", () => {
     const html = renderToStaticMarkup(
       <ConsentAudiencePicker
         dict={getDictionary("en")}
@@ -197,15 +273,14 @@ describe("KID-2494 audience labels", () => {
         role="admin"
         assignedRoomIds={[]}
         rooms={rooms()}
-        childOptions={[]}
       />
     );
     expect(html).toContain("All / general");
     expect(html).toContain("Classrooms");
-    expect(html).toContain("Specific children (optional)");
-    expect(html).toContain("Search children…");
     expect(html).toContain("Toddlers");
     expect(html).toContain("Preschool");
+    expect(html).not.toContain("Search children");
+    expect(html).not.toContain("Specific children");
   });
 
   it("shows every room to the owner, not only assigned rooms", () => {
@@ -216,7 +291,6 @@ describe("KID-2494 audience labels", () => {
         role="owner"
         assignedRoomIds={[]}
         rooms={rooms()}
-        childOptions={[]}
       />
     );
     expect(html).toContain("Toddlers");
@@ -231,13 +305,12 @@ describe("KID-2494 audience labels", () => {
         role="staff"
         assignedRoomIds={[roomA]}
         rooms={rooms()}
-        childOptions={[]}
       />
     );
     expect(html).toContain("الكل / عام");
     expect(html).toContain("الفصول");
-    expect(html).toContain("أطفال محددون (اختياري)");
     expect(html).toContain("Toddlers");
     expect(html).not.toContain("Preschool");
+    expect(html).not.toContain("أطفال محددون");
   });
 });
