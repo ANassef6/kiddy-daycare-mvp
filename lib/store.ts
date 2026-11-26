@@ -1,4 +1,10 @@
 import { isPostgresMode, queryAll, queryGet, queryRun, uid, withTransaction, type Row } from "./db";
+import {
+  CONSENT_BATCHES_SQL,
+  CONSENT_BATCH_CREATORS_SQL,
+  CONSENT_BATCH_ROOMS_SQL,
+  attachConsentBatchCreators,
+} from "./consent-batches";
 import { normalizeCurrency } from "./currency";
 import { normalizeSubdomainSlug } from "./subdomain";
 import { hasOverdueInvoice, nextMonthStart, type BillingPlan } from "./billing";
@@ -3296,38 +3302,16 @@ export async function respondConsent(
 // Room names are resolved separately (listConsentBatchRooms) because the
 // production database is Postgres, which has no GROUP_CONCAT.
 export async function listConsentBatches(instituteId: string): Promise<Row[]> {
-  return queryAll(
-    `SELECT COALESCE(cr.batch_id, cr.id) AS batch_id,
-       MIN(cr.title) AS title,
-       MIN(cr.body) AS body,
-       MIN(cr.created_at) AS created_at,
-       COUNT(*) AS total,
-       SUM(CASE WHEN cr.status = 'pending' THEN 1 ELSE 0 END) AS pending,
-       SUM(CASE WHEN cr.status = 'approved' THEN 1 ELSE 0 END) AS approved,
-       SUM(CASE WHEN cr.status = 'denied' THEN 1 ELSE 0 END) AS denied,
-       SUM(CASE WHEN cr.child_id IS NULL THEN 1 ELSE 0 END) AS general_count,
-       (SELECT ae.actor_name FROM audit_event ae
-        WHERE ae.entity_type = 'consent_request' AND ae.entity_id = cr.id AND ae.action = 'create'
-        ORDER BY ae.created_at DESC LIMIT 1) AS created_by_name
-     FROM consent_request cr
-     WHERE cr.institute_id = ?
-     GROUP BY COALESCE(cr.batch_id, cr.id)
-     ORDER BY created_at DESC`,
-    instituteId
-  );
+  const [batches, creators] = await Promise.all([
+    queryAll(CONSENT_BATCHES_SQL, instituteId),
+    queryAll(CONSENT_BATCH_CREATORS_SQL, instituteId),
+  ]);
+  return attachConsentBatchCreators(batches, creators);
 }
 
 // KID-2494: the classroom names of each send, in one portable query.
 export async function listConsentBatchRooms(instituteId: string): Promise<Row[]> {
-  return queryAll(
-    `SELECT DISTINCT COALESCE(cr.batch_id, cr.id) AS batch_id, r.name AS room_name
-     FROM consent_request cr
-     JOIN child c ON c.id = cr.child_id
-     JOIN room r ON r.id = c.room_id
-     WHERE cr.institute_id = ?
-     ORDER BY r.name`,
-    instituteId
-  );
+  return queryAll(CONSENT_BATCH_ROOMS_SQL, instituteId);
 }
 
 export async function getConsentBatch(instituteId: string, batchId: string): Promise<Row | undefined> {
