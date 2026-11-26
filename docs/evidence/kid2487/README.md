@@ -44,7 +44,7 @@ existing local databases.
 | KID-2487 merge | `9bddb92` (PR #144) |
 | Public staging | https://staging.kiddyapp.net (Cloudflare Worker `kiddy-web-staging`) |
 | Deployed Worker version | `eca45c3c-847d-4b2e-a465-be62c4e9236e` (source `origin/staging` @ `94e4ee2`, 2026-11-26 17:09 UTC) |
-| Production cut | not performed; gated on founder sign-off |
+| Production cut | PR #168 → `master` `eaf2615`; Worker `77530d45-6d3e-4385-b4fe-f2b4afebe9f9` — see [`prod-cut.md`](prod-cut.md) |
 
 ## Staging deployment status
 
@@ -154,6 +154,8 @@ Raw capture data: `local-browser-results.json` (photo flow) and
 
 ## Gates
 
-Production cut is **not** performed. The code is live on
-https://staging.kiddyapp.net and verified in EN + AR; the remaining gate is the
-founder's sign-off on staging.
+The founder signed off on staging (interaction `673cd844-2ea8-4813-a894-f159b36e14a2`,
+accepted 2026-11-26T21:00:27Z). The production cut is complete: `master`
+`eaf2615` is deployed as Worker `77530d45-6d3e-4385-b4fe-f2b4afebe9f9`, and the
+served bundle matches the cut. Migration and rollback details are in
+[`prod-cut.md`](prod-cut.md).
