@@ -3339,6 +3339,38 @@ export async function createConsent(data: {
   return (await queryGet("SELECT * FROM consent_request WHERE id = ?", id))!;
 }
 
+// KID-2494: a consent sent to classrooms or several children creates one
+// consent_request per child, so every parent answers for their own child and
+// the portal can show who responded / is pending per child. The whole batch is
+// atomic: a failure halfway cannot leave only part of a classroom notified.
+// An empty target list keeps the legacy "All / general" behaviour (one row
+// with a null child_id).
+export async function createConsents(data: {
+  instituteId: string;
+  title: string;
+  body?: string;
+  childIds?: string[];
+}): Promise<Row[]> {
+  const childIds = Array.from(new Set((data.childIds ?? []).filter(Boolean)));
+  const targets: (string | null)[] = childIds.length > 0 ? childIds : [null];
+  return withTransaction(async (tx) => {
+    const rows: Row[] = [];
+    for (const childId of targets) {
+      const id = uid();
+      await tx.queryRun(
+        "INSERT INTO consent_request (id, institute_id, title, body, child_id) VALUES (?, ?, ?, ?, ?)",
+        id,
+        data.instituteId,
+        data.title,
+        data.body ?? "",
+        childId
+      );
+      rows.push((await tx.queryGet("SELECT * FROM consent_request WHERE id = ?", id))!);
+    }
+    return rows;
+  });
+}
+
 export async function respondConsent(id: string, status: "approved" | "denied"): Promise<void> {
   await queryRun("UPDATE consent_request SET status = ? WHERE id = ?", status, id);
 }
@@ -3346,13 +3378,16 @@ export async function respondConsent(id: string, status: "approved" | "denied"):
 export async function listConsents(instituteId: string): Promise<Row[]> {
   // KID-477: consent_request has no creator column; the name comes from the
   // audit_event snapshot (one correlated subquery, tenant-scoped join free).
+  // KID-2494: classroom targeting expands into per-child rows, so the list
+  // carries the child's name; a general request has no child.
   return queryAll(
-    `SELECT cr.*,
+    `SELECT cr.*, c.first_name AS child_first_name, c.last_name AS child_last_name,
        (SELECT ae.actor_name FROM audit_event ae
         WHERE ae.entity_type = 'consent_request' AND ae.entity_id = cr.id AND ae.action = 'create'
         ORDER BY ae.created_at DESC LIMIT 1) AS created_by_name
      FROM consent_request cr
-     WHERE cr.institute_id = ? ORDER BY cr.created_at DESC`,
+     LEFT JOIN child c ON c.id = cr.child_id
+     WHERE cr.institute_id = ? ORDER BY cr.created_at DESC, c.first_name, c.last_name`,
     instituteId
   );
 }
