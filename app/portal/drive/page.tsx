@@ -1,12 +1,13 @@
 import { requireSession } from "@/lib/require";
-import { listDriveFiles, listChildren } from "@/lib/store";
+import { listDriveFiles } from "@/lib/store";
 import { firstInstituteId } from "@/lib/helpers";
 import { addDriveFileAction } from "@/lib/actions";
 import { recordToolUsage } from "@/lib/tool-usage";
 import { i18nForAccount } from "@/lib/i18n-session";
 import { tr, type Dict } from "@/lib/i18n";
 import MediaUploadForm from "@/components/MediaUploadForm";
-import SearchableSelect from "@/components/SearchableSelect";
+import RecipientsPicker from "@/components/RecipientsPicker";
+import { recipientPickerData } from "@/lib/recipients";
 import { mediaUploadLabels } from "@/lib/media-i18n";
 import { DOCUMENT_ACCEPT, MAX_DRIVE_FILE_BYTES } from "@/lib/media-limits";
 import { signedUrlsForRefs } from "@/lib/storage";
@@ -23,10 +24,12 @@ export default async function PortalDrivePage(props: {
   const instituteId = await firstInstituteId();
   if (!instituteId) return <p className="muted">{tr(dict, "learning.noInstitute")}</p>;
   await recordToolUsage({ instituteId: String(instituteId ?? "") || null, accountId: session.accountId, toolKey: "drive", source: "portal", metadata: null });
-  // KID-103: drive lists and share-with dropdown are scoped to assigned classrooms.
-  const [files, children] = await Promise.all([
+  // KID-103: drive lists and share-with targets are scoped to assigned
+  // classrooms. KID-2482: the share control is the same classroom-aware
+  // recipients picker used by the newsfeed/activities composers.
+  const [files, picker] = await Promise.all([
     listDriveFiles(instituteId, session.accountId),
-    listChildren(instituteId, { accountId: session.accountId }),
+    recipientPickerData(instituteId, session.accountId, session.role),
   ]);
   // KID-2453: private refs resolve to short-lived signed URLs here, in the
   // authorized render context; data: URIs and legacy URLs pass through.
@@ -45,6 +48,11 @@ export default async function PortalDrivePage(props: {
       {params.error === "attachment" && (
         <div role="alert" className="card mb-4" style={{ borderLeft: "4px solid #b91c1c" }}>
           <p className="small" style={{ margin: 0 }}>{tr(dict, "drive.errorAttachment")}</p>
+        </div>
+      )}
+      {params.error === "scope" && (
+        <div role="alert" className="card mb-4" style={{ borderLeft: "4px solid #b91c1c" }}>
+          <p className="small" style={{ margin: 0 }}>{tr(dict, "drive.errorScope")}</p>
         </div>
       )}
 
@@ -69,12 +77,12 @@ export default async function PortalDrivePage(props: {
           <div className="row">
             <div className="col field">
               <label className="label">{tr(dict, "driveAdmin.shareWith")}</label>
-              <SearchableSelect
-                name="childId"
-                options={children.map((c: any) => ({ id: String(c.id), label: `${c.first_name} ${c.last_name}` }))}
-                allLabel={tr(dict, "driveAdmin.allFamilies")}
-                placeholder={tr(dict, "childrenAdd.searchChildrenPlaceholder")}
-                noResultsMessage={tr(dict, "parent.pickerNoChildrenFound")}
+              <RecipientsPicker
+                dict={dict}
+                childOptions={picker.children}
+                rooms={picker.rooms}
+                role={session.role}
+                assignedRoomIds={picker.assignedRoomIds}
               />
             </div>
           </div>
