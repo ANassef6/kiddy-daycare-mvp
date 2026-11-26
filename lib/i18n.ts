@@ -2340,12 +2340,25 @@ export const en = {
     createFormBtn: "Create form",
     // KID-2413 (bug 7): server-side validation message (createFormAction).
     titleRequired: "Add a title before creating the form.",
+    // KID-2485: the form builder also creates surveys; the picker is only
+    // required when the chosen kind is Survey.
+    recipientsSurveyHint: "Required for surveys only. Forms and lists stay available to everyone.",
   },
   surveysAdmin: {
     pageSubtitle: "Create surveys and read their responses right here — no need to visit the Smart form tab.",
     createHeading: "Create a survey",
     titlePlaceholder: "e.g. Parent satisfaction — September",
     descriptionPlaceholder: "What is this survey about?",
+    recipientsLabel: "Recipients",
+    recipientsHint: "Pick everyone, a classroom, or individual children. A survey cannot be saved without a recipient.",
+    recipientsRequired: "Pick at least one recipient or classroom channel before saving the survey.",
+    audienceLabel: "Audience",
+    audienceEveryone: "Everyone (whole center)",
+    audienceClassrooms: "Classrooms: {rooms}",
+    audienceRoomsFallback: "{count} classroom(s)",
+    audienceChildren: "Children: {names}",
+    audienceChildrenMore: "Children: {names} (+{count} more)",
+    audienceChildCount: "{count} child(ren)",
     questionsHeading: "Questions (up to 5 here — edit the full set under Smart form if needed)",
     createSurveyBtn: "Create survey",
     createdHeading: "Created surveys & their responses",
@@ -4748,12 +4761,25 @@ export const ar = {
     createFormBtn: "إنشاء النموذج",
     // KID-2413 (bug 7): رسالة التحقق من جهة الخادم (createFormAction).
     titleRequired: "أضف عنوانًا قبل إنشاء النموذج.",
+    // KID-2485: منشئ النماذج ينشئ استبيانات أيضًا؛ اختيار المستلمين مطلوب
+    // فقط عندما يكون النوع استبيانًا.
+    recipientsSurveyHint: "مطلوب للاستبيانات فقط. تظل النماذج والقوائم متاحة للجميع.",
   },
   surveysAdmin: {
     pageSubtitle: "أنشئ الاستبيانات واقرأ ردودها هنا مباشرة — دون الحاجة لفتح تبويب النموذج الذكي.",
     createHeading: "إنشاء استبيان",
     titlePlaceholder: "مثلًا: رضا أولياء الأمور — سبتمبر",
     descriptionPlaceholder: "ما موضوع هذا الاستبيان؟",
+    recipientsLabel: "المستلمون",
+    recipientsHint: "اختر «الجميع» أو فصلًا أو أطفالًا محددين. لا يمكن حفظ الاستبيان دون مستلم.",
+    recipientsRequired: "اختر مستلمًا واحدًا على الأقل أو قناة فصل قبل حفظ الاستبيان.",
+    audienceLabel: "الجمهور",
+    audienceEveryone: "الجميع (المركز بالكامل)",
+    audienceClassrooms: "الفصول: {rooms}",
+    audienceRoomsFallback: "{count} فصل",
+    audienceChildren: "الأطفال: {names}",
+    audienceChildrenMore: "الأطفال: {names} (+{count} غيرهم)",
+    audienceChildCount: "{count} طفل",
     questionsHeading: "الأسئلة (حتى 5 هنا — عدّل المجموعة الكاملة من النموذج الذكي عند الحاجة)",
     createSurveyBtn: "إنشاء الاستبيان",
     createdHeading: "الاستبيانات المنشأة وردودها",
