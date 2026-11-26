@@ -1,0 +1,91 @@
+{
+  "base": "https://staging.kiddyapp.net",
+  "deployment": "eca45c3c-847d-4b2e-a465-be62c4e9236e",
+  "freshBody": "KID-2487 staging photo verification 1795724928904",
+  "layla": {
+    "heading": "Media (3)",
+    "dir": "ltr",
+    "items": [
+      {
+        "href": "https://pjubkhhuccoqboypgpty.supabase.co/storage/v1/object/sign/kiddy-private/newsfeed/mwmgz2us-lrvm80et/a12ba79a-9541-4e5e-b0dd-45b4dda6667a.webp",
+        "kind": "img",
+        "loaded": {
+          "nw": 240,
+          "nh": 160
+        }
+      },
+      {
+        "href": "https://pjubkhhuccoqboypgpty.supabase.co/storage/v1/object/sign/kiddy-private/newsfeed/mwmgz2us-lrvm80et/a55bbb9b-d778-490e-aa0e-158ed96d1c51.webm",
+        "kind": "video",
+        "loaded": {
+          "ready": 4,
+          "w": 960,
+          "err": null
+        }
+      },
+      {
+        "href": "https://pjubkhhuccoqboypgpty.supabase.co/storage/v1/object/sign/kiddy-private/newsfeed/mwmgz2us-lrvm80et/001a1ae4-9645-45c7-bce7-6f305ee63506.webp",
+        "kind": "img",
+        "loaded": {
+          "nw": 990,
+          "nh": 600
+        }
+      }
+    ]
+  },
+  "omar": {
+    "heading": "Media (1)",
+    "dir": "ltr",
+    "items": [
+      {
+        "href": "https://pjubkhhuccoqboypgpty.supabase.co/storage/v1/object/sign/kiddy-private/newsfeed/mwmgz2us-lrvm80et/a12ba79a-9541-4e5e-b0dd-45b4dda6667a.webp",
+        "kind": "img",
+        "loaded": {
+          "nw": 240,
+          "nh": 160
+        }
+      }
+    ]
+  },
+  "arLayla": {
+    "heading": "الوسائط (3)",
+    "dir": "rtl",
+    "items": [
+      {
+        "href": "https://pjubkhhuccoqboypgpty.supabase.co/storage/v1/object/sign/kiddy-private/newsfeed/mwmgz2us-lrvm80et/a12ba79a-9541-4e5e-b0dd-45b4dda6667a.webp",
+        "kind": "img",
+        "loaded": {
+          "nw": 240,
+          "nh": 160
+        }
+      },
+      {
+        "href": "https://pjubkhhuccoqboypgpty.supabase.co/storage/v1/object/sign/kiddy-private/newsfeed/mwmgz2us-lrvm80et/a55bbb9b-d778-490e-aa0e-158ed96d1c51.webm",
+        "kind": "video",
+        "loaded": {
+          "ready": 4,
+          "w": 960,
+          "err": null
+        }
+      },
+      {
+        "href": "https://pjubkhhuccoqboypgpty.supabase.co/storage/v1/object/sign/kiddy-private/newsfeed/mwmgz2us-lrvm80et/001a1ae4-9645-45c7-bce7-6f305ee63506.webp",
+        "kind": "img",
+        "loaded": {
+          "nw": 990,
+          "nh": 600
+        }
+      }
+    ]
+  },
+  "shared": [
+    "https://pjubkhhuccoqboypgpty.supabase.co/storage/v1/object/sign/kiddy-private/newsfeed/mwmgz2us-lrvm80et/a12ba79a-9541-4e5e-b0dd-45b4dda6667a.webp"
+  ],
+  "likers": [
+    "0 likes\n\nNo likes yet.",
+    "1 likes\nFT\nFounder Test Owner\n· Owner",
+    "1 likes\nFT\nFounder Test Owner\n· Owner",
+    "0 likes\n\nNo likes yet.",
+    "1 likes\nFT\nFounder Test Owner\n· Owner"
+  ]
+}
