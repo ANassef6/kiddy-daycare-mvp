@@ -70,7 +70,7 @@ import {
   upsertDailyReport,
   createNewsfeedPost,
   addComment,
-  createConsent,
+  createConsents,
   respondConsent,
   createIncident,
   acknowledgeIncident,
@@ -1772,6 +1772,45 @@ async function resolveNewsfeedRecipients(
   return (await resolveRecipientAudience(formData, me, instituteId)).childIds;
 }
 
+// KID-2494: a consent can target whole classrooms and/or individual children.
+// Unlike the announcement composer these add up, so the audience is the union
+// of both selections, de-duplicated by child id. Classrooms resolve against
+// the roster at submit time, so a child enrolled after the composer rendered is
+// included automatically. Explicit child ids are re-checked against the
+// caller's classroom scope; forged or out-of-scope ids are dropped rather than
+// expanded. No picks keeps the legacy "All / general" consent, but a pick that
+// resolves to nothing (a forged out-of-scope room) must not silently become a
+// general request, so `hadPicks` lets the caller refuse it.
+async function resolveConsentRecipients(
+  formData: FormData,
+  me: SessionCookie,
+  instituteId: string
+): Promise<{ childIds: string[]; hadPicks: boolean }> {
+  const { listRooms, childrenByRooms } = await import("@/lib/store");
+  const isAdmin = me.role === "owner" || me.role === "admin";
+  const allowedRoomIds = isAdmin ? null : (await scopedRoomIds(instituteId, me.accountId)) ?? [];
+
+  const instituteRooms = new Set((await listRooms(instituteId)).map((r) => String(r.id)));
+  const requestedRoomIds = Array.from(new Set(formData.getAll("recipientRoomIds").map(String).filter(Boolean)));
+  const roomIds = requestedRoomIds.filter(
+    (id) => instituteRooms.has(id) && (allowedRoomIds === null || allowedRoomIds.includes(id))
+  );
+  const fromRooms = roomIds.length > 0 ? (await childrenByRooms(roomIds)).map((c) => String(c.id)) : [];
+
+  const requestedChildIds = Array.from(
+    new Set([...formData.getAll("childIds").map(String), String(formData.get("childId") ?? "")].filter(Boolean))
+  );
+  const fromChildren: string[] = [];
+  for (const childId of requestedChildIds) {
+    if (await isChildInScope(instituteId, me.accountId, childId)) fromChildren.push(childId);
+  }
+
+  return {
+    childIds: Array.from(new Set([...fromRooms, ...fromChildren])),
+    hadPicks: requestedRoomIds.length > 0 || requestedChildIds.length > 0,
+  };
+}
+
 // KID-57: the app language lives on `account.language` + the kiddy_lang
 // cookie. KID-2460 moved the write to the native POST route
 // /switch-app-lang: a server-action redirect kept the mounted layouts (and
@@ -2010,26 +2049,36 @@ export async function createConsentAction(formData: FormData) {
   await ensureSchema();
   const me = await authAccount();
   const instituteId = await firstInstituteId();
-  const childId = String(formData.get("childId") ?? "") || undefined;
-  if (childId) await assertChildInScope(childId, me);
-  const consent = await createConsent({
+  const title = String(formData.get("title") ?? "");
+  // KID-2494: classroom and child picks resolve to the union of their current
+  // children; no picks means one general ("All / general") request.
+  const audience = instituteId
+    ? await resolveConsentRecipients(formData, me, instituteId)
+    : { childIds: [], hadPicks: false };
+  if (audience.hadPicks && audience.childIds.length === 0) {
+    redirect("/portal/consents?error=audience");
+  }
+  const consents = await createConsents({
     instituteId,
-    title: String(formData.get("title") ?? ""),
+    title,
     body: String(formData.get("body") ?? ""),
-    childId,
+    childIds: audience.childIds,
   });
   // KID-477: consent requests are admin-authored changes to a record parents
-  // must act on — attributed on the trail (title only, never the body).
-  if (instituteId && consent) {
-    await recordAuditEvent({
-      instituteId,
-      actorAccountId: me.accountId,
-      action: "create",
-      entityType: "consent_request",
-      entityId: String(consent.id),
-      summary: `Created the consent request “${String(formData.get("title") ?? "")}”`,
-      metadata: { childId: childId ?? null },
-    });
+  // must act on — attributed on the trail (title only, never the body). One
+  // event per per-child row so every parent-facing request carries its author.
+  if (instituteId) {
+    for (const consent of consents) {
+      await recordAuditEvent({
+        instituteId,
+        actorAccountId: me.accountId,
+        action: "create",
+        entityType: "consent_request",
+        entityId: String(consent.id),
+        summary: `Created the consent request “${title}”`,
+        metadata: { childId: consent.child_id ? String(consent.child_id) : null },
+      });
+    }
   }
   redirect("/portal/consents");
 }
