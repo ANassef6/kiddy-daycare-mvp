@@ -151,6 +151,15 @@ describe("KID-2482 one admin audience option", () => {
     expect(html).not.toContain("All classrooms");
   });
 
+  it("has the child-search labels in both locales", () => {
+    for (const locale of ["en", "ar"] as const) {
+      const dict = getDictionary(locale);
+      expect(dict.childrenAdd.searchChildrenPlaceholder).toBeTruthy();
+      expect(dict.parent.pickerNoChildrenFound).toBeTruthy();
+      expect(dict.messages.searchRecipientsPlaceholder).toBeTruthy();
+    }
+  });
+
   it("resolves Everyone through every classroom at submit time", async () => {
     // A classroom and child created after the picker would have rendered are
     // still in the audience because the action enumerates rooms at submit.
