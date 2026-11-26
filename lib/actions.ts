@@ -1772,21 +1772,20 @@ async function resolveNewsfeedRecipients(
   return (await resolveRecipientAudience(formData, me, instituteId)).childIds;
 }
 
-// KID-2494: a consent can target whole classrooms and/or individual children.
-// Unlike the announcement composer these add up, so the audience is the union
-// of both selections, de-duplicated by child id. Classrooms resolve against
-// the roster at submit time, so a child enrolled after the composer rendered is
-// included automatically. Explicit child ids are re-checked against the
-// caller's classroom scope; forged or out-of-scope ids are dropped rather than
-// expanded. No picks keeps the legacy "All / general" consent, but a pick that
-// resolves to nothing (a forged out-of-scope room) must not silently become a
-// general request, so `hadPicks` lets the caller refuse it.
+// KID-2494: a consent can target all visible children or whole classrooms. The
+// founder removed the per-child picker from the composer. A classroom resolves
+// against the roster at submit time, so a child enrolled after the composer
+// rendered is included automatically. All / general resolves through the same
+// classroom scope at submit time (admin/owner: every child; staff/carer: their
+// rooms). Forged or out-of-scope room ids are dropped; a pick that resolves to
+// nothing must not silently become a general request, so `hadPicks` lets the
+// caller refuse it.
 async function resolveConsentRecipients(
   formData: FormData,
   me: SessionCookie,
   instituteId: string
 ): Promise<{ childIds: string[]; hadPicks: boolean }> {
-  const { listRooms, childrenByRooms } = await import("@/lib/store");
+  const { listRooms, childrenByRooms, listChildren } = await import("@/lib/store");
   // KID-2494: the owner has the same all-room audience as the admin. Use the
   // shared role helper instead of a local role switch that can omit owner; a
   // non-admin still resolves through the shared classroom scope and fails
@@ -1799,20 +1798,19 @@ async function resolveConsentRecipients(
   const roomIds = requestedRoomIds.filter(
     (id) => instituteRooms.has(id) && (allowedRoomIds === null || allowedRoomIds.includes(id))
   );
-  const fromRooms = roomIds.length > 0 ? (await childrenByRooms(roomIds)).map((c) => String(c.id)) : [];
-
-  const requestedChildIds = Array.from(
-    new Set([...formData.getAll("childIds").map(String), String(formData.get("childId") ?? "")].filter(Boolean))
-  );
-  const fromChildren: string[] = [];
-  for (const childId of requestedChildIds) {
-    if (await isChildInScope(instituteId, me.accountId, childId)) fromChildren.push(childId);
+  if (requestedRoomIds.length > 0) {
+    // A pick that is forged or outside the caller's scope resolves to nothing
+    // and stays a refused pick; it never turns into an All / general send.
+    return {
+      childIds: Array.from(new Set((await childrenByRooms(roomIds)).map((c) => String(c.id)))),
+      hadPicks: true,
+    };
   }
 
-  return {
-    childIds: Array.from(new Set([...fromRooms, ...fromChildren])),
-    hadPicks: requestedRoomIds.length > 0 || requestedChildIds.length > 0,
-  };
+  // All / general: same scope as the room picker, resolved at send time so a
+  // late enrollment is included and a teacher cannot reach another classroom.
+  const scoped = await listChildren(instituteId, { accountId: me.accountId });
+  return { childIds: scoped.map((c) => String(c.id)), hadPicks: false };
 }
 
 // KID-57: the app language lives on `account.language` + the kiddy_lang
@@ -2052,10 +2050,14 @@ export async function commentAction(formData: FormData) {
 export async function createConsentAction(formData: FormData) {
   await ensureSchema();
   const me = await authAccount();
+  // KID-2494: only daycare staff roles compose consents. A parent account that
+  // reaches this action must not fan a request out to every child.
+  if (!canEditChildren(me.role)) redirect("/child");
   const instituteId = await firstInstituteId();
   const title = String(formData.get("title") ?? "");
-  // KID-2494: classroom and child picks resolve to the union of their current
-  // children; no picks means one general ("All / general") request.
+  // KID-2494: classroom picks resolve to their current children; no picks
+  // means All / general, which also resolves to the caller's visible children
+  // so every recipient keeps its own response row.
   const audience = instituteId
     ? await resolveConsentRecipients(formData, me, instituteId)
     : { childIds: [], hadPicks: false };
@@ -2093,7 +2095,7 @@ export async function respondConsentAction(formData: FormData) {
   await assertFamilyAction(me, "respondConsent");
   const consentId = String(formData.get("id") ?? "");
   const status = String(formData.get("status") ?? "approved") as "approved" | "denied";
-  await respondConsent(consentId, status);
+  await respondConsent(consentId, status, me.accountId);
   // KID-477: a parent decision is a record mutation — attributed per parent.
   const row = await queryGet("SELECT institute_id FROM consent_request WHERE id = ?", consentId);
   if (row) {
