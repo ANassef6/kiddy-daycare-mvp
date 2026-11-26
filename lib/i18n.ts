@@ -2468,7 +2468,9 @@ export const en = {
     inviteNotSent: "Invite not sent ({status}{codePart}{detailPart}). Fix the details and try again.",
     enrolledCount: "{count} enrolled",
     statusColon: "Status:",
-    filterAllActive: "All active",
+    // KID-2498: the default chip is everyone NOT withdrawn.
+    filterNotWithdrawn: "Not withdrawn",
+    filterEveryone: "Everyone",
     noChildrenMatch: "No children match this filter.",
     // KID-2482: a child can never be saved without a classroom.
     classroomRequiredError: "A classroom is required. Nothing was saved — pick a classroom and try again.",
@@ -4952,7 +4954,9 @@ export const ar = {
     inviteNotSent: "لم تُرسل الدعوة ({status}{codePart}{detailPart}). صحّح البيانات وحاول مرة أخرى.",
     enrolledCount: "{count} مسجلين",
     statusColon: "الحالة:",
-    filterAllActive: "كل النشطين",
+    // KID-2498: the default chip is everyone NOT withdrawn.
+    filterNotWithdrawn: "غير المنسحبين",
+    filterEveryone: "الجميع",
     noChildrenMatch: "لا يوجد أطفال يطابقون عامل التصفية هذا.",
     classroomRequiredError: "الفصل مطلوب. لم يُحفظ أي شيء — اختر فصلًا وحاول مرة أخرى.",
     classroomRequiredHint: "الفصل مطلوب. أنشئ فصلًا أولًا.",
