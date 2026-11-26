@@ -17,7 +17,9 @@ import {
   familyAccessForAccount,
   parentCheckInOutAllowed,
   listMedia,
+  getInstitute,
 } from "@/lib/store";
+import { geofenceFromInstitute } from "@/lib/geofence";
 import { CheckInButton } from "@/components/CheckInButton";
 import Avatar from "@/components/Avatar";
 import NewsfeedLikers from "@/components/NewsfeedLikers";
@@ -29,6 +31,7 @@ import { firstInstituteId } from "@/lib/helpers";
 import { DEFAULT_CURRENCY } from "@/lib/currency";
 import { configuredReportDate, todayIso } from "@/lib/report-dates";
 import { isPlatformOperatorRole } from "@/lib/platform";
+import { isAdminRole } from "@/lib/role";
 import { toggleLikeAction, uploadPaymentProofAction } from "@/lib/actions";
 import { i18nForAccount } from "@/lib/i18n-session";
 import { fmtDateFor, fmtDateTimeFor, fmtTimeFor, tr } from "@/lib/i18n";
@@ -66,6 +69,14 @@ export default async function ChildDetailPage(
     ? await isChildVisibleToAccount(requestIid, session.accountId, String(child.id))
     : false;
   if (!visible && !(isPlatformOperatorRole(session.role) && requestIid)) notFound();
+  // KID-2503: the parent/child check-in control captures the device position
+  // when the center configured a premises fence. The server still decides.
+  // Admins can override the fence from management surfaces, so their own
+  // child check-in/out control does not need to capture a position.
+  const geofenceOn = requestIid
+    ? geofenceFromInstitute(await getInstitute(String(requestIid))) !== null
+    : false;
+  const requireChildLocation = geofenceOn && !isAdminRole(session.role);
   await recordToolUsage({ instituteId: String(child.institute_id ?? "") || null, accountId: session.accountId, toolKey: "children", source: "child", metadata: null });
 
   // KID-112: the family link decides what a parent-role account may read here.
@@ -106,7 +117,7 @@ export default async function ChildDetailPage(
           {/* Today's pickup time: set / update / cancel runs through the same
               check-in/out control the pickup loop uses. */}
           <div className="mt-4">
-            <CheckInButton childId={child.id as string} checkedIn={checkedIn} dict={dict} />
+            <CheckInButton childId={child.id as string} checkedIn={checkedIn} dict={dict} requireLocation={requireChildLocation} />
           </div>
 
           {status.lastEvent && (
@@ -220,7 +231,7 @@ export default async function ChildDetailPage(
             stays visible either way. */}
         {canCheckInOut && (
           <div className="mt-4">
-            <CheckInButton childId={child.id as string} checkedIn={checkedIn} dict={dict} />
+            <CheckInButton childId={child.id as string} checkedIn={checkedIn} dict={dict} requireLocation={requireChildLocation} />
           </div>
         )}
 

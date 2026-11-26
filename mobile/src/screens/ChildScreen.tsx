@@ -8,6 +8,7 @@ import {
   View,
 } from "react-native";
 import { StatusBar } from "expo-status-bar";
+import * as Location from "expo-location";
 import { api, ApiError, clearSession } from "../api";
 import { Button, Card, Header, Screen, SectionLabel, usePalette } from "../components";
 import { fullName, initials } from "../theme";
@@ -54,7 +55,31 @@ export function ChildScreen({
     setBusy(true);
     setError(null);
     try {
-      const next = await api.checkInOut(childId, detail.status.checkedIn && !detail.status.checkedOut ? "out" : "in");
+      // KID-2503: the server decides the premises fence. Send a position when
+      // the device grants it; if permission is denied we still try, so a
+      // center without a fence keeps working and a fenced center returns its
+      // localized "enable location access" refusal.
+      let position: { lat: number; lng: number; accuracy?: number } | undefined;
+      try {
+        const permission = await Location.requestForegroundPermissionsAsync();
+        if (permission.status === "granted") {
+          const current = await Location.getCurrentPositionAsync({
+            accuracy: Location.Accuracy.High,
+          });
+          position = {
+            lat: current.coords.latitude,
+            lng: current.coords.longitude,
+            ...(current.coords.accuracy != null ? { accuracy: current.coords.accuracy } : {}),
+          };
+        }
+      } catch (locationError) {
+        console.error("KID-2503 location capture failed:", locationError);
+      }
+      const next = await api.checkInOut(
+        childId,
+        detail.status.checkedIn && !detail.status.checkedOut ? "out" : "in",
+        position,
+      );
       setDetail({ ...detail, status: next.status, todayReport: next.todayReport ?? detail.todayReport });
     } catch (e) {
       setError(e instanceof ApiError ? e.message : "Could not update check-in.");
