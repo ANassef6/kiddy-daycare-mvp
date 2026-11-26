@@ -6,6 +6,7 @@ import { recordToolUsage } from "@/lib/tool-usage";
 import { i18nForAccount } from "@/lib/i18n-session";
 import { tr, type Dict } from "@/lib/i18n";
 import MediaUploadForm from "@/components/MediaUploadForm";
+import SearchableSelect from "@/components/SearchableSelect";
 import { mediaUploadLabels } from "@/lib/media-i18n";
 import { DOCUMENT_ACCEPT, MAX_DRIVE_FILE_BYTES } from "@/lib/media-limits";
 import { signedUrlsForRefs } from "@/lib/storage";
@@ -68,10 +69,13 @@ export default async function PortalDrivePage(props: {
           <div className="row">
             <div className="col field">
               <label className="label">{tr(dict, "driveAdmin.shareWith")}</label>
-              <select className="select" name="childId">
-                <option value="">{tr(dict, "driveAdmin.allFamilies")}</option>
-                {children.map((c: any) => <option key={c.id} value={c.id}>{c.first_name} {c.last_name}</option>)}
-              </select>
+              <SearchableSelect
+                name="childId"
+                options={children.map((c: any) => ({ id: String(c.id), label: `${c.first_name} ${c.last_name}` }))}
+                allLabel={tr(dict, "driveAdmin.allFamilies")}
+                placeholder={tr(dict, "childrenAdd.searchChildrenPlaceholder")}
+                noResultsMessage={tr(dict, "pickerNoChildrenFound")}
+              />
             </div>
           </div>
           <p className="muted small" style={{ margin: "0 0 8px" }}>{tr(dict, "driveAdmin.documentsOnly")}</p>
