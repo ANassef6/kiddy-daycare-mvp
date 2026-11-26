@@ -14,7 +14,7 @@ export const dynamic = "force-dynamic";
 // "for {child} · due {date}" lines. Localized with localized dates.
 export default async function PortalHomeworkPage() {
   const session = await requireSession();
-  const { locale, dict } = await i18nForAccount(session.accountId);
+  const { locale, dict, timeZone } = await i18nForAccount(session.accountId);
   const t = (key: string, vars?: Record<string, string | number>) => tr(dict, key, vars);
   const instituteId = await firstInstituteId();
   if (!instituteId) return <p className="muted">{t("homework.noInstitute")}</p>;
@@ -61,7 +61,7 @@ export default async function PortalHomeworkPage() {
           <div style={{ fontWeight: 700 }}>{h.title}</div>
           <div className="small muted">
             {h.first_name ? t("homework.forChild", { name: `${h.first_name} ${h.last_name}` }) : t("homework.forAll")}
-            {h.due_date ? ` · ${t("homework.dueOn", { date: fmtDateFor(locale, h.due_date) })}` : ""}
+            {h.due_date ? ` · ${t("homework.dueOn", { date: fmtDateFor(locale, h.due_date, timeZone) })}` : ""}
           </div>
           {h.description && <p className="small mt-1">{h.description}</p>}
         </div>

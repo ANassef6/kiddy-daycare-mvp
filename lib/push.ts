@@ -55,13 +55,25 @@ export async function pushCopyFor(
   let title = String(payload.title ?? "") || "Kiddy";
   let body = String(payload.body ?? "");
   try {
-    const [{ i18nForAccount }, { notificationViewCopy }, { feedCopyFor }] = await Promise.all([
+    const [
+      { i18nForAccount },
+      { notificationViewCopy, primaryInstituteIdForAccount, getCenterSchedule },
+      { feedCopyFor },
+      { DEFAULT_CENTER_TIMEZONE },
+    ] = await Promise.all([
       import("./i18n-session"),
       import("./store"),
       import("./i18n"),
+      import("./timezone"),
     ]);
     const { locale } = await i18nForAccount(accountId);
-    const view = notificationViewCopy(kind, payload, feedCopyFor(locale));
+    // KID-2496: push copy can run outside a request (background fan-out), so
+    // resolve the account's OWN center rather than the request tenant.
+    const instituteId = await primaryInstituteIdForAccount(accountId);
+    const timeZone = instituteId
+      ? (await getCenterSchedule(instituteId)).timeZone
+      : DEFAULT_CENTER_TIMEZONE;
+    const view = notificationViewCopy(kind, payload, feedCopyFor(locale, timeZone));
     if (view.title) title = view.title;
     if (view.body) body = view.body;
     else if (view.meta) body = view.meta;

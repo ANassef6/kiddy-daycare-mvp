@@ -9,7 +9,7 @@ export const dynamic = "force-dynamic";
 
 export default async function PortalIncidentsPage() {
   const session = await requireSession();
-  const { dict, locale } = await i18nForAccount(session.accountId);
+  const { dict, locale, timeZone } = await i18nForAccount(session.accountId);
   const iid = await resolveTenantInstituteId();
   await recordToolUsage({ instituteId: String(iid ?? "") || null, accountId: session.accountId, toolKey: "incidents", source: "portal", metadata: null });
   const incidents = iid ? await listIncidents(iid) : [];
@@ -21,7 +21,7 @@ export default async function PortalIncidentsPage() {
         <div className="card mb-4" key={i.id}>
           <div className="row" style={{ justifyContent: "space-between" }}>
             <div className="small muted">
-              {tr(dict, i.type === "accident" ? "profile.accident" : "profile.incident")} · {i.first_name} {i.last_name} · {fmtDateTimeFor(locale, i.created_at)} ·{" "}
+              {tr(dict, i.type === "accident" ? "profile.accident" : "profile.incident")} · {i.first_name} {i.last_name} · {fmtDateTimeFor(locale, i.created_at, timeZone)} ·{" "}
               {tr(dict, "incidents.reportedBy", { name: i.reported_by })}
             </div>
             <span className={i.acknowledged ? "badge badge-green" : "badge badge-red"}>

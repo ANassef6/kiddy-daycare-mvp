@@ -45,7 +45,7 @@ export default async function StaffProfilePage({ params, searchParams }: { param
   const { id: staffIdParam } = await params;
   const search = (await searchParams) ?? {};
   const session = await requireSession();
-  const { dict, locale } = await i18nForAccount(session.accountId);
+  const { dict, locale, timeZone } = await i18nForAccount(session.accountId);
   const iid = await resolveTenantInstituteId();
   // KID-2450: server-side photo cap refusal (old clients / direct posts).
   const photoError = search.error === "photoType" || search.error === "photoSize";
@@ -87,9 +87,9 @@ export default async function StaffProfilePage({ params, searchParams }: { param
         linked: search.linked,
         existing: search.existing,
         error: search.error,
-      }, dict, locale),
+      }, dict, locale, timeZone),
     },
-    { id: "calendar", label: tr(dict, "nav.calendar"), node: calendarTab(schedules, dict, locale) },
+    { id: "calendar", label: tr(dict, "nav.calendar"), node: calendarTab(schedules, dict, locale, timeZone) },
   ];
 
   return (
@@ -129,7 +129,7 @@ export default async function StaffProfilePage({ params, searchParams }: { param
   );
 }
 
-function statusCard(staff: any, dict: Dict, locale: Locale) {
+function statusCard(staff: any, dict: Dict, locale: Locale, timeZone: string) {
   const current = (staff.status && STATUS_KIND_KEY[staff.status]) ? tr(dict, STATUS_KIND_KEY[staff.status]) : (staff.active ? tr(dict, "profile.active") : tr(dict, "staff.inactive"));
   const tone =
     staff.status === "checkin" ? "green"
@@ -145,7 +145,7 @@ function statusCard(staff: any, dict: Dict, locale: Locale) {
           <span className={`badge badge-${tone}`}>{current}</span>
         </div>
         {staff.status_note && <div className="muted small mt-1">{staff.status_note}</div>}
-        {staff.status_at && <div className="muted small">{tr(dict, "staff.since", { datetime: fmtDateTimeFor(locale, staff.status_at) })}</div>}
+        {staff.status_at && <div className="muted small">{tr(dict, "staff.since", { datetime: fmtDateTimeFor(locale, staff.status_at, timeZone) })}</div>}
       </div>
       <StaffStatusForm
         staffId={String(staff.id)}
@@ -190,7 +190,8 @@ function profileTab(
   hasLogin: boolean,
   loginFeedback: { linked?: string; existing?: string; error?: string },
   dict: Dict,
-  locale: Locale
+  locale: Locale,
+  timeZone: string
 ) {
   const infoRows: [string, any][] = [
     [tr(dict, "profile.fullName"), staff.full_name],
@@ -199,14 +200,14 @@ function profileTab(
     [tr(dict, "common.phone"), staff.phone ?? "—"],
     [tr(dict, "staff.colClassrooms"), rooms.map((r) => r.name).join(", ") || "—"],
     [tr(dict, "staff.bio"), staff.bio || "—"],
-    [tr(dict, "staff.memberSince"), staff.created_at ? fmtDateFor(locale, staff.created_at) : "—"],
-    [tr(dict, "profile.lastDate"), staff.last_date ? fmtDateFor(locale, staff.last_date) : "—"],
+    [tr(dict, "staff.memberSince"), staff.created_at ? fmtDateFor(locale, staff.created_at, timeZone) : "—"],
+    [tr(dict, "profile.lastDate"), staff.last_date ? fmtDateFor(locale, staff.last_date, timeZone) : "—"],
   ];
   const openEdit = editing === "status" || editing === "info";
   const linkError = loginFeedback.error ? (LINK_ERROR_KEY[loginFeedback.error] ? tr(dict, LINK_ERROR_KEY[loginFeedback.error]) : tr(dict, "staff.linkErrorLink")) : null;
   return (
     <div>
-      {statusCard(staff, dict, locale)}
+      {statusCard(staff, dict, locale, timeZone)}
 
       {/* KID-171 (D2): a staff record with no login cannot be messaged by any
           parent in its classrooms, and there was no way to fix that from the UI
@@ -299,7 +300,7 @@ function profileTab(
               <span className={`badge ${s.status === "checkin" ? "badge-green" : s.status === "sick" || s.status === "child_sick" ? "badge-red" : "badge-gray"}`}>
                 {(s.status && STATUS_KIND_KEY[s.status]) ? tr(dict, STATUS_KIND_KEY[s.status]) : String(s.status ?? "")}
               </span>
-              <span className="muted">{s.note ? `${s.note} · ` : ""}{s.changed_by_name ? `${s.changed_by_name} · ` : ""}{fmtDateTimeFor(locale, s.created_at)}</span>
+              <span className="muted">{s.note ? `${s.note} · ` : ""}{s.changed_by_name ? `${s.changed_by_name} · ` : ""}{fmtDateTimeFor(locale, s.created_at, timeZone)}</span>
             </div>
           ))}
         </div>
@@ -351,7 +352,7 @@ const CALENDAR_DAY_KEY = [
   "staff.daySat",
 ];
 
-function calendarTab(schedules: any[], dict: Dict, locale: Locale) {
+function calendarTab(schedules: any[], dict: Dict, locale: Locale, timeZone: string) {
   return (
     <div className="card">
       <h3 className="subtitle">{tr(dict, "staff.weeklyScheduleTitle")}</h3>
@@ -361,7 +362,7 @@ function calendarTab(schedules: any[], dict: Dict, locale: Locale) {
           <span className="small">
             <strong>
               {s.schedule_date
-                ? fmtDateFor(locale, s.schedule_date)
+                ? fmtDateFor(locale, s.schedule_date, timeZone)
                 : CALENDAR_DAY_KEY[Number(s.day_of_week)]
                   ? tr(dict, CALENDAR_DAY_KEY[Number(s.day_of_week)])
                   : s.day_of_week}

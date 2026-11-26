@@ -48,16 +48,19 @@ export async function GET(req: Request) {
     if (to) rows = rows.filter((r) => String(r.due_date ?? "") <= to);
     name = "billing-export.csv";
   } else if (type === "attendance") {
-    const { attendanceOn, centerToday } = await import("@/lib/store");
+    const { attendanceOn, centerToday, getCenterSchedule } = await import("@/lib/store");
+    const { zonedWallClock } = await import("@/lib/timezone");
     // KID-2437: the export default is the center-local day.
     const day = url.searchParams.get("day") ?? (await centerToday(instituteId));
+    // KID-2496: export timestamps on the center clock, not raw UTC.
+    const timeZone = instituteId ? (await getCenterSchedule(instituteId)).timeZone : undefined;
     rows = ((await attendanceOn(instituteId, day)) as Record<string, unknown>[]).map((r) => ({
       child: `${r.first_name} ${r.last_name}`,
       room: r.room_name ?? "",
       status: r.last_event ?? "absent",
-      checked_in: r.checked_in_at ?? "",
+      checked_in: timeZone ? zonedWallClock(r.checked_in_at, timeZone) : r.checked_in_at ?? "",
       checked_in_source: r.checked_in_source ?? "",
-      checked_out: r.checked_out_at ?? "",
+      checked_out: timeZone ? zonedWallClock(r.checked_out_at, timeZone) : r.checked_out_at ?? "",
       checked_out_source: r.checked_out_source ?? "",
     }));
     name = `attendance-${day}.csv`;

@@ -38,7 +38,7 @@ export default async function PortalMessagesPage(
 ) {
   const searchParams = await props.searchParams;
   const session = await requireSession();
-  const { locale, dict } = await i18nForAccount(session.accountId);
+  const { locale, dict, timeZone } = await i18nForAccount(session.accountId);
   const t = (key: string, vars?: Record<string, string | number>) => tr(dict, key, vars);
   const instituteId = await firstInstituteId();
   if (!instituteId) return <p className="muted">{t("learning.noInstitute")}</p>;
@@ -265,7 +265,7 @@ export default async function PortalMessagesPage(
                   <strong className="small">{c.other_name}</strong>
                   {unread > 0 && <span className="badge badge-red" style={{ marginInlineStart: 6 }}>{unread}</span>}
                   <div className="muted small" style={{ maxWidth: 180, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                    {c.last_message ?? "—"} · {c.last_at ? fmtTimeFor(locale, c.last_at) : ""}
+                    {c.last_message ?? "—"} · {c.last_at ? fmtTimeFor(locale, c.last_at, timeZone) : ""}
                   </div>
                 </Link>
               </div>
@@ -384,7 +384,7 @@ export default async function PortalMessagesPage(
                           downloadLabel={t("messages.downloadAttachment")}
                         />
                       )}
-                      <div className="small" style={{ opacity: 0.75, marginTop: 2 }}>{fmtTimeFor(locale, m.created_at)}</div>
+                      <div className="small" style={{ opacity: 0.75, marginTop: 2 }}>{fmtTimeFor(locale, m.created_at, timeZone)}</div>
                     </div>
                   </div>
                 ))}
@@ -431,7 +431,7 @@ export default async function PortalMessagesPage(
                           downloadLabel={t("messages.downloadAttachment")}
                         />
                       )}
-                      <div className="small" style={{ opacity: 0.75, marginTop: 2 }}>{fmtTimeFor(locale, m.created_at)}</div>
+                      <div className="small" style={{ opacity: 0.75, marginTop: 2 }}>{fmtTimeFor(locale, m.created_at, timeZone)}</div>
                     </div>
                   </div>
                 ))}
@@ -454,7 +454,7 @@ export default async function PortalMessagesPage(
                   }}
                 />
               )}
-              <p className="muted small mt-2">{t("common.thread")} {fmtDateFor(locale, new Date().toISOString())}.</p>
+              <p className="muted small mt-2">{t("common.thread")} {fmtDateFor(locale, new Date().toISOString(), timeZone)}.</p>
             </>
           )}
         </div>
