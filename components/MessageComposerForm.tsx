@@ -18,6 +18,7 @@
 // account locale keeps its exact copy — no dictionary lives here.
 import { useState, useTransition } from "react";
 import {
+  fillTemplate,
   prepareMediaFormData,
   type MediaDirectUpload,
   type MediaPrepareLabels,
@@ -81,6 +82,8 @@ export default function MessageComposerForm({
         labels: attachments.labels,
         directUpload: attachments.directUpload,
         onStatus: setStatus,
+        onUploadProgress: (percent) =>
+          setStatus(fillTemplate(attachments.labels.uploading, { percent })),
       });
       if (!prepared.ok) {
         setError(prepared.error);

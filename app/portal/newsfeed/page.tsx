@@ -10,6 +10,7 @@ import {
   mediaRefName,
   MAX_NEWSFEED_ATTACHMENT_BYTES,
   MAX_VIDEO_DURATION_SECONDS,
+  MAX_VIDEO_UPLOAD_BYTES,
 } from "@/lib/media-limits";
 import Avatar from "@/components/Avatar";
 import NewsfeedLikers from "@/components/NewsfeedLikers";
@@ -112,7 +113,7 @@ export default async function PortalNewsfeedPage(props: {
           action={createNewsfeedWithAttachmentAction}
           encType="multipart/form-data"
           maxImageBytes={MAX_NEWSFEED_ATTACHMENT_BYTES}
-          maxVideoBytes={MAX_NEWSFEED_ATTACHMENT_BYTES}
+          maxVideoBytes={MAX_VIDEO_UPLOAD_BYTES}
           maxVideoSeconds={MAX_VIDEO_DURATION_SECONDS}
           labels={mediaUploadLabels(dict)}
           directUpload={{ purpose: "newsfeed", fileField: "attachment" }}

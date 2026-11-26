@@ -29,9 +29,8 @@ import { validateContract, contractStorageFilename } from "@/lib/contract";
 import {
   DOCUMENT_MIME_EXT,
   MAX_DRIVE_FILE_BYTES,
-  MAX_EVENT_ATTACHMENT_BYTES,
   MAX_MESSAGE_ATTACHMENT_BYTES,
-  MAX_NEWSFEED_ATTACHMENT_BYTES,
+  MAX_MESSAGE_VIDEO_DURATION_SECONDS,
   MAX_VIDEO_DURATION_SECONDS,
   mediaKind,
   validateBrandingFile,
@@ -130,7 +129,7 @@ import {
   uploadPrivateObject,
   uploadPublicObject,
 } from "@/lib/storage";
-import { isAllowedPurposeMime, takeUploadedRef } from "@/lib/media-upload";
+import { isAllowedPurposeMime, maxUploadBytesFor, takeUploadedRef } from "@/lib/media-upload";
 import { activationStepError } from "@/lib/activation";
 import { requestOrigin, publicOrigin, resetRedirectOrigin } from "@/lib/url";
 import { sendContactInvite, contactNameForInvite } from "@/lib/contact-invite";
@@ -3578,8 +3577,13 @@ export async function addEventMediaAction(formData: FormData) {
       redirect(`${back}&error=eventMedia`);
     }
     // Server-side boundary for the multipart fallback: photos/videos only,
-    // 4 MB cap and the same 60-second video limit the client applies.
-    const media = validateMediaAttachment(attachment, MAX_EVENT_ATTACHMENT_BYTES);
+    // with the same byte and duration limits the client applies.
+    // KID-2509: videos may use the 15 MB direct-upload cap; photos keep the
+    // event ceiling.
+    const media = validateMediaAttachment(
+      attachment,
+      maxUploadBytesFor("event", attachment.type)
+    );
     if (!media.ok || media.kind === "pdf") redirect(`${back}&error=eventMedia`);
     kind = media.kind === "video" ? "video" : "image";
     const buf = Buffer.from(await attachment.arrayBuffer());
@@ -4062,7 +4066,7 @@ async function resolveMessageAttachment(
   // KID-2450: client-side video guard mirrored at the server boundary.
   if (mediaKind(mime) === "video") {
     const seconds = mp4DurationSeconds(bytes);
-    if (seconds !== null && seconds > MAX_VIDEO_DURATION_SECONDS) return { ok: false };
+    if (seconds !== null && seconds > MAX_MESSAGE_VIDEO_DURATION_SECONDS) return { ok: false };
   }
   if (storageAdminConfigured()) {
     const ext =
@@ -5200,6 +5204,7 @@ export async function createNewsfeedWithAttachmentAction(formData: FormData) {
   const body = String(formData.get("body") ?? "");
   let mediaUrl: string | undefined;
   const attachment = formData.get("attachment");
+  const rawAttachmentRef = String(formData.get("attachmentRef") ?? "").trim();
   // KID-2453: direct-upload REF first; the multipart file is the fallback.
   const presigned = await takeUploadedRef(formData, {
     purpose: "newsfeed",
@@ -5211,7 +5216,12 @@ export async function createNewsfeedWithAttachmentAction(formData: FormData) {
   } else if (attachment instanceof File && attachment.size > 0) {
     // KID-2450: the client prepares the photo/video first; this is the
     // server mirror (type + byte cap + MP4/MOV duration) for old clients.
-    const media = validateMediaAttachment(attachment, MAX_NEWSFEED_ATTACHMENT_BYTES);
+    // KID-2509: videos may use the 15 MB direct-upload cap; photos keep the
+    // newsfeed ceiling.
+    const media = validateMediaAttachment(
+      attachment,
+      maxUploadBytesFor("newsfeed", attachment.type)
+    );
     if (!media.ok) redirect("/portal/newsfeed?error=attachment");
     const buf = Buffer.from(await attachment.arrayBuffer());
     if (media.kind === "video") {
@@ -5235,6 +5245,12 @@ export async function createNewsfeedWithAttachmentAction(formData: FormData) {
     } else {
       mediaUrl = `data:${mime};base64,${buf.toString("base64")}`;
     }
+  } else if (rawAttachmentRef) {
+    // KID-2509 record-after-success: a REF that failed verification must never
+    // be dropped silently. Refuse the post instead of publishing without the
+    // attachment the author selected.
+    console.error("KID-2509 refused an invalid newsfeed attachment REF");
+    redirect("/portal/newsfeed?error=attachment");
   }
 
   // KID-53 #1 / KID-104 #6: pre-defined recipient channels scoped by role.
