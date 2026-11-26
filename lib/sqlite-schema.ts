@@ -977,7 +977,7 @@ export function sqliteSchema(db: any): void {
   if (!roomCols.some((c) => c.name === "colour")) {
     db.exec("ALTER TABLE room ADD COLUMN colour TEXT NOT NULL DEFAULT '#3B82F6'");
   }
-  // KID-2481: mirror of supabase/migrations/0055_kid2481_room_photo.sql.
+  // KID-2481: mirror of supabase/migrations/0061_kid2481_room_photo.sql.
   if (!roomCols.some((c) => c.name === "photo_url")) {
     db.exec("ALTER TABLE room ADD COLUMN photo_url TEXT");
   }
