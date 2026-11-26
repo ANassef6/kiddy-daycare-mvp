@@ -3,8 +3,11 @@
 ## What changed
 
 - The survey composer (`/portal/surveys`) now includes the shared
-  `RecipientsPicker`: search, the admin-only "Everyone (whole center)" channel,
+  `RecipientsPicker`: search, one admin-only "Everyone (whole center)" channel
+  (unchecking a classroom narrows it; no duplicate "All classrooms" option),
   classroom checkboxes, and individual child picking with search.
+- The picker's unified rules from KID-2482 ship here too, because KID-2485
+  depends on them for the surveys UI.
 - The Smart Form builder (`/portal/forms`) gets the same picker because it can
   also create `kind = survey` rows. The picker is only required for surveys.
 - `createFormAction` resolves the audience with the same helper activities and
@@ -45,14 +48,14 @@ idempotent `ALTER TABLE` backfill for existing local databases.
 |---|---|
 | `npx tsc --noEmit` | clean |
 | `npx next lint` (changed files) | no warnings/errors |
-| `npx vitest run tests/unit/kid2485-survey-recipients.test.tsx` | 11/11 pass |
+| `npx vitest run tests/unit/kid2485-survey-recipients.test.tsx` | 13/13 pass |
 | Existing KID-368 AR page coverage, KID-2413 validation, KID-472 audit, i18n page coverage | 38/38 pass |
 | `npm run db:verify-migrations` | all migration checks passed (PGlite) |
 
 The new suite pins: no-recipient refusal, center resolution/storage, staff
 forged-center refusal, classroom scoping, out-of-scope child drop, child
-audience storage, audience labels, legacy center-wide visibility, and targeted
-visibility for a family outside the audience.
+audience storage, audience labels, legacy center-wide visibility, targeted
+visibility for a family outside the audience, and the unified picker options.
 
 ## Rollout
 
