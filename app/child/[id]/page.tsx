@@ -13,6 +13,7 @@ import {
   listChildBilling,
   latestBusEvent,
   busPhaseForCount,
+  busBadgeIsStale,
   centerToday,
   familyAccessForAccount,
   parentCheckInOutAllowed,
@@ -91,7 +92,7 @@ export default async function ChildDetailPage(
 
   if (access === "pickup") {
     const status = await todayStatus(child.id);
-    const checkedIn = !!status.checkedIn && !status.checkedOut;
+    const checkedIn = status.isCheckedIn;
     const branding = await getBranding();
     return (
       <div>
@@ -146,14 +147,21 @@ export default async function ChildDetailPage(
   const today = todayIso();
   const reportDate = configuredReportDate(searchParams?.date, today);
   const status = await todayStatus(child.id);
-  const checkedIn = !!status.checkedIn && !status.checkedOut;
+  const checkedIn = status.isCheckedIn;
   // KID-494/KID-2448: the parent sees the current bus cycle state derived from
   // the bus ledger — the same write path the staff roster and the sweep use.
   // The day is the center-local one, matching setBusStatus.
   const busDay = requestIid ? await centerToday(String(requestIid)) : today;
   const bus = await latestBusEvent(String(child.id), busDay);
-  const busPhase = bus ? busPhaseForCount(Number(bus.day_count ?? 0)) : null;
-  const onBus = bus ? String(bus.type) === "on" : false;
+  // KID-2504: attendance is authoritative for the CURRENT state. A manual
+  // check-out (or re-check-in) written after the latest bus event supersedes
+  // the ledger, so the stale phase is not shown. The ledger is not mutated.
+  const busStale = bus
+    ? busBadgeIsStale(bus.recorded_at, status.lastEvent?.recorded_at)
+    : false;
+  const showBus = !!bus && !busStale;
+  const busPhase = showBus ? busPhaseForCount(Number(bus!.day_count ?? 0)) : null;
+  const onBus = showBus ? String(bus!.type) === "on" : false;
   const [report, contacts, feed, incidents, statuses, invoices, media] = await Promise.all([
     reportFor(child.id, reportDate),
     listContacts(child.id),
@@ -209,7 +217,7 @@ export default async function ChildDetailPage(
           {/* KID-494/KID-2448: the parent-facing bus badge with the two
               morning and two afternoon wordings, so "on bus" is never
               ambiguous about which way the child is travelling. */}
-          {bus && (
+          {showBus && (
             <span className={`badge ${onBus ? "badge-green" : "badge-gray"}`}>
               {busPhase === "morning_on"
                 ? t("attendees.busOnMorning")

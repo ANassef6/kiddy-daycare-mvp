@@ -38,7 +38,7 @@ export default async function MyChildrenPage() {
       <h1 className="title">{t("child.myChildren")}</h1>
       <div className="grid">
         {withStatus.map(({ child, status }: any) => {
-          const seen = status.lastEvent?.type === "in";
+          const seen = status.isCheckedIn;
           return (
             <ChildCard key={child.id} href={`/child/${child.id}`}>
               <div className="status-card">
@@ -48,9 +48,9 @@ export default async function MyChildrenPage() {
                   </div>
                   <div className="muted small">{child.room_name ?? t("child.noRoom")}</div>
                 </div>
-                {status.checkedIn && !status.checkedOut ? (
+                {status.isCheckedIn ? (
                   <span className="badge badge-green">{t("attendees.checkedIn")}</span>
-                ) : status.checkedOut ? (
+                ) : status.lastEvent?.type === "out" ? (
                   <span className="badge badge-gray">{t("attendees.checkedOut")}</span>
                 ) : (
                   <span className="badge">{t("attendees.notCheckedInYet")}</span>
