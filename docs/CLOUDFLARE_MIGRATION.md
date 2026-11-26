@@ -297,3 +297,83 @@ Re-cutover sequence (each step gated on the prior one being green):
    `[cron] attendance sweep ok`.
 6. Vercel stays warm for 24-48 h. Delete the routes (not the Vercel project)
    if any check regresses. Decommission Vercel only after the window closes.
+
+## Vercel rollback target, frozen 2026-11-25 (KID-2491)
+
+Vercel Git auto-deploys are disabled for `ANassef6/kiddy-daycare-mvp`.
+`vercel.json` sets `git.deploymentEnabled: false`, so neither the `kiddy`
+project (production branch `master`) nor the `kiddy-staging` project
+(production branch `staging`) builds on a push. Manual CLI/API deploys and
+Deploy Hooks still work; do not run one while Vercel is the rollback target.
+
+The Vercel projects, their environment variables, custom domains and the last
+production deployments are intentionally kept. Deleting a Cloudflare Worker
+route (below) sends that host back to Vercel without any DNS change.
+
+### Frozen deployments
+
+| Project | Deployment | Commit | Ready (UTC) | URL |
+| --- | --- | --- | --- | --- |
+| `kiddy` (production) | `dpl_BqkXMb7H974tKs2kgwbr4wNueM9C` | `166c05cb56a56e060fe13aad5c749f8d8ed99efc` (merge PR #135, KID-2483) | 2026-11-25T18:40Z | https://kiddy-3ysssiwoe-kiddy2.vercel.app |
+| `kiddy-staging` | `dpl_CEYK4w5TT9uPh4oPnQiwNeZFk1Q9` | `63c20abd5dc6c4b6e0cb29281bb9b14e08d2fc72` | 2026-11-25T18:22Z | https://kiddy-staging-orcin.vercel.app |
+
+The `kiddy` deployment owns the Vercel aliases that the Cloudflare routes sit
+in front of: `kiddyapp.net`, `*.kiddyapp.net` (covers `www` and tenant hosts),
+`sunshine.kiddyapp.net`, `maple-grove.kiddyapp.net`,
+`maple-grove-daycare.kiddyapp.net`, `maple-grove-daycare-2.kiddyapp.net`,
+`kiddy-one.vercel.app` and `kiddy-git-master-kiddy2.vercel.app`.
+
+The frozen production deployment is commit `166c05cb` (2026-11-25T18:38Z). It
+already contains every change merged through the Cloudflare cutover and the
+production cuts on 2026-11-23..2026-11-25. A rollback therefore reverts all
+work merged after `166c05cb`; it does not revert work merged between
+2026-11-23 and 2026-11-25, because that work is inside the frozen build.
+
+Caveats:
+
+- The frozen build uses the live production Supabase database. Database
+  migrations applied after `166c05cb` are not reverted by a Vercel rollback.
+  Check the migration ledger before relying on this build for a long period.
+- Vercel Hobby keeps the currently aliased production deployment. It is
+  protected only while it remains the production alias. Do not promote a
+  newer Vercel build; if the alias moves, the old build can expire after
+  30 days.
+
+### Rollback procedure (Cloudflare to Vercel)
+
+Zone: `kiddyapp.net` (`7f383436baf0d1b2be82c96c1ec01c7a`). Worker: `kiddy-web`.
+DNS records are not changed and the Worker is not deleted.
+
+1. Choose the blast radius. For a canary, delete one host first (for example
+   `www.kiddyapp.net/*`). For a full rollback, delete all four routes.
+2. Delete the route(s) in Cloudflare Dashboard > Workers & Pages > `kiddy-web`
+   > Settings > Routes, or with the API:
+
+   ```
+   DELETE /client/v4/zones/7f383436baf0d1b2be82c96c1ec01c7a/workers/routes/<route-id>
+   ```
+
+   Route IDs as of 2026-11-26:
+
+   | Pattern | Route ID |
+   | --- | --- |
+   | `kiddyapp.net/*` | `e6b6484dbe9643558ef0f0798c7ac796` |
+   | `www.kiddyapp.net/*` | `e2719e1ad5e847c1b9622417b7102a31` |
+   | `sunshine.kiddyapp.net/*` | `290823ce0c5d45b1b9b8b8e8370fb1a6` |
+   | `maple-grove.kiddyapp.net/*` | `9ab917b720c5425a8cc2f551c9063f66` |
+
+3. Verify the host is back on Vercel: the response has `x-vercel-id` and no
+   `x-opennext: 1`; `/` and `/login` return 200.
+4. To return to Cloudflare later, re-create the same route pattern with
+   `script: kiddy-web` in the dashboard or the Workers routes API. No DNS or
+   Vercel change is needed.
+
+### Freeze verification (2026-11-26)
+
+- `https://kiddy-3ysssiwoe-kiddy2.vercel.app/` returns 200 on the frozen build.
+- `https://kiddyapp.net/`, `https://www.kiddyapp.net/`,
+  `https://sunshine.kiddyapp.net/` and `https://maple-grove.kiddyapp.net/`
+  still return `x-opennext: 1` from Cloudflare.
+- Pushes to `master`/`staging` that contain the `vercel.json` change create no
+  Vercel deployment (checked in the Vercel deployment list and GitHub commit
+  statuses).
