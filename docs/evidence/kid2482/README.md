@@ -120,3 +120,10 @@ disabled (KID-2491). Do not use the Vercel host for review.
 - KID-733 + KID-221 + i18n-page-coverage: 41/41.
 - `npx next lint` has no errors (pre-existing `<img>` warnings only).
 - Live screenshots captured with a real browser through the Skyvern REST API.
+
+## Production cut
+
+The founder accepted the staging sign-off on 2026-11-26. The cut, carrying the
+KID-2485 picker dependency, is recorded in [`prod-cut.md`](prod-cut.md):
+Worker `kiddy-web` version `eb62997f`, merge `6ddf047`, rollback to the KID-2478
+build. The served chunks match the cut and the anonymous smoke checks pass.
