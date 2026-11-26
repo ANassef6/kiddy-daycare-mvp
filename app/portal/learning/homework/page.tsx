@@ -1,48 +1,58 @@
 import { requireSession } from "@/lib/require";
-import { listHomework, listChildren } from "@/lib/store";
+import { listHomework } from "@/lib/store";
 import { firstInstituteId } from "@/lib/helpers";
 import { assignHomeworkAction } from "@/lib/actions";
 import { i18nForAccount } from "@/lib/i18n-session";
 import { fmtDateFor, tr } from "@/lib/i18n";
 import { recordToolUsage } from "@/lib/tool-usage";
-import SearchableSelect from "@/components/SearchableSelect";
+import RecipientsPicker from "@/components/RecipientsPicker";
+import { recipientPickerData } from "@/lib/recipients";
 
 export const dynamic = "force-dynamic";
 
 // KID-221: the Homework page (Learning group) was entirely English inside the
 // translated shell — heading, assign form, placeholders and the per-item
 // "for {child} · due {date}" lines. Localized with localized dates.
-export default async function PortalHomeworkPage() {
+export default async function PortalHomeworkPage(props?: { searchParams?: Promise<{ error?: string }> }) {
   const session = await requireSession();
   const { locale, dict } = await i18nForAccount(session.accountId);
   const t = (key: string, vars?: Record<string, string | number>) => tr(dict, key, vars);
+  const params = (await props?.searchParams) ?? {};
   const instituteId = await firstInstituteId();
   if (!instituteId) return <p className="muted">{t("homework.noInstitute")}</p>;
   await recordToolUsage({ instituteId: String(instituteId ?? "") || null, accountId: session.accountId, toolKey: "learning", source: "portal", metadata: { view: "homework" } });
-  // KID-103: homework list and child picker are scoped to assigned classrooms.
-  const [items, children] = await Promise.all([
+  // KID-103: homework list and recipients are scoped to assigned classrooms.
+  // KID-2482: the composer uses the same classroom-aware picker as the
+  // newsfeed and activities surfaces, so a teacher assigns to a room without
+  // picking children one by one.
+  const [items, picker] = await Promise.all([
     listHomework(instituteId, session.accountId),
-    listChildren(instituteId, { accountId: session.accountId }),
+    recipientPickerData(instituteId, session.accountId, session.role),
   ]);
-  const canAssignCenterWide = session.role === "owner" || session.role === "admin";
 
   return (
     <div>
       <h1 className="title">{t("homework.title")}</h1>
       <p className="subtitle">{t("homework.subtitle")}</p>
 
+      {params.error === "scope" && (
+        <div role="alert" className="card mb-4" style={{ borderInlineStart: "4px solid #b91c1c" }}>
+          <p className="small" style={{ margin: 0 }}>{t("homework.errorScope")}</p>
+        </div>
+      )}
+
       <div className="card mb-4">
         <h3 className="subtitle">{t("homework.assignTitle")}</h3>
         <form action={assignHomeworkAction}>
           <div className="row">
             <div className="col field">
-              <label className="label">{t("homework.child")}</label>
-              <SearchableSelect
-                name="childId"
-                options={children.map((c: any) => ({ id: String(c.id), label: `${c.first_name} ${c.last_name}` }))}
-                allLabel={canAssignCenterWide ? t("homework.allChildren") : undefined}
-                placeholder={t("childrenAdd.searchChildrenPlaceholder")}
-                noResultsMessage={t("parent.pickerNoChildrenFound")}
+              <label className="label">{t("activities.recipients")}</label>
+              <RecipientsPicker
+                dict={dict}
+                childOptions={picker.children}
+                rooms={picker.rooms}
+                role={session.role}
+                assignedRoomIds={picker.assignedRoomIds}
               />
             </div>
             <div className="col field"><label className="label">{t("homework.dueDate")}</label><input className="input" type="date" name="dueDate" /></div>

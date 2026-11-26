@@ -88,12 +88,15 @@ async function renderEvents(params: Record<string, string> = {}): Promise<string
 }
 
 describe("KID-2480: staff events page", () => {
-  it("offers the optional class dropdown on the create form", async () => {
+  it("offers the recipients picker instead of the old single-class select", async () => {
+    // KID-2482 review follow-up: the standalone Events composer now uses the
+    // same classroom-aware picker as newsfeed/activities. The picker is closed
+    // until clicked (same as the other composers); the open checklist itself is
+    // pinned in kid2482-recipients-picker.test.tsx.
     const html = await renderEvents();
-    expect(html).toContain("Class (optional)");
-    expect(html).toContain("Whole center");
-    expect(html).toContain('name="classroomId"');
-    expect(html).toContain(`value="${toddlerRoom}"`);
+    expect(html).toContain("Recipients");
+    expect(html).toContain("Choose recipients…");
+    expect(html).not.toContain("Class (optional)");
   });
 
   it("shows the classroom name badge on a targeted event", async () => {
@@ -144,9 +147,10 @@ describe("KID-2480: staff events page", () => {
     });
 
     const html = await renderEvents();
+    expect(html).not.toContain("Everyone (whole center)");
     expect(html).not.toContain("Whole center");
-    expect(html).toContain(`value="${toddlerRoom}"`);
-    expect(html).not.toContain(`value="${preschoolRoom}"`);
+    expect(html).toContain("Recipients");
+    expect(html).toContain("Choose recipients…");
 
     // Audience: center-wide + their own room; another class is not rendered.
     expect(html).toContain("Centre fair");

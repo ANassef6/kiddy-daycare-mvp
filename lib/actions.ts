@@ -3181,44 +3181,102 @@ export async function createEventAction(formData: FormData) {
   const instituteId = await requireInstitute();
   if (instituteId) {
     // KID-2480 (founder rule): owners/admins may post center-wide or to any
-    // class; teachers/caregivers may post only to one of their own classrooms.
+    // class; teachers/caregivers may post only to their own classrooms.
     if (!canTargetWholeCenter(me.role) && me.role !== "staff" && me.role !== "carer") {
       redirect("/portal/events");
     }
-    const classroomId = String(formData.get("classroomId") ?? "").trim() || null;
-    const allowedRoomIds = canTargetWholeCenter(me.role)
+    const isAdmin = canTargetWholeCenter(me.role);
+    const allowedRoomIds = isAdmin
       ? null
       : (await scopedRoomIds(instituteId, me.accountId)) ?? [];
-    // Empty = whole center. The room must be this tenant's, and a teacher may
-    // not target a class outside their staff_room assignments.
-    if (classroomId) await assertInstituteOwned(me, "room", classroomId, "institute_id");
-    if (!canTargetClassroom(me.role, allowedRoomIds, classroomId)) {
-      redirect("/portal/events?error=eventClass");
+    const legacyClassroomId = String(formData.get("classroomId") ?? "").trim() || null;
+    const hasAudienceFields =
+      formData.get("recipientChannel") !== null ||
+      formData.getAll("recipientRoomIds").length > 0 ||
+      formData.getAll("childIds").length > 0;
+
+    // KID-2482: the composer uses the classroom-aware recipients picker on the
+    // standalone Events page and on Activities. Resolve the same audience the
+    // newsfeed uses, then write one event per targeted classroom (or a single
+    // centre-wide event). A teacher can never reach the centre channel.
+    const audience = hasAudienceFields
+      ? await resolveRecipientAudience(formData, me, instituteId)
+      : null;
+    // null = whole center; a room id = that classroom.
+    const eventTargets: (string | null)[] = [];
+    let tagChildIds: string[] = [];
+
+    if (audience) {
+      tagChildIds = audience.childIds;
+      if (audience.channel === "center") {
+        eventTargets.push(null);
+      } else if (audience.channel === "rooms") {
+        if (audience.roomIds.length === 0) redirect("/portal/events?error=eventClass");
+        eventTargets.push(...audience.roomIds);
+      } else if (audience.channel === "children") {
+        // Keep the event itself classroom-scoped: derive the picked children's
+        // rooms so a targeted child never turns into a centre-wide event.
+        const { listChildren } = await import("@/lib/store");
+        const wanted = new Set(audience.childIds);
+        const rooms = new Set<string>();
+        for (const child of await listChildren(instituteId)) {
+          if (wanted.has(String(child.id)) && child.room_id) rooms.add(String(child.room_id));
+        }
+        if (rooms.size === 0) {
+          if (!isAdmin) redirect("/portal/events?error=eventClass");
+          eventTargets.push(null);
+        } else {
+          eventTargets.push(...Array.from(rooms));
+        }
+      } else {
+        // Nothing picked. Admins keep the old centre-wide default; staff must
+        // pick one of their classrooms.
+        if (!isAdmin) redirect("/portal/events?error=eventClass");
+        eventTargets.push(null);
+      }
+    } else if (legacyClassroomId) {
+      // Back-compat with the old single-class form/API.
+      await assertInstituteOwned(me, "room", legacyClassroomId, "institute_id");
+      if (!canTargetClassroom(me.role, allowedRoomIds, legacyClassroomId)) {
+        redirect("/portal/events?error=eventClass");
+      }
+      eventTargets.push(legacyClassroomId);
+      const { childrenByRooms } = await import("@/lib/store");
+      tagChildIds = (await childrenByRooms([legacyClassroomId])).map((c) => String(c.id));
+    } else {
+      if (!isAdmin) redirect("/portal/events?error=eventClass");
+      eventTargets.push(null);
+      const { listChildren } = await import("@/lib/store");
+      tagChildIds = (await listChildren(instituteId)).map((c) => String(c.id));
     }
-    const event = await createEvent({
-      instituteId,
-      title: String(formData.get("title") ?? ""),
-      eventDate: String(formData.get("eventDate") ?? ""),
-      startTime: String(formData.get("startTime") ?? "") || undefined,
-      endTime: String(formData.get("endTime") ?? "") || undefined,
-      location: String(formData.get("location") ?? "") || undefined,
-      description: String(formData.get("description") ?? "") || undefined,
-      classroomId,
-      accountId: me.accountId,
-    });
-    // KID-477: events are user-visible records — attributed on the trail.
-    await recordAuditEvent({
-      instituteId,
-      actorAccountId: me.accountId,
-      action: "create",
-      entityType: "event",
-      entityId: String(event.id),
-      summary: `Created the activity “${String(formData.get("title") ?? "")}”`,
-    });
+
+    for (const classroomId of eventTargets) {
+      if (classroomId) await assertInstituteOwned(me, "room", classroomId, "institute_id");
+      const event = await createEvent({
+        instituteId,
+        title: String(formData.get("title") ?? ""),
+        eventDate: String(formData.get("eventDate") ?? ""),
+        startTime: String(formData.get("startTime") ?? "") || undefined,
+        endTime: String(formData.get("endTime") ?? "") || undefined,
+        location: String(formData.get("location") ?? "") || undefined,
+        description: String(formData.get("description") ?? "") || undefined,
+        classroomId,
+        accountId: me.accountId,
+      });
+      // KID-477: events are user-visible records — attributed on the trail.
+      await recordAuditEvent({
+        instituteId,
+        actorAccountId: me.accountId,
+        action: "create",
+        entityType: "event",
+        entityId: String(event.id),
+        summary: `Created the activity “${String(formData.get("title") ?? "")}”`,
+        metadata: { classroomId: classroomId ?? null },
+      });
+    }
 
     // KID-104 #11: activities respect the selected recipients by posting the
     // new activity to the newsfeed tagged to the chosen children/rooms.
-    const tagChildIds = await resolveNewsfeedRecipients(formData, me, instituteId);
     if (tagChildIds.length > 0) {
       const title = String(formData.get("title") ?? "").trim();
       const eventDate = String(formData.get("eventDate") ?? "").trim();
@@ -3525,6 +3583,25 @@ export async function addDriveFileAction(formData: FormData) {
   const childId = String(formData.get("childId") ?? "") || undefined;
   if (instituteId) {
     if (childId) await assertChildInScope(childId, me);
+    // KID-2482: the share control is the classroom-aware recipients picker.
+    // Resolve the same audience the newsfeed composers use. "Everyone" (or no
+    // pick) keeps the original center-wide share; a targeted pick writes one
+    // row per child so a whole classroom is shared without picking each child.
+    let shareCenterWide = !childId;
+    let shareChildIds: string[] = childId ? [childId] : [];
+    const hasAudienceFields =
+      formData.get("recipientChannel") !== null || formData.getAll("childIds").length > 0;
+    if (hasAudienceFields) {
+      const audience = await resolveRecipientAudience(formData, me, instituteId);
+      if (audience.channel === "center" || audience.channel === "") {
+        shareCenterWide = true;
+        shareChildIds = [];
+      } else {
+        shareChildIds = Array.from(new Set(audience.childIds));
+        shareCenterWide = false;
+        if (shareChildIds.length === 0) redirect("/portal/drive?error=scope");
+      }
+    }
     // #4: upload from local drive only — no file-URL input, no size field.
     const uploaded = formData.get("file");
     let filename = String(formData.get("filename") ?? "").trim();
@@ -3582,16 +3659,31 @@ export async function addDriveFileAction(formData: FormData) {
       sizeBytes = Number(formData.get("sizeBytes")) || undefined;
     }
     if (filename && url) {
-      await addDriveFile({
-        instituteId,
-        filename,
-        url,
-        kind,
-        sizeBytes,
-        description: String(formData.get("description") ?? ""),
-        childId,
-        accountId: me.accountId,
-      });
+      const description = String(formData.get("description") ?? "");
+      if (shareCenterWide) {
+        await addDriveFile({
+          instituteId,
+          filename,
+          url,
+          kind,
+          sizeBytes,
+          description,
+          accountId: me.accountId,
+        });
+      } else {
+        for (const targetChildId of shareChildIds) {
+          await addDriveFile({
+            instituteId,
+            filename,
+            url,
+            kind,
+            sizeBytes,
+            description,
+            childId: targetChildId,
+            accountId: me.accountId,
+          });
+        }
+      }
     }
   }
   redirect("/portal/drive");
@@ -4878,36 +4970,74 @@ export async function assignHomeworkAction(formData: FormData) {
   const instituteId = await requireInstitute();
   const title = String(formData.get("title") ?? "").trim();
   if (instituteId && title) {
-    const childId = String(formData.get("childId") ?? "") || undefined;
-    const isAdmin = me.role === "owner" || me.role === "admin";
-    if (childId) {
-      await assertChildInScope(childId, me);
-    } else if (!isAdmin) {
-      redirect("/portal/learning/homework?error=scope");
+    const isAdmin = isAdminRole(me.role);
+    // KID-2482: the composer now uses the classroom-aware recipients picker.
+    // Resolve the same audience the newsfeed/activities composers use, then
+    // create one row per targeted child, or one center-wide row.
+    const hasAudienceFields =
+      formData.get("recipientChannel") !== null || formData.getAll("childIds").length > 0;
+    let centerWide = false;
+    let targetChildIds: string[] = [];
+    if (hasAudienceFields) {
+      const audience = await resolveRecipientAudience(formData, me, instituteId);
+      if (audience.channel === "center") {
+        centerWide = true;
+      } else if (audience.channel === "rooms" || audience.channel === "children") {
+        targetChildIds = Array.from(new Set(audience.childIds));
+        if (targetChildIds.length === 0) redirect("/portal/learning/homework?error=scope");
+      } else if (isAdmin) {
+        // Nothing picked: keep the old "All children" default for admins.
+        centerWide = true;
+      } else {
+        redirect("/portal/learning/homework?error=scope");
+      }
+    } else {
+      // Back-compat with the old single-child form/API.
+      const childId = String(formData.get("childId") ?? "") || undefined;
+      if (childId) {
+        await assertChildInScope(childId, me);
+        targetChildIds = [childId];
+      } else if (isAdmin) {
+        centerWide = true;
+      } else {
+        redirect("/portal/learning/homework?error=scope");
+      }
     }
     const dueDate = String(formData.get("dueDate") ?? "") || undefined;
     const description = String(formData.get("description") ?? "");
-    await createHomework({
-      instituteId,
-      childId,
-      title,
-      description,
-      dueDate,
-      accountId: me.accountId,
-    });
+    if (centerWide) {
+      await createHomework({
+        instituteId,
+        title,
+        description,
+        dueDate,
+        accountId: me.accountId,
+      });
+      targetChildIds = (await listChildren(instituteId, { accountId: me.accountId })).map((c) =>
+        String(c.id)
+      );
+    } else {
+      for (const childId of targetChildIds) {
+        await createHomework({
+          instituteId,
+          childId,
+          title,
+          description,
+          dueDate,
+          accountId: me.accountId,
+        });
+      }
+    }
     // KID-47 fix: parents only see tag-filtered posts in the parent newsfeed,
-    // so every homework assignment posts there — tagged to its child, or to
-    // all children when assigned center-wide ("All children").
+    // so every homework assignment posts there — tagged to its child/children,
+    // or to all children when assigned center-wide ("Everyone").
     try {
-      const tagChildIds = childId
-        ? [childId]
-        : (await listChildren(instituteId, { accountId: me.accountId })).map((c) => String(c.id));
-      if (tagChildIds.length > 0) {
+      if (targetChildIds.length > 0) {
         await createNewsfeedPost({
           instituteId,
           accountId: me.accountId,
           body: `Homework: ${title}${dueDate ? ` (due ${dueDate.slice(0, 10)})` : ""}${description ? ` — ${description}` : ""}`,
-          tagChildIds,
+          tagChildIds: targetChildIds,
         });
       }
     } catch {}
@@ -4947,10 +5077,23 @@ export async function createSupplyAction(formData: FormData) {
       });
     }
     // Notify parents of updates via newsfeed. KID-47 fix: the parent app
-    // filters the newsfeed strictly by child tags, so tag every enrolled
-    // child — otherwise center-wide supply requests stay invisible to parents.
+    // filters the newsfeed strictly by child tags. KID-2482: the composer now
+    // has a classroom-aware recipients picker, so the tags follow the picked
+    // audience; no pick keeps the old centre-wide broadcast.
     try {
-      const tagChildIds = (await listChildren(instituteId)).map((c) => String(c.id));
+      let tagChildIds: string[] = [];
+      const hasAudienceFields =
+        formData.get("recipientChannel") !== null || formData.getAll("childIds").length > 0;
+      if (hasAudienceFields) {
+        const audience = await resolveRecipientAudience(formData, me, instituteId);
+        if (audience.channel === "center" || audience.channel === "") {
+          tagChildIds = (await listChildren(instituteId)).map((c) => String(c.id));
+        } else {
+          tagChildIds = Array.from(new Set(audience.childIds));
+        }
+      } else {
+        tagChildIds = (await listChildren(instituteId)).map((c) => String(c.id));
+      }
       if (tagChildIds.length > 0) {
         await createNewsfeedPost({
           instituteId,
