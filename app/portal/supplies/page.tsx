@@ -16,7 +16,7 @@ export const dynamic = "force-dynamic";
 // select now carries translated options instead of the raw DB enum.
 export default async function PortalSuppliesPage() {
   const session = await requireSession();
-  const { dict, locale } = await i18nForAccount(session.accountId);
+  const { dict, locale, timeZone } = await i18nForAccount(session.accountId);
   const t = (key: string, vars?: Record<string, string | number>) => tr(dict, key, vars);
   const instituteId = await firstInstituteId();
   if (!instituteId) return <p className="muted">{t("supplies.noInstitute")}</p>;
@@ -66,7 +66,7 @@ export default async function PortalSuppliesPage() {
             </span>
           </div>
         {s.notes && <p className="small muted mt-1">{s.notes}</p>}
-        <Attribution locale={locale} createdBy={s.created_by_name ?? null} createdAt={s.created_at ?? null} />
+        <Attribution locale={locale} timeZone={timeZone} createdBy={s.created_by_name ?? null} createdAt={s.created_at ?? null} />
         <form action={updateSupplyStatusAction} className="row mt-2" style={{ gap: 6 }}>
             <input type="hidden" name="id" value={s.id} />
             <select className="select" name="status" defaultValue={s.status} style={{ maxWidth: 160 }}>

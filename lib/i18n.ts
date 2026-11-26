@@ -3,6 +3,7 @@
 // Arabic first ships as MSA well-suited to an Egyptian daycare context.
 
 import { PLATFORM_CONTACT_EMAIL } from "./site";
+import { DEFAULT_CENTER_TIMEZONE, formatZonedValue } from "./timezone";
 
 export const LOCALES = ["en", "ar"] as const;
 export type Locale = (typeof LOCALES)[number];
@@ -5287,61 +5288,36 @@ function intlLocale(locale: Locale): string {
   return locale === "ar" ? "ar-EG" : "en-GB";
 }
 
-function toDateOr(v: unknown): Date | null {
-  if (!v) return null;
-  try {
-    const d = new Date(String(v));
-    return Number.isNaN(d.getTime()) ? null : d;
-  } catch {
-    return null;
-  }
-}
-
-// "30 Oct 2026" / "٣٠ أكتوبر ٢٠٢٦" — ☀ for an unknown value returns "—".
-export function fmtDateFor(locale: Locale, v: unknown): string {
-  const d = toDateOr(v);
-  if (!d) return "—";
-  try {
-    return new Intl.DateTimeFormat(intlLocale(locale), {
-      day: "numeric",
-      month: "short",
-      year: "numeric",
-    }).format(d);
-  } catch {
-    return d.toDateString();
-  }
+// KID-2496: every formatter takes the CENTER's IANA zone explicitly. Without
+// it Intl uses the HOST zone, and the Workers/Vercel renderer runs in UTC — the
+// founder's 16:34 Cairo check-in showed as 14:34. The default keeps the
+// platform operating zone (Africa/Cairo) for call sites with no tenant, and
+// every portal/child page passes the tenant's `timeZone` from i18nForAccount.
+// "30 Oct 2026" / "٣٠ أكتوبر ٢٠٢٦" — for an unknown value returns "—".
+export function fmtDateFor(
+  locale: Locale,
+  v: unknown,
+  timeZone: string = DEFAULT_CENTER_TIMEZONE
+): string {
+  return formatZonedValue(intlLocale(locale), v, timeZone, "date");
 }
 
 // "8:05 PM" / "٨:٠٥ م"
-export function fmtTimeFor(locale: Locale, v: unknown): string {
-  const d = toDateOr(v);
-  if (!d) return "—";
-  try {
-    return new Intl.DateTimeFormat(intlLocale(locale), {
-      hour: "2-digit",
-      minute: "2-digit",
-    }).format(d);
-  } catch {
-    return d.toLocaleTimeString();
-  }
+export function fmtTimeFor(
+  locale: Locale,
+  v: unknown,
+  timeZone: string = DEFAULT_CENTER_TIMEZONE
+): string {
+  return formatZonedValue(intlLocale(locale), v, timeZone, "time");
 }
 
 // "30 Oct 2026, 8:05 PM" / "٣٠ أكتوبر ٢٠٢٦، ٨:٠٥ م"
-export function fmtDateTimeFor(locale: Locale, v: unknown, timeZone?: string): string {
-  const d = toDateOr(v);
-  if (!d) return "—";
-  try {
-    return new Intl.DateTimeFormat(intlLocale(locale), {
-      day: "numeric",
-      month: "short",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-      ...(timeZone ? { timeZone } : {}),
-    }).format(d);
-  } catch {
-    return d.toLocaleString();
-  }
+export function fmtDateTimeFor(
+  locale: Locale,
+  v: unknown,
+  timeZone: string = DEFAULT_CENTER_TIMEZONE
+): string {
+  return formatZonedValue(intlLocale(locale), v, timeZone, "datetime");
 }
 
 // KID-221: the in-app notification feed strings feedCopy, built per locale so
@@ -5422,11 +5398,11 @@ export type FeedCopy = {
   billingStatusLabel: (status: string) => string;
 };
 
-export function feedCopyFor(locale: Locale): FeedCopy {
+export function feedCopyFor(locale: Locale, timeZone: string = DEFAULT_CENTER_TIMEZONE): FeedCopy {
   const dict = getDictionary(locale);
   const t = (key: string, vars?: Record<string, string | number>) => tr(dict, key, vars);
   return {
-    dateTime: (v) => fmtDateTimeFor(locale, v),
+    dateTime: (v) => fmtDateTimeFor(locale, v, timeZone),
     dateTimeIn: (v, timeZone) => fmtDateTimeFor(locale, v, timeZone),
     newsMeta: (comments, likes) => t("feed.newsMeta", { comments, likes }),
     newsfeedFallback: () => t("feed.newsfeedFallback"),

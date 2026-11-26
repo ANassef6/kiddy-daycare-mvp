@@ -25,7 +25,7 @@ export default async function PortalConsentsPage({
 }) {
   const params = await searchParams;
   const session = await requireSession();
-  const { locale, dict } = await i18nForAccount(session.accountId);
+  const { locale, dict, timeZone } = await i18nForAccount(session.accountId);
   const t = (key: string, vars?: Record<string, string | number>) => tr(dict, key, vars);
   const iid = await resolveTenantInstituteId();
   await recordToolUsage({ instituteId: String(iid ?? "") || null, accountId: session.accountId, toolKey: "consents", source: "portal", metadata: null });
@@ -78,6 +78,7 @@ export default async function PortalConsentsPage({
       {batches.length === 0 ? (
         <p className="muted small">{t("consents.noConsents")}</p>
       ) : (
+<<<<<<< HEAD
         batches.map((b: any) => {
           const answered = Number(b.approved ?? 0) + Number(b.denied ?? 0);
           const pending = Number(b.pending ?? 0);
@@ -102,6 +103,22 @@ export default async function PortalConsentsPage({
             </Link>
           );
         })
+=======
+        consents.map((c: any) => (
+          <div className="list-item" key={c.id}>
+            <div>
+              <div style={{ fontWeight: 600 }}>{c.title}</div>
+              <div className="muted small">{fmtDateTimeFor(locale, c.created_at, timeZone)}</div>
+              <Attribution locale={locale} timeZone={timeZone} createdBy={c.created_by_name ?? null} createdAt={c.created_at ?? null} />
+            </div>
+            <span className={
+              c.status === "approved" ? "badge badge-green" : c.status === "denied" ? "badge badge-red" : "badge"
+            }>
+              {statusLabel(String(c.status))}
+            </span>
+          </div>
+        ))
+>>>>>>> c586a3c (KID-2496: render every timestamp on the center clock)
       )}
     </div>
   );

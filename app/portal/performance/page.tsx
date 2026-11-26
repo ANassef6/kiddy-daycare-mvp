@@ -29,7 +29,7 @@ export default async function PortalPerformancePage(
 ) {
   const searchParams = await props.searchParams;
   const session = await requireSession();
-  const { locale, dict } = await i18nForAccount(session.accountId);
+  const { locale, dict, timeZone } = await i18nForAccount(session.accountId);
   const t = (key: string, vars?: Record<string, string | number>) => tr(dict, key, vars);
   const instituteId = await firstInstituteId();
   if (!instituteId) return <p className="muted">{t("performance.noInstitute")}</p>;
@@ -97,7 +97,7 @@ export default async function PortalPerformancePage(
             <input className="input" type="date" name="to" defaultValue={to || new Date().toISOString().slice(0, 10)} />
           </div>
           <button className="btn btn-primary small" type="submit">{t("performance.apply")}</button>
-          <span className="small muted">{t("performance.lastUpdated", { when: fmtDateTimeFor(locale, new Date()) })}</span>
+          <span className="small muted">{t("performance.lastUpdated", { when: fmtDateTimeFor(locale, new Date(), timeZone) })}</span>
         </form>
       </div>
 

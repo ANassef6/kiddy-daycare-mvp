@@ -42,7 +42,7 @@ export default async function ChildBillingPage(
   const searchParams = await props.searchParams;
   const params = await props.params;
   const session = await requireSession();
-  const { dict, locale: billingLocale } = await i18nForAccount(session.accountId);
+  const { dict, locale: billingLocale, timeZone } = await i18nForAccount(session.accountId);
   const iid = await resolveTenantInstituteId();
   // KID-489 item 1 (KID-490): the center's default currency seeds the form's
   // currency select and the display fallbacks below.
@@ -199,16 +199,17 @@ export default async function ChildBillingPage(
                     <div>
                       <a href={proofHrefs.get(String(b.payment_proof_url))!} target="_blank" rel="noreferrer">{tr(dict, "childBilling.viewProof")}</a>
                       {b.payment_proof_uploaded_at ? (
-                        <div className="muted">{fmtDateFor(billingLocale, b.payment_proof_uploaded_at)}</div>
+                        <div className="muted">{fmtDateFor(billingLocale, b.payment_proof_uploaded_at, timeZone)}</div>
                       ) : null}
                       {b.payment_reference ? <div className="muted">{tr(dict, "childBilling.refLabel", { reference: String(b.payment_reference) })}</div> : null}
                     </div>
                   ) : "—"}
                 </td>
-                <td className="small">{fmtDateFor(billingLocale, b.created_at)}</td>
+                <td className="small">{fmtDateFor(billingLocale, b.created_at, timeZone)}</td>
                 <td>
                   <Attribution
                     locale={billingLocale}
+                    timeZone={timeZone}
                     createdBy={b.created_by_name ?? null}
                     createdAt={b.created_at ?? null}
                   />

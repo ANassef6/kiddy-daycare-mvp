@@ -19,6 +19,7 @@ import MessageAttachment from "@/components/MessageAttachment";
 import MessagesLoadError from "@/components/MessagesLoadError";
 import { i18nForAccount } from "@/lib/i18n-session";
 import { fmtTimeFor, getDictionary, tr, type Dict, type Locale } from "@/lib/i18n";
+import { DEFAULT_CENTER_TIMEZONE } from "@/lib/timezone";
 import { recordToolUsage } from "@/lib/tool-usage";
 import { storageSrcFor } from "@/lib/storage";
 import { mediaUploadLabels } from "@/lib/media-i18n";
@@ -77,7 +78,7 @@ async function softWrite(label: string, write: () => Promise<unknown>): Promise<
   }
 }
 
-const FALLBACK_I18N: { locale: Locale; dict: Dict } = { locale: "en", dict: getDictionary("en") };
+const FALLBACK_I18N: { locale: Locale; dict: Dict; timeZone: string } = { locale: "en", dict: getDictionary("en"), timeZone: DEFAULT_CENTER_TIMEZONE };
 
 export default async function ParentMessagesPage(
   props: {
@@ -93,6 +94,7 @@ export default async function ParentMessagesPage(
   const i18n = await readPart("i18nForAccount", () => i18nForAccount(session.accountId));
   const dict = i18n.ok ? i18n.value.dict : FALLBACK_I18N.dict;
   const locale = i18n.ok ? i18n.value.locale : FALLBACK_I18N.locale;
+  const timeZone = i18n.ok ? i18n.value.timeZone : FALLBACK_I18N.timeZone;
   if (!i18n.ok) failed.add("i18n");
   const t = (key: string, vars?: Record<string, string | number>) => tr(dict, key, vars);
 
@@ -425,7 +427,7 @@ export default async function ParentMessagesPage(
                         />
                       )}
                       <div className="small" style={{ opacity: 0.75, marginTop: 2 }}>
-                        {fmtTimeFor(locale, m.created_at)}
+                        {fmtTimeFor(locale, m.created_at, timeZone)}
                       </div>
                     </div>
                   </div>
@@ -505,7 +507,7 @@ export default async function ParentMessagesPage(
                         />
                       )}
                       <div className="small" style={{ opacity: 0.75, marginTop: 2 }}>
-                        {fmtTimeFor(locale, m.created_at)}
+                        {fmtTimeFor(locale, m.created_at, timeZone)}
                       </div>
                     </div>
                   </div>

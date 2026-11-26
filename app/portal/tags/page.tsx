@@ -27,7 +27,7 @@ export default async function PortalTagsPage(
 ) {
   const searchParams = await props.searchParams;
   const session = await requireSession();
-  const { dict, locale } = await i18nForAccount(session.accountId);
+  const { dict, locale, timeZone } = await i18nForAccount(session.accountId);
   const instituteId = await firstInstituteId();
   if (!instituteId) return <p className="muted">{tr(dict, "smartList.noInstitute")}</p>;
   // KID-103: smart lists respect classroom scoping.
@@ -108,7 +108,7 @@ export default async function PortalTagsPage(
             {tags.map((t: any) => (
               <tr key={t.id}>
                 <td><span className="badge" style={{ background: t.color, color: "#fff" }}>{t.name}</span> <span className="muted small">{tr(dict, "smartList.childrenCountSuffix", { count: t.child_count ?? 0 })}</span></td>
-                <td className="small">{t.created_at ? fmtDateFor(locale, t.created_at) : "—"}</td>
+                <td className="small">{t.created_at ? fmtDateFor(locale, t.created_at, timeZone) : "—"}</td>
                 <td><Link className="btn btn-ghost small" href={`/portal/tags?list=${encodeURIComponent(t.name)}`}>{tr(dict, "smartList.openBuilderBtn")}</Link></td>
               </tr>
             ))}
@@ -193,7 +193,7 @@ export default async function PortalTagsPage(
                       <Link href={`/portal/children/${c.id}`} style={{ fontWeight: 700, color: "inherit" }}>{c.first_name} {c.last_name}</Link>
                       <div className="muted small">{ (c.tags ?? []).length ? c.tags.map((t: any) => t.name).join(", ") : "" }</div>
                     </td>
-                    <td className="small">{c.dob ? fmtDateFor(locale, c.dob) : "—"}{c.dob ? ` · ${tr(dict, "smartList.ageYears", { years: Math.floor((Date.now() - new Date(c.dob).getTime()) / (365.25 * 24 * 3600 * 1000)) })}` : ""}</td>
+                    <td className="small">{c.dob ? fmtDateFor(locale, c.dob, timeZone) : "—"}{c.dob ? ` · ${tr(dict, "smartList.ageYears", { years: Math.floor((Date.now() - new Date(c.dob).getTime()) / (365.25 * 24 * 3600 * 1000)) })}` : ""}</td>
                     <td className="small">{String(c.gender ?? "").toLowerCase() === "male" ? tr(dict, "profile.male") : String(c.gender ?? "").toLowerCase() === "female" ? tr(dict, "profile.female") : c.gender ? String(c.gender) : "—"}</td>
                     <td className="small">{c.room_name ?? "—"}</td>
                     <td className="small">{c.allergies ?? "—"}</td>

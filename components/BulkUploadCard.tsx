@@ -91,6 +91,8 @@ export type BulkUploadCardProps = {
   instituteId: string;
   dict: Dict;
   locale: Locale;
+  /** KID-2496: the viewed daycare's clock for upload timestamps. */
+  timeZone?: string;
   reports: StoredBulkUploadReport[];
   report: StoredBulkUploadReport | null;
   errorCode?: string;
@@ -102,6 +104,7 @@ export default function BulkUploadCard({
   instituteId,
   dict,
   locale,
+  timeZone,
   reports,
   report,
   errorCode,
@@ -178,7 +181,7 @@ export default function BulkUploadCard({
                     ? tr(dict, "platform.bulkChildrenTemplate")
                     : tr(dict, "platform.bulkStaffTemplate")}
                   {" · "}
-                  {item.createdAt ? fmtDateTimeFor(locale, item.createdAt) : ""}
+                  {item.createdAt ? fmtDateTimeFor(locale, item.createdAt, timeZone) : ""}
                 </Link>
                 {" — "}
                 <span className="small muted">

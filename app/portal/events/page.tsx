@@ -33,7 +33,7 @@ const WEEKDAYS = ["sunday", "monday", "tuesday", "wednesday", "thursday", "frida
 
 export default async function PortalEventsPage({ searchParams }: { searchParams: Promise<{ open?: string; error?: string; edit?: string }> }) {
   const session = await requireSession();
-  const { locale, dict } = await i18nForAccount(session.accountId);
+  const { locale, dict, timeZone } = await i18nForAccount(session.accountId);
   const t = (key: string, vars?: Record<string, string | number>) => tr(dict, key, vars);
   const instituteId = await firstInstituteId();
   if (!instituteId) return <p className="muted">{t("events.noInstitute")}</p>;
@@ -168,7 +168,7 @@ export default async function PortalEventsPage({ searchParams }: { searchParams:
               </div>
             </div>
             <div style={{ fontWeight: 700, fontSize: 17, marginTop: 8 }}>{e.title}</div>
-            {e.start_time && <div className="muted small">{fmtTimeFor(locale, e.start_time)}{e.end_time ? ` – ${fmtTimeFor(locale, e.end_time)}` : ""}</div>}
+            {e.start_time && <div className="muted small">{fmtTimeFor(locale, e.start_time, timeZone)}{e.end_time ? ` – ${fmtTimeFor(locale, e.end_time, timeZone)}` : ""}</div>}
             {e.location && <div className="muted small">📍 {e.location}</div>}
             {e.description && <p className="small mt-2">{e.description}</p>}
             {/* KID-2466: the upload form was previously reachable only by

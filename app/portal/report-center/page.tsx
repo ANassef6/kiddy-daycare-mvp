@@ -20,7 +20,7 @@ export default async function PortalReportCenterPage(
 ) {
   const searchParams = await props.searchParams;
   const session = await requireSession();
-  const { locale, dict } = await i18nForAccount(session.accountId);
+  const { locale, dict, timeZone } = await i18nForAccount(session.accountId);
   const t = (key: string, vars?: Record<string, string | number>) => tr(dict, key, vars);
   const roleLabel = (role: string) => {
     const key = `roles.${role}`;
@@ -188,7 +188,7 @@ export default async function PortalReportCenterPage(
           <tbody>
             {filtered.map((r: any) => (
               <tr key={r.id}>
-                <td className="small">{fmtDateFor(locale, r.report_date)}</td>
+                <td className="small">{fmtDateFor(locale, r.report_date, timeZone)}</td>
                 <td><strong>{r.first_name} {r.last_name}</strong></td>
                 <td>{moodLabel(String(r.mood ?? ""))}</td>                <td className="small" style={{ maxWidth: 340 }}>{r.summary || "—"}</td>
                 <td>{r.sick ? <span className="badge badge-red">{t("reportCenter.sickBadge")}</span> : "—"}</td>

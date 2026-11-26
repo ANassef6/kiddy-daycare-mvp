@@ -191,3 +191,79 @@ export function localDayBoundsUtc(day: string, timeZone: string): { start: Date;
   );
   return { start, end };
 }
+
+// ---------------------------------------------------------------------------
+// KID-2496: center-clock DISPLAY formatting.
+//
+// Timestamps stay stored as UTC instants, exactly like the working-hours rules
+// above. Before this section every user-visible date/time went through
+// `Intl.DateTimeFormat` with no `timeZone`, which uses the HOST zone: the
+// Workers/Vercel renderer runs in UTC, so a 16:34 Cairo check-in rendered as
+// 14:34. These helpers are the single display counterpart of the business-rule
+// helpers, so server components format with the center's clock instead of the
+// server's.
+//
+// Date-only values ("YYYY-MM-DD": dob, report_date, due_date) are rendered in
+// UTC so their calendar date never shifts across the zone boundary.
+// ---------------------------------------------------------------------------
+
+export type ZonedFormatKind = "date" | "time" | "datetime";
+
+const DATE_ONLY_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+function parseForDisplay(value: unknown): { date: Date; dateOnly: boolean } | null {
+  if (value === null || value === undefined || value === "") return null;
+  const raw = value instanceof Date ? value.toISOString() : String(value);
+  if (DATE_ONLY_RE.test(raw)) {
+    const d = new Date(`${raw}T00:00:00.000Z`);
+    return Number.isNaN(d.getTime()) ? null : { date: d, dateOnly: true };
+  }
+  const d = value instanceof Date ? value : new Date(raw);
+  return Number.isNaN(d.getTime()) ? null : { date: d, dateOnly: false };
+}
+
+function displayOptions(dateOnly: boolean, kind: ZonedFormatKind, timeZone: string): Intl.DateTimeFormatOptions {
+  // A date-only value keeps its literal calendar day: formatting it in UTC
+  // means "the date that was stored", independent of the center's offset.
+  const zone = dateOnly ? "UTC" : timeZone;
+  if (kind === "time" && !dateOnly) return { hour: "2-digit", minute: "2-digit", timeZone: zone };
+  if (kind === "date") return { day: "numeric", month: "short", year: "numeric", timeZone: zone };
+  return { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit", timeZone: zone };
+}
+
+function fallbackDisplay(value: { date: Date; dateOnly: boolean }, kind: ZonedFormatKind, timeZone: string): string {
+  const zone = value.dateOnly ? "UTC" : normalizeTimeZone(timeZone);
+  const p = zonedParts(value.date, zone);
+  const day = `${p.year}-${pad2(p.month)}-${pad2(p.day)}`;
+  const clock = `${pad2(p.hour)}:${pad2(p.minute)}`;
+  if (kind === "date") return day;
+  if (kind === "time") return clock;
+  return `${day} ${clock}`;
+}
+
+/** Center-local wall clock as "YYYY-MM-DD HH:MM:SS" for CSV / data exports.
+ *  Same projection as the display helpers, without locale month names. */
+export function zonedWallClock(value: unknown, timeZone: string): string {
+  const parsed = parseForDisplay(value);
+  if (!parsed) return "";
+  const p = zonedParts(parsed.date, parsed.dateOnly ? "UTC" : normalizeTimeZone(timeZone));
+  return `${p.year}-${pad2(p.month)}-${pad2(p.day)} ${pad2(p.hour)}:${pad2(p.minute)}:${pad2(p.second)}`;
+}
+
+/** Formats a stored timestamp in `locale` on the CENTER's clock. */
+export function formatZonedValue(
+  locale: string,
+  value: unknown,
+  timeZone: string,
+  kind: ZonedFormatKind
+): string {
+  const parsed = parseForDisplay(value);
+  if (!parsed) return "—";
+  try {
+    return new Intl.DateTimeFormat(locale, displayOptions(parsed.dateOnly, kind, timeZone)).format(parsed.date);
+  } catch {
+    // Older runtime without this IANA zone in Intl: never fall back to the host
+    // zone, which is the UTC bug this module exists to remove.
+    return fallbackDisplay(parsed, kind, timeZone);
+  }
+}

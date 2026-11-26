@@ -2,6 +2,7 @@
 // record, with an "Updated by …" line when the record carries an edit trail.
 // Renders nothing when there is no creator to show (legacy rows).
 import { fmtDateTimeFor, getDictionary, tr, type Locale } from "@/lib/i18n";
+import { DEFAULT_CENTER_TIMEZONE } from "@/lib/timezone";
 
 export type AttributionRecord = {
   createdBy?: string | null;
@@ -16,6 +17,7 @@ export default function Attribution({
   createdAt,
   updatedBy,
   updatedAt,
+  timeZone = DEFAULT_CENTER_TIMEZONE,
 }: AttributionProps) {
   const hasCreated = !!createdBy && createdAt != null && createdAt !== "";
   const hasUpdated = !!updatedBy && updatedAt != null && updatedAt !== "";
@@ -25,16 +27,18 @@ export default function Attribution({
     <div className="small muted" style={{ marginTop: 4 }}>
       {hasCreated && (
         <div>
-          {tr(dict, "audit.createdBy", { name: String(createdBy), when: fmtDateTimeFor(locale, createdAt) })}
+          {tr(dict, "audit.createdBy", { name: String(createdBy), when: fmtDateTimeFor(locale, createdAt, timeZone) })}
         </div>
       )}
       {hasUpdated && (
         <div>
-          {tr(dict, "audit.updatedBy", { name: String(updatedBy), when: fmtDateTimeFor(locale, updatedAt) })}
+          {tr(dict, "audit.updatedBy", { name: String(updatedBy), when: fmtDateTimeFor(locale, updatedAt, timeZone) })}
         </div>
       )}
     </div>
   );
 }
 
-type AttributionProps = AttributionRecord & { locale: Locale };
+// KID-2496: the center clock for the timestamp line (defaults to the
+// platform zone for surfaces without a tenant, e.g. marketing previews).
+type AttributionProps = AttributionRecord & { locale: Locale; timeZone?: string };

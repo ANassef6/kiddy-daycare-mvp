@@ -53,7 +53,7 @@ export default async function ChildDetailPage(
   const searchParams = await props.searchParams;
   const params = await props.params;
   const session = await requireSession();
-  const { dict, locale } = await i18nForAccount(session.accountId);
+  const { dict, locale, timeZone } = await i18nForAccount(session.accountId);
   const t = (key: string, vars?: Record<string, string | number>) => tr(dict, key, vars);
   const child = await getChild(params.id);
   if (!child) notFound();
@@ -126,9 +126,9 @@ export default async function ChildDetailPage(
 
           {status.lastEvent && (
             <p className="muted small mt-2">
-              {status.checkedIn && t("attendees.checkedInAt", { time: time(status.checkedIn.recorded_at, locale) })}
+              {status.checkedIn && t("attendees.checkedInAt", { time: time(status.checkedIn.recorded_at, locale, timeZone) })}
               {status.checkedIn && status.checkedOut && " · "}
-              {status.checkedOut && t(status.checkedOut.source === "auto_end_of_day" ? "attendees.autoCheckedOutAt" : "attendees.checkedOutAt", { time: time(status.checkedOut.recorded_at, locale) })}
+              {status.checkedOut && t(status.checkedOut.source === "auto_end_of_day" ? "attendees.autoCheckedOutAt" : "attendees.checkedOutAt", { time: time(status.checkedOut.recorded_at, locale, timeZone) })}
             </p>
           )}
         </div>
@@ -266,9 +266,9 @@ export default async function ChildDetailPage(
 
         {status.lastEvent && (
           <p className="muted small mt-2">
-            {status.checkedIn && t("attendees.checkedInAt", { time: time(status.checkedIn.recorded_at, locale) })}
+            {status.checkedIn && t("attendees.checkedInAt", { time: time(status.checkedIn.recorded_at, locale, timeZone) })}
             {status.checkedIn && status.checkedOut && " · "}
-            {status.checkedOut && t(status.checkedOut.source === "auto_end_of_day" ? "attendees.autoCheckedOutAt" : "attendees.checkedOutAt", { time: time(status.checkedOut.recorded_at, locale) })}
+            {status.checkedOut && t(status.checkedOut.source === "auto_end_of_day" ? "attendees.autoCheckedOutAt" : "attendees.checkedOutAt", { time: time(status.checkedOut.recorded_at, locale, timeZone) })}
           </p>
         )}
       </div>
@@ -285,7 +285,7 @@ export default async function ChildDetailPage(
                 <strong>{statusValue(String(s.kind), String(s.value), t)}</strong>
                 {s.note ? <span className="muted"> — {s.note}</span> : null}
               </div>
-              <span className="muted">{time(s.recorded_at, locale)}</span>
+              <span className="muted">{time(s.recorded_at, locale, timeZone)}</span>
             </div>
           ))}
         </div>
@@ -294,7 +294,7 @@ export default async function ChildDetailPage(
       <h2 className="title mt-5">
         {reportDate === today
           ? t("child.todaysReport")
-          : t("child.reportForDate", { date: fmtDateFor(locale, reportDate) })}
+          : t("child.reportForDate", { date: fmtDateFor(locale, reportDate, timeZone) })}
       </h2>
       <DailyReportDateNav
         basePath={`/child/${child.id}`}
@@ -329,6 +329,7 @@ export default async function ChildDetailPage(
           {report.note && <p className="muted small mt-2"><strong>{t("common.notes")}:</strong> {report.note}</p>}
           <Attribution
             locale={locale}
+            timeZone={timeZone}
             createdBy={report.created_by_name ?? null}
             createdAt={report.created_at ?? null}
             updatedBy={report.updated_by_name ?? null}
@@ -368,7 +369,7 @@ export default async function ChildDetailPage(
               <div>
                 <strong>{b.period ?? b.description}</strong>
                 {b.due_date ? (
-                  <div className="muted">{t("child.invoiceDue", { date: fmtDateFor(locale, b.due_date) })}</div>
+                  <div className="muted">{t("child.invoiceDue", { date: fmtDateFor(locale, b.due_date, timeZone) })}</div>
                 ) : null}
               </div>
               <div style={{ textAlign: "right", display: "flex", alignItems: "center", gap: 10 }}>
@@ -436,7 +437,7 @@ export default async function ChildDetailPage(
         feed.map((post: any) => (
           <div className="card mb-4" key={post.id}>
             <div className="row" style={{ justifyContent: "space-between", alignItems: "center" }}>
-              <div className="small muted">{post.author_name} · {fmtDateTimeFor(locale, post.created_at)}</div>
+              <div className="small muted">{post.author_name} · {fmtDateTimeFor(locale, post.created_at, timeZone)}</div>
               <form action={toggleLikeAction}>
                 <input type="hidden" name="postId" value={post.id} />
                 <button
@@ -509,7 +510,7 @@ export default async function ChildDetailPage(
           <h2 className="title mt-5">{t("child.incidentReports")}</h2>
           {incidents.map((i: any) => (
             <div className="card mb-3" key={i.id}>
-              <div className="small muted">{capital(i.type)} · {fmtDateTimeFor(locale, i.created_at)}</div>
+              <div className="small muted">{capital(i.type)} · {fmtDateTimeFor(locale, i.created_at, timeZone)}</div>
               <p className="mt-2">{i.description}</p>
               <span className={i.acknowledged ? "badge badge-green" : "badge badge-red"}>
                 {i.acknowledged ? t("child.acknowledged") : t("child.needsAcknowledgement")}
@@ -530,9 +531,9 @@ function safeJson(v: unknown): Record<string, string> {
     return {};
   }
 }
-function time(iso?: unknown, locale: "en" | "ar" = "en"): string {
+function time(iso?: unknown, locale: "en" | "ar" = "en", timeZone: string = "Africa/Cairo"): string {
   if (!iso) return "—";
-  return fmtTimeFor(locale, iso) || "—";
+  return fmtTimeFor(locale, iso, timeZone) || "—";
 }
 function capitalize(s: string) {
   return s.charAt(0).toUpperCase() + s.slice(1);

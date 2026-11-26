@@ -12,16 +12,16 @@ export const dynamic = "force-dynamic";
 // strings and the shared fmtTime feeds them straight to `new Date(...)`,
 // which renders "Invalid Date" on the live tab. Parse the bare time first;
 // real ISO timestamps keep the locale time formatting.
-function prettyEventTime(v: unknown, locale: "en" | "ar" = "en"): string {
+function prettyEventTime(v: unknown, locale: "en" | "ar" = "en", timeZone: string = "Africa/Cairo"): string {
   if (!v) return "";
   const m = String(v).match(/^(\d{1,2}):(\d{2})/);
   if (m) return `${m[1].padStart(2, "0")}:${m[2]}`;
-  return fmtTimeFor(locale, v) || String(v);
+  return fmtTimeFor(locale, v, timeZone) || String(v);
 }
 
 export default async function ParentEventsPage() {
   const session = await requireFamilyPage("/child/events");
-  const { locale, dict } = await i18nForAccount(session.accountId);
+  const { locale, dict, timeZone } = await i18nForAccount(session.accountId);
   const t = (key: string, vars?: Record<string, string | number>) => tr(dict, key, vars);
   const instituteId = await firstInstituteId();
   if (!instituteId) return <p className="muted">{t("events.noInstitute")}</p>;
@@ -57,7 +57,7 @@ export default async function ParentEventsPage() {
               {e.classroom_name && <span className="badge" style={{ marginInlineStart: 6 }}>{e.classroom_name}</span>}
             </div>
             <div style={{ fontWeight: 700, fontSize: 17 }}>{e.title}</div>
-            {e.start_time && <div className="muted small">{prettyEventTime(e.start_time, locale)}{e.end_time ? ` – ${prettyEventTime(e.end_time, locale)}` : ""}</div>}
+            {e.start_time && <div className="muted small">{prettyEventTime(e.start_time, locale, timeZone)}{e.end_time ? ` – ${prettyEventTime(e.end_time, locale, timeZone)}` : ""}</div>}
             {e.location && <div className="muted small">📍 {e.location}</div>}
             {e.description && <p className="small mt-2">{e.description}</p>}
             {e.media.length > 0 && (

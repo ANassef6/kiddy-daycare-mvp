@@ -10,7 +10,7 @@ export const dynamic = "force-dynamic";
 export default async function MyChildrenPage() {
   const session = await requireSession();
   await recordToolUsage({ instituteId: null, accountId: session.accountId, toolKey: "dashboard", source: "child", metadata: null });
-  const { locale, dict } = await i18nForAccount(session.accountId);
+  const { locale, dict, timeZone } = await i18nForAccount(session.accountId);
   const t = (key: string, vars?: Record<string, string | number>) => tr(dict, key, vars);
   const families = await familiesForAccount(session.accountId);
 
@@ -59,8 +59,8 @@ export default async function MyChildrenPage() {
               {status.lastEvent && (
                 <div className="muted small mt-2">
                   {seen
-                    ? t("attendees.checkedInAt", { time: time(status.checkedIn?.recorded_at, locale) })
-                    : t("attendees.checkedOutAt", { time: time(status.checkedOut?.recorded_at, locale) })}
+                    ? t("attendees.checkedInAt", { time: time(status.checkedIn?.recorded_at, locale, timeZone) })
+                    : t("attendees.checkedOutAt", { time: time(status.checkedOut?.recorded_at, locale, timeZone) })}
                 </div>
               )}
             </ChildCard>
@@ -71,7 +71,7 @@ export default async function MyChildrenPage() {
   );
 }
 
-function time(iso: unknown, locale: "en" | "ar" = "en"): string {
+function time(iso: unknown, locale: "en" | "ar" = "en", timeZone: string = "Africa/Cairo"): string {
   if (!iso) return "—";
-  return fmtTimeFor(locale, iso) || "—";
+  return fmtTimeFor(locale, iso, timeZone) || "—";
 }

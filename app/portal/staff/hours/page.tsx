@@ -218,10 +218,10 @@ export default async function PortalStaffHoursPage(
 
       <p className="small muted">
         {filter.view === "day"
-          ? tr(dict, "staff.hoursShowingDay", { date: fmtDateFor(locale, filter.from) })
+          ? tr(dict, "staff.hoursShowingDay", { date: fmtDateFor(locale, filter.from, timeZone) })
           : tr(dict, "staff.hoursShowingRange", {
-              from: fmtDateFor(locale, filter.from),
-              to: fmtDateFor(locale, filter.to),
+              from: fmtDateFor(locale, filter.from, timeZone),
+              to: fmtDateFor(locale, filter.to, timeZone),
             })}
       </p>
 

@@ -68,7 +68,7 @@ export default async function PortalChildPage(
   const searchParams = await props.searchParams;
   const params = await props.params;
   const session = await requireSession();
-  const { locale, dict } = await i18nForAccount(session.accountId);
+  const { locale, dict, timeZone } = await i18nForAccount(session.accountId);
   const t = (key: string, vars?: Record<string, string | number>) => tr(dict, key, vars);
   // KID-2413 bug 7: the incident form refuses an empty description server-side.
   const incidentDescriptionError = searchParams.error === "incidentDescription";
@@ -155,13 +155,13 @@ export default async function PortalChildPage(
       label:
         reportDate === today
           ? t("profile.todaysDailyReport")
-          : t("profile.dailyReportForDate", { date: fmtDateFor(locale, reportDate) }),
-      node: dailyReportTab(child, report, today, todayStatuses, dict, reportDate, locale),
+          : t("profile.dailyReportForDate", { date: fmtDateFor(locale, reportDate, timeZone) }),
+      node: dailyReportTab(child, report, today, todayStatuses, dict, reportDate, locale, timeZone),
     },
     {
       id: "about",
       label: t("profile.about", { name: child.first_name }),
-      node: aboutTab(child, status, rooms, dict, locale),
+      node: aboutTab(child, status, rooms, dict, locale, timeZone),
     },
     {
       id: "family",
@@ -176,7 +176,7 @@ export default async function PortalChildPage(
     {
       id: "documents",
       label: t("profile.signedDocuments"),
-      node: documentsTab(consents, dict, locale),
+      node: documentsTab(consents, dict, locale, timeZone),
     },
     {
       id: "schedules",
@@ -191,12 +191,12 @@ export default async function PortalChildPage(
     {
       id: "learning",
       label: t("profile.learningHistory"),
-      node: learningTab(child, areas, observations, byName, dict, locale),
+      node: learningTab(child, areas, observations, byName, dict, locale, timeZone),
     },
     {
       id: "incident",
       label: t("profile.incidentsAndAccidents"),
-      node: incidentsTab(child, incidents, dict, locale, searchParams.error === "incident-description"),
+      node: incidentsTab(child, incidents, dict, locale, timeZone, searchParams.error === "incident-description"),
     },
   ];
 
@@ -351,7 +351,7 @@ export default async function PortalChildPage(
         <div style={{ flex: 1 }}>
           <h1 className="title mt-1" style={{ marginBottom: 0 }}>{child.first_name} {child.last_name}</h1>
           <p className="subtitle" style={{ marginBottom: 0 }}>
-            {t("profile.room", { room: child.room_name ?? "—" })} · {child.dob ? t("profile.dob", { date: fmtDateFor(locale, child.dob) }) : ""}{child.gender ? ` · ${cap(child.gender)}` : ""} · {t("profile.today")}{" "}
+            {t("profile.room", { room: child.room_name ?? "—" })} · {child.dob ? t("profile.dob", { date: fmtDateFor(locale, child.dob, timeZone) }) : ""}{child.gender ? ` · ${cap(child.gender)}` : ""} · {t("profile.today")}{" "}
             {status.lastEvent ? cap(status.lastEvent.type) : t("profile.notReportedYet")}
           </p>
         </div>
@@ -383,7 +383,7 @@ export default async function PortalChildPage(
   );
 }
 
-function dailyReportTab(child: any, report: any, today: string, todayStatuses: any[], dict: any, reportDate: string, locale: any) {
+function dailyReportTab(child: any, report: any, today: string, todayStatuses: any[], dict: any, reportDate: string, locale: any, timeZone: string) {
   const meal = safeJson(report?.meal);
   const t = (key: string, vars?: Record<string, string | number>) => tr(dict, key, vars);
   return (
@@ -406,16 +406,17 @@ function dailyReportTab(child: any, report: any, today: string, todayStatuses: a
         <h3 className="subtitle">
           {reportDate === today
             ? t("profile.todaysDailyReport")
-            : t("profile.dailyReportForDate", { date: fmtDateFor(locale, reportDate) })}
+            : t("profile.dailyReportForDate", { date: fmtDateFor(locale, reportDate, timeZone) })}
         </h3>
         {report?.saved_by_name && (
           <p className="small muted" style={{ marginTop: -4 }}>
             {t("profile.lastSavedBy")} <strong>{report.saved_by_name}</strong>
-            {report?.saved_at ? ` · ${fmtDateTimeFor(locale, report.saved_at)}` : ""}
+            {report?.saved_at ? ` · ${fmtDateTimeFor(locale, report.saved_at, timeZone)}` : ""}
           </p>
         )}
         <Attribution
           locale={locale}
+          timeZone={timeZone}
           createdBy={report?.created_by_name ?? null}
           createdAt={report?.created_at ?? null}
           updatedBy={report?.updated_by_name ?? null}
@@ -544,7 +545,7 @@ function dailyReportTab(child: any, report: any, today: string, todayStatuses: a
                   <strong>{displayValue(String(s.kind), String(s.value), t)}</strong>
                   {s.note ? <span className="muted"> — {s.note}</span> : null}
                 </div>
-                <span className="muted">{time(s.recorded_at, locale)}{s.recorded_by_name ? ` · ${s.recorded_by_name}` : ""}</span>
+                <span className="muted">{time(s.recorded_at, locale, timeZone)}{s.recorded_by_name ? ` · ${s.recorded_by_name}` : ""}</span>
               </div>
             ))}
           </div>
@@ -554,16 +555,16 @@ function dailyReportTab(child: any, report: any, today: string, todayStatuses: a
   );
 }
 
-function aboutTab(child: any, status: any, rooms: any[], dict: any, locale: Locale) {
+function aboutTab(child: any, status: any, rooms: any[], dict: any, locale: Locale, timeZone: string) {
   const t = (key: string, vars?: Record<string, string | number>) => tr(dict, key, vars);
   const rows: [string, string][] = [
     [t("profile.fullName"), `${child.first_name} ${child.last_name}`],
-    [t("profile.dateOfBirth"), child.dob ? fmtDateFor(locale, child.dob) : "—"],
+    [t("profile.dateOfBirth"), child.dob ? fmtDateFor(locale, child.dob, timeZone) : "—"],
     [t("profile.gender"), child.gender ? cap(child.gender) : "—"],
     [t("common.room"), child.room_name ?? "—"],
-    [t("profile.enrolled"), child.enrolled_at ? fmtDateFor(locale, child.enrolled_at) : "—"],
+    [t("profile.enrolled"), child.enrolled_at ? fmtDateFor(locale, child.enrolled_at, timeZone) : "—"],
     [t("profile.status"), child.status ? cap(String(child.status).replace("_", " ")) : t("profile.active")],
-    [t("profile.lastDate"), child.last_date ? fmtDateFor(locale, child.last_date) : "—"],
+    [t("profile.lastDate"), child.last_date ? fmtDateFor(locale, child.last_date, timeZone) : "—"],
     [t("profile.checkInToday"), status.lastEvent ? cap(status.lastEvent.type) : t("profile.notYet")],
   ];
   return (
@@ -705,7 +706,7 @@ async function mediaTab(media: any[], dict: any) {
   );
 }
 
-function documentsTab(consents: any[], dict: any, locale: Locale) {
+function documentsTab(consents: any[], dict: any, locale: Locale, timeZone: string) {
   const t = (key: string, vars?: Record<string, string | number>) => tr(dict, key, vars);
   return (
     <div className="card">
@@ -713,7 +714,7 @@ function documentsTab(consents: any[], dict: any, locale: Locale) {
       {consents.length === 0 ? <p className="muted small">{t("profile.noDocuments")}</p> : null}
       {consents.map((c: any) => (
         <div className="list-item small" key={c.id}>
-          <div><strong>{c.title}</strong><br /><span className="muted">{fmtDateFor(locale, c.created_at)} — {c.description ?? ""}</span></div>
+          <div><strong>{c.title}</strong><br /><span className="muted">{fmtDateFor(locale, c.created_at, timeZone)} — {c.description ?? ""}</span></div>
           <span className="badge badge-green">{c.consentee_name ? t("profile.signed", { name: c.consentee_name }) : cap(c.status ?? "open")}</span>
         </div>
       ))}
@@ -758,7 +759,7 @@ function invoicesTab(child: any, billing: any[], dict: any, centerCurrency: stri
   );
 }
 
-function learningTab(child: any, areas: any[], observations: any[], byName: string, dict: any, locale: Locale) {
+function learningTab(child: any, areas: any[], observations: any[], byName: string, dict: any, locale: Locale, timeZone: string) {
   const t = (key: string, vars?: Record<string, string | number>) => tr(dict, key, vars);
   return (
     <div className="grid">
@@ -773,7 +774,7 @@ function learningTab(child: any, areas: any[], observations: any[], byName: stri
             <div>
               <span className="badge">{cap(o.kind)}</span>{" "}
               <strong>{o.title ?? t("learning.observation")}</strong>
-              <span className="muted"> · {fmtDateFor(locale, o.recorded_at ?? o.created_at)}</span>
+              <span className="muted"> · {fmtDateFor(locale, o.recorded_at ?? o.created_at, timeZone)}</span>
               {o.milestone_name && <div className="mt-1"><span className="badge badge-green">{o.milestone_name}</span></div>}
               {o.body ? <div className="muted mt-1">{o.body}</div> : null}
             </div>
@@ -798,7 +799,7 @@ function learningTab(child: any, areas: any[], observations: any[], byName: stri
   );
 }
 
-function incidentsTab(child: any, incidents: any[], dict: any, locale: Locale, descriptionError = false) {
+function incidentsTab(child: any, incidents: any[], dict: any, locale: Locale, timeZone: string, descriptionError = false) {
   const t = (key: string, vars?: Record<string, string | number>) => tr(dict, key, vars);
   return (
     <div className="grid">
@@ -807,7 +808,7 @@ function incidentsTab(child: any, incidents: any[], dict: any, locale: Locale, d
         {incidents.length === 0 ? <p className="muted small">{t("profile.noneIncident")}</p> : null}
         {incidents.map((i: any) => (
           <div className="list-item small" key={i.id}>
-            <div><strong>{cap(i.type)}</strong> — {fmtDateFor(locale, i.created_at)}<br /><span className="muted">{i.description}</span></div>
+            <div><strong>{cap(i.type)}</strong> — {fmtDateFor(locale, i.created_at, timeZone)}<br /><span className="muted">{i.description}</span></div>
             <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 6 }}>
               <span className={i.acknowledged ? "badge badge-green" : "badge badge-red"}>{i.acknowledged ? t("profile.acked") : t("profile.open")}</span>
               {!i.acknowledged && (
@@ -869,9 +870,9 @@ function pendingInviteIdForContact(
   return invite ? String(invite.id) : null;
 }
 function capital(s: unknown) { const v = String(s ?? ""); return v.charAt(0).toUpperCase() + v.slice(1); }
-function time(v?: unknown, loc: "en" | "ar" = "en"): string {
+function time(v?: unknown, loc: "en" | "ar" = "en", timeZone: string = "Africa/Cairo"): string {
   if (!v) return "—";
-  return fmtTimeFor(loc, v) || "—";
+  return fmtTimeFor(loc, v, timeZone) || "—";
 }
 function displayValue(kind: string, value: string, t: any): string {
   if (kind === "sick" && value === "yes") return t("child.feelingSick");

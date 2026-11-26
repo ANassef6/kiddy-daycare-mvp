@@ -24,7 +24,7 @@ import {
 } from "@/lib/actions";
 import { getPlatformInstapayUrl, getPlatformSetting, PLATFORM_INSTAPAY_KEY } from "@/lib/platform-settings";
 import { i18nForAccount } from "@/lib/i18n-session";
-import { tr } from "@/lib/i18n";
+import { fmtDateFor, tr } from "@/lib/i18n";
 import { apexDomain, daycarePublicUrl, subdomainUrl } from "@/lib/subdomain";
 import MediaUploadForm from "@/components/MediaUploadForm";
 import { mediaUploadLabels } from "@/lib/media-i18n";
@@ -80,7 +80,7 @@ export default async function PlatformDaycaresPage(
   if (!isPlatformOperatorRole(session.role) || !isPlatformOperatorEmail(session.email)) {
     redirect("/login");
   }
-  const { dict, dir } = await i18nForAccount(session.accountId);
+  const { dict, dir, locale, timeZone } = await i18nForAccount(session.accountId);
   const institutes = await listInstitutesForPlatform();
   // KID-2435: the band reference and the plan/band pickers on the create form.
   const bands = await getPricingBands();
@@ -432,7 +432,7 @@ export default async function PlatformDaycaresPage(
                       <span style={{ width: 14, height: 14, borderRadius: 4, background: String(inst.accent_color ?? "#10B981"), display: "inline-block" }} />
                     </span>
                   </td>
-                  <td className="small" style={{ padding: 8 }}>{String(inst.created_at ?? "").slice(0, 10)}</td>
+                  <td className="small" style={{ padding: 8 }}>{fmtDateFor(locale, inst.created_at, timeZone)}</td>
                   <td style={{ padding: 8 }}>{Number(inst.owner_count ?? 0)}</td>
                   <td style={{ padding: 8 }}>{Number(inst.staff_count ?? 0)}</td>
                   <td style={{ padding: 8 }}>
