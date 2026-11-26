@@ -41,31 +41,28 @@ existing local databases.
 | PR #137 | classify a post photo from its stored REF (staging follow-up) |
 | PR #140 | `mediaRefName` helper + R2/legacy/data-URI classification pins |
 | PR #144 | photo + video media viewer, video media-section rendering, `media-src` CSP |
-| Final staging commit | `staging` head after PR #144 |
-| Public staging | https://kiddy-staging-orcin.vercel.app |
+| KID-2487 merge | `9bddb92` (PR #144) |
+| Public staging | https://staging.kiddyapp.net (Cloudflare Worker `kiddy-web-staging`) |
+| Deployed Worker version | `eca45c3c-847d-4b2e-a465-be62c4e9236e` (source `origin/staging` @ `94e4ee2`, 2026-11-26 17:09 UTC) |
 | Production cut | not performed; gated on founder sign-off |
 
 ## Staging deployment status
 
-The staging branch contains the final code, but Vercel refused both post-merge
-deployments:
+The earlier blocker is resolved. Vercel staging
+(`kiddy-staging-orcin.vercel.app`) is now frozen/legacy (KID-2491) and must not
+be used for review. Staging moved to the Cloudflare Worker
+`kiddy-web-staging` behind https://staging.kiddyapp.net (KID-2495).
 
-```
-Vercel – kiddy-staging  failure
-Deployment rate limited — retry in 24 hours.
-```
-
-The public staging alias is therefore still serving the earlier successful
-staging deployment `63c20ab` (likers + photo flow). Live EN/AR likers verification was captured on
-that deployment (the likers UI is unchanged by the later REF-classification
-fix). The final tag-viewer code was verified locally against the merged tree;
-the same tree passed the Cloudflare verify job (`tsc`, OpenNext build, wrangler
-dry-run) on PR #140.
+The Worker version `eca45c3c` was deployed from `origin/staging` @ `94e4ee2`,
+which contains the KID-2487 application code (merged at `9bddb92`). The current
+`staging` head (`c04f8c7`) differs only by evidence documents (PRs #161–#163),
+so the deployed application code is the reviewed tree.
 
 ## Automated checks
 
 - `npx tsc --noEmit`
 - `npx vitest run tests/unit/kid2487-newsfeed-likes-tags.test.ts` — 11 passed
+  (re-run on 2026-11-26 against the staging tree)
 - `npx vitest run tests/unit/kid2487-newsfeed-likes-tags.test.ts tests/unit/i18n-page-coverage.test.ts tests/unit/kid472-newsfeed-batching.test.ts tests/unit/kid2481-room-child-photo.test.ts tests/unit/mobile-child-idor.test.ts tests/unit/kid472-parent-notifications.test.ts` — all passed
 - `node supabase/verify-migrations.mjs` — all migration checks passed
 - `next lint` — only the pre-existing `<img>` warnings
@@ -87,15 +84,49 @@ The new suite covers:
 
 ## Live staging browser evidence
 
-Accounts: `founder.owner@staging.kiddy.test` (owner). Captured with Playwright
-Chromium headless at 1440×1000, on staging deployment `63c20ab`.
+Accounts: `founder.owner@staging.kiddy.test` (owner) and
+`founder.parent@staging.kiddy.test` (parent). Captured with Playwright Chromium
+headless at 1440×1000 on https://staging.kiddyapp.net, Worker version
+`eca45c3c`, on 2026-11-26.
+
+The test post was created through the real staff composer. A 6-second WebM
+video (`960×540`) and a PNG photo were uploaded; the photo was tagged to Layla
+and Omar, the video to Layla.
 
 | Locale | Surface | Result | File |
 | --- | --- | --- | --- |
-| EN / LTR | `/portal/newsfeed` like count | summary "1 likes" opens, shows "Founder Test Owner · Owner" | `staging-en-likers.png` |
-| AR / RTL | `/portal/newsfeed` like count | summary "1 إعجاب" opens, shows "Founder Test Owner · المالك"; `lang=ar dir=rtl` | `staging-ar-likers.png` |
+| EN / LTR | `/portal/newsfeed` likers | summary "1 likes" opens, shows "Founder Test Owner · Owner" | `staging-en-likers.png` |
+| AR / RTL | `/portal/newsfeed` likers | summary "1 إعجاب" opens, shows "Founder Test Owner · المالك"; `lang=ar dir=rtl` | `staging-ar-likers.png` |
+| EN / LTR | Photo viewer + tag panel | "Tag children", searchable list, Layla and Omar checked, "Save tags", "2 selected" | `staging-en-photo-viewer.png` |
+| EN / LTR | After saving photo tags | `?tagged=1` and "Photo tags saved."; reopening pre-checks both children | `staging-en-photo-tags-saved.png` |
+| AR / RTL | Photo viewer + tag panel | `aria-label="عارض الصور"`, "إضافة أطفال إلى الصورة", both children pre-checked | `staging-ar-photo-viewer.png` |
+| EN / LTR | Video viewer + tag panel | `aria-label="Video viewer"`; playable `<video>` at 0:02 / 0:06, 960×540; Layla checked, "1 selected" | `staging-en-video-viewer.png` |
+| EN / LTR | After saving video tags | `?tagged=1` and "Photo tags saved."; reopening pre-checks Layla | `staging-en-video-tags-saved.png` |
+| AR / RTL | Video viewer + tag panel | `aria-label="عارض الفيديو"`, "إضافة أطفال إلى الصورة", Layla pre-checked | `staging-ar-video-viewer.png` |
+| EN / LTR | Parent `/child/<Layla>` media | "Media (3)": tagged photo (`a12ba79a…webp`, 240×160 loaded), tagged video (`a55bbb9b…webm`, readyState 4, 960×540), one seeded image | `staging-parent-media-en.png` |
+| EN / LTR | Parent `/child/<Omar>` media | "Media (1)": the same `a12ba79a…webp` URL as Layla — one stored object, two child links, no duplicated file | `staging-parent-media-omar-en.png` |
+| AR / RTL | Parent child media | "الوسائط (3)", `dir=rtl`, same tagged photo and video | `staging-parent-media-ar.png` |
+| EN / LTR | Parent `/child/newsfeed` likers | posts show "1 likes" and expand to "Founder Test Owner · Owner" | `staging-parent-newsfeed-likers.png` |
 
-Raw capture data: `staging-browser-results.json`.
+Raw capture data: `staging-browser-results-2026-11-26.json`.
+
+### Live-guard limitation
+
+The staging seed links the **same parent account** to both children. A
+Layla-only post therefore already includes Omar's parent, so the live
+audience-refusal path cannot be triggered with these fixtures. The refusal is
+pinned by the unit test ("audience refusal when a child's parent is outside the
+audience") and by the `newsfeedTagAudienceAllowsChild` server check; it was not
+demonstrated by a live staging action.
+
+### Storage note
+
+The staging Worker has no R2 credentials, so new uploads use Supabase private
+storage (`kiddy-private:` REFs) and their signed URLs render correctly. The
+2026-11-25 photo test post on staging carried an `r2-private:` REF written by
+the frozen Vercel build; the Workers deployment cannot sign that REF and no
+Supabase fallback object exists, so the stale tags were removed during this run
+and replaced by the fresh 2026-11-26 photo post.
 
 ## Local browser evidence (final merged code)
 
@@ -123,6 +154,6 @@ Raw capture data: `local-browser-results.json` (photo flow) and
 
 ## Gates
 
-Production cut is **not** performed. It stays gated on founder sign-off on
-staging. The only pending item is the Vercel staging re-deploy after the
-rate-limit window; the code is already on the `staging` branch (PR #144).
+Production cut is **not** performed. The code is live on
+https://staging.kiddyapp.net and verified in EN + AR; the remaining gate is the
+founder's sign-off on staging.
