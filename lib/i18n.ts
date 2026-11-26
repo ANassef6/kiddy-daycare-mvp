@@ -405,6 +405,8 @@ export const en = {
       "The file was not uploaded. Documents must be 4 MB or less. Nothing was saved.",
     errorDocumentOnly:
       "Only documents can be added to the drive. Choose a PDF, Word, Excel, PowerPoint, text, or CSV file. Nothing was saved.",
+    errorScope:
+      "The selected families are outside your classrooms. Pick one of your classrooms or an allowed child. Nothing was saved.",
   },
   // KID-2450: shared client-side media preparation copy (photos + video caps).
   media: {
@@ -3021,6 +3023,8 @@ export const ar = {
       "لم يُرفع الملف. يجب ألا يزيد حجم المستند عن 4 ميجابايت. لم يُحفظ شيء.",
     errorDocumentOnly:
       "يمكن إضافة المستندات فقط إلى الملفات المشتركة. اختر ملف PDF أو Word أو Excel أو PowerPoint أو نص أو CSV. لم يُحفظ شيء.",
+    errorScope:
+      "العائلات المختارة خارج فصولك. اختر أحد فصولك أو طفلًا مسموحًا به. لم يُحفظ شيء.",
   },
   // KID-2450: النصوص المشتركة لتجهيز الوسائط قبل الرفع (الصور وحدود الفيديو).
   media: {
@@ -4175,6 +4179,7 @@ export const ar = {
     forChild: "لـ {name}",
     forAll: "لكل الأطفال",
     dueOn: "الاستحقاق {date}",
+    errorScope: "اختر فصلًا أو طفلًا داخل فصولك. لم يُسنَد شيء.",
     noInstitute: "لم يتم إعداد أي حضانة بعد.",
   },
   // KID-221: نصوص شريط الإشعارات داخل التطبيق. يُبنى الشريط نفسه في

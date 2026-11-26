@@ -17,6 +17,8 @@ import { signedUrlsForRefs } from "@/lib/storage";
 import { i18nForAccount } from "@/lib/i18n-session";
 import { fmtTimeFor, tr } from "@/lib/i18n";
 import { recordToolUsage } from "@/lib/tool-usage";
+import RecipientsPicker from "@/components/RecipientsPicker";
+import { recipientPickerData } from "@/lib/recipients";
 
 export const dynamic = "force-dynamic";
 
@@ -36,10 +38,11 @@ export default async function PortalEventsPage({ searchParams }: { searchParams:
   // whole-center event; teachers/caregivers see only their assigned rooms and
   // can never post center-wide. The list is filtered to the same audience.
   const canManageAll = canTargetWholeCenter(session.role);
-  const [events, allRooms, allowedRoomIds] = await Promise.all([
+  const [events, allRooms, allowedRoomIds, picker] = await Promise.all([
     listEvents(instituteId, false, { viewerAccountId: session.accountId, viewerRole: session.role }),
     listRooms(instituteId),
     eventAudienceRoomIds(instituteId, session.accountId, session.role),
+    recipientPickerData(instituteId, session.accountId, session.role),
   ]);
   const rooms = canManageAll
     ? allRooms
@@ -129,11 +132,14 @@ export default async function PortalEventsPage({ searchParams }: { searchParams:
             <div className="row">
               <div className="col field"><label className="label">{t("events.locationLabel")}</label><input className="input" name="location" placeholder={t("events.locationPlaceholder")} /></div>
               <div className="col field">
-                <label className="label">{t("events.classLabel")}</label>
-                <select className="select" name="classroomId" defaultValue="" required={!canManageAll}>
-                  {canManageAll && <option value="">{t("events.allClasses")}</option>}
-                  {(rooms as any[]).map((r: any) => <option key={r.id} value={r.id}>{r.name}</option>)}
-                </select>
+                <label className="label">{t("activities.recipients")}</label>
+                <RecipientsPicker
+                  dict={dict}
+                  childOptions={picker.children}
+                  rooms={picker.rooms}
+                  role={session.role}
+                  assignedRoomIds={picker.assignedRoomIds}
+                />
               </div>
             </div>
             <div className="field"><label className="label">{t("events.descriptionLabel")}</label><textarea className="textarea" name="description" /></div>
