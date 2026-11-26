@@ -200,7 +200,8 @@ describe("KID-2482 one admin audience option", () => {
     expect(html).toContain("Toddlers");
     expect(html).not.toContain("Preschool");
     expect(html).not.toContain("Omar");
-    expect(html).not.toContain("Everyone (whole center)");
+    expect(html).not.toContain("Everyone");
+    expect(html).toContain("Pick the classrooms you teach to target.");
   });
 
   it("never maps a teacher's full room selection to the admin-only center channel", () => {
@@ -216,6 +217,9 @@ describe("KID-2482 one admin audience option", () => {
       const dict = getDictionary(locale);
       expect(dict.childrenAdd.searchChildrenPlaceholder).toBeTruthy();
       expect(dict.parent.pickerNoChildrenFound).toBeTruthy();
+      expect(dict.parent.pickerClassrooms).toBeTruthy();
+      expect(dict.parent.pickerClassroomsHint).toBeTruthy();
+      expect(dict.parent.pickerClassroomsHintStaff).toBeTruthy();
       expect(dict.messages.searchRecipientsPlaceholder).toBeTruthy();
     }
   });

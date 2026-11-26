@@ -231,7 +231,9 @@ export default function RecipientsPicker({
           {visibleRooms.length > 0 && (
             <div style={{ padding: "8px 12px", borderBottom: "1px solid var(--color-border)" }}>
               <div className="small muted" style={{ fontWeight: 700, marginBottom: 2 }}>{t("parent.pickerClassrooms")}</div>
-              <div className="small muted" style={{ marginBottom: 6 }}>{t("parent.pickerClassroomsHint")}</div>
+              <div className="small muted" style={{ marginBottom: 6 }}>
+                {t(isAdmin ? "parent.pickerClassroomsHint" : "parent.pickerClassroomsHintStaff")}
+              </div>
               <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
                 {visibleRooms.map((r) => (
                   <label key={r.id} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, cursor: "pointer" }}>
