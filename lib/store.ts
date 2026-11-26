@@ -3287,20 +3287,36 @@ export async function createForm(data: {
   description?: string;
   fieldsJson?: string;
   accountId?: string;
+  // KID-2485: surveys carry the resolved audience. Forms and lists leave it
+  // undefined so their rows stay center-wide (NULL channel = legacy default).
+  audience?: { channel: string; roomIds: string[]; childIds: string[] };
 }): Promise<Row> {
   const id = uid();
   await queryRun(
-    `INSERT INTO form_template (id, institute_id, kind, title, description, fields_json, created_by_account_id)
-     VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO form_template
+       (id, institute_id, kind, title, description, fields_json, created_by_account_id,
+        audience_channel, audience_room_ids, audience_child_ids)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     id,
     data.instituteId,
     data.kind ?? "form",
     data.title,
     data.description ?? "",
     data.fieldsJson ?? "[]",
-    data.accountId ?? null
+    data.accountId ?? null,
+    data.audience?.channel ?? null,
+    data.audience ? JSON.stringify(data.audience.roomIds) : null,
+    data.audience ? JSON.stringify(data.audience.childIds) : null
   );
   return (await queryGet("SELECT * FROM form_template WHERE id = ?", id))!;
+}
+
+// KID-2485: the child ids linked to a family account (used by the parent
+// survey list to show only surveys whose audience includes one of the
+// family's children).
+export async function childIdsForAccount(accountId: string): Promise<string[]> {
+  const rows = await queryAll("SELECT child_id FROM family_member WHERE account_id = ?", accountId);
+  return rows.map((r) => String(r.child_id));
 }
 
 export async function listForms(instituteId: string, kind?: string): Promise<Row[]> {

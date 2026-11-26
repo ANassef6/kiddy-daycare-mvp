@@ -5,6 +5,8 @@ import { createSupplyAction, updateSupplyStatusAction } from "@/lib/actions";
 import { i18nForAccount } from "@/lib/i18n-session";
 import { tr } from "@/lib/i18n";
 import Attribution from "@/components/Attribution";
+import RecipientsPicker from "@/components/RecipientsPicker";
+import { recipientPickerData } from "@/lib/recipients";
 import { recordToolUsage } from "@/lib/tool-usage";
 
 export const dynamic = "force-dynamic";
@@ -19,7 +21,12 @@ export default async function PortalSuppliesPage() {
   const instituteId = await firstInstituteId();
   if (!instituteId) return <p className="muted">{t("supplies.noInstitute")}</p>;
   await recordToolUsage({ instituteId: String(instituteId ?? "") || null, accountId: session.accountId, toolKey: "supplies", source: "portal", metadata: null });
-  const items = await listSupplies(instituteId);
+  // KID-2482: supplies carries a recipients list (classrooms/children) so the
+  // request notification reaches the families the staff member targets.
+  const [items, picker] = await Promise.all([
+    listSupplies(instituteId),
+    recipientPickerData(instituteId, session.accountId, session.role),
+  ]);
 
   return (
     <div>
@@ -35,6 +42,16 @@ export default async function PortalSuppliesPage() {
             <div className="field"><label className="label">{t("supplies.unit")}</label><input className="input" name="unit" defaultValue="pcs" style={{ maxWidth: 110 }} /></div>
           </div>
           <div className="field"><label className="label">{t("supplies.notesForParents")}</label><input className="input" name="notes" placeholder={t("supplies.notesPlaceholder")} /></div>
+          <div className="field" style={{ maxWidth: 480 }}>
+            <label className="label">{t("activities.recipients")}</label>
+            <RecipientsPicker
+              dict={dict}
+              childOptions={picker.children}
+              rooms={picker.rooms}
+              role={session.role}
+              assignedRoomIds={picker.assignedRoomIds}
+            />
+          </div>
           <button className="btn btn-primary" type="submit">{t("supplies.request")}</button>
         </form>
       </div>

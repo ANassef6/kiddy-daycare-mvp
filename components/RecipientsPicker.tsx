@@ -21,6 +21,9 @@ type Props = {
   channelName?: string;
   roomName?: string;
   placeholder?: string;
+  // Optional open state for server-rendered previews/tests; production uses
+  // the closed default.
+  defaultOpen?: boolean;
   // KID-221: the picker used to render English-only labels ("Center
   // (everyone)", "My classrooms", the child counts and the empty states)
   // inside an Arabic shell. Every caller passes the active locale dictionary
@@ -28,11 +31,26 @@ type Props = {
   dict: Dict;
 };
 
-// KID-53 #1 / KID-104 #6: recipients picker with pre-defined channels. The
-// Center (everyone) channel is admin-only; staff see their assigned classrooms
-// only. "All classrooms" for admins becomes "My classrooms" for staff. Picking
-// a child clears the channel and vice versa, so a post goes to exactly one
-// target.
+// KID-2482 review follow-up: the room checklist must be visible as soon as the
+// dropdown opens. It used to render only after a channel was picked, so the
+// founder opened the newsfeed picker and concluded there were no rooms at all.
+// Admins keep the whole-center bulk channel; staff only ever target rooms.
+export function channelForRoomSelection(
+  isAdmin: boolean,
+  selectedRoomCount: number,
+  totalRooms: number
+): "center" | "rooms" {
+  return isAdmin && totalRooms > 0 && selectedRoomCount === totalRooms ? "center" : "rooms";
+}
+
+// KID-53 #1 / KID-104 #6 / KID-2482: recipients picker with pre-defined
+// channels. Admins get one "Everyone (whole center)" bulk channel that the
+// server resolves against every classroom at submit time (so a classroom
+// created after this page rendered is still included). Staff keep their
+// assigned classrooms only. The classroom checkboxes stay for targeted picks;
+// unchecking any room for an admin narrows the post to the selected rooms.
+// Picking a child clears the channel and vice versa, so a post goes to exactly
+// one target.
 export default function RecipientsPicker({
   childOptions: kids,
   rooms,
@@ -43,12 +61,13 @@ export default function RecipientsPicker({
   roomName = "recipientRoomIds",
   dict,
   placeholder,
+  defaultOpen = false,
 }: Props) {
   const t = (key: string, vars?: Record<string, string | number>) => tr(dict, key, vars);
   const [channel, setChannel] = useState("");
   const [roomIds, setRoomIds] = useState<string[]>([]);
   const [query, setQuery] = useState("");
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(defaultOpen);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const ref = useRef<HTMLDivElement>(null);
 
@@ -64,6 +83,12 @@ export default function RecipientsPicker({
     const allowed = new Set(assignedRoomIds);
     return kids.filter((c) => allowed.has(c.room_id ?? ""));
   }, [kids, isAdmin, assignedRoomIds]);
+
+  // KID-2482: the bulk option is one channel for admins. Keep the effective
+  // room selection in sync with it so the checkbox list can narrow the post
+  // without adding a second "All classrooms" radio.
+  const allRoomIds = useMemo(() => visibleRooms.map((r) => r.id), [visibleRooms]);
+  const effectiveRoomIds = channel === "center" ? allRoomIds : roomIds;
 
   const filtered = visibleChildren.filter((c) => {
     const q = query.toLowerCase();
@@ -86,6 +111,28 @@ export default function RecipientsPicker({
     setSelected(new Set());
   }, []);
 
+  const pickEveryone = useCallback(() => {
+    setChannel("center");
+    setRoomIds(allRoomIds);
+    setSelected(new Set());
+  }, [allRoomIds]);
+
+  const toggleRoom = useCallback(
+    (id: string) => {
+      const next = effectiveRoomIds.includes(id)
+        ? effectiveRoomIds.filter((x) => x !== id)
+        : [...effectiveRoomIds, id];
+      setRoomIds(next);
+      setSelected(new Set());
+      // All rooms checked again means the whole center for an admin; a subset
+      // (and every teacher selection) stays on the targeted classroom channel.
+      // Teachers cannot submit "center" - the server rejects it - so their full
+      // selection must remain "rooms".
+      setChannel(channelForRoomSelection(isAdmin, next.length, allRoomIds.length));
+    },
+    [effectiveRoomIds, allRoomIds, isAdmin]
+  );
+
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
       if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
@@ -94,7 +141,7 @@ export default function RecipientsPicker({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const channelLabel = channel === "center" ? t("parent.pickerCenterEveryone")
+  const channelLabel = channel === "center" ? t("parent.pickerEveryone")
     : channel === "rooms" && roomIds.length > 0
     ? t("parent.pickerChannelsClassrooms", { rooms: visibleRooms.filter((r) => roomIds.includes(r.id)).map((r) => r.name).join(", ") })
     : "";
@@ -148,7 +195,7 @@ export default function RecipientsPicker({
         >
           <div style={{ padding: "8px 12px", borderBottom: "1px solid var(--color-border)" }}>
             <div className="small muted" style={{ fontWeight: 700, marginBottom: 6 }}>{t("parent.pickerPredefined")}</div>
-            {isAdmin && (
+            {isAdmin ? (
               <label
                 style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 0", cursor: "pointer", fontSize: 14 }}
                 onMouseDown={(e) => e.preventDefault()}
@@ -158,48 +205,50 @@ export default function RecipientsPicker({
                   name={channelName}
                   value="center"
                   checked={channel === "center"}
-                  onChange={() => pickChannel("center", [])}
+                  onChange={pickEveryone}
                   style={{ accentColor: "var(--brand-primary)" }}
                 />
-                {t("parent.pickerCenterEveryoneInDaycare")}
+                {t("parent.pickerEveryone")}
+              </label>
+            ) : (
+              <label
+                style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 0", cursor: "pointer", fontSize: 14 }}
+                onMouseDown={(e) => e.preventDefault()}
+              >
+                <input
+                  type="radio"
+                  name={channelName}
+                  value="rooms"
+                  checked={channel === "rooms"}
+                  onChange={() => pickChannel("rooms", allRoomIds)}
+                  style={{ accentColor: "var(--brand-primary)" }}
+                />
+                {visibleRooms.length ? t("parent.pickerMyClassrooms") : t("parent.pickerMyClassroomsNone")}
               </label>
             )}
-            <label
-              style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 0", cursor: "pointer", fontSize: 14 }}
-              onMouseDown={(e) => e.preventDefault()}
-            >
-              <input
-                type="radio"
-                name={channelName}
-                value="rooms"
-                checked={channel === "rooms"}
-                onChange={() => pickChannel("rooms", visibleRooms.map((r) => r.id))}
-                style={{ accentColor: "var(--brand-primary)" }}
-              />
-              {isAdmin
-                ? t("parent.pickerAllClassrooms")
-                : visibleRooms.length
-                ? t("parent.pickerMyClassrooms")
-                : t("parent.pickerMyClassroomsNone")}
-            </label>
-            {channel === "rooms" && visibleRooms.length > 1 && (
-              <div style={{ padding: "4px 0 6px 26px", display: "flex", flexDirection: "column", gap: 4 }}>
+          </div>
+
+          {visibleRooms.length > 0 && (
+            <div style={{ padding: "8px 12px", borderBottom: "1px solid var(--color-border)" }}>
+              <div className="small muted" style={{ fontWeight: 700, marginBottom: 2 }}>{t("parent.pickerClassrooms")}</div>
+              <div className="small muted" style={{ marginBottom: 6 }}>
+                {t(isAdmin ? "parent.pickerClassroomsHint" : "parent.pickerClassroomsHintStaff")}
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
                 {visibleRooms.map((r) => (
                   <label key={r.id} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, cursor: "pointer" }}>
                     <input
                       type="checkbox"
-                      checked={roomIds.includes(r.id)}
-                      onChange={() =>
-                        setRoomIds((prev) => (prev.includes(r.id) ? prev.filter((x) => x !== r.id) : [...prev, r.id]))
-                      }
+                      checked={effectiveRoomIds.includes(r.id)}
+                      onChange={() => toggleRoom(r.id)}
                       style={{ accentColor: "var(--brand-primary)" }}
                     />
                     {r.name}
                   </label>
                 ))}
               </div>
-            )}
-          </div>
+            </div>
+          )}
 
           <input
             type="text"

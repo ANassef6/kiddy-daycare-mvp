@@ -68,7 +68,7 @@ function addChildLoginErrorMessage(error: string | undefined, dict: Dict): strin
 
 export default async function PortalChildrenPage(
   props: {
-    searchParams: Promise<{ error?: string; status?: string; invite?: string; email?: string; code?: string; activationUrl?: string; inviteDetail?: string; prefillEmail?: string; parent?: string }>;
+    searchParams: Promise<{ error?: string; status?: string; q?: string; invite?: string; email?: string; code?: string; activationUrl?: string; inviteDetail?: string; prefillEmail?: string; parent?: string }>;
   }
 ) {
   const searchParams = await props.searchParams;
@@ -85,15 +85,26 @@ export default async function PortalChildrenPage(
   };
   await recordToolUsage({ instituteId: String(instituteId ?? "") || null, accountId: session.accountId, toolKey: "children", source: "portal", metadata: null });
   const statusFilter = searchParams.status ?? "";
+  // KID-2482: the child list gets the same child search as the recipients
+  // picker. The invite dropdown below still lists every child.
+  const searchQuery = String(searchParams.q ?? "").trim();
+  const searchLower = searchQuery.toLowerCase();
   // KID-103: children list and room choices are scoped to assigned classrooms.
   const [children, rooms] = await Promise.all([
     instituteId ? listChildren(instituteId, { status: statusFilter, accountId: session.accountId }) : Promise.resolve([]),
     instituteId ? listRoomsScoped(instituteId, session.accountId) : Promise.resolve([]),
   ]);
+  // KID-2482: filter the visible cards by name without narrowing the invite
+  // dropdown below (which must still offer every child).
+  const visibleChildren = searchLower
+    ? children.filter((c) => `${c.first_name ?? ""} ${c.last_name ?? ""}`.toLowerCase().includes(searchLower))
+    : children;
   // KID-1177: photo refs resolve to signed URLs before the render loop.
   const avatarSrcs = await signedUrlsForRefs(children.map((c) => String(c.photo_url ?? "")));
   const guardianError = searchParams.error === "guardian";
   const relationshipError = searchParams.error === "relationship";
+  // KID-2482: add/update refused because no classroom was selected.
+  const classroomError = searchParams.error === "classroom";
   // KID-733: the Add-a-child parent-login rejections each name what went wrong
   // and that nothing was created (no child, no contact, no account).
   const addChildLoginError = addChildLoginErrorMessage(searchParams.error, dict);
@@ -202,8 +213,30 @@ export default async function PortalChildrenPage(
       )}
       <div className="row" style={{ alignItems: "center", justifyContent: "space-between" }}>
         <h1 className="title" style={{ marginBottom: 0 }}>{tr(dict, "common.children")}</h1>
-        <span className="small muted">{tr(dict, "childrenAdd.enrolledCount", { count: children.length })}</span>
+        <span className="small muted">{tr(dict, "childrenAdd.enrolledCount", { count: visibleChildren.length })}</span>
       </div>
+
+      {classroomError && (
+        <div role="alert" className="card mt-3" style={{ borderLeft: "4px solid #b91c1c" }}>
+          <p className="small" style={{ margin: 0 }}>{tr(dict, "childrenAdd.classroomRequiredError")}</p>
+        </div>
+      )}
+
+      <form method="get" action="/portal/children" className="row mt-3" style={{ gap: 8, alignItems: "flex-end" }}>
+        <div className="col field" style={{ maxWidth: 360 }}>
+          <label className="label" htmlFor="child-search">{tr(dict, "childrenAdd.searchChildrenPlaceholder")}</label>
+          <input
+            id="child-search"
+            className="input"
+            type="search"
+            name="q"
+            defaultValue={searchQuery}
+            placeholder={tr(dict, "childrenAdd.searchChildrenPlaceholder")}
+          />
+        </div>
+        {statusFilter && <input type="hidden" name="status" value={statusFilter} />}
+        <button className="btn btn-ghost" type="submit">{tr(dict, "common.search")}</button>
+      </form>
 
       <div className="row mt-3" style={{ gap: 8, flexWrap: "wrap", alignItems: "center" }}>
         <span className="small muted">{tr(dict, "childrenAdd.statusColon")}</span>
@@ -222,11 +255,11 @@ export default async function PortalChildrenPage(
         })}
       </div>
 
-      {children.length === 0 ? (
+      {visibleChildren.length === 0 ? (
         <p className="muted small mt-4">{tr(dict, "childrenAdd.noChildrenMatch")}</p>
       ) : (
         <div className="grid mt-4">
-          {children.map((c: any) => (
+          {visibleChildren.map((c: any) => (
             <Link
               key={c.id}
               href={`/portal/children/${c.id}`}
@@ -237,7 +270,11 @@ export default async function PortalChildrenPage(
                 <Avatar src={avatarSrcs.get(String(c.photo_url ?? "")) ?? c.photo_url} name={`${c.first_name} ${c.last_name}`} size={48} />
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <strong style={{ display: "block" }}>{c.first_name} {c.last_name}</strong>
-                  <span className="small muted">{c.room_name ?? tr(dict, "child.noRoom")}</span>
+                  {c.room_id ? (
+                    <span className="small muted">{c.room_name ?? tr(dict, "child.noRoom")}</span>
+                  ) : (
+                    <span className="badge badge-red">{tr(dict, "childrenAdd.needsClassroom")}</span>
+                  )}
                 </div>
               </div>
               <div className="row" style={{ justifyContent: "space-between", alignItems: "center" }}>
@@ -262,11 +299,12 @@ export default async function PortalChildrenPage(
           <div className="row">
             <div className="col field"><label className="label">{tr(dict, "profile.dateOfBirth")}</label><input className="input" name="dob" type="date" /></div>
             <div className="col field">
-              <label className="label">{tr(dict, "common.room")}</label>
-              <select className="select" name="roomId">
-                <option value="">{tr(dict, "childrenAdd.selectOption")}</option>
+              <label className="label">{tr(dict, "common.room")} <span style={{ color: "#b91c1c" }}>*</span></label>
+              <select className="select" name="roomId" required defaultValue="">
+                <option value="" disabled>{tr(dict, "childrenAdd.selectOption")}</option>
                 {rooms.map((r) => <option key={r.id} value={String(r.id)}>{String(r.name)}</option>)}
               </select>
+              {rooms.length === 0 && <span className="small muted">{tr(dict, "childrenAdd.classroomRequiredHint")}</span>}
             </div>
             <div className="col field"><label className="label">{tr(dict, "common.allergies")}</label><input className="input" name="allergies" /></div>
           </div>

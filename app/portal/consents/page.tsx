@@ -5,6 +5,7 @@ import { createConsentAction } from "@/lib/actions";
 import { i18nForAccount } from "@/lib/i18n-session";
 import { fmtDateTimeFor, tr } from "@/lib/i18n";
 import Attribution from "@/components/Attribution";
+import SearchableSelect from "@/components/SearchableSelect";
 import { recordToolUsage } from "@/lib/tool-usage";
 
 export const dynamic = "force-dynamic";
@@ -38,10 +39,13 @@ export default async function PortalConsentsPage() {
         <div className="row">
           <div className="col field"><label className="label">{t("consents.titleLabel")}</label><input className="input" name="title" required /></div>
           <div className="col field"><label className="label">{t("consents.childOptional")}</label>
-            <select className="select" name="childId">
-              <option value="">{t("consents.childAll")}</option>
-              {children.map((c: any) => <option key={c.id} value={String(c.id)}>{c.first_name} {c.last_name}</option>)}
-            </select>
+            <SearchableSelect
+              name="childId"
+              options={children.map((c: any) => ({ id: String(c.id), label: `${c.first_name} ${c.last_name}` }))}
+              allLabel={t("consents.childAll")}
+              placeholder={t("childrenAdd.searchChildrenPlaceholder")}
+              noResultsMessage={t("parent.pickerNoChildrenFound")}
+            />
           </div>
         </div>
         <div className="field"><label className="label">{t("consents.details")}</label><textarea className="textarea" name="body" /></div>
