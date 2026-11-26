@@ -16,6 +16,8 @@ import { mediaUploadLabels } from "@/lib/media-i18n";
 import { MAX_PHOTO_UPLOAD_BYTES } from "@/lib/media-limits";
 import { normalizeTimeZone } from "@/lib/timezone";
 import { timeZoneOptions } from "@/lib/timezone-options";
+import { normalizeGeofenceRadius } from "@/lib/geofence";
+import { PremisesLocationFields } from "@/components/PremisesLocationFields";
 
 export const dynamic = "force-dynamic";
 
@@ -171,6 +173,23 @@ export default async function PortalSettingsPage(
             <span className="small muted">{tr(dict, "settings.allowParentCheckInOutHint")}</span>
           </div>
         </div>
+        {/* KID-2503: premises geofence. Both coordinates empty keeps the
+            feature off; the radius preset defaults to 150 m. */}
+        <div className="field">
+          <h4 className="subtitle" style={{ marginBottom: 4 }}>{tr(dict, "settings.geofenceTitle")}</h4>
+          <p className="small muted">{tr(dict, "settings.geofenceHint")}</p>
+        </div>
+        <PremisesLocationFields
+          lat={institute?.premises_lat === null || institute?.premises_lat === undefined ? "" : String(institute.premises_lat)}
+          lng={institute?.premises_lng === null || institute?.premises_lng === undefined ? "" : String(institute.premises_lng)}
+          radius={normalizeGeofenceRadius(institute?.geofence_radius_m)}
+          dict={dict}
+        />
+        {searchParams?.error === "geofence" && (
+          <div role="alert" className="card" style={{ borderLeft: "4px solid #b91c1c" }}>
+            <p className="small" style={{ margin: 0 }}>{tr(dict, "settings.geofenceInvalid")}</p>
+          </div>
+        )}
         <div className="field"><label className="label">{tr(dict, "settings.address")}</label><input className="input" name="address" defaultValue={String(institute?.address ?? "")} placeholder={tr(dict, "settings.addressPlaceholder")} /></div>
         {/* KID-489 item 2 (KID-491): the center's Instapay payment link — the
             default every new child invoice form prefills. http/https URLs

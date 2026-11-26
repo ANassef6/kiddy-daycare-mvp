@@ -8,12 +8,14 @@ import {
 import {
   registerCheckInOut,
   getChild,
+  getInstitute,
   familyAccessForAccount,
   parentCheckInOutAllowed,
   getCenterSchedule,
 } from "@/lib/store";
 import { evaluatePickupTime } from "@/lib/pickup-policy";
-import { pickupRefusalMessage } from "@/lib/policy-messages";
+import { geofenceRefusalMessage, pickupRefusalMessage } from "@/lib/policy-messages";
+import { evaluateGeofence, geofenceFromInstitute } from "@/lib/geofence";
 import { i18nForAccount } from "@/lib/i18n-session";
 import { tr } from "@/lib/i18n";
 
@@ -42,7 +44,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const inFamily = await isChildInFamily(session.accountId, childId);
   if (!inFamily) return errorPayload("forbidden", 403);
 
-  let body: { type?: string; at?: string } = {};
+  let body: { type?: string; at?: string; lat?: number; lng?: number; accuracy?: number } = {};
   try {
     body = await req.json();
   } catch {
@@ -61,6 +63,21 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     if (access !== "pickup" && !(await parentCheckInOutAllowed(String(child.institute_id ?? "")))) {
       return errorPayload(tr(dict, "policy.parentCheckInDisabled"), 403);
     }
+  }
+
+  // KID-2503: premises geofence. The phone sends its position; the server
+  // computes the distance and stores it on the ledger row for audit. A
+  // missing or out-of-radius position is refused, never silently accepted.
+  const geofenceSettings = child.institute_id
+    ? geofenceFromInstitute(await getInstitute(String(child.institute_id)))
+    : null;
+  const geofenceDecision = evaluateGeofence(geofenceSettings, {
+    lat: body.lat,
+    lng: body.lng,
+    accuracy: body.accuracy,
+  });
+  if (!geofenceDecision.ok) {
+    return errorPayload(geofenceRefusalMessage(dict, geofenceDecision), 422);
   }
 
   // KID-1371: the boundary matrix. An `at` body value must be a parseable
@@ -87,6 +104,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     accountId: session.accountId,
     type,
     at: decision.at,
+    lat: geofenceDecision.lat,
+    lng: geofenceDecision.lng,
+    accuracyM: geofenceDecision.accuracyM ?? null,
   });
 
   const summary = await childSummary(child);

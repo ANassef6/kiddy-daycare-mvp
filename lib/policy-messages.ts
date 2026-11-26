@@ -7,6 +7,7 @@
 import { tr, type Dict } from "./i18n";
 import { dayLabelKey, type CheckInGate } from "./working-hours";
 import type { PickupTimeDecision } from "./pickup-policy";
+import type { GeofenceRefusal } from "./geofence";
 
 type Refusal = { code?: string; dayIndex?: string; open?: string; close?: string };
 
@@ -21,6 +22,20 @@ export function checkInRefusalMessage(dict: Dict, gate: CheckInGate): string {
     return tr(dict, "policy.closedDayNoCheckIn", { day: dayName(dict, gate.dayIndex) });
   }
   return tr(dict, "policy.beforeOpenCheckIn", { time: gate.open ?? "" });
+}
+
+// KID-2503: the premises-fence refusal. Missing location points the user at
+// the explicit "Enable location access" control instead of failing silently;
+// an out-of-radius attempt names how far away the device is.
+export function geofenceRefusalMessage(dict: Dict, refusal: GeofenceRefusal): string {
+  if (refusal.code === "outside") {
+    return tr(dict, "geofence.outside", {
+      distance: refusal.distanceM ?? 0,
+      radius: refusal.radiusM ?? 0,
+    });
+  }
+  if (refusal.code === "malformed") return tr(dict, "geofence.malformed");
+  return tr(dict, "geofence.required");
 }
 
 export function pickupRefusalMessage(dict: Dict, decision: PickupTimeDecision): string {
