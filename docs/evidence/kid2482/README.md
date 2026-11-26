@@ -71,6 +71,36 @@ The classroom checkboxes are above the child search and list. The
 `KID-2482 owner has the admin audience` regression tests pin the owner render,
 the owner Everyone audience, and the owner single-room audience.
 
+## Events, Parent drive, Homework and Supplies (sign-off follow-up)
+
+The founder rejected the first staging sign-off: "On events, parent drive and
+homework, still no classrooms. On supplies, no recipient list at all." All four
+composers now use the same classroom-aware picker as newsfeed/activities
+([#157](https://github.com/ANassef6/kiddy-daycare-mvp/pull/157)).
+
+Live verification on `https://staging.kiddyapp.net` as the owner fixture
+(`founder.owner@staging.kiddy.test`) through a real browser, dropdown opened, no
+form submitted:
+
+| Surface | Result | Screenshot |
+| --- | --- | --- |
+| Events, add form | **Recipients** replaces the old single "Class (optional)" select; **Everyone (whole center)** + **Classrooms** (Little Stars, Sunflowers) + `Search children…` | [`owner-events-en.png`](owner-events-en.png) |
+| Parent drive, share form | **Share with** uses the picker; **Everyone (whole center)** + **Classrooms** (both rooms) + child search | [`owner-drive-en.png`](owner-drive-en.png) |
+| Homework, assign form | **Recipients** uses the picker; **Everyone (whole center)** + **Classrooms** (both rooms) + child search | [`owner-homework-en.png`](owner-homework-en.png) |
+| Supplies, request form | New **Recipients** list; **Everyone (whole center)** + **Classrooms** (both rooms) + child search | [`owner-supplies-en.png`](owner-supplies-en.png) |
+
+Server behaviour for the same four surfaces:
+
+- The submitted audience resolves through the shared
+  `resolveRecipientAudience` (owner = admin scope, staff = assigned rooms,
+  forged/out-of-scope picks dropped).
+- **Homeworks** and **drive files** write one row per child for a classroom
+  pick; **Everyone** keeps the single all-children/centre-wide row.
+- **Events** writes one event per picked classroom (or one centre-wide event),
+  so KID-2480 classroom visibility stays scoped.
+- **Supplies** tags the request newsfeed post to the picked audience; no pick
+  keeps the old centre-wide broadcast.
+
 ## Staging URLs
 
 `staging.kiddyapp.net` is the canonical host (KID-2495).
@@ -84,6 +114,9 @@ disabled (KID-2491). Do not use the Vercel host for review.
 - KID-2482 picker suite: 13/13 (includes rooms-before-children, teacher
   assigned-room scoping, the teacher/center channel guard, and the owner
   Everyone + single-room audience).
+- KID-2482 surface actions: 5/5 (homework/drive one row per classroom child,
+  centre-wide homework row, supplies newsfeed audience, event classroom).
+- KID-2480 event page/actions: 39/39.
 - KID-733 + KID-221 + i18n-page-coverage: 41/41.
 - `npx next lint` has no errors (pre-existing `<img>` warnings only).
 - Live screenshots captured with a real browser through the Skyvern REST API.
