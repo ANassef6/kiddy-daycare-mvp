@@ -42,7 +42,7 @@ export default async function PortalFormsPage(
 ) {
   const searchParams = await props.searchParams;
   const session = await requireSession();
-  const { dict, locale } = await i18nForAccount(session.accountId);
+  const { dict, locale, timeZone } = await i18nForAccount(session.accountId);
   const instituteId = await firstInstituteId();
   if (!instituteId) return <p className="muted">{tr(dict, "formsAdmin.noInstitute")}</p>;
   await recordToolUsage({ instituteId: String(instituteId ?? "") || null, accountId: session.accountId, toolKey: "forms", source: "portal", metadata: null });
@@ -121,7 +121,7 @@ export default async function PortalFormsPage(
                   <div>
                     <strong>{r.respondent_name ?? tr(dict, "formsAdmin.anonymous")}</strong>
                     {r.first_name ? ` ${tr(dict, "formsAdmin.forChild", { first: r.first_name, last: r.last_name ?? "" })}` : ""}
-                    <span className="muted"> · {fmtDateTimeFor(locale, r.created_at)}</span>
+                    <span className="muted"> · {fmtDateTimeFor(locale, r.created_at, timeZone)}</span>
                     <span className="badge" style={{ marginInlineStart: 8 }}>{statusLabelFor(dict, String(r.status ?? "new"))}</span>
                   </div>
                   {snippet && <div className="muted mt-1">{snippet}</div>}
@@ -197,7 +197,7 @@ export default async function PortalFormsPage(
                 <div className="small" style={{ flex: 1 }}>
                   <strong>{r.respondent_name ?? tr(dict, "formsAdmin.anonymous")}</strong>
                   {r.first_name ? ` ${tr(dict, "formsAdmin.forChild", { first: r.first_name, last: r.last_name ?? "" })}` : ""}
-                  <span className="muted"> · {fmtDateTimeFor(locale, r.created_at)}</span>
+                  <span className="muted"> · {fmtDateTimeFor(locale, r.created_at, timeZone)}</span>
                   <div className="muted mt-1">{snippet}</div>
                 </div>
                 <form action={setFormResponseStatusAction} className="row" style={{ gap: 6, alignItems: "center" }}>

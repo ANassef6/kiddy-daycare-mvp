@@ -20,7 +20,7 @@ export default async function PortalConsentDetailPage({
 }) {
   const { id } = await params;
   const session = await requireSession();
-  const { locale, dict } = await i18nForAccount(session.accountId);
+  const { locale, dict, timeZone } = await i18nForAccount(session.accountId);
   const t = (key: string, vars?: Record<string, string | number>) => tr(dict, key, vars);
   const iid = await resolveTenantInstituteId();
   if (!iid) notFound();
@@ -62,7 +62,7 @@ export default async function PortalConsentDetailPage({
           ? t("consents.generalAudience")
           : roomLabels.join(", ")}
         {" · "}
-        {fmtDateTimeFor(locale, batch.created_at)}
+        {fmtDateTimeFor(locale, batch.created_at, timeZone)}
         {" · "}
         {t("consents.answeredPending", { answered, pending })}
       </p>
@@ -106,7 +106,7 @@ export default async function PortalConsentDetailPage({
                           <td style={{ padding: "8px" }}>
                             <span className={badge.css}>{badge.label}</span>
                             {row.responded_at ? (
-                              <div className="muted small">{fmtDateTimeFor(locale, row.responded_at)}</div>
+                              <div className="muted small">{fmtDateTimeFor(locale, row.responded_at, timeZone)}</div>
                             ) : null}
                           </td>
                           <td style={{ padding: "8px" }} dir="auto">

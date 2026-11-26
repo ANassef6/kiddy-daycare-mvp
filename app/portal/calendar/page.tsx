@@ -10,7 +10,7 @@ export const dynamic = "force-dynamic";
 
 export default async function PortalCalendarPage() {
   const session = await requireSession();
-  const { dict, locale } = await i18nForAccount(session.accountId);
+  const { dict, locale, timeZone } = await i18nForAccount(session.accountId);
   const instituteId = await firstInstituteId();
   if (!instituteId) return <p className="muted">{tr(dict, "learning.noInstitute")}</p>;
   await recordToolUsage({ instituteId: String(instituteId ?? "") || null, accountId: session.accountId, toolKey: "calendar", source: "portal", metadata: null });
@@ -37,11 +37,11 @@ export default async function PortalCalendarPage() {
         <div className="card mb-4" key={e.id}>
           <div className="row" style={{ alignItems: "center", justifyContent: "space-between" }}>
             <div style={{ fontWeight: 700, fontSize: 17 }}>{e.title}</div>
-            <span className="badge">{fmtDateFor(locale, e.event_date)}</span>
+            <span className="badge">{fmtDateFor(locale, e.event_date, timeZone)}</span>
           </div>
           <div className="muted small mt-1">
-            {fmtDateFor(locale, e.event_date)}
-            {e.start_time ? <> · {fmtTimeFor(locale, e.start_time)}{e.end_time ? ` – ${fmtTimeFor(locale, e.end_time)}` : ""}</> : null}
+            {fmtDateFor(locale, e.event_date, timeZone)}
+            {e.start_time ? <> · {fmtTimeFor(locale, e.start_time, timeZone)}{e.end_time ? ` – ${fmtTimeFor(locale, e.end_time, timeZone)}` : ""}</> : null}
             {e.location ? <> · 📍 {e.location}</> : null}
           </div>
           {e.description && <p className="small mt-2">{e.description}</p>}

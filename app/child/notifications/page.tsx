@@ -16,7 +16,7 @@ export const dynamic = "force-dynamic";
 // durable `notification` table (0031) with per-account read state, served
 // for any authenticated tenant account (parents get family/message/report
 // emissions; staff keep the KID-221 derived feed at /portal/notifications).
-function timeAgo(locale: Locale, dict: Dict, when: Date): string {
+function timeAgo(locale: Locale, dict: Dict, when: Date, timeZone: string): string {
   const diffMs = Date.now() - when.getTime();
   const diffMin = Math.floor(diffMs / 60000);
   const diffHour = Math.floor(diffMin / 60);
@@ -25,17 +25,17 @@ function timeAgo(locale: Locale, dict: Dict, when: Date): string {
   if (diffMin < 60) return tr(dict, "parent.notificationsMinutesAgo", { count: diffMin });
   if (diffHour < 24) return tr(dict, "parent.notificationsHoursAgo", { count: diffHour });
   if (diffDay < 7) return tr(dict, "parent.notificationsDaysAgo", { count: diffDay });
-  return fmtDateFor(locale, when);
+  return fmtDateFor(locale, when, timeZone);
 }
 
 export default async function ChildNotificationsPage() {
   const session = await requireSession();
-  const { locale, dict } = await i18nForAccount(session.accountId);
+  const { locale, dict, timeZone } = await i18nForAccount(session.accountId);
   const t = (key: string, vars?: Record<string, string | number>) => tr(dict, key, vars);
   const iid = await resolveTenantInstituteId();
   const rows = await listNotificationsFor(session.accountId, 50);
   const filtered = rows.filter((r) => !r.institute_id || String(r.institute_id) === String(iid ?? ""));
-  const copy = feedCopyFor(locale);
+  const copy = feedCopyFor(locale, timeZone);
 
   return (
     <div>
@@ -103,8 +103,8 @@ export default async function ChildNotificationsPage() {
                       <Link href={href} className="small" style={{ fontWeight: unread ? 700 : 500, color: "var(--brand-primary)" }}>
                         {view.title}
                       </Link>
-                      <span className="small muted" title={fmtDateTimeFor(locale, String(row.created_at))}>
-                        {timeAgo(locale, dict, when)}
+                      <span className="small muted" title={fmtDateTimeFor(locale, String(row.created_at), timeZone)}>
+                        {timeAgo(locale, dict, when, timeZone)}
                       </span>
                     </div>
                     {view.body && <p className="small muted" style={{ margin: "4px 0 0", whiteSpace: "pre-line" }}>{view.body}</p>}

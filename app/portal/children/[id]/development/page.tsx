@@ -22,7 +22,7 @@ function kindLabel(dict: Dict, kind: unknown): string {
 
 export default async function ChildDevelopmentPage({ params }: { params: Promise<{ id: string }> }) {
   const session = await requireSession();
-  const { dict, locale } = await i18nForAccount(session.accountId);
+  const { dict, locale, timeZone } = await i18nForAccount(session.accountId);
   const child = await getChild((await params).id);
   if (!child) notFound();
   // KID-103: direct URLs to out-of-scope children are hidden.
@@ -64,7 +64,7 @@ export default async function ChildDevelopmentPage({ params }: { params: Promise
         <div className="card mb-2" key={o.id}>
           <div className="small">
             <span className="badge">{kindLabel(dict, o.kind)}</span>{" "}
-            {o.title && <strong>{o.title}</strong>} <span className="muted">{fmtDateFor(locale, o.recorded_at ?? o.created_at)}</span>
+            {o.title && <strong>{o.title}</strong>} <span className="muted">{fmtDateFor(locale, o.recorded_at ?? o.created_at, timeZone)}</span>
           </div>
           {(o.learning_point_name || o.age_group || o.milestone_name) && (
             <div className="mt-1" style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>

@@ -3,8 +3,32 @@ import { getAccount } from "@/lib/auth";
 import { DEFAULT_LOCALE, LANG_COOKIE, type Dict, type Locale, dirFor, getDictionary, localeOf } from "@/lib/i18n";
 import { SITE_LANG_COOKIE, lastCookieValue, localeFromParam } from "@/lib/site-lang";
 import { LANG_OVERRIDE_HEADER } from "@/middleware";
+import { getCenterSchedule } from "@/lib/store";
+import { resolveTenantInstituteId } from "@/lib/tenant";
+import { DEFAULT_CENTER_TIMEZONE } from "@/lib/timezone";
 
-export type I18nContext = { locale: Locale; dict: Dict; dir: "ltr" | "rtl" };
+// KID-2496: `timeZone` is the center's IANA clock every displayed timestamp
+// must use. Without it the server renderer formats in UTC (the 2-hour shift
+// the founder saw on attendance), so every page that renders a date/time
+// passes this value into the fmt*For helpers.
+export type I18nContext = { locale: Locale; dict: Dict; dir: "ltr" | "rtl"; timeZone: string };
+
+async function requestCenterTimeZone(): Promise<string> {
+  let instituteId = "";
+  try {
+    instituteId = await resolveTenantInstituteId();
+  } catch (err) {
+    console.error("KID-2496 center timezone: tenant resolution failed:", err);
+    return DEFAULT_CENTER_TIMEZONE;
+  }
+  if (!instituteId) return DEFAULT_CENTER_TIMEZONE;
+  try {
+    return (await getCenterSchedule(instituteId)).timeZone;
+  } catch (err) {
+    console.error("KID-2496 center timezone: schedule read failed:", err, instituteId);
+    return DEFAULT_CENTER_TIMEZONE;
+  }
+}
 
 // OBS-001: the kiddy_lang device cookie and account.language used to resolve
 // independently — a cookie left stale by a language change from another device
@@ -57,7 +81,8 @@ export async function i18nForAccount(accountId: string | undefined | null): Prom
     const account = await getAccount(accountId);
     if (account?.language) locale = localeOf(account.language);
   }
-  return { locale, dict: getDictionary(locale), dir: dirFor(locale) };
+  const timeZone = await requestCenterTimeZone();
+  return { locale, dict: getDictionary(locale), dir: dirFor(locale), timeZone };
 }
 
 // KID-2072: the public marketing site's own locale resolution. The EN/AR

@@ -3,7 +3,7 @@ import { resolveTenantInstituteId } from "@/lib/tenant";
 import { familiesForAccount,listNewsfeed } from "@/lib/store";
 import { toggleLikeAction, commentAction } from "@/lib/actions";
 import { i18nForAccount } from "@/lib/i18n-session";
-import { tr } from "@/lib/i18n";
+import { fmtDateTimeFor, tr } from "@/lib/i18n";
 import { recordToolUsage } from "@/lib/tool-usage";
 import type { Row } from "@/lib/db";
 import { signedUrlsForRefs } from "@/lib/storage";
@@ -13,7 +13,7 @@ export const dynamic = "force-dynamic";
 
 export default async function ParentNewsfeedPage() {
   const session = await requireFamilyPage("/child/newsfeed");
-  const { locale, dict } = await i18nForAccount(session.accountId);
+  const { locale, dict, timeZone } = await i18nForAccount(session.accountId);
   const t = (key: string, vars?: Record<string, string | number>) => tr(dict, key, vars);
   const families = await familiesForAccount(session.accountId);
   const usageInstituteId = String((families[0] as Row)?.institute_id ?? "") || null;
@@ -41,7 +41,7 @@ export default async function ParentNewsfeedPage() {
             <div className="card mb-4" key={post.id}>
               <div className="row" style={{ justifyContent: "space-between", alignItems: "center" }}>
                 <div className="small muted" dir="auto">
-                  {post.author_name} · {new Date(post.created_at).toLocaleString(locale === "ar" ? "ar-EG" : undefined)}
+                  {post.author_name} · {fmtDateTimeFor(locale, post.created_at, timeZone)}
                 </div>
                 <form action={toggleLikeAction}>
                   <input type="hidden" name="postId" value={post.id} />

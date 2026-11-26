@@ -2,6 +2,7 @@
 import { familiesForAccount } from "./store";
 import { resolveTenantInstituteId } from "./tenant";
 import { fmtDateFor, fmtTimeFor, type Locale } from "./i18n";
+import { DEFAULT_CENTER_TIMEZONE } from "./timezone";
 
 // KID-199.3: session-aware tenancy. This used to be a "first institute in the
 // table" query, which put every user — including the staff and parents of the
@@ -51,12 +52,12 @@ export function safeJson<T = any>(v: unknown, fallback: T): T {
 // / default-locale times inside Arabic pages. The locale is now explicit and
 // falls back to English for the call sites that have no session (tests,
 // server-generated strings).
-export function fmtDate(v: unknown, locale: Locale = "en"): string {
+export function fmtDate(v: unknown, locale: Locale = "en", timeZone: string = DEFAULT_CENTER_TIMEZONE): string {
   if (!v) return "—";
-  return fmtDateFor(locale, v);
+  return fmtDateFor(locale, v, timeZone);
 }
 
-export function fmtTime(v: unknown, locale: Locale = "en"): string {
+export function fmtTime(v: unknown, locale: Locale = "en", timeZone: string = DEFAULT_CENTER_TIMEZONE): string {
   if (!v) return "";
-  return fmtTimeFor(locale, v);
+  return fmtTimeFor(locale, v, timeZone);
 }

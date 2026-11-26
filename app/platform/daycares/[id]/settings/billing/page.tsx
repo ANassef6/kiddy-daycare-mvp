@@ -26,6 +26,7 @@ import { updateBranchBillingAction, uploadDaycareContractAction } from "@/lib/ac
 import { getDaycareContract, getDaycareContractUploaderName } from "@/lib/contract";
 import { storageSrcFor } from "@/lib/storage";
 import { fmtDateTimeFor, tr } from "@/lib/i18n";
+import { normalizeTimeZone } from "@/lib/timezone";
 import { i18nForAccount } from "@/lib/i18n-session";
 import {
   backfillToolUsageEstimates,
@@ -80,6 +81,9 @@ export default async function DaycareBillingPage(
   const instituteId = String(params.id ?? "");
   const inst = await getInstitute(instituteId);
   if (!inst) redirect("/platform?error=missing-id");
+  // KID-2496: the operator's own account has no daycare clock; contract
+  // timestamps belong to the daycare being viewed.
+  const centerTimeZone = normalizeTimeZone(inst?.timezone);
   // KID-2435 v3: the branch is the subscription record. The page lists one
   // billing card per branch; each card bills that branch's own roster.
   const branches = await listBranchBillings(instituteId);
@@ -410,7 +414,7 @@ export default async function DaycareBillingPage(
                 )}
                 <span className="small muted">
                   {tr(dict, "platform.contractDraftGenerated", {
-                    date: fmtDateTimeFor(locale, contract.draft_generated_at),
+                    date: fmtDateTimeFor(locale, contract.draft_generated_at, centerTimeZone),
                   })}
                 </span>
               </>
@@ -423,7 +427,7 @@ export default async function DaycareBillingPage(
                 )}
                 <span className="small muted">
                   {tr(dict, "platform.contractDraftGenerated", {
-                    date: fmtDateTimeFor(locale, contract.draft_generated_at),
+                    date: fmtDateTimeFor(locale, contract.draft_generated_at, centerTimeZone),
                   })}
                 </span>
               </>
@@ -444,7 +448,7 @@ export default async function DaycareBillingPage(
                 )}
                 <span className="small muted">
                   {tr(dict, "platform.contractSignedUploaded", {
-                    date: fmtDateTimeFor(locale, contract.signed_uploaded_at),
+                    date: fmtDateTimeFor(locale, contract.signed_uploaded_at, centerTimeZone),
                   })}
                 </span>
                 {uploaderName ? (

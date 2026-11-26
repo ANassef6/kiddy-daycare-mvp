@@ -25,7 +25,7 @@ export default async function PortalConsentsPage({
 }) {
   const params = await searchParams;
   const session = await requireSession();
-  const { locale, dict } = await i18nForAccount(session.accountId);
+  const { locale, dict, timeZone } = await i18nForAccount(session.accountId);
   const t = (key: string, vars?: Record<string, string | number>) => tr(dict, key, vars);
   const iid = await resolveTenantInstituteId();
   await recordToolUsage({ instituteId: String(iid ?? "") || null, accountId: session.accountId, toolKey: "consents", source: "portal", metadata: null });
@@ -94,9 +94,9 @@ export default async function PortalConsentsPage({
             >
               <div>
                 <div style={{ fontWeight: 600 }}>{b.title}</div>
-                <div className="muted small">{audience} · {fmtDateTimeFor(locale, b.created_at)}</div>
+                <div className="muted small">{audience} · {fmtDateTimeFor(locale, b.created_at, timeZone)}</div>
                 <div className="muted small">{t("consents.answeredPending", { answered, pending })}</div>
-                <Attribution locale={locale} createdBy={b.created_by_name ?? null} createdAt={b.created_at ?? null} />
+                <Attribution locale={locale} timeZone={timeZone} createdBy={b.created_by_name ?? null} createdAt={b.created_at ?? null} />
               </div>
               <span className="badge">{t("consents.viewRecipients")}</span>
             </Link>

@@ -18,7 +18,7 @@ function badge(s: string) {
 
 export default async function PortalSupportInboxPage() {
   const session = await requireSession();
-  const { dict, locale } = await i18nForAccount(session.accountId);
+  const { dict, locale, timeZone } = await i18nForAccount(session.accountId);
   const instituteId = await firstInstituteId();
   if (!instituteId) return <p className="muted">{tr(dict, "learning.noInstitute")}</p>;
   const tickets = await listSupportTickets(instituteId);
@@ -33,7 +33,7 @@ export default async function PortalSupportInboxPage() {
           <div className="status-card">
             <div>
               <div style={{ fontWeight: 700 }}>{t.subject} <span className={`${badge(t.status)}`} style={{ marginLeft: 8 }}>{tr(dict, t.status === "closed" ? "supportInbox.statusClosed" : t.status === "answered" ? "supportInbox.statusAnswered" : "supportInbox.statusOpen")}</span></div>
-              <div className="muted small">{t.author_name ?? tr(dict, "supportInbox.anonymous")} · {fmtDateFor(locale, t.created_at)}</div>
+              <div className="muted small">{t.author_name ?? tr(dict, "supportInbox.anonymous")} · {fmtDateFor(locale, t.created_at, timeZone)}</div>
               <p className="small mt-2">{t.body}</p>
             </div>
           </div>

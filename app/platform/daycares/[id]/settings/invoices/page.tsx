@@ -12,7 +12,8 @@ import { getInstitute } from "@/lib/store";
 import { getDaycareBilling, listInvoices, type DaycareInvoice } from "@/lib/billing";
 import { markInvoicePaidAction, updateInvoiceAmountAction } from "@/lib/actions";
 import { i18nForAccount } from "@/lib/i18n-session";
-import { tr } from "@/lib/i18n";
+import { fmtDateFor, tr } from "@/lib/i18n";
+import { normalizeTimeZone } from "@/lib/timezone";
 import { signedUrlsForRefs } from "@/lib/storage";
 
 export const dynamic = "force-dynamic";
@@ -44,10 +45,12 @@ export default async function DaycareInvoicesPage(
   if (!isPlatformOperatorRole(session.role) || !isPlatformOperatorEmail(session.email)) {
     redirect("/login");
   }
-  const { dict, dir } = await i18nForAccount(session.accountId);
+  const { dict, dir, locale } = await i18nForAccount(session.accountId);
   const instituteId = String(params.id ?? "");
   const inst = await getInstitute(instituteId);
   if (!inst) redirect("/platform?error=missing-id");
+  // KID-2496: invoice dates render on the daycare's own clock.
+  const centerTimeZone = normalizeTimeZone(inst?.timezone);
   const [invoices, billing] = await Promise.all([
     listInvoices(instituteId),
     getDaycareBilling(instituteId),
@@ -147,12 +150,12 @@ export default async function DaycareInvoicesPage(
                       <div className="small muted">{inv.manualAdjustment}</div>
                     )}
                   </td>
-                  <td className="small" style={{ padding: 8 }}>{inv.dueDate}</td>
+                  <td className="small" style={{ padding: 8 }}>{fmtDateFor(locale, inv.dueDate, centerTimeZone)}</td>
                   <td className="small" style={{ padding: 8 }}>
                     {tr(dict, `platform.${STATUS_LABEL[inv.status]}`)}
                     {inv.status === "paid" && inv.paidAt && (
                       <div className="small muted">
-                        {tr(dict, "platform.invoicePaidAt")}: {inv.paidAt.slice(0, 10)}
+                        {tr(dict, "platform.invoicePaidAt")}: {fmtDateFor(locale, inv.paidAt, centerTimeZone)}
                       </div>
                     )}
                   </td>
@@ -169,7 +172,7 @@ export default async function DaycareInvoicesPage(
                         {inv.paymentProofUploadedAt && (
                           <div className="small muted">
                             {tr(dict, "platform.invoiceProofUploaded")}:{" "}
-                            {inv.paymentProofUploadedAt.slice(0, 10)}
+                            {fmtDateFor(locale, inv.paymentProofUploadedAt, centerTimeZone)}
                           </div>
                         )}
                         {inv.paymentReference && (
