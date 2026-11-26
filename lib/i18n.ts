@@ -2502,6 +2502,8 @@ export const en = {
     filterNotWithdrawn: "Not withdrawn",
     filterEveryone: "Everyone",
     noChildrenMatch: "No children match this filter.",
+    // KID-2505: the green attendance dot on a child's avatar.
+    checkedIn: "Checked in",
     // KID-2482: a child can never be saved without a classroom.
     classroomRequiredError: "A classroom is required. Nothing was saved — pick a classroom and try again.",
     classroomRequiredHint: "A classroom is required. Create a classroom first.",
@@ -5017,6 +5019,8 @@ export const ar = {
     filterNotWithdrawn: "غير المنسحبين",
     filterEveryone: "الجميع",
     noChildrenMatch: "لا يوجد أطفال يطابقون عامل التصفية هذا.",
+    // KID-2505: النقطة الخضراء للحضور على صورة الطفل.
+    checkedIn: "حاضر",
     classroomRequiredError: "الفصل مطلوب. لم يُحفظ أي شيء — اختر فصلًا وحاول مرة أخرى.",
     classroomRequiredHint: "الفصل مطلوب. أنشئ فصلًا أولًا.",
     needsClassroom: "يحتاج فصلًا",
