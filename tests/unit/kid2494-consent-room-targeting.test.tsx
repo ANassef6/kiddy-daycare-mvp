@@ -101,6 +101,19 @@ describe("KID-2494 classroom consent targeting", () => {
     expect(ids).not.toContain(await childIdByName("Leo"));
   });
 
+  it("lets the owner target any classroom, with the same scope as an admin", async () => {
+    const ownerAcc = String(
+      (await createAccount({ email: "kid2494-owner@example.com", password: "x", fullName: "KID2494 Owner", role: "owner" })).id
+    );
+    signInAs(ownerAcc, "owner", "kid2494-owner@example.com");
+
+    const target = await sendConsent({ title: "KID2494 Owner room", roomIds: [roomB] });
+    expect(target).toBe("/portal/consents");
+    const ids = (await consentRows("KID2494 Owner room")).map((r) => String(r.child_id));
+    expect(ids).toContain(await childIdByName("Leo"));
+    expect(ids).not.toContain(await childIdByName("Ella"));
+  });
+
   it("includes a child enrolled in the room before submit time", async () => {
     const late = await store.createChild({ instituteId: iid, firstName: "Late", lastName: "Joiner", roomId: roomA });
     await sendConsent({ title: "KID2494 Late enrollment", roomIds: [roomA] });
@@ -191,6 +204,21 @@ describe("KID-2494 audience labels", () => {
     expect(html).toContain("Classrooms");
     expect(html).toContain("Specific children (optional)");
     expect(html).toContain("Search children…");
+    expect(html).toContain("Toddlers");
+    expect(html).toContain("Preschool");
+  });
+
+  it("shows every room to the owner, not only assigned rooms", () => {
+    const html = renderToStaticMarkup(
+      <ConsentAudiencePicker
+        dict={getDictionary("en")}
+        defaultOpen
+        role="owner"
+        assignedRoomIds={[]}
+        rooms={rooms()}
+        childOptions={[]}
+      />
+    );
     expect(html).toContain("Toddlers");
     expect(html).toContain("Preschool");
   });
