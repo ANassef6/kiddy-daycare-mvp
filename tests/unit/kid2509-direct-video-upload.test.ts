@@ -20,6 +20,7 @@ import {
   MAX_VIDEO_DURATION_SECONDS,
   MAX_VIDEO_UPLOAD_BYTES,
 } from "@/lib/media-limits";
+import { prepareMediaFormData } from "@/lib/media-prepare-client";
 
 const sessionCookie = { value: "" };
 vi.mock("next/headers", () => ({
@@ -133,6 +134,34 @@ describe("KID-2509 video limits", () => {
         size: MAX_VIDEO_UPLOAD_BYTES,
       })
     ).toMatchObject({ ok: true, ext: "mp4" });
+  });
+
+  it("refuses a video over 15 MB on the client before any upload", async () => {
+    const form = new FormData();
+    form.set(
+      "attachment",
+      new File([new Uint8Array(MAX_VIDEO_UPLOAD_BYTES + 1)], "big.webm", {
+        type: "video/webm",
+      })
+    );
+    const out = await prepareMediaFormData(form, {
+      maxImageBytes: MAX_NEWSFEED_ATTACHMENT_BYTES,
+      maxVideoBytes: MAX_VIDEO_UPLOAD_BYTES,
+      maxVideoSeconds: MAX_VIDEO_DURATION_SECONDS,
+      labels: {
+        preparing: "Preparing…",
+        optimizing: "Optimizing…",
+        prepared: "Prepared",
+        imageTooLarge: "Photo larger than {limit}.",
+        videoTooLarge: "Video larger than {limit}.",
+        videoTooLong: "Video is {seconds}s; limit {limit}s.",
+        fileTooLarge: "File larger than {limit}.",
+        compressFailed: "Could not prepare.",
+        uploading: "Uploading… {percent}%",
+      },
+    });
+    expect(out.ok).toBe(false);
+    if (!out.ok) expect(out.error).toContain("15 MB");
   });
 
   it("HEAD-verifies a 15 MB video and deletes a larger object", async () => {
