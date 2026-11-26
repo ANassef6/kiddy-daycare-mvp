@@ -28,7 +28,7 @@ import * as store from "@/lib/store";
 import { createAccount, createSessionToken } from "@/lib/auth";
 import { queryAll, queryGet, queryRun } from "@/lib/db";
 import { getDictionary } from "@/lib/i18n";
-import RecipientsPicker from "@/components/RecipientsPicker";
+import RecipientsPicker, { channelForRoomSelection } from "@/components/RecipientsPicker";
 import { seedFixture } from "../helpers";
 
 let iid: string;
@@ -149,6 +149,66 @@ describe("KID-2482 one admin audience option", () => {
     expect(html).toContain("My classrooms");
     expect(html).not.toContain("Everyone (whole center)");
     expect(html).not.toContain("All classrooms");
+  });
+
+  it("shows the classroom checklist above the child list before any channel is picked", () => {
+    // KID-2482 review follow-up: the founder opened the newsfeed picker and
+    // reported "still no rooms" because the checklist only rendered after a
+    // channel had been selected.
+    const dict = getDictionary("en");
+    const html = renderToStaticMarkup(
+      <RecipientsPicker
+        dict={dict}
+        defaultOpen
+        role="admin"
+        assignedRoomIds={[]}
+        rooms={[
+          { id: roomA, name: "Toddlers" },
+          { id: roomB, name: "Preschool" },
+        ]}
+        childOptions={[
+          { id: "child-a", first_name: "Layla", last_name: "Founder", room_id: roomA, room_name: "Toddlers" },
+          { id: "child-b", first_name: "Omar", last_name: "Founder", room_id: roomB, room_name: "Preschool" },
+        ]}
+      />
+    );
+    expect(html).toContain("Classrooms");
+    expect(html).toContain("Toddlers");
+    expect(html).toContain("Preschool");
+    expect(html.indexOf("Toddlers")).toBeLessThan(html.indexOf("Search children"));
+    expect(html.indexOf("Toddlers")).toBeLessThan(html.indexOf("Layla"));
+  });
+
+  it("shows teachers only their assigned classrooms in the checklist", () => {
+    const dict = getDictionary("en");
+    const html = renderToStaticMarkup(
+      <RecipientsPicker
+        dict={dict}
+        defaultOpen
+        role="staff"
+        assignedRoomIds={[roomA]}
+        rooms={[
+          { id: roomA, name: "Toddlers" },
+          { id: roomB, name: "Preschool" },
+        ]}
+        childOptions={[
+          { id: "child-a", first_name: "Layla", last_name: "Founder", room_id: roomA, room_name: "Toddlers" },
+          { id: "child-b", first_name: "Omar", last_name: "Founder", room_id: roomB, room_name: "Preschool" },
+        ]}
+      />
+    );
+    expect(html).toContain("Toddlers");
+    expect(html).not.toContain("Preschool");
+    expect(html).not.toContain("Omar");
+    expect(html).not.toContain("Everyone (whole center)");
+  });
+
+  it("never maps a teacher's full room selection to the admin-only center channel", () => {
+    expect(channelForRoomSelection(false, 2, 2)).toBe("rooms");
+    expect(channelForRoomSelection(false, 1, 2)).toBe("rooms");
+    expect(channelForRoomSelection(true, 2, 2)).toBe("center");
+    expect(channelForRoomSelection(true, 1, 2)).toBe("rooms");
+    expect(channelForRoomSelection(true, 0, 0)).toBe("rooms");
   });
 
   it("has the child-search labels in both locales", () => {

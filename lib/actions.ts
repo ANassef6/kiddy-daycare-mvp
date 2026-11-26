@@ -70,7 +70,7 @@ import {
   upsertDailyReport,
   createNewsfeedPost,
   addComment,
-  createConsent,
+  createConsents,
   respondConsent,
   createIncident,
   acknowledgeIncident,
@@ -1772,6 +1772,47 @@ async function resolveNewsfeedRecipients(
   return (await resolveRecipientAudience(formData, me, instituteId)).childIds;
 }
 
+// KID-2494: a consent can target all visible children or whole classrooms. The
+// founder removed the per-child picker from the composer. A classroom resolves
+// against the roster at submit time, so a child enrolled after the composer
+// rendered is included automatically. All / general resolves through the same
+// classroom scope at submit time (admin/owner: every child; staff/carer: their
+// rooms). Forged or out-of-scope room ids are dropped; a pick that resolves to
+// nothing must not silently become a general request, so `hadPicks` lets the
+// caller refuse it.
+async function resolveConsentRecipients(
+  formData: FormData,
+  me: SessionCookie,
+  instituteId: string
+): Promise<{ childIds: string[]; hadPicks: boolean }> {
+  const { listRooms, childrenByRooms, listChildren } = await import("@/lib/store");
+  // KID-2494: the owner has the same all-room audience as the admin. Use the
+  // shared role helper instead of a local role switch that can omit owner; a
+  // non-admin still resolves through the shared classroom scope and fails
+  // closed when that scope is empty.
+  const isAdmin = isAdminRole(me.role);
+  const allowedRoomIds = isAdmin ? null : (await scopedRoomIds(instituteId, me.accountId)) ?? [];
+
+  const instituteRooms = new Set((await listRooms(instituteId)).map((r) => String(r.id)));
+  const requestedRoomIds = Array.from(new Set(formData.getAll("recipientRoomIds").map(String).filter(Boolean)));
+  const roomIds = requestedRoomIds.filter(
+    (id) => instituteRooms.has(id) && (allowedRoomIds === null || allowedRoomIds.includes(id))
+  );
+  if (requestedRoomIds.length > 0) {
+    // A pick that is forged or outside the caller's scope resolves to nothing
+    // and stays a refused pick; it never turns into an All / general send.
+    return {
+      childIds: Array.from(new Set((await childrenByRooms(roomIds)).map((c) => String(c.id)))),
+      hadPicks: true,
+    };
+  }
+
+  // All / general: same scope as the room picker, resolved at send time so a
+  // late enrollment is included and a teacher cannot reach another classroom.
+  const scoped = await listChildren(instituteId, { accountId: me.accountId });
+  return { childIds: scoped.map((c) => String(c.id)), hadPicks: false };
+}
+
 // KID-57: the app language lives on `account.language` + the kiddy_lang
 // cookie. KID-2460 moved the write to the native POST route
 // /switch-app-lang: a server-action redirect kept the mounted layouts (and
@@ -2009,27 +2050,41 @@ export async function commentAction(formData: FormData) {
 export async function createConsentAction(formData: FormData) {
   await ensureSchema();
   const me = await authAccount();
+  // KID-2494: only daycare staff roles compose consents. A parent account that
+  // reaches this action must not fan a request out to every child.
+  if (!canEditChildren(me.role)) redirect("/child");
   const instituteId = await firstInstituteId();
-  const childId = String(formData.get("childId") ?? "") || undefined;
-  if (childId) await assertChildInScope(childId, me);
-  const consent = await createConsent({
+  const title = String(formData.get("title") ?? "");
+  // KID-2494: classroom picks resolve to their current children; no picks
+  // means All / general, which also resolves to the caller's visible children
+  // so every recipient keeps its own response row.
+  const audience = instituteId
+    ? await resolveConsentRecipients(formData, me, instituteId)
+    : { childIds: [], hadPicks: false };
+  if (audience.hadPicks && audience.childIds.length === 0) {
+    redirect("/portal/consents?error=audience");
+  }
+  const consents = await createConsents({
     instituteId,
-    title: String(formData.get("title") ?? ""),
+    title,
     body: String(formData.get("body") ?? ""),
-    childId,
+    childIds: audience.childIds,
   });
   // KID-477: consent requests are admin-authored changes to a record parents
-  // must act on — attributed on the trail (title only, never the body).
-  if (instituteId && consent) {
-    await recordAuditEvent({
-      instituteId,
-      actorAccountId: me.accountId,
-      action: "create",
-      entityType: "consent_request",
-      entityId: String(consent.id),
-      summary: `Created the consent request “${String(formData.get("title") ?? "")}”`,
-      metadata: { childId: childId ?? null },
-    });
+  // must act on — attributed on the trail (title only, never the body). One
+  // event per per-child row so every parent-facing request carries its author.
+  if (instituteId) {
+    for (const consent of consents) {
+      await recordAuditEvent({
+        instituteId,
+        actorAccountId: me.accountId,
+        action: "create",
+        entityType: "consent_request",
+        entityId: String(consent.id),
+        summary: `Created the consent request “${title}”`,
+        metadata: { childId: consent.child_id ? String(consent.child_id) : null },
+      });
+    }
   }
   redirect("/portal/consents");
 }
@@ -2040,7 +2095,7 @@ export async function respondConsentAction(formData: FormData) {
   await assertFamilyAction(me, "respondConsent");
   const consentId = String(formData.get("id") ?? "");
   const status = String(formData.get("status") ?? "approved") as "approved" | "denied";
-  await respondConsent(consentId, status);
+  await respondConsent(consentId, status, me.accountId);
   // KID-477: a parent decision is a record mutation — attributed per parent.
   const row = await queryGet("SELECT institute_id FROM consent_request WHERE id = ?", consentId);
   if (row) {
