@@ -14,10 +14,12 @@ export const dynamic = "force-dynamic";
 // KID-221: this was the last surface where the consent workflow only existed
 // in English (the whole form, statuses and dates). Localized end-to-end; the
 // status labels are shared with the parent's approve/deny page.
-export default async function PortalConsentsPage(props?: {
-  searchParams?: Promise<{ error?: string }>;
+export default async function PortalConsentsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ error?: string }>;
 }) {
-  const searchParams = (await props?.searchParams) ?? {};
+  const params = await searchParams;
   const session = await requireSession();
   const { locale, dict } = await i18nForAccount(session.accountId);
   const t = (key: string, vars?: Record<string, string | number>) => tr(dict, key, vars);
@@ -52,7 +54,7 @@ export default async function PortalConsentsPage(props?: {
   return (
     <div>
       <h1 className="title">{t("consents.title")}</h1>
-      {searchParams.error === "audience" && (
+      {params.error === "audience" && (
         <p className="badge badge-red mb-4" role="alert">{t("consents.errorAudience")}</p>
       )}
       <form className="card mb-4" action={createConsentAction}>
