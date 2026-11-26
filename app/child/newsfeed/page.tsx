@@ -7,6 +7,7 @@ import { tr } from "@/lib/i18n";
 import { recordToolUsage } from "@/lib/tool-usage";
 import type { Row } from "@/lib/db";
 import { signedUrlsForRefs } from "@/lib/storage";
+import NewsfeedLikers from "@/components/NewsfeedLikers";
 
 export const dynamic = "force-dynamic";
 
@@ -47,10 +48,12 @@ export default async function ParentNewsfeedPage() {
                   <button
                     type="submit"
                     className={post.liked ? "badge badge-green" : "badge badge-gray"}
-                    style={{ cursor: "pointer", border: "none", fontSize: 12 }}
+                    style={{ cursor: "pointer", border: "none", fontSize: 14 }}
                     title={post.liked ? t("child.unlike") : t("child.like")}
+                    aria-label={post.liked ? t("child.unlike") : t("child.like")}
+                    aria-pressed={!!post.liked}
                   >
-                    {post.liked ? "♥" : "♡"} {post.like_count}
+                    {post.liked ? "♥" : "♡"}
                   </button>
                 </form>
               </div>
@@ -63,8 +66,9 @@ export default async function ParentNewsfeedPage() {
               {post.media_url && (
                 <img src={mediaSrcs.get(String(post.media_url)) ?? ""} alt="" style={{ width: "100%", maxHeight: 360, objectFit: "cover", borderRadius: 8, marginTop: 10 }} />
               )}
-              <div className="small muted mt-2">
-                {t("newsfeed.likesAndComments", { likes: post.like_count, comments: post.comment_count })}
+              <div className="small muted mt-2" style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+                <NewsfeedLikers likers={post.likers ?? []} count={Number(post.like_count ?? 0)} dict={dict} />
+                <span>· {t("newsfeed.commentsCount", { count: Number(post.comment_count ?? 0) })}</span>
               </div>
               {post.comments?.map((c: any) => (
                 <div className="small mt-1" key={c.id}><strong>{c.full_name}:</strong> {c.body}</div>

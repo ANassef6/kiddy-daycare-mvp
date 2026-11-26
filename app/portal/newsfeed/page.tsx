@@ -5,8 +5,15 @@ import { createNewsfeedWithAttachmentAction, commentAction, toggleLikeAction } f
 import RecipientsPicker from "@/components/RecipientsPicker";
 import MediaUploadForm from "@/components/MediaUploadForm";
 import { mediaUploadLabels } from "@/lib/media-i18n";
-import { MAX_NEWSFEED_ATTACHMENT_BYTES, MAX_VIDEO_DURATION_SECONDS } from "@/lib/media-limits";
+import {
+  attachmentKind,
+  mediaRefName,
+  MAX_NEWSFEED_ATTACHMENT_BYTES,
+  MAX_VIDEO_DURATION_SECONDS,
+} from "@/lib/media-limits";
 import Avatar from "@/components/Avatar";
+import NewsfeedLikers from "@/components/NewsfeedLikers";
+import NewsfeedMediaViewer from "@/components/NewsfeedMediaViewer";
 import { queryGet } from "@/lib/db";
 import { i18nForAccount } from "@/lib/i18n-session";
 import { fmtDateTimeFor, tr } from "@/lib/i18n";
@@ -19,7 +26,7 @@ export const dynamic = "force-dynamic";
 // inside the translated shell (heading, composer labels, like/comment rows,
 // timestamps). Localized like the rest of the Home group.
 export default async function PortalNewsfeedPage(props: {
-  searchParams?: Promise<{ error?: string }>;
+  searchParams?: Promise<{ error?: string; tagError?: string; tagged?: string }>;
 }) {
   const searchParams = props.searchParams;
   const session = await requireSession();
@@ -35,6 +42,28 @@ export default async function PortalNewsfeedPage(props: {
     iid ? listRooms(iid) : Promise.resolve([]),
   ]);
   const mediaSrcs = await signedUrlsForRefs(posts.map((p: any) => String(p.media_url ?? "")));
+  // KID-2487: the tag picker offers the editor's own classrooms, plus any
+  // child already tagged on a photo so an existing tag is never hidden.
+  const tagOptionsById = new Map<string, { id: string; first_name: string; last_name: string }>();
+  for (const child of children) {
+    tagOptionsById.set(String(child.id), {
+      id: String(child.id),
+      first_name: String(child.first_name),
+      last_name: String(child.last_name),
+    });
+  }
+  for (const post of posts as any[]) {
+    for (const tag of post.mediaTags ?? []) {
+      if (!tagOptionsById.has(String(tag.id))) {
+        tagOptionsById.set(String(tag.id), {
+          id: String(tag.id),
+          first_name: String(tag.first_name),
+          last_name: String(tag.last_name),
+        });
+      }
+    }
+  }
+  const photoTagOptions = Array.from(tagOptionsById.values());
   // KID-53 #1: staff recipients are limited to their assigned classrooms.
   let assignedRoomIds: string[] = [];
   if (session.role === "staff" || session.role === "carer") {
@@ -52,6 +81,27 @@ export default async function PortalNewsfeedPage(props: {
       {params.error === "attachment" && (
         <div role="alert" className="card mb-4" style={{ borderLeft: "4px solid #b91c1c" }}>
           <p className="small" style={{ margin: 0 }}>{t("newsfeed.errorAttachment")}</p>
+        </div>
+      )}
+
+      {params.tagError === "audience" && (
+        <div role="alert" className="card mb-4" style={{ borderLeft: "4px solid #b45309" }}>
+          <p className="small" style={{ margin: 0 }}>{t("newsfeed.tagErrorAudience")}</p>
+        </div>
+      )}
+      {params.tagError === "forbidden" && (
+        <div role="alert" className="card mb-4" style={{ borderLeft: "4px solid #b91c1c" }}>
+          <p className="small" style={{ margin: 0 }}>{t("newsfeed.tagErrorForbidden")}</p>
+        </div>
+      )}
+      {params.tagError === "no_media" && (
+        <div role="alert" className="card mb-4" style={{ borderLeft: "4px solid #b91c1c" }}>
+          <p className="small" style={{ margin: 0 }}>{t("newsfeed.tagErrorNoMedia")}</p>
+        </div>
+      )}
+      {params.tagged === "1" && (
+        <div className="card mb-4" style={{ borderLeft: "4px solid #047857" }}>
+          <p className="small" style={{ margin: 0 }}>{t("newsfeed.tagsSaved")}</p>
         </div>
       )}
 
@@ -91,47 +141,73 @@ export default async function PortalNewsfeedPage(props: {
         </MediaUploadForm>
       </details>
 
-      {posts.map((post: any) => (
-        <div className="card mb-4" key={post.id}>
-          <div className="row" style={{ justifyContent: "space-between", alignItems: "center" }}>
-            <div className="small muted row" style={{ gap: 8, alignItems: "center" }}>
-              <Avatar src={null} name={post.author_name} size={24} />
-              <span>{post.author_name} · {fmtDateTimeFor(locale, post.created_at)}</span>
+      {posts.map((post: any) => {
+        const mediaKind = post.media_url
+          ? attachmentKind(mediaRefName(post.media_url), String(post.media_url))
+          : "other";
+        const mediaSrc = mediaSrcs.get(String(post.media_url)) ?? "";
+        return (
+          <div className="card mb-4" key={post.id}>
+            <div className="row" style={{ justifyContent: "space-between", alignItems: "center" }}>
+              <div className="small muted row" style={{ gap: 8, alignItems: "center" }}>
+                <Avatar src={null} name={post.author_name} size={24} />
+                <span>{post.author_name} · {fmtDateTimeFor(locale, post.created_at)}</span>
+              </div>
+              <form action={toggleLikeAction}>
+                <input type="hidden" name="postId" value={post.id} />
+                <button
+                  type="submit"
+                  className={post.liked ? "badge badge-green" : "badge badge-gray"}
+                  style={{ cursor: "pointer", border: "none", fontSize: 14 }}
+                  title={post.liked ? t("child.unlike") : t("child.like")}
+                  aria-label={post.liked ? t("child.unlike") : t("child.like")}
+                  aria-pressed={!!post.liked}
+                >
+                  {post.liked ? "♥" : "♡"}
+                </button>
+              </form>
             </div>
-            <form action={toggleLikeAction}>
+            <p className="mt-2">{post.body}</p>
+            {post.tags?.length > 0 && (
+              <div className="mt-2">
+                {post.tags.map((tag: any) => (
+                  <span key={tag.id} className="badge badge-green" style={{ marginRight: 6 }}>
+                    {t("parent.newsfeedFor", { name: `${tag.first_name} ${tag.last_name}` })}
+                  </span>
+                ))}
+              </div>
+            )}
+            {post.media_url &&
+              (mediaKind === "image" || mediaKind === "video" ? (
+                <NewsfeedMediaViewer
+                  postId={String(post.id)}
+                  mediaSrc={mediaSrc}
+                  kind={mediaKind}
+                  canTag
+                  childOptions={photoTagOptions}
+                  taggedChildIds={(post.mediaTags ?? []).map((tag: any) => String(tag.id))}
+                  dict={dict}
+                />
+              ) : (
+                <a href={mediaSrc} target="_blank" rel="noreferrer" className="small">
+                  {mediaRefName(post.media_url)}
+                </a>
+              ))}
+            <div className="small muted mt-2" style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+              <NewsfeedLikers likers={post.likers ?? []} count={Number(post.like_count ?? 0)} dict={dict} />
+              <span>· {t("newsfeed.commentsCount", { count: Number(post.comment_count ?? 0) })}</span>
+            </div>
+            {post.comments?.map((c: any) => (
+              <div className="small mt-1" key={c.id}><strong>{c.full_name}:</strong> {c.body}</div>
+            ))}
+            <form action={commentAction} className="row mt-3">
               <input type="hidden" name="postId" value={post.id} />
-              <button
-                type="submit"
-                className={post.liked ? "badge badge-green" : "badge badge-gray"}
-                style={{ cursor: "pointer", border: "none", fontSize: 12 }}
-                title={post.liked ? t("child.unlike") : t("child.like")}
-              >
-                {post.liked ? "♥" : "♡"} {post.like_count}
-              </button>
+              <input className="input" name="body" placeholder={t("parent.newsfeedCommentPlaceholder")} required style={{ flex: 1 }} />
+              <button className="btn btn-ghost" type="submit">{t("parent.newsfeedCommentAction")}</button>
             </form>
           </div>
-          <p className="mt-2">{post.body}</p>
-          {post.tags?.length > 0 && (
-            <div className="mt-2">
-              {post.tags.map((tag: any) => (
-                <span key={tag.id} className="badge badge-green" style={{ marginRight: 6 }}>
-                  {t("parent.newsfeedFor", { name: `${tag.first_name} ${tag.last_name}` })}
-                </span>
-              ))}
-            </div>
-          )}
-          {post.media_url && <img src={mediaSrcs.get(String(post.media_url)) ?? ""} alt="" style={{ width: "100%", maxHeight: 360, objectFit: "cover", borderRadius: 8, marginTop: 10 }} />}
-          <div className="small muted mt-2">{t("parent.newsfeedMeta", { likes: post.like_count, comments: post.comment_count })}</div>
-          {post.comments?.map((c: any) => (
-            <div className="small mt-1" key={c.id}><strong>{c.full_name}:</strong> {c.body}</div>
-          ))}
-          <form action={commentAction} className="row mt-3">
-            <input type="hidden" name="postId" value={post.id} />
-            <input className="input" name="body" placeholder={t("parent.newsfeedCommentPlaceholder")} required style={{ flex: 1 }} />
-            <button className="btn btn-ghost" type="submit">{t("parent.newsfeedCommentAction")}</button>
-          </form>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 }
