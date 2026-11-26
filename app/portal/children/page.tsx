@@ -15,12 +15,19 @@ import type { Dict } from "@/lib/i18n";
 
 export const dynamic = "force-dynamic";
 
+// KID-2498: each chip maps to one exact status set from listChildren:
+//   ""           -> every status except withdrawn (active + on_hold + pending)
+//   "active"     -> active only
+//   "on_hold"    -> on_hold only
+//   "pending"    -> pending only
+//   "withdrawn"  -> withdrawn only
+//   "all"        -> every status, including withdrawn
 const STATUS_OPTIONS = ["", "active", "on_hold", "pending", "withdrawn", "all"] as const;
 
 function statusOptionLabel(value: string, dict: Dict): string {
   switch (value) {
     case "":
-      return tr(dict, "childrenAdd.filterAllActive");
+      return tr(dict, "childrenAdd.filterNotWithdrawn");
     case "active":
       return tr(dict, "profile.active");
     case "on_hold":
@@ -30,7 +37,7 @@ function statusOptionLabel(value: string, dict: Dict): string {
     case "withdrawn":
       return tr(dict, "profile.withdrawn");
     default:
-      return tr(dict, "common.all");
+      return tr(dict, "childrenAdd.filterEveryone");
   }
 }
 
