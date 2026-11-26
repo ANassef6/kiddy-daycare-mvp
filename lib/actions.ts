@@ -1793,7 +1793,11 @@ async function resolveConsentRecipients(
   instituteId: string
 ): Promise<{ childIds: string[]; hadPicks: boolean }> {
   const { listRooms, childrenByRooms } = await import("@/lib/store");
-  const isAdmin = me.role === "owner" || me.role === "admin";
+  // KID-2494: the owner has the same all-room audience as the admin. Use the
+  // shared role helper instead of a local role switch that can omit owner; a
+  // non-admin still resolves through the shared classroom scope and fails
+  // closed when that scope is empty.
+  const isAdmin = isAdminRole(me.role);
   const allowedRoomIds = isAdmin ? null : (await scopedRoomIds(instituteId, me.accountId)) ?? [];
 
   const instituteRooms = new Set((await listRooms(instituteId)).map((r) => String(r.id)));

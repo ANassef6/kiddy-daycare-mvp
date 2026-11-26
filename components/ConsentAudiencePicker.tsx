@@ -2,6 +2,7 @@
 
 import { useMemo, useState, useEffect, useRef, useCallback } from "react";
 import { tr, type Dict } from "@/lib/i18n";
+import { isAdminRole } from "@/lib/role";
 
 export type AudienceChild = {
   id: string;
@@ -44,7 +45,9 @@ export default function ConsentAudiencePicker({
   const [open, setOpen] = useState(defaultOpen);
   const ref = useRef<HTMLDivElement>(null);
 
-  const isAdmin = role === "owner" || role === "admin";
+  // KID-2494: use the shared role helper so the owner keeps the same all-room
+  // scope as the admin. A local owner|admin switch drifts when roles change.
+  const isAdmin = isAdminRole(role);
   const visibleRooms = useMemo(() => {
     if (isAdmin) return rooms;
     const allowed = new Set(assignedRoomIds);
