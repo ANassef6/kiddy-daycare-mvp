@@ -31,6 +31,18 @@ type Props = {
   dict: Dict;
 };
 
+// KID-2482 review follow-up: the room checklist must be visible as soon as the
+// dropdown opens. It used to render only after a channel was picked, so the
+// founder opened the newsfeed picker and concluded there were no rooms at all.
+// Admins keep the whole-center bulk channel; staff only ever target rooms.
+export function channelForRoomSelection(
+  isAdmin: boolean,
+  selectedRoomCount: number,
+  totalRooms: number
+): "center" | "rooms" {
+  return isAdmin && totalRooms > 0 && selectedRoomCount === totalRooms ? "center" : "rooms";
+}
+
 // KID-53 #1 / KID-104 #6 / KID-2482: recipients picker with pre-defined
 // channels. Admins get one "Everyone (whole center)" bulk channel that the
 // server resolves against every classroom at submit time (so a classroom
@@ -112,11 +124,13 @@ export default function RecipientsPicker({
         : [...effectiveRoomIds, id];
       setRoomIds(next);
       setSelected(new Set());
-      // All rooms checked again means the whole center; a subset falls back to
-      // the targeted classroom channel.
-      setChannel(next.length > 0 && next.length === allRoomIds.length ? "center" : "rooms");
+      // All rooms checked again means the whole center for an admin; a subset
+      // (and every teacher selection) stays on the targeted classroom channel.
+      // Teachers cannot submit "center" - the server rejects it - so their full
+      // selection must remain "rooms".
+      setChannel(channelForRoomSelection(isAdmin, next.length, allRoomIds.length));
     },
-    [effectiveRoomIds, allRoomIds]
+    [effectiveRoomIds, allRoomIds, isAdmin]
   );
 
   useEffect(() => {
@@ -212,8 +226,13 @@ export default function RecipientsPicker({
                 {visibleRooms.length ? t("parent.pickerMyClassrooms") : t("parent.pickerMyClassroomsNone")}
               </label>
             )}
-            {(channel === "center" || channel === "rooms") && visibleRooms.length > 1 && (
-              <div style={{ padding: "4px 0 6px 26px", display: "flex", flexDirection: "column", gap: 4 }}>
+          </div>
+
+          {visibleRooms.length > 0 && (
+            <div style={{ padding: "8px 12px", borderBottom: "1px solid var(--color-border)" }}>
+              <div className="small muted" style={{ fontWeight: 700, marginBottom: 2 }}>{t("parent.pickerClassrooms")}</div>
+              <div className="small muted" style={{ marginBottom: 6 }}>{t("parent.pickerClassroomsHint")}</div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
                 {visibleRooms.map((r) => (
                   <label key={r.id} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, cursor: "pointer" }}>
                     <input
@@ -226,8 +245,8 @@ export default function RecipientsPicker({
                   </label>
                 ))}
               </div>
-            )}
-          </div>
+            </div>
+          )}
 
           <input
             type="text"
