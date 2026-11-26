@@ -12,7 +12,11 @@ import { firstInstituteId } from "@/lib/helpers";
 import { createEventAction, updateEventAction, addEventMediaAction } from "@/lib/actions";
 import MediaUploadForm from "@/components/MediaUploadForm";
 import { mediaUploadLabels } from "@/lib/media-i18n";
-import { MAX_EVENT_ATTACHMENT_BYTES, MAX_VIDEO_DURATION_SECONDS } from "@/lib/media-limits";
+import {
+  MAX_EVENT_ATTACHMENT_BYTES,
+  MAX_VIDEO_DURATION_SECONDS,
+  MAX_VIDEO_UPLOAD_BYTES,
+} from "@/lib/media-limits";
 import { signedUrlsForRefs } from "@/lib/storage";
 import { i18nForAccount } from "@/lib/i18n-session";
 import { fmtTimeFor, tr } from "@/lib/i18n";
@@ -210,7 +214,7 @@ export default async function PortalEventsPage({ searchParams }: { searchParams:
                 style={{ gap: 8, alignItems: "flex-end" }}
                 encType="multipart/form-data"
                 maxImageBytes={MAX_EVENT_ATTACHMENT_BYTES}
-                maxVideoBytes={MAX_EVENT_ATTACHMENT_BYTES}
+                maxVideoBytes={MAX_VIDEO_UPLOAD_BYTES}
                 maxVideoSeconds={MAX_VIDEO_DURATION_SECONDS}
                 labels={mediaUploadLabels(dict)}
                 directUpload={{ purpose: "event", fileField: "attachment" }}

@@ -7,15 +7,16 @@
 //   * Photos are resized to <= 1280px on the longest edge and re-encoded at
 //     ~80% quality with a ~400 KB target. Phone photos normally land at
 //     200-400 KB, roughly a 10x drop from a 3-5 MB camera JPEG.
-//   * Video is not transcoded (no heavy mobile pipeline). It is refused
-//     client-side on duration (~60s) and size. The 4 MB size ceiling is
-//     stricter than Supabase's 50 MB object cap on purpose: media attachments
-//     travel through a Next.js server action, and Vercel caps request bodies
-//     at 4.5 MB. A limit above that would fail as a server error instead of
-//     the friendly client-side refusal the product asks for. 4 MB still sits
-//     well under the 50 MB free-tier storage cap.
-//   * The image ceiling for old clients (no compression) is 4 MB for the same
-//     request-body reason.
+//   * KID-2509: video can now travel straight from the browser to private R2
+//     storage, so the Worker request body no longer carries it and the old
+//     request-body ceiling no longer applies. Newsfeed and event videos get a
+//     15 MB / 5-minute product cap (founder-approved 2026-11-26). The limit is
+//     one constant: raising it later needs no re-architecture.
+//   * Photos still use the compressed server-action path, so the 4 MB image
+//     ceiling for old clients (no compression) stays.
+//   * Messages, drive documents, payment proofs and profile media keep their
+//     previous limits; messages stay at 60 seconds even though the shared
+//     video duration constant is now 300 seconds.
 
 export const MAX_IMAGE_EDGE = 1280;
 export const IMAGE_QUALITY = 0.8;
@@ -23,8 +24,12 @@ export const IMAGE_MIN_QUALITY = 0.55;
 export const IMAGE_TARGET_BYTES = 400 * 1024;
 export const MAX_PHOTO_UPLOAD_BYTES = 4 * 1024 * 1024;
 
-export const MAX_VIDEO_DURATION_SECONDS = 60;
-export const MAX_VIDEO_UPLOAD_BYTES = 4 * 1024 * 1024;
+export const MAX_VIDEO_DURATION_SECONDS = 300;
+export const MAX_VIDEO_UPLOAD_BYTES = 15 * 1024 * 1024;
+
+// KID-2509: messages are intentionally out of scope and stay exactly as they
+// were before the direct-to-R2 video change.
+export const MAX_MESSAGE_VIDEO_DURATION_SECONDS = 60;
 
 // Existing inline-attachment ceilings stay untouched: messages 1.5 MB and
 // newsfeed 2.5 MB were product limits before KID-2450. Both are below the
@@ -32,8 +37,9 @@ export const MAX_VIDEO_UPLOAD_BYTES = 4 * 1024 * 1024;
 export const MAX_MESSAGE_ATTACHMENT_BYTES = 1_500_000;
 export const MAX_NEWSFEED_ATTACHMENT_BYTES = 2_500_000;
 export const MAX_DRIVE_FILE_BYTES = 4 * 1024 * 1024;
-// KID-2466: event attachments are photos/videos only. The ceiling matches the
-// newsfeed request-body boundary and the product's "~4 MB, video <=60s" spec.
+// KID-2466: event attachments are photos/videos only. The photo ceiling stays
+// at the newsfeed request-body boundary; video uses MAX_VIDEO_UPLOAD_BYTES on
+// the direct-to-R2 path (KID-2509).
 export const MAX_EVENT_ATTACHMENT_BYTES = 4 * 1024 * 1024;
 
 export const PHOTO_MIME_EXT: Record<string, string> = {

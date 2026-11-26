@@ -25,7 +25,10 @@ import MediaUploadForm from "@/components/MediaUploadForm";
 import MessageComposerForm from "@/components/MessageComposerForm";
 import MessageAttachment from "@/components/MessageAttachment";
 import { mediaUploadLabels } from "@/lib/media-i18n";
-import { MAX_MESSAGE_ATTACHMENT_BYTES, MAX_VIDEO_DURATION_SECONDS } from "@/lib/media-limits";
+import {
+  MAX_MESSAGE_ATTACHMENT_BYTES,
+  MAX_MESSAGE_VIDEO_DURATION_SECONDS,
+} from "@/lib/media-limits";
 import { formatParticipantNames } from "@/lib/thread-display";
 import SearchableChecklist from "@/components/SearchableChecklist";
 
@@ -282,7 +285,7 @@ export default async function PortalMessagesPage(
               action={sendComposerAction}
               maxImageBytes={MAX_MESSAGE_ATTACHMENT_BYTES}
               maxVideoBytes={MAX_MESSAGE_ATTACHMENT_BYTES}
-              maxVideoSeconds={MAX_VIDEO_DURATION_SECONDS}
+              maxVideoSeconds={MAX_MESSAGE_VIDEO_DURATION_SECONDS}
               maxFileBytes={MAX_MESSAGE_ATTACHMENT_BYTES}
               labels={mediaUploadLabels(dict)}
               directUpload={{ purpose: "message", fileField: "attachment" }}
@@ -398,7 +401,7 @@ export default async function PortalMessagesPage(
                 attachments={{
                   maxImageBytes: MAX_MESSAGE_ATTACHMENT_BYTES,
                   maxVideoBytes: MAX_MESSAGE_ATTACHMENT_BYTES,
-                  maxVideoSeconds: MAX_VIDEO_DURATION_SECONDS,
+                  maxVideoSeconds: MAX_MESSAGE_VIDEO_DURATION_SECONDS,
                   maxFileBytes: MAX_MESSAGE_ATTACHMENT_BYTES,
                   labels: mediaUploadLabels(dict),
                   attachLabel: t("messages.attachFile"),
@@ -446,7 +449,7 @@ export default async function PortalMessagesPage(
                   attachments={{
                     maxImageBytes: MAX_MESSAGE_ATTACHMENT_BYTES,
                     maxVideoBytes: MAX_MESSAGE_ATTACHMENT_BYTES,
-                    maxVideoSeconds: MAX_VIDEO_DURATION_SECONDS,
+                    maxVideoSeconds: MAX_MESSAGE_VIDEO_DURATION_SECONDS,
                     maxFileBytes: MAX_MESSAGE_ATTACHMENT_BYTES,
                     labels: mediaUploadLabels(dict),
                     attachLabel: t("messages.attachFile"),

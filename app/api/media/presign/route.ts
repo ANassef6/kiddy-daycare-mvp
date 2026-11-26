@@ -4,8 +4,8 @@ import { tenantInstituteIdForCookie } from "@/lib/tenant";
 import { RATE_LIMIT_RULES, throttle } from "@/lib/rate-limit";
 import {
   isUploadPurpose,
+  maxUploadBytesFor,
   presignMediaUpload,
-  uploadPurposeConfig,
   validateUploadIntent,
   type UploadIntent,
 } from "@/lib/media-upload";
@@ -14,6 +14,8 @@ import { storageProvider } from "@/lib/storage";
 export const dynamic = "force-dynamic";
 
 const ERROR_STATUS: Record<string, number> = {
+  unauthorized: 401,
+  forbidden: 403,
   type: 422,
   size: 422,
   purpose: 422,
@@ -70,7 +72,7 @@ export async function POST(req: NextRequest) {
     return error(
       validation.code,
       validation.code === "size"
-        ? `File is larger than ${uploadPurposeConfig(purpose).maxBytes} bytes.`
+        ? `File is larger than ${maxUploadBytesFor(purpose, intent.contentType)} bytes.`
         : "Unsupported file type."
     );
   }
