@@ -11,7 +11,7 @@ happen after the founder signs off on staging.
 | Login | https://kiddy-staging-orcin.vercel.app/login |
 | Branch | `staging` (integration branch, cut from `master`) |
 | Vercel project | `kiddy-staging` (`prj_y7RmNSA2392TBFb4pDmhP6swmZdF`) |
-| Production branch setting | `staging` (a push to `staging` auto-deploys) |
+| Production branch setting | `staging` (Vercel Git auto-deploys are disabled as of 2026-11-26, KID-2491; the last build is frozen for rollback) |
 | Staging database | Supabase project `pjubkhhuccoqboypgpty` (eu-central-1) |
 | Production database | Supabase project `sfetmfmtoubtdyyeyudd` — **never used by staging** |
 
@@ -22,7 +22,10 @@ read production secrets.
 ## Flow
 
 1. Commit and push to `staging`.
-2. Vercel auto-builds and aliases the result to the staging URL.
+2. Pushes no longer build on Vercel (KID-2491); the staging URL keeps the frozen
+   build for rollback. Deploy the staging Worker instead (see
+   `docs/CLOUDFLARE_MIGRATION.md`), or run a manual Vercel deploy only when
+   deliberately testing the Vercel path.
 3. The founder tests the change on staging.
 4. Only after the founder's sign-off, merge `staging` into `master`. That push
    is the production cut.
