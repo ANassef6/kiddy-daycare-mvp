@@ -13,11 +13,11 @@ export const dynamic = "force-dynamic";
 // KID-221: the Homework page (Learning group) was entirely English inside the
 // translated shell — heading, assign form, placeholders and the per-item
 // "for {child} · due {date}" lines. Localized with localized dates.
-export default async function PortalHomeworkPage(props?: { searchParams?: Promise<{ error?: string }> }) {
+export default async function PortalHomeworkPage({ searchParams }: { searchParams: Promise<{ error?: string }> }) {
   const session = await requireSession();
   const { locale, dict } = await i18nForAccount(session.accountId);
   const t = (key: string, vars?: Record<string, string | number>) => tr(dict, key, vars);
-  const params = (await props?.searchParams) ?? {};
+  const params = (await searchParams) ?? {};
   const instituteId = await firstInstituteId();
   if (!instituteId) return <p className="muted">{t("homework.noInstitute")}</p>;
   await recordToolUsage({ instituteId: String(instituteId ?? "") || null, accountId: session.accountId, toolKey: "learning", source: "portal", metadata: { view: "homework" } });
