@@ -1,3 +1,4 @@
+import { redirect } from "next/navigation";
 import { requireSession } from "@/lib/require";
 import { staffIdForAccount } from "@/lib/auth";
 import { isAdminRole } from "@/lib/role";
@@ -44,21 +45,19 @@ export default async function PortalStaffSchedulePage(
 ) {
   const searchParams = await props.searchParams;
   const session = await requireSession();
+  // KID-2502: this admin surface is closed to non-admin staff — they keep
+  // their own schedule on their profile's Calendar tab.
+  if (!isAdminRole(session.role)) {
+    const myStaffId = await staffIdForAccount(session.accountId);
+    redirect(myStaffId ? `/portal/staff/${myStaffId}` : "/portal/staff");
+  }
   const { dict, locale, timeZone } = await i18nForAccount(session.accountId);
   const instituteId = await firstInstituteId();
   if (!instituteId) return <p className="muted">{tr(dict, "learning.noInstitute")}</p>;
 
-  // KID-105 #13: staff sees only their own schedule.
-  let staff: any[];
-  if (isAdminRole(session.role)) {
-    staff = await listStaff(instituteId);
-  } else {
-    const myStaffId = await staffIdForAccount(session.accountId);
-    const me = myStaffId ? (await listStaff(instituteId)).find((s: any) => String(s.id) === myStaffId) : undefined;
-    staff = me ? [me] : [];
-  }
+  const staff = await listStaff(instituteId);
 
-  // KID-2483: admins assign any center room; staff only their own classrooms.
+  // KID-2483: admins assign any center room.
   const [schedules, rooms] = await Promise.all([
     Promise.all(staff.map((s: any) => listStaffSchedules(s.id))),
     listRoomsScoped(instituteId, session.accountId),

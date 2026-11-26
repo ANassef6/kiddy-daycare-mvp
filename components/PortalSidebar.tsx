@@ -72,8 +72,14 @@ export function portalNav(dict: Dict, role?: string): NavGroup[] {
       href: "/portal/staff",
       items: [
         { label: t("nav.staffProfile"), href: "/portal/staff" },
-        { label: t("nav.staffSchedule"), href: "/portal/staff/schedule" },
-        { label: t("nav.workingHours"), href: "/portal/staff/hours" },
+        // KID-2502: Schedule + Working Hours are admin surfaces; non-admin
+        // staff see only their own profile (with their schedule tab).
+        ...(adminNav
+          ? [
+              { label: t("nav.staffSchedule"), href: "/portal/staff/schedule" },
+              { label: t("nav.workingHours"), href: "/portal/staff/hours" },
+            ]
+          : []),
       ],
     },
   ];

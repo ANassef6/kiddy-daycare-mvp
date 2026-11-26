@@ -1,3 +1,4 @@
+import { redirect } from "next/navigation";
 import { requireSession } from "@/lib/require";
 import { resolveTenantInstituteId } from "@/lib/tenant";
 import { staffIdForAccount } from "@/lib/auth";
@@ -95,19 +96,15 @@ export default async function PortalStaffHoursPage(
 ) {
   const searchParams = (await props.searchParams) ?? {};
   const session = await requireSession();
+  // KID-2502: this admin surface is closed to non-admin staff — they keep
+  // their own schedule on their profile's Calendar tab.
+  if (!isAdminRole(session.role)) {
+    const myStaffId = await staffIdForAccount(session.accountId);
+    redirect(myStaffId ? `/portal/staff/${myStaffId}` : "/portal/staff");
+  }
   const { dict, locale } = await i18nForAccount(session.accountId);
   const iid = await resolveTenantInstituteId();
-  const allStaff = iid ? await listStaff(iid) : [];
-
-  // KID-105 #13: staff sees only their own working-hours row.
-  let staff: any[];
-  if (isAdminRole(session.role)) {
-    staff = allStaff;
-  } else {
-    const myStaffId = await staffIdForAccount(session.accountId);
-    const me = myStaffId ? allStaff.find((s: any) => String(s.id) === myStaffId) : undefined;
-    staff = me ? [me] : [];
-  }
+  const staff = iid ? await listStaff(iid) : [];
 
   const institute = iid ? await getInstitute(iid) : undefined;
   const openingWeek = normalizeWorkingHours(institute?.opening_hours);

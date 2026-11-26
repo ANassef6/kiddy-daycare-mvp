@@ -1681,6 +1681,11 @@ export const en = {
     // KID-2447: staff notification after the end-of-working-hours auto check-out.
     autoCheckoutTitle: "Auto check-out at closing time",
     autoCheckoutBody: "{names} — still checked in at the end of working hours and checked out automatically. Follow up with their parents.",
+    // KID-2502: staff check-in / check-out notification copy for owners + admins.
+    staffCheckInTitle: "Staff check-in: {name}",
+    staffCheckOutTitle: "Staff check-out: {name}",
+    staffStatusBody: "At {time}.",
+    staffStatusBodyWithNote: "At {time} · Note: {note}",
     busOnTitle: "{name} got on the bus",
     busOffTitle: "{name} got off the bus",
     busAutoCheckedOutBody: "Checked out automatically — on the way home by bus.",
@@ -4144,6 +4149,11 @@ export const ar = {
     // KID-2447: إشعار الموظفين بعد الانصراف التلقائي عند نهاية ساعات العمل (AR).
     autoCheckoutTitle: "انصراف تلقائي عند موعد الإغلاق",
     autoCheckoutBody: "{names} — كانوا ما زالوا مسجّلين حضورهم عند نهاية ساعات العمل وتم تسجيل انصرافهم تلقائيًا. يرجى المتابعة مع أولياء أمورهم.",
+    // KID-2502: نصوص إشعار حضور/انصراف الموظف لمالك الحضانة وحسابات الإدارة.
+    staffCheckInTitle: "تسجيل حضور موظف: {name}",
+    staffCheckOutTitle: "تسجيل انصراف موظف: {name}",
+    staffStatusBody: "الساعة {time}.",
+    staffStatusBodyWithNote: "الساعة {time} · ملاحظة: {note}",
     busOnTitle: "ركوب الباص: {name}",
     busOffTitle: "نزول من الباص: {name}",
     busAutoCheckedOutBody: "سُجّل الانصراف تلقائيًا — في طريق العودة إلى المنزل بالباص.",
@@ -5256,6 +5266,11 @@ export type FeedCopy = {
   // KID-2447: end-of-working-hours auto check-out notification copy.
   autoCheckoutTitle: () => string;
   autoCheckoutBody: (names: string) => string;
+  // KID-2502: staff check-in / check-out notifications for owners + admins.
+  staffCheckInTitle: (name: string) => string;
+  staffCheckOutTitle: (name: string) => string;
+  staffStatusBody: (time: string) => string;
+  staffStatusBodyWithNote: (time: string, note: string) => string;
   // KID-494: bus on/off notification entries.
   busOnTitle: (name: string) => string;
   busOffTitle: (name: string) => string;
@@ -5320,6 +5335,10 @@ export function feedCopyFor(locale: Locale, timeZone: string = DEFAULT_CENTER_TI
     pickupTimeTitle: (name, time) => t("feed.pickupTimeTitle", { name, time }),
     autoCheckoutTitle: () => t("feed.autoCheckoutTitle"),
     autoCheckoutBody: (names) => t("feed.autoCheckoutBody", { names }),
+    staffCheckInTitle: (name) => t("feed.staffCheckInTitle", { name }),
+    staffCheckOutTitle: (name) => t("feed.staffCheckOutTitle", { name }),
+    staffStatusBody: (time) => t("feed.staffStatusBody", { time }),
+    staffStatusBodyWithNote: (time, note) => t("feed.staffStatusBodyWithNote", { time, note }),
     busOnTitle: (name) => t("feed.busOnTitle", { name }),
     busOffTitle: (name) => t("feed.busOffTitle", { name }),
     busAutoCheckedOutBody: () => t("feed.busAutoCheckedOutBody"),

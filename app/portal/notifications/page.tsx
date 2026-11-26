@@ -59,6 +59,11 @@ function staffHrefFor(kind: string, parsed: NotificationPayload): string | null 
   }
   // KID-2447: the auto check-out summary opens the attendance roster.
   if (kind === "auto_checkout") return "/portal/attendance";
+  // KID-2502: staff check-in / check-out opens the staff member's profile.
+  if (kind === "staff_checkin" || kind === "staff_checkout") {
+    const staffId = parsed.staffId ? String(parsed.staffId) : "";
+    return staffId ? `/portal/staff/${staffId}` : "/portal/staff";
+  }
   if (kind === "test") return "/portal/notifications";
   return null;
 }
