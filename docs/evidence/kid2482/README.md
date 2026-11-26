@@ -41,10 +41,35 @@ strings.
 | Admin, newsfeed | **Classrooms** heading + hint; **Little Stars** and **Sunflowers** above `Search children…` and the child list | [`admin-newsfeed-en.png`](admin-newsfeed-en.png) |
 | Admin, newsfeed, Arabic | RTL shell; `الفصول` + Arabic hint; same rooms above `ابحث في الأطفال…` | [`admin-newsfeed-ar.png`](admin-newsfeed-ar.png) |
 | Admin, activities | Same picker: **Everyone (whole center)** + **Classrooms** (both rooms) above the child search | [`admin-activities-en.png`](admin-activities-en.png) |
+| Owner, newsfeed | **Everyone (whole center)** + **Classrooms** (both rooms) above the child search; the owner can pick one room | [`owner-newsfeed-en.png`](owner-newsfeed-en.png) |
 | Teacher, newsfeed | **My classrooms** only; **Classrooms** shows only **Sunflowers**; only **Layla Founder**; staff hint; no **Everyone** | [`teacher-newsfeed-en.png`](teacher-newsfeed-en.png) |
 
 The picker opened with no channel selected in every screenshot above, which is
 the state the founder reported as "no rooms".
+
+## Owner role (founder directive)
+
+The founder asked that "even the owner should have the option to select specific
+room". The owner login is already admin-equivalent in this path: the picker
+(`role === "owner" || role === "admin"`), the server audience resolver
+(`resolveRecipientAudience`), `canTargetWholeCenter`, `scopedRoomIds`, and the
+shared `isAdminRole` helper all treat `owner` as an admin. There was no
+owner-specific branch hiding rooms.
+
+The missing-rooms report came from the pre-#151 build, where the classroom
+checklist only rendered after a channel was picked. This page was captured on
+`https://staging.kiddyapp.net/portal/newsfeed` on 2026-11-26 with the owner
+fixture (`founder.owner@staging.kiddy.test`) through a real browser (Skyvern run
+`tsk_601407050296683980`), with no channel selected:
+
+- **Everyone (whole center)** radio
+- **Classrooms** heading + hint, with **Little Stars** and **Sunflowers**
+- **Search children…** input
+- **Layla Founder (Sunflowers)** and **Omar Founder (Little Stars)**
+
+The classroom checkboxes are above the child search and list. The
+`KID-2482 owner has the admin audience` regression tests pin the owner render,
+the owner Everyone audience, and the owner single-room audience.
 
 ## Staging URLs
 
@@ -56,8 +81,9 @@ disabled (KID-2491). Do not use the Vercel host for review.
 ## Checks
 
 - `npx tsc --noEmit` clean.
-- KID-2482 picker suite: 10/10 (includes rooms-before-children, teacher
-  assigned-room scoping, and the teacher/center channel guard).
+- KID-2482 picker suite: 13/13 (includes rooms-before-children, teacher
+  assigned-room scoping, the teacher/center channel guard, and the owner
+  Everyone + single-room audience).
 - KID-733 + KID-221 + i18n-page-coverage: 41/41.
 - `npx next lint` has no errors (pre-existing `<img>` warnings only).
 - Live screenshots captured with a real browser through the Skyvern REST API.
