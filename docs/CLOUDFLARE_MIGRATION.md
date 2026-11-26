@@ -304,7 +304,9 @@ Vercel Git auto-deploys are disabled for `ANassef6/kiddy-daycare-mvp`.
 `vercel.json` sets `git.deploymentEnabled: false`, so neither the `kiddy`
 project (production branch `master`) nor the `kiddy-staging` project
 (production branch `staging`) builds on a push. Manual CLI/API deploys and
-Deploy Hooks still work; do not run one while Vercel is the rollback target.
+Deploy Hooks still work. A manual production deploy is allowed only as the
+scheduled monthly rollback refresh below, and only under its guardrails; never
+deploy during an active production incident.
 
 The Vercel projects, their environment variables, custom domains and the last
 production deployments are intentionally kept. Deleting a Cloudflare Worker
@@ -335,9 +337,37 @@ Caveats:
   migrations applied after `166c05cb` are not reverted by a Vercel rollback.
   Check the migration ledger before relying on this build for a long period.
 - Vercel Hobby keeps the currently aliased production deployment. It is
-  protected only while it remains the production alias. Do not promote a
-  newer Vercel build; if the alias moves, the old build can expire after
-  30 days.
+  protected only while it remains the production alias. The monthly refresh
+  moves the alias on purpose; the previous build can then expire after 30
+  days, which is fine because the fresh build becomes the rollback target.
+
+### Monthly rollback refresh (KID-2493)
+
+Auto-deploys stay off. Once a month (the 1st, 09:00 UTC) refresh the Vercel
+production rollback target by deploying the current `master` to the `kiddy`
+project. Vercel serves no traffic; Cloudflare serves every host. This
+procedure is Vercel-side only and must never change Cloudflare DNS, zone
+routes, or the Worker.
+
+Before each refresh:
+
+1. Confirm the production batch is cut to Cloudflare and the founder has
+   confirmed it is stable. Do not deploy a backup while a known-untested
+   batch sits on production.
+2. Check production health. If there is an active production incident, skip
+   the month and record the skip instead of deploying.
+3. Deploy `master` for the `kiddy` project only (`vercel deploy --prod` or the
+   Vercel REST API). Leave `kiddy-staging` frozen; rollback concerns
+   production traffic only.
+4. Confirm the new deployment is READY and owns the aliases listed above.
+5. Update this section: the `kiddy` row in "Frozen deployments" gets the new
+   deployment id, commit, ready time and URL, and the frozen-commit paragraph
+   below the table gets the new commit. Keep the cadence note.
+
+The refresh is automated as the Paperclip routine "Monthly Vercel backup
+refresh (KID-2493)", assigned to the engineering agent. Each run opens its own
+execution issue, follows the same guardrails, and skips a month with a note
+when production is unstable rather than deploying a backup during an incident.
 
 ### Rollback procedure (Cloudflare to Vercel)
 
