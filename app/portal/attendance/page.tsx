@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { resolveTenantInstituteId } from "@/lib/tenant";
 import { requireSession } from "@/lib/require";
-import {attendanceOn, runAutoCheckoutSweep, scopedRoomIds, listRooms, busStatusByChild, busPhaseForCount, parentCheckInOutAllowed, centerToday, AUTO_CHECKOUT_SOURCE, getInstitute } from "@/lib/store";
+import {attendanceOn, runAutoCheckoutSweep, scopedRoomIds, listRooms, busStatusByChild, busPhaseForCount, busBadgeIsStale, parentCheckInOutAllowed, centerToday, AUTO_CHECKOUT_SOURCE, getInstitute } from "@/lib/store";
 import { geofenceFromInstitute } from "@/lib/geofence";
 import { isAdminRole } from "@/lib/role";
 import { AttendanceCheckIn } from "@/components/AttendanceCheckIn";
@@ -140,9 +140,14 @@ export default async function PortalAttendancePage(
         <tbody>
           {rows.map((r: any) => {
             const bus = busByChild[String(r.id)];
+            // KID-2504: a real attendance write after the latest bus event
+            // (manual check-out, re-check-in, end-of-day sweep) supersedes the
+            // bus ledger, so its phase must not render as the CURRENT state.
+            // The ledger itself is untouched (KID-2448 semantics).
+            const busStale = bus ? busBadgeIsStale(bus.recorded_at, r.last_event_at) : false;
             // KID-2448: the phase comes from the day's event count, so the
             // roster can tell the morning and afternoon on-bus states apart.
-            const phase = bus ? busPhaseForCount(Number(bus.day_count ?? 0)) : null;
+            const phase = bus && !busStale ? busPhaseForCount(Number(bus.day_count ?? 0)) : null;
             const busLabel =
               phase === "morning_on" ? tr(dict, "attendance.busOnMorning")
               : phase === "morning_off" ? tr(dict, "attendance.busOffMorning")
