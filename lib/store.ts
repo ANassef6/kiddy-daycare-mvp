@@ -3228,30 +3228,180 @@ export async function createConsent(data: {
 }): Promise<Row> {
   const id = uid();
   await queryRun(
-    "INSERT INTO consent_request (id, institute_id, title, body, child_id) VALUES (?, ?, ?, ?, ?)",
+    "INSERT INTO consent_request (id, institute_id, title, body, child_id, batch_id) VALUES (?, ?, ?, ?, ?, ?)",
     id,
     data.instituteId,
     data.title,
     data.body ?? "",
-    data.childId ?? null
+    data.childId ?? null,
+    id
   );
   return (await queryGet("SELECT * FROM consent_request WHERE id = ?", id))!;
 }
 
-export async function respondConsent(id: string, status: "approved" | "denied"): Promise<void> {
-  await queryRun("UPDATE consent_request SET status = ? WHERE id = ?", status, id);
+// KID-2494: a consent sent to classrooms (or All / general) creates one
+// consent_request per child, so every parent answers for their own child and
+// the portal can show who responded / is pending per child. One batch_id ties
+// the rows of a single send together for the recipient list. The whole batch
+// is atomic: a failure halfway cannot leave only part of a classroom notified.
+// An empty target list keeps the legacy "All / general" behaviour (one row
+// with a null child_id) for a centre that has no children yet.
+export async function createConsents(data: {
+  instituteId: string;
+  title: string;
+  body?: string;
+  childIds?: string[];
+}): Promise<Row[]> {
+  const childIds = Array.from(new Set((data.childIds ?? []).filter(Boolean)));
+  const targets: (string | null)[] = childIds.length > 0 ? childIds : [null];
+  const batchId = uid();
+  return withTransaction(async (tx) => {
+    const rows: Row[] = [];
+    for (const childId of targets) {
+      const id = uid();
+      await tx.queryRun(
+        "INSERT INTO consent_request (id, institute_id, title, body, child_id, batch_id) VALUES (?, ?, ?, ?, ?, ?)",
+        id,
+        data.instituteId,
+        data.title,
+        data.body ?? "",
+        childId,
+        batchId
+      );
+      rows.push((await tx.queryGet("SELECT * FROM consent_request WHERE id = ?", id))!);
+    }
+    return rows;
+  });
+}
+
+// KID-2494: record WHO answered and WHEN. The recipient list needs both, and
+// a re-answer (a parent changing a decision) overwrites the snapshot.
+export async function respondConsent(
+  id: string,
+  status: "approved" | "denied",
+  accountId?: string
+): Promise<void> {
+  await queryRun(
+    "UPDATE consent_request SET status = ?, responded_at = ?, responded_by_account_id = ? WHERE id = ?",
+    status,
+    new Date().toISOString(),
+    accountId ?? null,
+    id
+  );
+}
+
+// KID-2494: one row per send for the portal list. Legacy rows have batch_id
+// backfilled to their own id, so they still resolve. Counts let the page show
+// answered/pending at a glance before the user opens the recipient list.
+// Room names are resolved separately (listConsentBatchRooms) because the
+// production database is Postgres, which has no GROUP_CONCAT.
+export async function listConsentBatches(instituteId: string): Promise<Row[]> {
+  return queryAll(
+    `SELECT COALESCE(cr.batch_id, cr.id) AS batch_id,
+       MIN(cr.title) AS title,
+       MIN(cr.body) AS body,
+       MIN(cr.created_at) AS created_at,
+       COUNT(*) AS total,
+       SUM(CASE WHEN cr.status = 'pending' THEN 1 ELSE 0 END) AS pending,
+       SUM(CASE WHEN cr.status = 'approved' THEN 1 ELSE 0 END) AS approved,
+       SUM(CASE WHEN cr.status = 'denied' THEN 1 ELSE 0 END) AS denied,
+       SUM(CASE WHEN cr.child_id IS NULL THEN 1 ELSE 0 END) AS general_count,
+       (SELECT ae.actor_name FROM audit_event ae
+        WHERE ae.entity_type = 'consent_request' AND ae.entity_id = cr.id AND ae.action = 'create'
+        ORDER BY ae.created_at DESC LIMIT 1) AS created_by_name
+     FROM consent_request cr
+     WHERE cr.institute_id = ?
+     GROUP BY COALESCE(cr.batch_id, cr.id)
+     ORDER BY created_at DESC`,
+    instituteId
+  );
+}
+
+// KID-2494: the classroom names of each send, in one portable query.
+export async function listConsentBatchRooms(instituteId: string): Promise<Row[]> {
+  return queryAll(
+    `SELECT DISTINCT COALESCE(cr.batch_id, cr.id) AS batch_id, r.name AS room_name
+     FROM consent_request cr
+     JOIN child c ON c.id = cr.child_id
+     JOIN room r ON r.id = c.room_id
+     WHERE cr.institute_id = ?
+     ORDER BY r.name`,
+    instituteId
+  );
+}
+
+export async function getConsentBatch(instituteId: string, batchId: string): Promise<Row | undefined> {
+  return queryGet(
+    `SELECT COALESCE(cr.batch_id, cr.id) AS batch_id,
+       MIN(cr.title) AS title,
+       MIN(cr.body) AS body,
+       MIN(cr.created_at) AS created_at,
+       COUNT(*) AS total,
+       SUM(CASE WHEN cr.status = 'pending' THEN 1 ELSE 0 END) AS pending,
+       SUM(CASE WHEN cr.status = 'approved' THEN 1 ELSE 0 END) AS approved,
+       SUM(CASE WHEN cr.status = 'denied' THEN 1 ELSE 0 END) AS denied,
+       SUM(CASE WHEN cr.child_id IS NULL THEN 1 ELSE 0 END) AS general_count
+     FROM consent_request cr
+     WHERE cr.institute_id = ? AND COALESCE(cr.batch_id, cr.id) = ?
+     GROUP BY COALESCE(cr.batch_id, cr.id)`,
+    instituteId,
+    batchId
+  );
+}
+
+// KID-2494: the full recipient list for one send, grouped by room in the page.
+// parent_names is attached from a second portable query; responded_by_name is
+// the account that actually answered. A general (childless) legacy row appears
+// with NULL child columns, which the page renders as "All / general".
+export async function listConsentRecipients(instituteId: string, batchId: string): Promise<Row[]> {
+  const recipients = await queryAll(
+    `SELECT cr.id, cr.status, cr.responded_at, cr.child_id,
+       c.first_name, c.last_name, c.room_id, r.name AS room_name,
+       (SELECT a.full_name FROM account a WHERE a.id = cr.responded_by_account_id) AS responded_by_name
+     FROM consent_request cr
+     LEFT JOIN child c ON c.id = cr.child_id
+     LEFT JOIN room r ON r.id = c.room_id
+     WHERE cr.institute_id = ? AND COALESCE(cr.batch_id, cr.id) = ?
+     ORDER BY CASE WHEN r.name IS NULL THEN 1 ELSE 0 END, r.name, c.first_name, c.last_name`,
+    instituteId,
+    batchId
+  );
+  const parents = await queryAll(
+    `SELECT DISTINCT cr.child_id, a.full_name
+     FROM consent_request cr
+     JOIN family_member fm ON fm.child_id = cr.child_id AND fm.role = 'parent'
+     JOIN account a ON a.id = fm.account_id
+     WHERE cr.institute_id = ? AND COALESCE(cr.batch_id, cr.id) = ?
+     ORDER BY a.full_name`,
+    instituteId,
+    batchId
+  );
+  const parentNames = new Map<string, string[]>();
+  for (const row of parents) {
+    const childId = String(row.child_id);
+    const names = parentNames.get(childId) ?? [];
+    names.push(String(row.full_name));
+    parentNames.set(childId, names);
+  }
+  return recipients.map((row) => ({
+    ...row,
+    parent_names: row.child_id ? (parentNames.get(String(row.child_id)) ?? []).join(", ") || null : null,
+  }));
 }
 
 export async function listConsents(instituteId: string): Promise<Row[]> {
   // KID-477: consent_request has no creator column; the name comes from the
   // audit_event snapshot (one correlated subquery, tenant-scoped join free).
+  // KID-2494: classroom targeting expands into per-child rows, so the list
+  // carries the child's name; a general request has no child.
   return queryAll(
-    `SELECT cr.*,
+    `SELECT cr.*, c.first_name AS child_first_name, c.last_name AS child_last_name,
        (SELECT ae.actor_name FROM audit_event ae
         WHERE ae.entity_type = 'consent_request' AND ae.entity_id = cr.id AND ae.action = 'create'
         ORDER BY ae.created_at DESC LIMIT 1) AS created_by_name
      FROM consent_request cr
-     WHERE cr.institute_id = ? ORDER BY cr.created_at DESC`,
+     LEFT JOIN child c ON c.id = cr.child_id
+     WHERE cr.institute_id = ? ORDER BY cr.created_at DESC, c.first_name, c.last_name`,
     instituteId
   );
 }
