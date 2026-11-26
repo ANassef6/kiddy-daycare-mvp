@@ -5252,10 +5252,11 @@ export async function createStaffScheduleAction(formData: FormData) {
   const fail = (code: string) => redirect(`/portal/staff/schedule?error=${code}`);
 
   const staffId = String(formData.get("staffId") ?? "");
-  // KID-105 #13: non-admins can only schedule themselves.
+  // KID-2502: schedule management is admin-only now; non-admin staff keep
+  // their own schedule on their profile's Calendar tab and never write here.
   if (!isAdminRole(me.role)) {
     const myStaffId = await staffIdForAccount(me.accountId);
-    if (!myStaffId || myStaffId !== staffId) redirect("/portal/staff/schedule");
+    redirect(myStaffId ? `/portal/staff/${myStaffId}` : "/portal/staff");
   }
   if (!staffId) redirect("/portal/staff/schedule");
 
@@ -5314,11 +5315,10 @@ export async function deleteStaffScheduleAction(formData: FormData) {
   const me = await authAccount();
   const { deleteStaffSchedule } = await import("@/lib/store");
   const id = String(formData.get("id") ?? "");
-  // KID-105 #13: non-admins can only delete their own shifts.
-  if (id && !isAdminRole(me.role)) {
+  // KID-2502: schedule management is admin-only now.
+  if (!isAdminRole(me.role)) {
     const myStaffId = await staffIdForAccount(me.accountId);
-    const row = await queryGet("SELECT staff_id FROM staff_schedule WHERE id = ?", id);
-    if (!myStaffId || !row || String(row.staff_id) !== myStaffId) redirect("/portal/staff/schedule");
+    redirect(myStaffId ? `/portal/staff/${myStaffId}` : "/portal/staff");
   }
   if (id) await deleteStaffSchedule(id);
   redirect("/portal/staff/schedule");

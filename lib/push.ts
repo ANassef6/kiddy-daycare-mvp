@@ -100,6 +100,12 @@ export function pushDeepUrl(kind: string, payload: Record<string, unknown>): str
     const deepLink = String(payload.deepLink ?? "");
     return deepLink || "/platform";
   }
+  // KID-2502: staff check-in / check-out pushes open the staff profile in the
+  // portal (the recipients are owner/admin accounts, never the parent surface).
+  if (kind === "staff_checkin" || kind === "staff_checkout") {
+    const staffId = String(payload.staffId ?? "");
+    return staffId ? `/portal/staff/${staffId}` : "/portal/staff";
+  }
   if (kind === "test") return "/child/notifications";
   return "/child/newsfeed";
 }

@@ -14,6 +14,7 @@ import {
   listStaffSchedulesForDate,
 } from "@/lib/store";
 import { i18nForAccount } from "@/lib/i18n-session";
+import { isAdminRole } from "@/lib/role";
 import { fmtDateFor, fmtTimeFor } from "@/lib/i18n";
 import { tr } from "@/lib/i18n";
 import { recordToolUsage } from "@/lib/tool-usage";
@@ -101,7 +102,9 @@ export default async function PortalDashboard() {
               </div>
             ))
           )}
-          <Link className="small mt-2" href="/portal/staff/schedule">{tr(dict, "dashboard.viewStaffSchedule")} →</Link>
+          {isAdminRole(session.role) && (
+            <Link className="small mt-2" href="/portal/staff/schedule">{tr(dict, "dashboard.viewStaffSchedule")} →</Link>
+          )}
         </div>
       </div>
 

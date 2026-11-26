@@ -1653,6 +1653,11 @@ export const en = {
     // KID-2447: staff notification after the end-of-working-hours auto check-out.
     autoCheckoutTitle: "Auto check-out at closing time",
     autoCheckoutBody: "{names} — still checked in at the end of working hours and checked out automatically. Follow up with their parents.",
+    // KID-2502: staff check-in / check-out notification copy for owners + admins.
+    staffCheckInTitle: "Staff check-in: {name}",
+    staffCheckOutTitle: "Staff check-out: {name}",
+    staffStatusBody: "At {time}.",
+    staffStatusBodyWithNote: "At {time} · Note: {note}",
     busOnTitle: "{name} got on the bus",
     busOffTitle: "{name} got off the bus",
     busAutoCheckedOutBody: "Checked out automatically — on the way home by bus.",
@@ -4063,6 +4068,11 @@ export const ar = {
     // KID-2447: إشعار الموظفين بعد الانصراف التلقائي عند نهاية ساعات العمل (AR).
     autoCheckoutTitle: "انصراف تلقائي عند موعد الإغلاق",
     autoCheckoutBody: "{names} — كانوا ما زالوا مسجّلين حضورهم عند نهاية ساعات العمل وتم تسجيل انصرافهم تلقائيًا. يرجى المتابعة مع أولياء أمورهم.",
+    // KID-2502: نصوص إشعار حضور/انصراف الموظف لمالك الحضانة وحسابات الإدارة.
+    staffCheckInTitle: "تسجيل حضور موظف: {name}",
+    staffCheckOutTitle: "تسجيل انصراف موظف: {name}",
+    staffStatusBody: "الساعة {time}.",
+    staffStatusBodyWithNote: "الساعة {time} · ملاحظة: {note}",
     busOnTitle: "ركوب الباص: {name}",
     busOffTitle: "نزول من الباص: {name}",
     busAutoCheckedOutBody: "سُجّل الانصراف تلقائيًا — في طريق العودة إلى المنزل بالباص.",
@@ -5130,7 +5140,7 @@ export function fmtTimeFor(locale: Locale, v: unknown): string {
 }
 
 // "30 Oct 2026, 8:05 PM" / "٣٠ أكتوبر ٢٠٢٦، ٨:٠٥ م"
-export function fmtDateTimeFor(locale: Locale, v: unknown): string {
+export function fmtDateTimeFor(locale: Locale, v: unknown, timeZone?: string): string {
   const d = toDateOr(v);
   if (!d) return "—";
   try {
@@ -5140,6 +5150,7 @@ export function fmtDateTimeFor(locale: Locale, v: unknown): string {
       year: "numeric",
       hour: "2-digit",
       minute: "2-digit",
+      ...(timeZone ? { timeZone } : {}),
     }).format(d);
   } catch {
     return d.toLocaleString();
@@ -5153,6 +5164,10 @@ export type FeedCopy = {
   // KID-2413 (bug 5): locale-aware timestamp for feed metadata (the
   // attendance entry used to call toLocaleString() inside an Arabic shell).
   dateTime: (v: unknown) => string;
+  // KID-2502: the center-local clock for staff attendance notifications. The
+  // rest of the feed keeps dateTime; this is only used where the payload
+  // carries the center IANA zone.
+  dateTimeIn: (v: unknown, timeZone: string) => string;
   newsMeta: (comments: number, likes: number) => string;
   newsfeedFallback: () => string;
   due: (date: string) => string;
@@ -5172,6 +5187,11 @@ export type FeedCopy = {
   // KID-2447: end-of-working-hours auto check-out notification copy.
   autoCheckoutTitle: () => string;
   autoCheckoutBody: (names: string) => string;
+  // KID-2502: staff check-in / check-out notifications for owners + admins.
+  staffCheckInTitle: (name: string) => string;
+  staffCheckOutTitle: (name: string) => string;
+  staffStatusBody: (time: string) => string;
+  staffStatusBodyWithNote: (time: string, note: string) => string;
   // KID-494: bus on/off notification entries.
   busOnTitle: (name: string) => string;
   busOffTitle: (name: string) => string;
@@ -5220,6 +5240,7 @@ export function feedCopyFor(locale: Locale): FeedCopy {
   const t = (key: string, vars?: Record<string, string | number>) => tr(dict, key, vars);
   return {
     dateTime: (v) => fmtDateTimeFor(locale, v),
+    dateTimeIn: (v, timeZone) => fmtDateTimeFor(locale, v, timeZone),
     newsMeta: (comments, likes) => t("feed.newsMeta", { comments, likes }),
     newsfeedFallback: () => t("feed.newsfeedFallback"),
     due: (date) => t("feed.due", { date }),
@@ -5236,6 +5257,10 @@ export function feedCopyFor(locale: Locale): FeedCopy {
     pickupTimeTitle: (name, time) => t("feed.pickupTimeTitle", { name, time }),
     autoCheckoutTitle: () => t("feed.autoCheckoutTitle"),
     autoCheckoutBody: (names) => t("feed.autoCheckoutBody", { names }),
+    staffCheckInTitle: (name) => t("feed.staffCheckInTitle", { name }),
+    staffCheckOutTitle: (name) => t("feed.staffCheckOutTitle", { name }),
+    staffStatusBody: (time) => t("feed.staffStatusBody", { time }),
+    staffStatusBodyWithNote: (time, note) => t("feed.staffStatusBodyWithNote", { time, note }),
     busOnTitle: (name) => t("feed.busOnTitle", { name }),
     busOffTitle: (name) => t("feed.busOffTitle", { name }),
     busAutoCheckedOutBody: () => t("feed.busAutoCheckedOutBody"),

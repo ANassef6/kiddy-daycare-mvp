@@ -89,7 +89,7 @@ export default async function StaffProfilePage({ params, searchParams }: { param
         error: search.error,
       }, dict, locale),
     },
-    { id: "calendar", label: tr(dict, "nav.calendar"), node: calendarTab(schedules, dict, locale) },
+    { id: "calendar", label: tr(dict, "nav.calendar"), node: calendarTab(schedules, dict, locale, isAdminRole(session.role)) },
   ];
 
   return (
@@ -350,7 +350,7 @@ const CALENDAR_DAY_KEY = [
   "staff.daySat",
 ];
 
-function calendarTab(schedules: any[], dict: Dict, locale: Locale) {
+function calendarTab(schedules: any[], dict: Dict, locale: Locale, admin: boolean) {
   return (
     <div className="card">
       <h3 className="subtitle">{tr(dict, "staff.weeklyScheduleTitle")}</h3>
@@ -373,7 +373,9 @@ function calendarTab(schedules: any[], dict: Dict, locale: Locale) {
           </span>
         </div>
       ))}
-      <Link className="btn btn-ghost small mt-2" href="/portal/staff/schedule">{tr(dict, "staff.manageScheduleBtn")}</Link>
+      {admin && (
+        <Link className="btn btn-ghost small mt-2" href="/portal/staff/schedule">{tr(dict, "staff.manageScheduleBtn")}</Link>
+      )}
     </div>
   );
 }
