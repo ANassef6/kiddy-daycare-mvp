@@ -252,3 +252,83 @@ describe("KID-2482 one admin audience option", () => {
     expect(tags.map((t) => String(t.child_id))).toContain(String(newChild.id));
   });
 });
+
+describe("KID-2482 owner has the admin audience", () => {
+  // Founder directive via KID-215: "Even the owner should have the option to
+  // select specific room." The owner login uses the seeded `role='owner'`
+  // account, the same shape as the founder's staging account.
+  async function signInAsOwner(): Promise<void> {
+    const owner = await queryGet("SELECT id, email FROM account WHERE role = 'owner' LIMIT 1");
+    signInAs(String(owner!.id), "owner", String(owner!.email));
+  }
+
+  it("renders the Everyone channel and every classroom for the owner", () => {
+    const html = renderToStaticMarkup(
+      <RecipientsPicker
+        dict={getDictionary("en")}
+        defaultOpen
+        role="owner"
+        assignedRoomIds={[]}
+        rooms={[
+          { id: roomA, name: "Toddlers" },
+          { id: roomB, name: "Preschool" },
+        ]}
+        childOptions={[
+          { id: "child-a", first_name: "Layla", last_name: "Founder", room_id: roomA, room_name: "Toddlers" },
+          { id: "child-b", first_name: "Omar", last_name: "Founder", room_id: roomB, room_name: "Preschool" },
+        ]}
+      />
+    );
+    expect(html).toContain("Everyone (whole center)");
+    expect(html).toContain("Classrooms");
+    expect(html).toContain("Toddlers");
+    expect(html).toContain("Preschool");
+    expect(html).toContain("Layla");
+    expect(html).toContain("Omar");
+    expect(html.indexOf("Toddlers")).toBeLessThan(html.indexOf("Search children"));
+    expect(html).not.toContain("My classrooms");
+  });
+
+  it("resolves the owner's Everyone channel through every classroom", async () => {
+    await signInAsOwner();
+    const expected = (await store.listChildren(iid)).map((c) => String(c.id)).sort();
+
+    const form = new FormData();
+    form.set("title", "KID2482 Owner everyone");
+    form.set("eventDate", "2026-11-26");
+    form.set("recipientChannel", "center");
+    form.set("returnTo", "/portal/learning/activities");
+    const { createEventAction } = await import("@/lib/actions");
+    await redirectTargetFor(() => createEventAction(form));
+
+    const post = await queryGet("SELECT id FROM newsfeed_post WHERE body LIKE 'Activity: KID2482 Owner everyone%'");
+    expect(post).toBeTruthy();
+    const tags = await queryAll("SELECT child_id FROM newsfeed_tag WHERE post_id = ?", String(post!.id));
+    expect(tags.map((t) => String(t.child_id)).sort()).toEqual(expected);
+  });
+
+  it("lets the owner target one specific classroom", async () => {
+    await signInAsOwner();
+
+    const form = new FormData();
+    form.set("title", "KID2482 Owner one room");
+    form.set("eventDate", "2026-11-26");
+    form.set("recipientChannel", "rooms");
+    form.append("recipientRoomIds", roomB);
+    form.set("returnTo", "/portal/learning/activities");
+    const { createEventAction } = await import("@/lib/actions");
+    await redirectTargetFor(() => createEventAction(form));
+
+    const post = await queryGet("SELECT id FROM newsfeed_post WHERE body LIKE 'Activity: KID2482 Owner one room%'");
+    expect(post).toBeTruthy();
+    const tagged = (await queryAll("SELECT child_id FROM newsfeed_tag WHERE post_id = ?", String(post!.id))).map(
+      (t) => String(t.child_id)
+    );
+    const roomBChildren = (await store.listChildren(iid))
+      .filter((c) => String(c.room_id) === roomB)
+      .map((c) => String(c.id))
+      .sort();
+    expect(roomBChildren.length).toBeGreaterThan(0);
+    expect(tagged.sort()).toEqual(roomBChildren);
+  });
+});
