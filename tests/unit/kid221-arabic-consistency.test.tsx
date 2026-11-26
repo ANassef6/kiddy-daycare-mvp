@@ -285,7 +285,7 @@ describe("KID-221: Arabic staff/admin pages render without English UI strings", 
       name: "/portal/learning/homework",
       render: async () => {
         const { default: Page } = await import("@/app/portal/learning/homework/page");
-        return renderToStaticMarkup((await Page()) as never);
+        return renderToStaticMarkup((await Page({ searchParams: Promise.resolve({}) })) as never);
       },
     },
     {
