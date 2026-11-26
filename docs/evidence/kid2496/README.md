@@ -99,14 +99,32 @@ Result: **14 passed**. Related regression suites also green:
 `npx tsc --noEmit` is clean; ESLint reports only the pre-existing `<img>`
 warnings.
 
-## Staging
+## Staging deploy and live proof
 
-Deployed from `staging` after the EN/AR check. Re-check:
+| Item | Value |
+| --- | --- |
+| Worker | `kiddy-web-staging` |
+| Source | `origin/staging` @ `01cd9ec` (PR #153) |
+| Deployed version | `31d3facf-9206-4a9f-84d1-1bb22ccbcebb` |
+| Host | `https://staging.kiddyapp.net` |
+| Cron | `*/5 * * * *` preserved |
 
-1. Sign in on `https://staging.kiddyapp.net` as the founder owner.
-2. Check a child in; the attendance Checked-in column must show the Cairo
-   wall-clock time (e.g. 16:34, not 14:34).
-3. Confirm the same time on the dashboard, the daily report, and the child
-   profile.
+The founder's existing staging fixture already had the reproducing row:
+Omar Founder, `check_in.recorded_at = 2026-11-26T14:34:52.867Z`
+(16:34 Cairo). Live reads after the deploy:
+
+| Surface | URL | Observed |
+| --- | --- | --- |
+| Attendance (EN) | `/portal/attendance?day=2026-11-26` | `16:34` |
+| Attendance (AR, owner session) | same | `٠٤:٣٤ م` (16:34) |
+| Dashboard | `/portal/dashboard` | `٠٤:٣٤ م` |
+| Child profile | `/child/mwmgz4gn-s71wfgue` | `٠٤:٣٤ م` |
+
+`14:34` no longer appears on any of those pages. The same session also renders
+the Arabic 12-hour clock (`٠٤:٣٤ م`) correctly instead of leaking UTC.
+
+Daily-report timestamps use the same `fmtDateTimeFor(..., timeZone)` path; the
+TZ=UTC page-render test pins them, and the notification feed uses the same
+`feedCopyFor(locale, timeZone)` helper.
 
 No production data or production code path was changed.
