@@ -29,6 +29,19 @@
   "env": {
     "staging": {
       "name": "kiddy-web-staging",
+      // KID-2495: keep the workers.dev host reachable as a fallback so old
+      // links, evidence and tail commands keep working after the custom domain
+      // becomes the canonical URL.
+      "workers_dev": true,
+      // KID-2495: the founder-facing canonical staging host. A Workers custom
+      // domain creates the DNS record and certificate on the kiddyapp.net zone
+      // and keeps the workers.dev host working as a fallback.
+      "routes": [
+        {
+          "pattern": "staging.kiddyapp.net",
+          "custom_domain": true
+        }
+      ],
       "hyperdrive": [
         {
           "binding": "HYPERDRIVE",
