@@ -678,6 +678,20 @@ export const en = {
     allowParentCheckInOut: "Allow parents to check in/out",
     allowParentCheckInOutHint:
       "When off, parents cannot check their children in or out and the button disappears. Their attendance status stays visible. Pickup contacts can still register a pickup time.",
+    // KID-2503: premises geofence. Both coordinates empty = feature off.
+    geofenceTitle: "Check-in location (geofence)",
+    geofenceHint:
+      "Set the center's premises and how close a phone must be to check staff or children in and out. Leave both coordinates empty to turn the geofence off.",
+    premisesLat: "Premises latitude",
+    premisesLng: "Premises longitude",
+    premisesLatPlaceholder: "e.g. 30.0444",
+    premisesLngPlaceholder: "e.g. 31.2357",
+    premisesRadius: "Allowed radius",
+    geofenceRadiusOption: "{meters} m",
+    geofenceRadiusHint:
+      "A phone outside this radius cannot check in or out. The default is 150 m.",
+    geofenceInvalid:
+      "Enter a valid latitude (-90 to 90) and longitude (-180 to 180), or leave both empty to turn the geofence off. Nothing was saved.",
     // KID-489 item 2 (KID-491): the center's Instapay payment link — new
     // child invoice forms prefill it; parents pay through the stored link.
     instapayLink: "Instapay link (optional)",
@@ -2597,6 +2611,28 @@ export const en = {
     emailDeliveryNotConfigured: "Email delivery isn't configured yet. Ask the daycare admin to share an invite code instead.",
     activationSendFailed: "We couldn't send the activation email right now. Try again in a few minutes.",
   },
+  // KID-2503: geofence UI + refusals. The server words the refusal in the
+  // account's language; the client shows the same permission guidance next to
+  // the check-in/out controls.
+  geofence: {
+    enableLocation: "Enable location access",
+    locating: "Getting your location…",
+    required:
+      "Location is required to check in or out. Tap “Enable location access” and allow your browser to share your location.",
+    denied:
+      "Location permission is blocked. Allow location access for this site in your browser settings, then try again.",
+    unsupported:
+      "This device or browser cannot share location. Use a device with location services to check in or out.",
+    unavailable:
+      "We could not get your location. Check that location services are on and try again.",
+    outside:
+      "You are about {distance} m from the center. Move within {radius} m to check in or out.",
+    malformed: "The location sent by your device is not valid. Try again.",
+    overridden: "Overridden by {name}",
+    overrideBadge: "Admin override",
+    useMyLocation: "Use my current location",
+    captured: "Location captured. Save to use it.",
+  },
   // KID-2400: the public form-fill surface parents open through a share link
   // (anonymous — the kiddy_lang cookie decides the locale).
   formsPublic: {
@@ -3242,6 +3278,20 @@ export const ar = {
     allowParentCheckInOut: "السماح لأولياء الأمور بتسجيل الحضور والانصراف",
     allowParentCheckInOutHint:
       "عند الإيقاف، لا يستطيع أولياء الأمور تسجيل حضور أو انصراف أطفالهم ويختفي الزر، مع بقاء حالة الحضور ظاهرة. ويظل الشخص المصرّح له بالاستلام قادرًا على تسجيل وقت الاستلام.",
+    // KID-2503: السياج الجغرافي لمقر المركز. تركه فارغًا يعني إيقاف الميزة.
+    geofenceTitle: "موقع تسجيل الحضور (السياج الجغرافي)",
+    geofenceHint:
+      "حدّد مقر المركز والمسافة المسموح بها ليسجّل الموظفون أو الأطفال حضورهم وانصرافهم. اترك الإحداثيين فارغين لإيقاف السياج الجغرافي.",
+    premisesLat: "خط عرض المقر",
+    premisesLng: "خط طول المقر",
+    premisesLatPlaceholder: "مثلًا 30.0444",
+    premisesLngPlaceholder: "مثلًا 31.2357",
+    premisesRadius: "نصف القطر المسموح",
+    geofenceRadiusOption: "{meters} مترًا",
+    geofenceRadiusHint:
+      "لا يستطيع أي هاتف خارج هذا النطاق تسجيل الحضور أو الانصراف. القيمة الافتراضية 150 مترًا.",
+    geofenceInvalid:
+      "أدخل خط عرض صالحًا (من -90 إلى 90) وخط طول صالحًا (من -180 إلى 180)، أو اتركهما فارغين لإيقاف السياج. لم يُحفظ أي تغيير.",
     // KID-489 item 2 (KID-491): رابط الدفع عبر Instapay الافتراضي للمركز.
     instapayLink: "رابط Instapay (اختياري)",
     instapayLinkPlaceholder: "https://…",
@@ -5107,6 +5157,25 @@ export const ar = {
     alreadyActivated: "هذا الحساب مفعّل بالفعل.",
     emailDeliveryNotConfigured: "إرسال البريد غير مهيأ بعد. اطلب من مدير الحضانة مشاركة كود دعوة بدلًا من ذلك.",
     activationSendFailed: "تعذر إرسال بريد التفعيل الآن. حاول بعد دقائق.",
+  },
+  geofence: {
+    enableLocation: "تفعيل الوصول إلى الموقع",
+    locating: "جارٍ تحديد موقعك…",
+    required:
+      "الموقع مطلوب لتسجيل الحضور أو الانصراف. اضغط «تفعيل الوصول إلى الموقع» واسمح للمتصفح بمشاركة موقعك.",
+    denied:
+      "تم حظر إذن الموقع. اسمح بالوصول إلى الموقع لهذا الموقع الإلكتروني من إعدادات المتصفح، ثم حاول مرة أخرى.",
+    unsupported:
+      "هذا الجهاز أو المتصفح لا يستطيع مشاركة الموقع. استخدم جهازًا به خدمات موقع لتسجيل الحضور أو الانصراف.",
+    unavailable:
+      "تعذّر الحصول على موقعك. تأكد من تشغيل خدمات الموقع ثم حاول مرة أخرى.",
+    outside:
+      "أنت على بُعد نحو {distance} مترًا من المركز. اقترب إلى نطاق {radius} مترًا لتسجيل الحضور أو الانصراف.",
+    malformed: "الموقع المرسل من جهازك غير صالح. حاول مرة أخرى.",
+    overridden: "تم التجاوز بواسطة {name}",
+    overrideBadge: "تجاوز إداري",
+    useMyLocation: "استخدم موقعي الحالي",
+    captured: "تم تحديد الموقع. احفظ لاستخدامه.",
   },
   formsPublic: {
     invalidLink: "رابط النموذج هذا غير صالح أو انتهت صلاحيته.",

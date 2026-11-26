@@ -126,10 +126,14 @@ export const api = {
     return request<ChildDetailPayload>(`/api/mobile/children/${encodeURIComponent(id)}`);
   },
 
-  async checkInOut(id: string, type: "in" | "out"): Promise<ChildSummary> {
+  async checkInOut(
+    id: string,
+    type: "in" | "out",
+    position?: { lat: number; lng: number; accuracy?: number },
+  ): Promise<ChildSummary> {
     return request<ChildSummary>(`/api/mobile/children/${encodeURIComponent(id)}/check-in`, {
       method: "POST",
-      body: JSON.stringify({ type }),
+      body: JSON.stringify({ type, ...position }),
     });
   },
 

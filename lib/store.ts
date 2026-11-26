@@ -1162,10 +1162,20 @@ export async function registerCheckInOut(data: {
   accountId: string;
   type: "in" | "out";
   at?: Date;
+  /** KID-2503: geofence audit data. Coordinates are optional (center fence
+   *  off, or an admin override); the server action already validated them. */
+  lat?: number;
+  lng?: number;
+  accuracyM?: number | null;
+  override?: boolean;
 }): Promise<{ row: Row; wasUpdate: boolean }> {
   const at = data.at ?? new Date();
   const iso = at.toISOString();
   const day = iso.slice(0, 10);
+  const lat = data.lat ?? null;
+  const lng = data.lng ?? null;
+  const accuracy = data.accuracyM ?? null;
+  const override = data.override ? 1 : 0;
   const lastToday = await queryGet(
     isPostgresMode()
       ? "SELECT id, type FROM check_in WHERE child_id = ? AND recorded_at::date = ? ORDER BY recorded_at DESC, id DESC LIMIT 1"
@@ -1178,19 +1188,46 @@ export async function registerCheckInOut(data: {
       ? lastToday
       : undefined;
   if (priorSameType) {
-    await queryRun("UPDATE check_in SET recorded_at = ?, is_edit = 1 WHERE id = ?", iso, String(priorSameType.id));
+    await queryRun(
+      "UPDATE check_in SET recorded_at = ?, is_edit = 1, lat = ?, lng = ?, accuracy_m = ?, geofence_override = ? WHERE id = ?",
+      iso,
+      lat,
+      lng,
+      accuracy,
+      override,
+      String(priorSameType.id)
+    );
     if (data.type === "out") {
       // The in-place update IS the pickup-time change — the same minute
       // dedupes on the shared ref, a moved time emits fresh.
       await notifyTeachersPickupTime(data.childId, at);
     }
     return {
-      row: { ...(priorSameType as Row), recorded_at: iso, is_edit: 1 },
+      row: {
+        ...(priorSameType as Row),
+        recorded_at: iso,
+        is_edit: 1,
+        lat,
+        lng,
+        accuracy_m: accuracy,
+        geofence_override: override,
+      },
       wasUpdate: true,
     };
   }
   const id = uid();
-  await queryRun("INSERT INTO check_in (id, child_id, account_id, type, is_edit, recorded_at) VALUES (?, ?, ?, ?, 0, ?)", id, data.childId, data.accountId, data.type, iso);
+  await queryRun(
+    "INSERT INTO check_in (id, child_id, account_id, type, is_edit, recorded_at, lat, lng, accuracy_m, geofence_override) VALUES (?, ?, ?, ?, 0, ?, ?, ?, ?, ?)",
+    id,
+    data.childId,
+    data.accountId,
+    data.type,
+    iso,
+    lat,
+    lng,
+    accuracy,
+    override
+  );
   const row = (await queryGet("SELECT * FROM check_in WHERE id = ?", id))!;
   if (data.type === "out") await notifyTeachersPickupTime(data.childId, at);
   return { row, wasUpdate: false };
@@ -1349,11 +1386,19 @@ export async function attendanceOn(
             -- KID-2447 + KID-2448: the source column marks a system-written
             -- row ('auto_end_of_day' or 'bus'); attendance history/exports use
             -- it only as a display marker.
-            (SELECT source FROM check_in WHERE child_id = c.id AND ${range.sql} AND type='out' ORDER BY recorded_at DESC LIMIT 1) AS checked_out_source
+            (SELECT source FROM check_in WHERE child_id = c.id AND ${range.sql} AND type='out' ORDER BY recorded_at DESC LIMIT 1) AS checked_out_source,
+            -- KID-2503: the latest event's override marker and the admin name
+            -- that wrote it, so an override is visible on the roster.
+            (SELECT geofence_override FROM check_in WHERE child_id = c.id AND ${range.sql} ORDER BY recorded_at DESC LIMIT 1) AS last_event_override,
+            (SELECT a.full_name FROM account a WHERE a.id = (
+              SELECT account_id FROM check_in WHERE child_id = c.id AND ${range.sql} ORDER BY recorded_at DESC LIMIT 1
+            )) AS last_event_by
      FROM child c
      LEFT JOIN room r ON r.id = c.room_id
      WHERE ${where}
      ORDER BY r.name, c.first_name`,
+    ...range.args,
+    ...range.args,
     ...range.args,
     ...range.args,
     ...range.args,
@@ -5389,15 +5434,24 @@ export async function logStaffStatus(data: {
   kind: string;
   note?: string;
   accountId?: string;
+  /** KID-2503: geofence audit data. */
+  lat?: number;
+  lng?: number;
+  accuracyM?: number | null;
+  override?: boolean;
 }): Promise<Row> {
   const id = uid();
   await queryRun(
-    `INSERT INTO staff_status (id, staff_id, kind, note, created_by_account_id)
-     VALUES (?, ?, ?, ?, ?)`,
+    `INSERT INTO staff_status (id, staff_id, kind, note, lat, lng, accuracy_m, geofence_override, created_by_account_id)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     id,
     data.staffId,
     data.kind,
     data.note ?? null,
+    data.lat ?? null,
+    data.lng ?? null,
+    data.accuracyM ?? null,
+    data.override ? 1 : 0,
     data.accountId ?? null
   );
   const now = new Date().toISOString();

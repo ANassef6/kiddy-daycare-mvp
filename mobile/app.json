@@ -24,6 +24,14 @@
     },
     "web": {
       "favicon": "./assets/favicon.png"
-    }
+    },
+    "plugins": [
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Kiddy uses your location to confirm you are at the daycare for check-in and check-out."
+        }
+      ]
+    ]
   }
 }
