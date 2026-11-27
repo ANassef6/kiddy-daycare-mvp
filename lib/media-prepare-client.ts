@@ -30,6 +30,8 @@ export type MediaPrepareLabels = {
   videoTooLong: string;
   fileTooLarge: string;
   compressFailed: string;
+  /** KID-2509: shown while a direct upload is in flight ({percent}). */
+  uploading: string;
 };
 
 export type MediaDirectUpload = {
@@ -49,6 +51,8 @@ export type MediaPrepareOptions = {
   labels: MediaPrepareLabels;
   directUpload?: MediaDirectUpload;
   onStatus?: (status: string) => void;
+  /** KID-2509: direct-upload progress, 0-100. */
+  onUploadProgress?: (percent: number) => void;
 };
 
 export type PreparedForm =
@@ -159,6 +163,7 @@ export async function prepareMediaFormData(
     labels,
     directUpload,
     onStatus,
+    onUploadProgress,
   } = opts;
   const out = new FormData();
   let saved = 0;
@@ -171,6 +176,7 @@ export async function prepareMediaFormData(
         purpose: directUpload.purpose,
         entityType: directUpload.entityType,
         entityId: directUpload.entityId,
+        onProgress: onUploadProgress,
       });
       if (direct.ok) {
         out.append(`${targetField}Ref`, direct.ref);

@@ -17,6 +17,7 @@ import {
   MAX_MESSAGE_ATTACHMENT_BYTES,
   MAX_NEWSFEED_ATTACHMENT_BYTES,
   MAX_PHOTO_UPLOAD_BYTES,
+  MAX_VIDEO_UPLOAD_BYTES,
   MAX_DRIVE_FILE_BYTES,
   DOCUMENT_MIME_EXT,
   PHOTO_MIME_EXT,
@@ -48,6 +49,9 @@ export type UploadIntent = {
 type PurposeConfig = {
   folder: string;
   maxBytes: number;
+  /** KID-2509: video-only ceiling for purposes that carry larger videos on
+   *  the direct-to-R2 path. Photos on the same purpose keep `maxBytes`. */
+  videoMaxBytes?: number;
   /** null means any non-empty content type is acceptable. */
   mimes: Record<string, string> | null;
 };
@@ -66,6 +70,7 @@ const PURPOSE_CONFIG: Record<UploadPurpose, PurposeConfig> = {
   newsfeed: {
     folder: "newsfeed",
     maxBytes: MAX_NEWSFEED_ATTACHMENT_BYTES,
+    videoMaxBytes: MAX_VIDEO_UPLOAD_BYTES,
     mimes: { ...PHOTO_MIME_EXT, ...VIDEO_MIME_EXT, "application/pdf": "pdf" },
   },
   message: {
@@ -77,12 +82,28 @@ const PURPOSE_CONFIG: Record<UploadPurpose, PurposeConfig> = {
   event: {
     folder: "events",
     maxBytes: MAX_EVENT_ATTACHMENT_BYTES,
+    videoMaxBytes: MAX_VIDEO_UPLOAD_BYTES,
     mimes: { ...PHOTO_MIME_EXT, ...VIDEO_MIME_EXT },
   },
 };
 
 export function uploadPurposeConfig(purpose: UploadPurpose): PurposeConfig {
   return PURPOSE_CONFIG[purpose];
+}
+
+/** The byte ceiling that applies to one content type within a purpose.
+ *  KID-2509: newsfeed/event videos get `videoMaxBytes`; everything else keeps
+ *  the purpose's original `maxBytes`. */
+export function maxUploadBytesFor(
+  purpose: UploadPurpose,
+  contentType: string | undefined | null
+): number {
+  const config = PURPOSE_CONFIG[purpose];
+  if (!config) return 0;
+  if (config.videoMaxBytes && mediaKind(contentType) === "video") {
+    return config.videoMaxBytes;
+  }
+  return config.maxBytes;
 }
 
 export function isUploadPurpose(value: unknown): value is UploadPurpose {
@@ -95,7 +116,7 @@ export function validateUploadIntent(intent: UploadIntent): { ok: true; ext: str
   const size = Number(intent.size ?? 0);
   const type = String(intent.contentType ?? "").toLowerCase();
   if (!(size > 0)) return { ok: false, code: "type" };
-  if (size > config.maxBytes) return { ok: false, code: "size" };
+  if (size > maxUploadBytesFor(intent.purpose, type)) return { ok: false, code: "size" };
   if (config.mimes) {
     const ext = config.mimes[type];
     if (!ext) return { ok: false, code: "type" };
@@ -162,15 +183,15 @@ export async function presignMediaUpload(
   intent: UploadIntent,
   instituteId: string
 ): Promise<PresignResult> {
-  const config = uploadPurposeConfig(intent.purpose);
+  const maxBytes = maxUploadBytesFor(intent.purpose, intent.contentType);
   const validation = validateUploadIntent(intent);
   if (!validation.ok) {
-    return { ok: false, code: validation.code, maxBytes: config.maxBytes };
+    return { ok: false, code: validation.code, maxBytes };
   }
   const key = uploadKeyFor(intent, instituteId, validation.ext, crypto.randomUUID());
-  if (!key) return { ok: false, code: "purpose", maxBytes: config.maxBytes };
+  if (!key) return { ok: false, code: "purpose", maxBytes };
   const ticket = await signedPrivateUpload(key, intent.contentType);
-  if (!ticket) return { ok: false, code: "unavailable", maxBytes: config.maxBytes };
+  if (!ticket) return { ok: false, code: "unavailable", maxBytes };
   return {
     ok: true,
     key,
@@ -178,7 +199,7 @@ export async function presignMediaUpload(
     url: ticket.url,
     headers: ticket.headers,
     expiresIn: ticket.expiresIn,
-    maxBytes: config.maxBytes,
+    maxBytes,
   };
 }
 
@@ -202,23 +223,26 @@ export async function takeUploadedRef(
   }
   const head = await headPrivateObject(key);
   if (!head) return { ok: false, code: "invalid" };
-  if (head.size <= 0 || head.size > config.maxBytes) {
+  const contentType = String(head.contentType ?? "").split(";")[0]!.trim().toLowerCase();
+  // KID-2509: the ceiling follows the stored object's real content type, so a
+  // video may use 30 MB while a photo on the same purpose keeps its old cap.
+  // Size is checked before MIME so an oversize object is always reported and
+  // removed, even when its HEAD lacks a usable type.
+  const maxBytes = maxUploadBytesFor(opts.purpose, contentType);
+  if (head.size <= 0 || head.size > maxBytes) {
     await deletePrivateObject(key);
     return { ok: false, code: "size" };
   }
-  if (config.mimes) {
-    const type = String(head.contentType ?? "").toLowerCase().split(";")[0]!.trim();
-    if (!config.mimes[type]) {
-      await deletePrivateObject(key);
-      return { ok: false, code: "type" };
-    }
+  if (config.mimes && !config.mimes[contentType]) {
+    await deletePrivateObject(key);
+    return { ok: false, code: "type" };
   }
   return {
     ok: true,
     ref: raw,
     key,
     size: head.size,
-    contentType: String(head.contentType ?? "").split(";")[0]!.trim().toLowerCase(),
+    contentType,
   };
 }
 

@@ -21,6 +21,7 @@ import {
   validateMediaAttachment,
   validatePhotoFile,
   MAX_NEWSFEED_ATTACHMENT_BYTES,
+  MAX_VIDEO_UPLOAD_BYTES,
 } from "@/lib/media-limits";
 import { mp4DurationSeconds } from "@/lib/video-duration";
 
@@ -205,14 +206,14 @@ describe("KID-2450 server-side upload caps", () => {
     expect(after?.photo_url ?? null).toBe(before);
   });
 
-  it("rejects a newsfeed attachment over the cap before creating a post", async () => {
+  it("rejects a newsfeed video over the 30 MB cap before creating a post", async () => {
     const before = Number((await mustGet("SELECT COUNT(*) c FROM newsfeed_post")).c);
     const { createNewsfeedWithAttachmentAction } = await import("@/lib/actions");
     const form = new FormData();
     form.set("body", "Too big");
     form.set(
       "attachment",
-      new File([Buffer.alloc(MAX_NEWSFEED_ATTACHMENT_BYTES + 1, 1)], "big.mp4", { type: "video/mp4" })
+      new File([Buffer.alloc(MAX_VIDEO_UPLOAD_BYTES + 1, 1)], "big.mp4", { type: "video/mp4" })
     );
     const target = await redirectTargetOf(() => createNewsfeedWithAttachmentAction(form));
     expect(target).toContain("error=attachment");

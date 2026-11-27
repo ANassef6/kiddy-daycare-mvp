@@ -14,5 +14,6 @@ export function mediaUploadLabels(dict: Dict): MediaUploadLabels {
     videoTooLong: tr(dict, "media.videoTooLong"),
     fileTooLarge: tr(dict, "media.fileTooLarge"),
     compressFailed: tr(dict, "media.compressFailed"),
+    uploading: tr(dict, "media.uploading"),
   };
 }

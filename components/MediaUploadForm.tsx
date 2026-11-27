@@ -124,6 +124,8 @@ export default function MediaUploadForm({
       labels,
       directUpload,
       onStatus: setStatus,
+      onUploadProgress: (percent) =>
+        setStatus(fillTemplate(labels.uploading, { percent })),
     });
   }
 

@@ -22,7 +22,10 @@ import { fmtTimeFor, getDictionary, tr, type Dict, type Locale } from "@/lib/i18
 import { recordToolUsage } from "@/lib/tool-usage";
 import { storageSrcFor } from "@/lib/storage";
 import { mediaUploadLabels } from "@/lib/media-i18n";
-import { MAX_MESSAGE_ATTACHMENT_BYTES, MAX_VIDEO_DURATION_SECONDS } from "@/lib/media-limits";
+import {
+  MAX_MESSAGE_ATTACHMENT_BYTES,
+  MAX_MESSAGE_VIDEO_DURATION_SECONDS,
+} from "@/lib/media-limits";
 import { formatParticipantNames } from "@/lib/thread-display";
 
 export const dynamic = "force-dynamic";
@@ -446,7 +449,7 @@ export default async function ParentMessagesPage(
               attachments={{
                 maxImageBytes: MAX_MESSAGE_ATTACHMENT_BYTES,
                 maxVideoBytes: MAX_MESSAGE_ATTACHMENT_BYTES,
-                maxVideoSeconds: MAX_VIDEO_DURATION_SECONDS,
+                maxVideoSeconds: MAX_MESSAGE_VIDEO_DURATION_SECONDS,
                 maxFileBytes: MAX_MESSAGE_ATTACHMENT_BYTES,
                 labels: mediaUploadLabels(dict),
                 attachLabel: t("messages.attachFile"),
@@ -528,7 +531,7 @@ export default async function ParentMessagesPage(
               attachments={{
                 maxImageBytes: MAX_MESSAGE_ATTACHMENT_BYTES,
                 maxVideoBytes: MAX_MESSAGE_ATTACHMENT_BYTES,
-                maxVideoSeconds: MAX_VIDEO_DURATION_SECONDS,
+                maxVideoSeconds: MAX_MESSAGE_VIDEO_DURATION_SECONDS,
                 maxFileBytes: MAX_MESSAGE_ATTACHMENT_BYTES,
                 labels: mediaUploadLabels(dict),
                 attachLabel: t("messages.attachFile"),
