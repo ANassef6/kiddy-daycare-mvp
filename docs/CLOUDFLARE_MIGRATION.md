@@ -316,7 +316,7 @@ route (below) sends that host back to Vercel without any DNS change.
 
 | Project | Deployment | Commit | Ready (UTC) | URL |
 | --- | --- | --- | --- | --- |
-| `kiddy` (production) | `dpl_CMHX4TB7bGKPRfwdi6ojbJ4DwXVR` | `531d99e6f2b9cafe2485fd0f737324ec7a541ff3` (merge PR #169; production code `eaf2615`, KID-2487) | 2026-11-27T05:45Z | https://kiddy-fegtgsjri-kiddy2.vercel.app |
+| `kiddy` (production) | `dpl_5ghgShPMxcXwCFiQvN4Z2cnQbuNa` | `0967ab745a24ed4296118732fe68ed15babf2d8f` (merge PR #173, KID-2519 November batch) | 2026-11-27T13:01Z | https://kiddy-bkjd5p0p8-kiddy2.vercel.app |
 | `kiddy-staging` | `dpl_CEYK4w5TT9uPh4oPnQiwNeZFk1Q9` | `63c20abd5dc6c4b6e0cb29281bb9b14e08d2fc72` | 2026-11-25T18:22Z | https://kiddy-staging-orcin.vercel.app |
 
 The `kiddy` deployment owns the Vercel aliases that the Cloudflare routes sit
@@ -325,19 +325,21 @@ in front of: `kiddyapp.net`, `*.kiddyapp.net` (covers `www` and tenant hosts),
 `maple-grove-daycare.kiddyapp.net`, `maple-grove-daycare-2.kiddyapp.net`,
 `kiddy-one.vercel.app` and `kiddy-git-master-kiddy2.vercel.app`.
 
-The frozen production deployment is commit `531d99e` (2026-11-26T21:25Z),
-refreshed on 2026-11-27T05:43Z by the first monthly rollback refresh. It
-contains every change merged through the KID-2477..2487 production cut
-(`eaf2615`) plus the KID-2487 cut evidence docs. A rollback therefore reverts
-all work merged after `531d99e`; it does not revert the KID-2477..2487 batch,
-the Cloudflare cutover, or the production cuts on 2026-11-23..2026-11-25,
-because that work is inside the frozen build.
+The frozen production deployment is commit `0967ab7` (2026-11-27T12:55Z),
+deployed with the KID-2519 November 2026 batch. It contains every change merged
+through the KID-2519 production cut plus the KID-2487 cut evidence docs. A
+Vercel rollback therefore reverts all work merged after `0967ab7`; it does not
+revert the November batch, the KID-2477..2487 batch, the Cloudflare cutover, or
+the production cuts on 2026-11-23..2026-11-25, because that work is inside the
+frozen build. For a November-batch regression, roll the Worker back to
+`b6edf96a` (KID-2511); the Vercel alias is not a previous-batch target.
 
 Caveats:
 
 - The frozen build uses the live production Supabase database. Database
-  migrations applied after `531d99e` are not reverted by a Vercel rollback.
-  Migration `0058_kid2487_media_post_link.sql` landed before this build and is
+  migrations applied after `0967ab7` are not reverted by a Vercel rollback.
+  Migrations `0060_kid2503_premises_geofence.sql` and
+  `0062_kid2483_staff_schedule_date_rooms.sql` landed before this build and are
   inside it. Check the migration ledger before relying on a long-lived build.
 - Vercel Hobby keeps the currently aliased production deployment. It is
   protected only while it remains the production alias. The monthly refresh
@@ -377,6 +379,7 @@ when production is unstable rather than deploying a backup during an incident.
 | Started (UTC) | Deployment | Commit | Note |
 | --- | --- | --- | --- |
 | 2026-11-27T05:43Z | `dpl_CMHX4TB7bGKPRfwdi6ojbJ4DwXVR` | `531d99e` | First refresh, after the KID-2477..2487 cut. Founder confirmed production stable at 2026-11-27T05:43Z. `kiddy-staging` untouched. |
+| 2026-11-27T13:00Z | `dpl_5ghgShPMxcXwCFiQvN4Z2cnQbuNa` | `0967ab7` | Cut-time refresh with the founder-approved KID-2519 November batch. Cloudflare `kiddy-web` cut first (`56c89ee6`); `kiddy-staging` untouched. |
 
 ### Rollback procedure (Cloudflare to Vercel)
 
