@@ -164,7 +164,7 @@ export function securityHeaders(mode) {
     {
       key: "Permissions-Policy",
       value:
-        "camera=(), microphone=(), geolocation=(), payment=(), usb=(), interest-cohort=()",
+        "camera=(), microphone=(), geolocation=(self), payment=(), usb=(), interest-cohort=()",
     },
     { key: "X-Frame-Options", value: "SAMEORIGIN" },
   ];
