@@ -1,5 +1,8 @@
 # KID-2509 — Direct-to-R2 video uploads (15 MB / 5 minutes)
 
+> **Superseded for the production cut:** KID-2511 raised the video cap to
+> 30 MB. See `docs/evidence/kid2511-video-30mb/README.md`.
+
 Status: **code complete on staging; staging behaviour verified. Founder
 sign-off pending.**
 
