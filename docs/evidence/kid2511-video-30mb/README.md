@@ -1,7 +1,9 @@
 # KID-2511 — Video upload cap raised to 30 MB (5 minutes)
 
-Status: **code and evidence on staging; production approval refreshed. No
-production cut yet.**
+Status: **shipped to production on 2026-11-27.** Staging was verified first;
+the founder approved approval card `aa243800-07a7-4318-adc4-5eb83cda68bb`, and
+`master` @ `118717d` deployed as production Worker version `b6edf96a`. See
+[`prod-cut.md`](prod-cut.md) for the cut record and live checks.
 
 Founder direction: KID-215 comment `5fcb5a79` (2026-11-27T06:21Z): "increase the
 max video upload size to 30mb". This revises KID-2509's 15 MB cap before the
@@ -32,6 +34,10 @@ truth for the client and the server.
 | URL | https://staging.kiddyapp.net |
 | Worker version | `3bdc458a-64df-4aac-bac8-e81588b0506e` |
 | Login page | `200` |
+
+Production deploy: `master` @ `118717d`, Worker `kiddy-web` version
+`b6edf96a-bdfe-4b58-9f38-1dd69c86d958`, message
+`KID-2511-video-30mb-master-118717d`. Rollback target is `77530d45`.
 
 ## Local checks
 
