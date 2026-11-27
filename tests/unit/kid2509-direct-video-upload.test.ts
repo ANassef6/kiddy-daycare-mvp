@@ -1,10 +1,10 @@
 // KID-2509: direct-to-R2 videos on the newsfeed and event attachments.
 //
-// Pins the approved 15 MB / 5-minute cap and the record-after-success flow:
+// Pins the approved 30 MB / 5-minute cap and the record-after-success flow:
 //   * constants stay the single source of truth for client and server;
-//   * a 15 MB video gets a presigned ticket while a photo on the same purpose
+//   * a 30 MB video gets a presigned ticket while a photo on the same purpose
 //     keeps its old ceiling;
-//   * HEAD verification accepts a 15 MB video and deletes anything larger;
+//   * HEAD verification accepts a 30 MB video and deletes anything larger;
 //   * the newsfeed action writes the post only after the REF verifies, and a
 //     failed REF never becomes a post without its attachment;
 //   * message video stays at the old 60-second limit.
@@ -92,8 +92,8 @@ afterEach(() => {
 });
 
 describe("KID-2509 video limits", () => {
-  it("uses 15 MB and 300 seconds as the shared video constants", () => {
-    expect(MAX_VIDEO_UPLOAD_BYTES).toBe(15 * 1024 * 1024);
+  it("uses 30 MB and 300 seconds as the shared video constants", () => {
+    expect(MAX_VIDEO_UPLOAD_BYTES).toBe(30 * 1024 * 1024);
     expect(MAX_VIDEO_DURATION_SECONDS).toBe(300);
     // Messages deliberately keep their old cap.
     expect(MAX_MESSAGE_VIDEO_DURATION_SECONDS).toBe(60);
@@ -101,7 +101,7 @@ describe("KID-2509 video limits", () => {
     expect(MAX_NEWSFEED_ATTACHMENT_BYTES).toBe(2_500_000);
   });
 
-  it("issues a ticket for a 15 MB newsfeed video but refuses 15 MB + 1", async () => {
+  it("issues a ticket for a 30 MB newsfeed video but refuses 30 MB + 1", async () => {
     const m = await import("@/lib/media-upload");
     const max = await m.presignMediaUpload(
       { purpose: "newsfeed", contentType: "video/mp4", size: MAX_VIDEO_UPLOAD_BYTES },
@@ -136,7 +136,7 @@ describe("KID-2509 video limits", () => {
     ).toMatchObject({ ok: true, ext: "mp4" });
   });
 
-  it("refuses a video over 15 MB on the client before any upload", async () => {
+  it("refuses a video over 30 MB on the client before any upload", async () => {
     const form = new FormData();
     form.set(
       "attachment",
@@ -161,10 +161,10 @@ describe("KID-2509 video limits", () => {
       },
     });
     expect(out.ok).toBe(false);
-    if (!out.ok) expect(out.error).toContain("15 MB");
+    if (!out.ok) expect(out.error).toContain("30 MB");
   });
 
-  it("HEAD-verifies a 15 MB video and deletes a larger object", async () => {
+  it("HEAD-verifies a 30 MB video and deletes a larger object", async () => {
     const allowed = vi.fn(async () => headResponse(MAX_VIDEO_UPLOAD_BYTES, "video/mp4"));
     vi.stubGlobal("fetch", allowed);
     const m = await import("@/lib/media-upload");
@@ -216,7 +216,7 @@ describe("KID-2509 presign issuance auth", () => {
     expect(json.error.code).toBe("unauthorized");
   });
 
-  it("issues a scoped 15 MB newsfeed video ticket for the signed-in tenant", async () => {
+  it("issues a scoped 30 MB newsfeed video ticket for the signed-in tenant", async () => {
     const { POST } = await import("@/app/api/media/presign/route");
     const res = await POST(
       new NextRequest("https://staging.kiddyapp.net/api/media/presign", {

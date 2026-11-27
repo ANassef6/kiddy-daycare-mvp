@@ -206,7 +206,7 @@ describe("KID-2450 server-side upload caps", () => {
     expect(after?.photo_url ?? null).toBe(before);
   });
 
-  it("rejects a newsfeed video over the 15 MB cap before creating a post", async () => {
+  it("rejects a newsfeed video over the 30 MB cap before creating a post", async () => {
     const before = Number((await mustGet("SELECT COUNT(*) c FROM newsfeed_post")).c);
     const { createNewsfeedWithAttachmentAction } = await import("@/lib/actions");
     const form = new FormData();

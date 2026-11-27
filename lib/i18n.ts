@@ -339,9 +339,9 @@ export const en = {
     writeHere: "Click here and write…",
     attachmentDevice: "Attachment (from your device)",
     attachmentLimit:
-      "Photos are compressed automatically. Videos: up to 5 minutes, up to 15 MB.",
+      "Photos are compressed automatically. Videos: up to 5 minutes, up to 30 MB.",
     errorAttachment:
-      "The attachment was not posted. Photos are compressed automatically; videos must be 5 minutes or less and no more than 15 MB.",
+      "The attachment was not posted. Photos are compressed automatically; videos must be 5 minutes or less and no more than 30 MB.",
   },
   events: {
     title: "Events",
@@ -378,9 +378,9 @@ export const en = {
     attach: "Add media",
     closeAttach: "Close",
     attachmentDevice: "Attachment (from your device)",
-    attachmentLimit: "Photos are compressed automatically. Videos: up to 5 minutes, up to 15 MB.",
+    attachmentLimit: "Photos are compressed automatically. Videos: up to 5 minutes, up to 30 MB.",
     errorAttachment:
-      "The attachment was not added. Choose a photo or a video that is 5 minutes or less and no more than 15 MB.",
+      "The attachment was not added. Choose a photo or a video that is 5 minutes or less and no more than 30 MB.",
     parentSubtitle: "Daycare events and recent videos for your family.",
     videosTitle: "Videos",
     noDaycare: "No daycare configured yet.",
@@ -2861,9 +2861,9 @@ export const ar = {
     writeHere: "اضغط هنا واكتب…",
     attachmentDevice: "مرفق (من جهازك)",
     attachmentLimit:
-      "تُضغط الصور تلقائيًا. الفيديو: حتى 5 دقائق، وحتى 15 ميجابايت.",
+      "تُضغط الصور تلقائيًا. الفيديو: حتى 5 دقائق، وحتى 30 ميجابايت.",
     errorAttachment:
-      "لم يُنشر المرفق. تُضغط الصور تلقائيًا، ويجب ألا تزيد مدة الفيديو عن 5 دقائق أو حجمه عن 15 ميجابايت.",
+      "لم يُنشر المرفق. تُضغط الصور تلقائيًا، ويجب ألا تزيد مدة الفيديو عن 5 دقائق أو حجمه عن 30 ميجابايت.",
   },
   events: {
     title: "الفعاليات",
@@ -2900,9 +2900,9 @@ export const ar = {
     attach: "إضافة وسائط",
     closeAttach: "إغلاق",
     attachmentDevice: "المرفق (من جهازك)",
-    attachmentLimit: "تُضغط الصور تلقائيًا. الفيديو: حتى 5 دقائق، وحتى 15 ميجابايت.",
+    attachmentLimit: "تُضغط الصور تلقائيًا. الفيديو: حتى 5 دقائق، وحتى 30 ميجابايت.",
     errorAttachment:
-      "لم تتم إضافة المرفق. اختر صورة أو فيديو بمدة 5 دقائق أو أقل وحجم لا يزيد عن 15 ميجابايت.",
+      "لم تتم إضافة المرفق. اختر صورة أو فيديو بمدة 5 دقائق أو أقل وحجم لا يزيد عن 30 ميجابايت.",
     parentSubtitle: "فعاليات الحضانة والفيديوهات الحديثة لعائلتكم.",
     videosTitle: "الفيديوهات",
     noDaycare: "لم يتم إعداد أي حضانة بعد.",
