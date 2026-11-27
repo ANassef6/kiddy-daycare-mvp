@@ -23,7 +23,7 @@ export const dynamic = "force-dynamic";
 
 export default async function PortalDashboard() {
   const session = await requireSession();
-  const { locale, dict } = await i18nForAccount(session.accountId);
+  const { locale, dict, timeZone } = await i18nForAccount(session.accountId);
   const instituteId = await resolveTenantInstituteId();
   if (!instituteId) {
     return (
@@ -77,7 +77,7 @@ export default async function PortalDashboard() {
                   {c.first_name} {c.last_name}
                 </Link>
                 <span className="small muted">
-                  {c.room_name ?? tr(dict, "dashboard.noRoom")} · {fmtTimeFor(locale, c.checked_in_at)}
+                  {c.room_name ?? tr(dict, "dashboard.noRoom")} · {fmtTimeFor(locale, c.checked_in_at, timeZone)}
                 </span>
               </div>
             ))
@@ -124,7 +124,7 @@ export default async function PortalDashboard() {
           {latestReport ? (
             <p className="small mt-1">
               <strong>{latestReport.first_name} {latestReport.last_name}</strong> —{" "}
-              {fmtDateFor(locale, latestReport.report_date)}
+              {fmtDateFor(locale, latestReport.report_date, timeZone)}
             </p>
           ) : (
             <p className="muted small mt-1">{tr(dict, "dashboard.noneYetToday")}</p>

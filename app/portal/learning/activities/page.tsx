@@ -4,7 +4,7 @@ import { listMedia, listEvents, listNewsfeed, listChildren, listRooms, staffRoom
 import { createEventAction } from "@/lib/actions";
 import { firstInstituteId, cap } from "@/lib/helpers";
 import { i18nForAccount } from "@/lib/i18n-session";
-import { tr } from "@/lib/i18n";
+import { fmtDateTimeFor, tr } from "@/lib/i18n";
 import RecipientsPicker from "@/components/RecipientsPicker";
 import { queryGet } from "@/lib/db";
 import { recordToolUsage } from "@/lib/tool-usage";
@@ -13,7 +13,7 @@ export const dynamic = "force-dynamic";
 
 export default async function PortalActivitiesPage() {
   const session = await requireSession();
-  const { dict } = await i18nForAccount(session.accountId);
+  const { dict, locale, timeZone } = await i18nForAccount(session.accountId);
   const t = (key: string, vars?: Record<string, string | number>) => tr(dict, key, vars);
   const instituteId = await firstInstituteId();
   if (!instituteId) return <p className="muted">{t("learning.noInstitute")}</p>;
@@ -118,7 +118,7 @@ export default async function PortalActivitiesPage() {
         {recentPosts.map((p: any) => (
           <div className="list-item" key={p.id}>
             <div className="small">
-              <strong>{p.author_name ?? t("activities.admin")}</strong> · {cap(p.created_at)}
+              <strong>{p.author_name ?? t("activities.admin")}</strong> · {fmtDateTimeFor(locale, p.created_at, timeZone)}
               <div className="muted mt-1">{p.body?.slice(0, 120)}{p.body?.length > 120 ? "…" : ""}</div>
             </div>
           </div>

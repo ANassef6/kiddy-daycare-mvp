@@ -12,7 +12,7 @@ export const dynamic = "force-dynamic";
 
 export default async function PortalLearningPage() {
   const session = await requireSession();
-  const { locale, dict } = await i18nForAccount(session.accountId);
+  const { locale, dict, timeZone } = await i18nForAccount(session.accountId);
   const t = (key: string, vars?: Record<string, string | number>) => tr(dict, key, vars);
   // KID-221: the kind badge showed the raw DB enum ("observation" etc.) in
   // whatever locale the account chose. Translate through the dictionaries and
@@ -73,7 +73,7 @@ export default async function PortalLearningPage() {
           <div className="list-item" key={o.id}>
             <div className="small">
               <span className="badge">{kindLabel(String(o.kind ?? ""))}</span>{" "}
-              <strong>{o.first_name} {o.last_name}</strong> · {fmtDateTimeFor(locale, o.recorded_at ?? o.created_at)}
+              <strong>{o.first_name} {o.last_name}</strong> · {fmtDateTimeFor(locale, o.recorded_at ?? o.created_at, timeZone)}
               {o.title ? ` — ${o.title}` : ""}
               {(o.learning_point_name || o.age_group || o.milestone_name) && (
                 <div className="mt-1" style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>

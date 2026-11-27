@@ -48,16 +48,19 @@ export async function GET(req: Request) {
     if (to) rows = rows.filter((r) => String(r.due_date ?? "") <= to);
     name = "billing-export.csv";
   } else if (type === "attendance") {
-    const { attendanceOn, centerToday } = await import("@/lib/store");
+    const { attendanceOn, centerToday, getCenterSchedule } = await import("@/lib/store");
+    const { zonedWallClock } = await import("@/lib/timezone");
     // KID-2437: the export default is the center-local day.
     const day = url.searchParams.get("day") ?? (await centerToday(instituteId));
+    // KID-2496: export timestamps on the center clock, not raw UTC.
+    const timeZone = instituteId ? (await getCenterSchedule(instituteId)).timeZone : undefined;
     rows = ((await attendanceOn(instituteId, day)) as Record<string, unknown>[]).map((r) => ({
       child: `${r.first_name} ${r.last_name}`,
       room: r.room_name ?? "",
       status: r.last_event ?? "absent",
-      checked_in: r.checked_in_at ?? "",
+      checked_in: timeZone ? zonedWallClock(r.checked_in_at, timeZone) : r.checked_in_at ?? "",
       checked_in_source: r.checked_in_source ?? "",
-      checked_out: r.checked_out_at ?? "",
+      checked_out: timeZone ? zonedWallClock(r.checked_out_at, timeZone) : r.checked_out_at ?? "",
       checked_out_source: r.checked_out_source ?? "",
     }));
     name = `attendance-${day}.csv`;
@@ -101,6 +104,87 @@ export async function GET(req: Request) {
     const columns = keepCols.length > 0 ? keepCols.filter((c) => c in COL_FNS) : Object.keys(COL_FNS);
     rows = kids.map((k) => Object.fromEntries(columns.map((c) => [c, COL_FNS[c](k)])));
     name = "children-smart-list.csv";
+  } else if (type === "staff-hours") {
+    // KID-2484 item 7: the report center exports the same Expected vs Actual
+    // staff-hours report the working-hours tab shows, for the chosen range.
+    const { resolveTenantInstituteId } = await import("@/lib/tenant");
+    const { isAdminRole } = await import("@/lib/role");
+    const { staffIdForAccount } = await import("@/lib/auth");
+    const { listStaff, listStaffSchedulesForStaffIds, staffStatusEventsBetween } =
+      await import("@/lib/store");
+    const { normalizeTimeZone, localDayBoundsUtc, zonedDateKey } =
+      await import("@/lib/timezone");
+    const { computeStaffHoursRows, decimalHours, resolveHoursFilter } =
+      await import("@/lib/staff-hours");
+    const staffHoursInstituteId = await resolveTenantInstituteId();
+    const center = staffHoursInstituteId
+      ? await getInstitute(staffHoursInstituteId)
+      : undefined;
+    const timeZone = normalizeTimeZone(center?.timezone);
+    const today = zonedDateKey(new Date(), timeZone);
+    const filter = resolveHoursFilter(
+      { view: "range", from: from || today, to: to || today },
+      today
+    );
+    const allStaff = staffHoursInstituteId
+      ? await listStaff(staffHoursInstituteId)
+      : [];
+    // KID-2484: non-admin staff may only export their own working-hours row,
+    // matching the working-hours tab's visibility rule.
+    const myStaffId = isAdminRole(session.role)
+      ? ""
+      : String((await staffIdForAccount(session.accountId)) ?? "");
+    const staff = isAdminRole(session.role)
+      ? allStaff
+      : allStaff.filter((s: any) => String(s.id) === myStaffId);
+    const staffIds = staff.map((s: any) => String(s.id));
+    const scheduleRows = await listStaffSchedulesForStaffIds(staffIds);
+    const fromBounds = localDayBoundsUtc(filter.from, timeZone);
+    const toBounds = localDayBoundsUtc(filter.to, timeZone);
+    const statusRows = await staffStatusEventsBetween(
+      staffIds,
+      new Date(fromBounds.start.getTime() - 2 * 86_400_000),
+      new Date(toBounds.end.getTime() + 86_400_000)
+    );
+    const schedulesByStaff: Record<string, any[]> = {};
+    for (const row of scheduleRows) {
+      const key = String(row.staff_id);
+      (schedulesByStaff[key] ??= []).push(row);
+    }
+    const statusesByStaff: Record<string, any[]> = {};
+    for (const row of statusRows) {
+      const key = String(row.staff_id);
+      (statusesByStaff[key] ??= []).push(row);
+    }
+    const computed = computeStaffHoursRows({
+      staffIds,
+      schedulesByStaff,
+      statusesByStaff,
+      days: filter.days,
+      timeZone,
+      now: new Date(),
+      rangeEnd: toBounds.end,
+      upcoming: filter.from > filter.today,
+    });
+    rows = computed.map((hours, index) => {
+      const s: any = staff[index];
+      return {
+        staff: s.full_name ?? "",
+        role: s.role ?? "",
+        expected_hours: decimalHours(hours.expected),
+        actual_hours: decimalHours(hours.actual.minutes),
+        difference_hours: decimalHours(hours.delta.minutes),
+        status: hours.delta.status,
+        open_checkin: hours.actual.open ? "yes" : "no",
+        missing_checkout: hours.actual.missingCheckout ? "yes" : "no",
+        period_from: filter.from,
+        period_to: filter.to,
+      };
+    });
+    name =
+      filter.from === filter.to
+        ? `staff-hours-${filter.from}.csv`
+        : `staff-hours-${filter.from}-to-${filter.to}.csv`;
   }
 
   return new Response(csv(rows), {

@@ -14,7 +14,7 @@ export const dynamic = "force-dynamic";
 // incident type ("Incident"/"Accident") uses the profile dictionaries.
 export default async function ParentIncidentsPage() {
   const session = await requireFamilyPage("/child/incidents");
-  const { locale, dict } = await i18nForAccount(session.accountId);
+  const { locale, dict, timeZone } = await i18nForAccount(session.accountId);
   const t = (key: string, vars?: Record<string, string | number>) => tr(dict, key, vars);
   const families = await familiesForAccount(session.accountId);
   const usageInstituteId = String((families[0] as Row)?.institute_id ?? "") || null;
@@ -42,7 +42,7 @@ export default async function ParentIncidentsPage() {
           <div className="card mb-4" key={i.id}>
             <div className="row" style={{ justifyContent: "space-between" }}>
               <div className="small muted">
-                {typeLabel(String(i.type ?? ""))} · {i.child} · {fmtDateTimeFor(locale, i.created_at)}
+                {typeLabel(String(i.type ?? ""))} · {i.child} · {fmtDateTimeFor(locale, i.created_at, timeZone)}
               </div>
               <span className={i.acknowledged ? "badge badge-green" : "badge badge-red"}>
                 {i.acknowledged ? t("child.acknowledged") : t("parent.incidentsPendingAck")}

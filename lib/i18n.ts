@@ -3,6 +3,7 @@
 // Arabic first ships as MSA well-suited to an Egyptian daycare context.
 
 import { PLATFORM_CONTACT_EMAIL } from "./site";
+import { DEFAULT_CENTER_TIMEZONE, formatZonedValue } from "./timezone";
 
 export const LOCALES = ["en", "ar"] as const;
 export type Locale = (typeof LOCALES)[number];
@@ -457,11 +458,32 @@ export const en = {
     statusDenied: "Denied",
     newConsent: "New consent request",
     titleLabel: "Title",
-    childOptional: "Child (optional)",
     childAll: "All / general",
+    // KID-2494: consent audiences are All / general or classrooms only. The
+    // founder removed per-child picking; responses stay per child.
+    audience: "Send to",
+    audienceClassrooms: "Classrooms",
+    audienceNoRooms: "No classrooms available.",
+    errorAudience: "Choose at least one classroom you can send to.",
     details: "Details",
     send: "Send consent request",
     noConsents: "No consent requests yet.",
+    // KID-2494: per-recipient response tracking.
+    recipients: "Recipients",
+    viewRecipients: "View recipients",
+    backToConsents: "Back to consents",
+    answered: "{count} answered",
+    pendingCount: "{count} pending",
+    answeredPending: "{answered} answered, {pending} pending",
+    roomSummary: "{room}: {answered} answered, {pending} pending",
+    childColumn: "Child",
+    parentColumn: "Parent",
+    responseColumn: "Response",
+    respondedByColumn: "Answered by",
+    awaitingResponse: "—",
+    noRecipients: "No recipients for this request.",
+    generalAudience: "All / general",
+    noRoom: "No classroom",
     noInstitute: "No institute configured.",
     approvalsTitle: "Consents & approvals",
     noRequests: "No consent requests for your children right now.",
@@ -832,6 +854,7 @@ export const en = {
     today: "Today:",
     changePhoto: "Change photo",
     addPhoto: "Add photo",
+    removePhoto: "Remove photo",
     photoError:
       "The photo was not saved. Use a JPEG, PNG, WebP, GIF or HEIC image under 4 MB.",
     save: "Save",
@@ -1485,6 +1508,11 @@ export const en = {
     roomNamePlaceholder: "e.g. Toddlers",
     capacity: "Capacity",
     colour: "Colour",
+    photo: "Room photo",
+    addPhoto: "Add photo",
+    changePhoto: "Change photo",
+    removePhoto: "Remove photo",
+    photoError: "The photo was not saved. Use a JPEG, PNG, WebP, GIF or HEIC image under 4 MB.",
     addRoom: "Add room",
     capacityOf: "Capacity: {n}",
     childrenCount: "{count} children",
@@ -1574,6 +1602,9 @@ export const en = {
     dlBilling: "Billing Excel (CSV)",
     dlAttendance: "Attendance Excel (CSV)",
     dlChildren: "Children smart-list (CSV)",
+    staffHoursTitle: "Staff hours — expected vs actual",
+    staffHoursHint: "Choose a date range, then download each staff member's expected, actual, and difference hours (center time zone).",
+    dlStaffHours: "Download staff hours (CSV)",
     filteredAnchor: "Filtered reports ↓",
     overview: "Center overview",
     colChildren: "Children",
@@ -2284,11 +2315,38 @@ export const en = {
     dayFri: "Fri",
     daySat: "Sat",
     // hours page
-    hoursSubtitle: "Center opening hours and staff availability. Shifts are tracked here as the registry matures; center hours are configured on the Settings page.",
+    hoursSubtitle: "Compare scheduled shifts with the hours each staff member actually worked. Center hours are configured on the Settings page.",
     centerOpeningHours: "Center opening hours",
     noOpeningHours: "No opening hours configured.",
     noStaffYet: "No staff yet.",
-    trackingNote: "Detailed working-hour tracking (clock in/out per staff) is a scheduled follow-up — listed with today's roster for reference.",
+    trackingNote: "Actual hours come from staff check-in and check-out records. A check-in without a check-out is marked and is not counted until the shift is closed.",
+    hoursSingleDay: "Single day",
+    hoursRange: "Date range",
+    hoursFilterDate: "Date",
+    hoursFilterFrom: "From",
+    hoursFilterTo: "To",
+    hoursFilterApply: "Apply",
+    hoursFilterToday: "Today",
+    hoursShowingDay: "Showing {date}",
+    hoursShowingRange: "Showing {from} – {to}",
+    hoursInvalidFilter: "The selected dates were not valid, so today is shown.",
+    hoursRangeClamped: "The range was limited to {days} days.",
+    expectedHours: "Expected",
+    actualHours: "Actual",
+    difference: "Difference",
+    totalRow: "Total",
+    durationHM: "{h}h {m}m",
+    hoursStatusOnTime: "On time",
+    hoursStatusShort: "Short",
+    hoursStatusOver: "Over",
+    hoursStatusAbsent: "Absent",
+    hoursStatusUnscheduled: "Unscheduled",
+    hoursStatusNoSchedule: "No schedule",
+    hoursStatusUpcoming: "Upcoming",
+    hoursNoScheduleHint: "No scheduled hours for the selected period.",
+    hoursOpenShift: "Open check-in — counting until now.",
+    hoursMissingCheckout: "Check-in without a check-out — not counted.",
+    hoursSourceNote: "Expected hours use the recurring staff schedule. Actual hours use check-in and check-out records in the center time zone.",
     // schedule page
     scheduleSubtitle: "Add shifts for a specific date or a weekly pattern, assign rooms, and repeat a fixed schedule across days.",
     addShiftTitle: "Add a shift",
@@ -3011,11 +3069,32 @@ export const ar = {
     statusDenied: "مرفوض",
     newConsent: "طلب موافقة جديد",
     titleLabel: "العنوان",
-    childOptional: "الطفل (اختياري)",
     childAll: "الكل / عام",
+    // KID-2494: الجمهور إما الكل / عام أو الفصول فقط. أُزيل اختيار الأطفال
+    // الفردي، ويبقى تتبّع الرد لكل طفل.
+    audience: "إرسال إلى",
+    audienceClassrooms: "الفصول",
+    audienceNoRooms: "لا توجد فصول متاحة.",
+    errorAudience: "اختر فصلًا واحدًا على الأقل يمكنك الإرسال إليه.",
     details: "التفاصيل",
     send: "إرسال طلب الموافقة",
     noConsents: "لا توجد طلبات موافقة بعد.",
+    // KID-2494: تتبّع رد كل مستلم.
+    recipients: "المستلمون",
+    viewRecipients: "عرض المستلمين",
+    backToConsents: "العودة إلى الموافقات",
+    answered: "{count} تم الرد",
+    pendingCount: "{count} معلّق",
+    answeredPending: "{answered} تم الرد، {pending} معلّق",
+    roomSummary: "{room}: {answered} تم الرد، {pending} معلّق",
+    childColumn: "الطفل",
+    parentColumn: "ولي الأمر",
+    responseColumn: "الرد",
+    respondedByColumn: "تم الرد بواسطة",
+    awaitingResponse: "لم يرد",
+    noRecipients: "لا يوجد مستلمون لهذا الطلب.",
+    generalAudience: "الكل / عام",
+    noRoom: "بدون فصل",
     noInstitute: "لم يتم إعداد أي حضانة بعد.",
     approvalsTitle: "الموافقات والأذونات",
     noRequests: "لا توجد طلبات موافقة لأطفالك الآن.",
@@ -3375,6 +3454,7 @@ export const ar = {
     today: "اليوم:",
     changePhoto: "تغيير الصورة",
     addPhoto: "إضافة صورة",
+    removePhoto: "إزالة الصورة",
     photoError:
       "لم تُحفظ الصورة. استخدم صورة JPEG أو PNG أو WebP أو GIF أو HEIC بحجم أقل من 4 ميجابايت.",
     save: "حفظ",
@@ -3937,6 +4017,11 @@ export const ar = {
     roomNamePlaceholder: "مثلًا: الصغار",
     capacity: "السعة",
     colour: "اللون",
+    photo: "صورة الفصل",
+    addPhoto: "إضافة صورة",
+    changePhoto: "تغيير الصورة",
+    removePhoto: "إزالة الصورة",
+    photoError: "لم تُحفظ الصورة. استخدم صورة JPEG أو PNG أو WebP أو GIF أو HEIC بحجم أقل من 4 ميجابايت.",
     addRoom: "إضافة فصل",
     capacityOf: "السعة: {n}",
     childrenCount: "{count} أطفال",
@@ -4026,6 +4111,9 @@ export const ar = {
     dlBilling: "فواتير Excel (CSV)",
     dlAttendance: "حضور Excel (CSV)",
     dlChildren: "القائمة الذكية للأطفال (CSV)",
+    staffHoursTitle: "ساعات الموظفين — المتوقع مقابل الفعلي",
+    staffHoursHint: "اختر نطاق تواريخ ثم نزّل الساعات المتوقعة والفعلية والفرق لكل موظف (بتوقيت المركز).",
+    dlStaffHours: "تنزيل ساعات الموظفين (CSV)",
     filteredAnchor: "التقارير المفلترة ↓",
     overview: "نظرة عامة على المركز",
     colChildren: "الأطفال",
@@ -4787,11 +4875,38 @@ export const ar = {
     dayThu: "خميس",
     dayFri: "جمعة",
     daySat: "سبت",
-    hoursSubtitle: "ساعات عمل المركز وتوافر الموظفين. تُتتبع الورديات هنا مع اكتمال السجل؛ وتُضبط ساعات المركز من صفحة الإعدادات.",
+    hoursSubtitle: "قارن الورديات المجدولة بالساعات التي عملها كل موظف فعليًا. تُضبط ساعات المركز من صفحة الإعدادات.",
     centerOpeningHours: "ساعات عمل المركز",
     noOpeningHours: "لم تُضبط ساعات العمل بعد.",
     noStaffYet: "لا يوجد موظفون بعد.",
-    trackingNote: "التتبع التفصيلي لساعات العمل (تسجيل الحضور والانصراف لكل موظف) هو متابعة مجدولة — المعروض هنا هو قائمة اليوم للمرجعية.",
+    trackingNote: "تُحسب الساعات الفعلية من سجلات حضور وانصراف الموظفين. يُعلَّم الحضور دون انصراف ولا يُحسب حتى يُغلق الدوام.",
+    hoursSingleDay: "يوم واحد",
+    hoursRange: "نطاق تواريخ",
+    hoursFilterDate: "التاريخ",
+    hoursFilterFrom: "من",
+    hoursFilterTo: "إلى",
+    hoursFilterApply: "تطبيق",
+    hoursFilterToday: "اليوم",
+    hoursShowingDay: "عرض {date}",
+    hoursShowingRange: "عرض {from} – {to}",
+    hoursInvalidFilter: "التواريخ المحددة غير صحيحة، لذلك يُعرض اليوم.",
+    hoursRangeClamped: "تم تقييد النطاق إلى {days} يومًا.",
+    expectedHours: "المتوقع",
+    actualHours: "الفعلي",
+    difference: "الفرق",
+    totalRow: "الإجمالي",
+    durationHM: "{h} س {m} د",
+    hoursStatusOnTime: "مطابق",
+    hoursStatusShort: "أقل",
+    hoursStatusOver: "أكثر",
+    hoursStatusAbsent: "غائب",
+    hoursStatusUnscheduled: "غير مجدول",
+    hoursStatusNoSchedule: "لا جدول",
+    hoursStatusUpcoming: "قادم",
+    hoursNoScheduleHint: "لا توجد ساعات مجدولة للفترة المحددة.",
+    hoursOpenShift: "حضور مفتوح — يُحتسب حتى الآن.",
+    hoursMissingCheckout: "حضور دون انصراف — غير محتسب.",
+    hoursSourceNote: "تُحسب الساعات المتوقعة من جدول الموظفين المتكرر. وتُحسب الساعات الفعلية من سجلات الحضور والانصراف بتوقيت المركز.",
     scheduleSubtitle: "أضِف الورديات لتاريخ محدد أو لنمط أسبوعي، وحدّد الفصول، وكرّر جدولًا ثابتًا على عدة أيام.",
     addShiftTitle: "إضافة وردية",
     notesPlaceholder: "الفصل / المهمة…",
@@ -5173,61 +5288,36 @@ function intlLocale(locale: Locale): string {
   return locale === "ar" ? "ar-EG" : "en-GB";
 }
 
-function toDateOr(v: unknown): Date | null {
-  if (!v) return null;
-  try {
-    const d = new Date(String(v));
-    return Number.isNaN(d.getTime()) ? null : d;
-  } catch {
-    return null;
-  }
-}
-
-// "30 Oct 2026" / "٣٠ أكتوبر ٢٠٢٦" — ☀ for an unknown value returns "—".
-export function fmtDateFor(locale: Locale, v: unknown): string {
-  const d = toDateOr(v);
-  if (!d) return "—";
-  try {
-    return new Intl.DateTimeFormat(intlLocale(locale), {
-      day: "numeric",
-      month: "short",
-      year: "numeric",
-    }).format(d);
-  } catch {
-    return d.toDateString();
-  }
+// KID-2496: every formatter takes the CENTER's IANA zone explicitly. Without
+// it Intl uses the HOST zone, and the Workers/Vercel renderer runs in UTC — the
+// founder's 16:34 Cairo check-in showed as 14:34. The default keeps the
+// platform operating zone (Africa/Cairo) for call sites with no tenant, and
+// every portal/child page passes the tenant's `timeZone` from i18nForAccount.
+// "30 Oct 2026" / "٣٠ أكتوبر ٢٠٢٦" — for an unknown value returns "—".
+export function fmtDateFor(
+  locale: Locale,
+  v: unknown,
+  timeZone: string = DEFAULT_CENTER_TIMEZONE
+): string {
+  return formatZonedValue(intlLocale(locale), v, timeZone, "date");
 }
 
 // "8:05 PM" / "٨:٠٥ م"
-export function fmtTimeFor(locale: Locale, v: unknown): string {
-  const d = toDateOr(v);
-  if (!d) return "—";
-  try {
-    return new Intl.DateTimeFormat(intlLocale(locale), {
-      hour: "2-digit",
-      minute: "2-digit",
-    }).format(d);
-  } catch {
-    return d.toLocaleTimeString();
-  }
+export function fmtTimeFor(
+  locale: Locale,
+  v: unknown,
+  timeZone: string = DEFAULT_CENTER_TIMEZONE
+): string {
+  return formatZonedValue(intlLocale(locale), v, timeZone, "time");
 }
 
 // "30 Oct 2026, 8:05 PM" / "٣٠ أكتوبر ٢٠٢٦، ٨:٠٥ م"
-export function fmtDateTimeFor(locale: Locale, v: unknown, timeZone?: string): string {
-  const d = toDateOr(v);
-  if (!d) return "—";
-  try {
-    return new Intl.DateTimeFormat(intlLocale(locale), {
-      day: "numeric",
-      month: "short",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-      ...(timeZone ? { timeZone } : {}),
-    }).format(d);
-  } catch {
-    return d.toLocaleString();
-  }
+export function fmtDateTimeFor(
+  locale: Locale,
+  v: unknown,
+  timeZone: string = DEFAULT_CENTER_TIMEZONE
+): string {
+  return formatZonedValue(intlLocale(locale), v, timeZone, "datetime");
 }
 
 // KID-221: the in-app notification feed strings feedCopy, built per locale so
@@ -5308,11 +5398,11 @@ export type FeedCopy = {
   billingStatusLabel: (status: string) => string;
 };
 
-export function feedCopyFor(locale: Locale): FeedCopy {
+export function feedCopyFor(locale: Locale, timeZone: string = DEFAULT_CENTER_TIMEZONE): FeedCopy {
   const dict = getDictionary(locale);
   const t = (key: string, vars?: Record<string, string | number>) => tr(dict, key, vars);
   return {
-    dateTime: (v) => fmtDateTimeFor(locale, v),
+    dateTime: (v) => fmtDateTimeFor(locale, v, timeZone),
     dateTimeIn: (v, timeZone) => fmtDateTimeFor(locale, v, timeZone),
     newsMeta: (comments, likes) => t("feed.newsMeta", { comments, likes }),
     newsfeedFallback: () => t("feed.newsfeedFallback"),

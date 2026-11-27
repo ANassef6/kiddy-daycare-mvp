@@ -19,7 +19,7 @@ export default async function PortalAttendancePage(
 ) {
   const searchParams = await props.searchParams;
   const session = await requireSession();
-  const { dict, locale } = await i18nForAccount(session.accountId);
+  const { dict, locale, timeZone } = await i18nForAccount(session.accountId);
   const iid = await resolveTenantInstituteId();
   await recordToolUsage({ instituteId: String(iid ?? "") || null, accountId: session.accountId, toolKey: "attendance", source: "portal", metadata: null });
   // KID-2437: the default day is the center's local calendar day.
@@ -68,7 +68,7 @@ export default async function PortalAttendancePage(
     <div>
       <h1 className="title">{tr(dict, "attendance.title")}</h1>
       <p className="subtitle">
-        {tr(dict, "attendance.subtitle", { date: fmtDateFor(locale, day) })}
+        {tr(dict, "attendance.subtitle", { date: fmtDateFor(locale, day, timeZone) })}
       </p>
       {searchParams.sweep === "1" && (
         <p className="small" style={{ color: "#047857", fontWeight: 600 }}>
@@ -82,7 +82,7 @@ export default async function PortalAttendancePage(
       {sweep && (sweep.children.length > 0 || sweep.staff.length > 0 || sweep.busOff.length > 0) && (
         <p className="small muted">
           {tr(dict, "attendance.autoCheckoutRun", {
-            time: fmtTimeFor(locale, sweep.at),
+            time: fmtTimeFor(locale, sweep.at, timeZone),
             names:
               sweep.children.map((c: any) => `${c.first_name} ${c.last_name}`).join(", ") +
               (sweep.children.length > 0 && sweep.staff.length > 0 ? " — " : "") +
@@ -180,13 +180,13 @@ export default async function PortalAttendancePage(
                   )}
                 </td>
                 <td className="small">
-                  {fmtTimeFor(locale, r.checked_in_at)}
+                  {fmtTimeFor(locale, r.checked_in_at, timeZone)}
                   {r.checked_in_source === "bus" && (
                     <> <span className="badge badge-gray">{tr(dict, "attendance.busSource")}</span></>
                   )}
                 </td>
                 <td className="small">
-                  {fmtTimeFor(locale, r.checked_out_at)}
+                  {fmtTimeFor(locale, r.checked_out_at, timeZone)}
                   {r.checked_out_source === "bus" && (
                     <> <span className="badge badge-gray">{tr(dict, "attendance.busSource")}</span></>
                   )}

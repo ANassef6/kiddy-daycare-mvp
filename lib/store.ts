@@ -1,4 +1,10 @@
 import { isPostgresMode, queryAll, queryGet, queryRun, uid, withTransaction, type Row } from "./db";
+import {
+  CONSENT_BATCHES_SQL,
+  CONSENT_BATCH_CREATORS_SQL,
+  CONSENT_BATCH_ROOMS_SQL,
+  attachConsentBatchCreators,
+} from "./consent-batches";
 import { normalizeCurrency } from "./currency";
 import { normalizeSubdomainSlug } from "./subdomain";
 import { hasOverdueInvoice, nextMonthStart, type BillingPlan } from "./billing";
@@ -159,7 +165,7 @@ export async function createRoom(
   return (await getRoom(id))!;
 }
 
-export async function updateRoom(roomId: string, patch: { name?: string; capacity?: number | null; colour?: string }): Promise<void> {
+export async function updateRoom(roomId: string, patch: { name?: string; capacity?: number | null; colour?: string; photoUrl?: string | null }): Promise<void> {
   const fields: string[] = [];
   const values: unknown[] = [];
   if (patch.name !== undefined) {
@@ -174,9 +180,18 @@ export async function updateRoom(roomId: string, patch: { name?: string; capacit
     fields.push("colour = ?");
     values.push(/^#[0-9a-fA-F]{6}$/.test(patch.colour) ? patch.colour : "#3B82F6");
   }
+  if (patch.photoUrl !== undefined) {
+    fields.push("photo_url = ?");
+    values.push(patch.photoUrl);
+  }
   if (fields.length === 0) return;
   values.push(roomId);
   await queryRun(`UPDATE room SET ${fields.join(", ")} WHERE id = ?`, ...values);
+}
+
+// KID-2481: room photos use the same private-REF model as child/staff photos.
+export async function updateRoomPhoto(roomId: string, photoUrl: string | null): Promise<void> {
+  await queryRun("UPDATE room SET photo_url = ? WHERE id = ?", photoUrl, roomId);
 }
 
 export async function roomChildren(roomId: string): Promise<Row[]> {
@@ -297,7 +312,8 @@ export async function listChildren(
 
 export async function getChild(childId: string): Promise<Row | undefined> {
   return queryGet(
-    `SELECT c.*, r.name AS room_name, h.allergies, h.conditions, h.notes
+    `SELECT c.*, r.name AS room_name, r.photo_url AS room_photo_url,
+            r.colour AS room_colour, h.allergies, h.conditions, h.notes
      FROM child c
      LEFT JOIN room r ON r.id = c.room_id
      LEFT JOIN child_health h ON h.child_id = c.id
@@ -3319,30 +3335,158 @@ export async function createConsent(data: {
 }): Promise<Row> {
   const id = uid();
   await queryRun(
-    "INSERT INTO consent_request (id, institute_id, title, body, child_id) VALUES (?, ?, ?, ?, ?)",
+    "INSERT INTO consent_request (id, institute_id, title, body, child_id, batch_id) VALUES (?, ?, ?, ?, ?, ?)",
     id,
     data.instituteId,
     data.title,
     data.body ?? "",
-    data.childId ?? null
+    data.childId ?? null,
+    id
   );
   return (await queryGet("SELECT * FROM consent_request WHERE id = ?", id))!;
 }
 
-export async function respondConsent(id: string, status: "approved" | "denied"): Promise<void> {
-  await queryRun("UPDATE consent_request SET status = ? WHERE id = ?", status, id);
+// KID-2494: a consent sent to classrooms (or All / general) creates one
+// consent_request per child, so every parent answers for their own child and
+// the portal can show who responded / is pending per child. One batch_id ties
+// the rows of a single send together for the recipient list. The whole batch
+// is atomic: a failure halfway cannot leave only part of a classroom notified.
+// An empty target list keeps the legacy "All / general" behaviour (one row
+// with a null child_id) for a centre that has no children yet.
+export async function createConsents(data: {
+  instituteId: string;
+  title: string;
+  body?: string;
+  childIds?: string[];
+}): Promise<Row[]> {
+  const childIds = Array.from(new Set((data.childIds ?? []).filter(Boolean)));
+  const targets: (string | null)[] = childIds.length > 0 ? childIds : [null];
+  const batchId = uid();
+  return withTransaction(async (tx) => {
+    const rows: Row[] = [];
+    for (const childId of targets) {
+      const id = uid();
+      await tx.queryRun(
+        "INSERT INTO consent_request (id, institute_id, title, body, child_id, batch_id) VALUES (?, ?, ?, ?, ?, ?)",
+        id,
+        data.instituteId,
+        data.title,
+        data.body ?? "",
+        childId,
+        batchId
+      );
+      rows.push((await tx.queryGet("SELECT * FROM consent_request WHERE id = ?", id))!);
+    }
+    return rows;
+  });
+}
+
+// KID-2494: record WHO answered and WHEN. The recipient list needs both, and
+// a re-answer (a parent changing a decision) overwrites the snapshot.
+export async function respondConsent(
+  id: string,
+  status: "approved" | "denied",
+  accountId?: string
+): Promise<void> {
+  await queryRun(
+    "UPDATE consent_request SET status = ?, responded_at = ?, responded_by_account_id = ? WHERE id = ?",
+    status,
+    new Date().toISOString(),
+    accountId ?? null,
+    id
+  );
+}
+
+// KID-2494: one row per send for the portal list. Legacy rows have batch_id
+// backfilled to their own id, so they still resolve. Counts let the page show
+// answered/pending at a glance before the user opens the recipient list.
+// Room names are resolved separately (listConsentBatchRooms) because the
+// production database is Postgres, which has no GROUP_CONCAT.
+export async function listConsentBatches(instituteId: string): Promise<Row[]> {
+  const [batches, creators] = await Promise.all([
+    queryAll(CONSENT_BATCHES_SQL, instituteId),
+    queryAll(CONSENT_BATCH_CREATORS_SQL, instituteId),
+  ]);
+  return attachConsentBatchCreators(batches, creators);
+}
+
+// KID-2494: the classroom names of each send, in one portable query.
+export async function listConsentBatchRooms(instituteId: string): Promise<Row[]> {
+  return queryAll(CONSENT_BATCH_ROOMS_SQL, instituteId);
+}
+
+export async function getConsentBatch(instituteId: string, batchId: string): Promise<Row | undefined> {
+  return queryGet(
+    `SELECT COALESCE(cr.batch_id, cr.id) AS batch_id,
+       MIN(cr.title) AS title,
+       MIN(cr.body) AS body,
+       MIN(cr.created_at) AS created_at,
+       COUNT(*) AS total,
+       SUM(CASE WHEN cr.status = 'pending' THEN 1 ELSE 0 END) AS pending,
+       SUM(CASE WHEN cr.status = 'approved' THEN 1 ELSE 0 END) AS approved,
+       SUM(CASE WHEN cr.status = 'denied' THEN 1 ELSE 0 END) AS denied,
+       SUM(CASE WHEN cr.child_id IS NULL THEN 1 ELSE 0 END) AS general_count
+     FROM consent_request cr
+     WHERE cr.institute_id = ? AND COALESCE(cr.batch_id, cr.id) = ?
+     GROUP BY COALESCE(cr.batch_id, cr.id)`,
+    instituteId,
+    batchId
+  );
+}
+
+// KID-2494: the full recipient list for one send, grouped by room in the page.
+// parent_names is attached from a second portable query; responded_by_name is
+// the account that actually answered. A general (childless) legacy row appears
+// with NULL child columns, which the page renders as "All / general".
+export async function listConsentRecipients(instituteId: string, batchId: string): Promise<Row[]> {
+  const recipients = await queryAll(
+    `SELECT cr.id, cr.status, cr.responded_at, cr.child_id,
+       c.first_name, c.last_name, c.room_id, r.name AS room_name,
+       (SELECT a.full_name FROM account a WHERE a.id = cr.responded_by_account_id) AS responded_by_name
+     FROM consent_request cr
+     LEFT JOIN child c ON c.id = cr.child_id
+     LEFT JOIN room r ON r.id = c.room_id
+     WHERE cr.institute_id = ? AND COALESCE(cr.batch_id, cr.id) = ?
+     ORDER BY CASE WHEN r.name IS NULL THEN 1 ELSE 0 END, r.name, c.first_name, c.last_name`,
+    instituteId,
+    batchId
+  );
+  const parents = await queryAll(
+    `SELECT DISTINCT cr.child_id, a.full_name
+     FROM consent_request cr
+     JOIN family_member fm ON fm.child_id = cr.child_id AND fm.role = 'parent'
+     JOIN account a ON a.id = fm.account_id
+     WHERE cr.institute_id = ? AND COALESCE(cr.batch_id, cr.id) = ?
+     ORDER BY a.full_name`,
+    instituteId,
+    batchId
+  );
+  const parentNames = new Map<string, string[]>();
+  for (const row of parents) {
+    const childId = String(row.child_id);
+    const names = parentNames.get(childId) ?? [];
+    names.push(String(row.full_name));
+    parentNames.set(childId, names);
+  }
+  return recipients.map((row) => ({
+    ...row,
+    parent_names: row.child_id ? (parentNames.get(String(row.child_id)) ?? []).join(", ") || null : null,
+  }));
 }
 
 export async function listConsents(instituteId: string): Promise<Row[]> {
   // KID-477: consent_request has no creator column; the name comes from the
   // audit_event snapshot (one correlated subquery, tenant-scoped join free).
+  // KID-2494: classroom targeting expands into per-child rows, so the list
+  // carries the child's name; a general request has no child.
   return queryAll(
-    `SELECT cr.*,
+    `SELECT cr.*, c.first_name AS child_first_name, c.last_name AS child_last_name,
        (SELECT ae.actor_name FROM audit_event ae
         WHERE ae.entity_type = 'consent_request' AND ae.entity_id = cr.id AND ae.action = 'create'
         ORDER BY ae.created_at DESC LIMIT 1) AS created_by_name
      FROM consent_request cr
-     WHERE cr.institute_id = ? ORDER BY cr.created_at DESC`,
+     LEFT JOIN child c ON c.id = cr.child_id
+     WHERE cr.institute_id = ? ORDER BY cr.created_at DESC, c.first_name, c.last_name`,
     instituteId
   );
 }
@@ -4553,6 +4697,44 @@ export async function deleteStaffSchedule(id: string): Promise<void> {
   await queryRun("DELETE FROM staff_schedule WHERE id = ?", id);
 }
 
+// KID-2484: the working-hours tab reads every staff member's schedule in one
+// query instead of one round trip per row.
+export async function listStaffSchedulesForStaffIds(staffIds: string[]): Promise<Row[]> {
+  if (staffIds.length === 0) return [];
+  const placeholders = staffIds.map(() => "?").join(", ");
+  return queryAll(
+    `SELECT * FROM staff_schedule WHERE staff_id IN (${placeholders})
+     ORDER BY staff_id, day_of_week, start_time`,
+    ...staffIds
+  );
+}
+
+// KID-2484: staff check-in/out events for the selected center-local period.
+// Reads from the same staff_status ledger the presence card writes, including
+// the system's auto check-out rows.
+export async function staffStatusEventsBetween(
+  staffIds: string[],
+  start: Date,
+  end: Date
+): Promise<Row[]> {
+  if (staffIds.length === 0) return [];
+  const placeholders = staffIds.map(() => "?").join(", ");
+  const bounds = [start.toISOString(), end.toISOString()];
+  const range = isPostgresMode()
+    ? { sql: "created_at >= ? AND created_at < ?", args: bounds }
+    : {
+        sql: "datetime(created_at) >= datetime(?) AND datetime(created_at) < datetime(?)",
+        args: bounds,
+      };
+  return queryAll(
+    `SELECT staff_id, kind, created_at FROM staff_status
+     WHERE staff_id IN (${placeholders}) AND ${range.sql}
+     ORDER BY staff_id, created_at`,
+    ...staffIds,
+    ...range.args
+  );
+}
+
 // ---- KID-47 Round 6: notification prefs ----
 // KID-474: "daily_report" and "events" join so parents (and staff) can opt
 // in/out per activity; the durable emissions below honor the same rows.
@@ -5250,7 +5432,7 @@ export async function childrenByRooms(roomIds: string[]): Promise<Row[]> {
 }
 
 // Staff availability / presence status card.
-export const STAFF_STATUS_KINDS = ["checkin", "sick", "vacation", "absent", "child_sick"] as const;
+export const STAFF_STATUS_KINDS = ["checkin", "out", "sick", "vacation", "absent", "child_sick"] as const;
 
 // KID-2502: only check-in / check-out notify the center's owner + admin
 // accounts; every other staff status stays silent. The acting account is

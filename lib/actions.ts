@@ -69,7 +69,7 @@ import {
   upsertDailyReport,
   createNewsfeedPost,
   addComment,
-  createConsent,
+  createConsents,
   respondConsent,
   createIncident,
   acknowledgeIncident,
@@ -103,6 +103,7 @@ import {
   setChildBillingPaymentProof,
   updateChildPhoto,
   updateStaffPhoto,
+  updateRoomPhoto,
   toggleLike,
   setNewsfeedPhotoTags,
   saveWorkingHours,
@@ -788,6 +789,12 @@ async function authAccount(opts: { allowReadOnly?: boolean } = {}): Promise<Sess
     if (readOnly) redirect(session.role === "parent" ? "/child" : "/portal/dashboard");
   }
   return session;
+}
+
+// KID-2481: only roles that may edit a child profile may change or remove its
+// photo. Parent-role accounts read the child surface but never edit it.
+function canEditChildren(role: string): boolean {
+  return isAdminRole(role) || role === "staff" || role === "carer";
 }
 
 async function requireAdmin(): Promise<SessionCookie> {
@@ -1771,6 +1778,47 @@ async function resolveNewsfeedRecipients(
   return (await resolveRecipientAudience(formData, me, instituteId)).childIds;
 }
 
+// KID-2494: a consent can target all visible children or whole classrooms. The
+// founder removed the per-child picker from the composer. A classroom resolves
+// against the roster at submit time, so a child enrolled after the composer
+// rendered is included automatically. All / general resolves through the same
+// classroom scope at submit time (admin/owner: every child; staff/carer: their
+// rooms). Forged or out-of-scope room ids are dropped; a pick that resolves to
+// nothing must not silently become a general request, so `hadPicks` lets the
+// caller refuse it.
+async function resolveConsentRecipients(
+  formData: FormData,
+  me: SessionCookie,
+  instituteId: string
+): Promise<{ childIds: string[]; hadPicks: boolean }> {
+  const { listRooms, childrenByRooms, listChildren } = await import("@/lib/store");
+  // KID-2494: the owner has the same all-room audience as the admin. Use the
+  // shared role helper instead of a local role switch that can omit owner; a
+  // non-admin still resolves through the shared classroom scope and fails
+  // closed when that scope is empty.
+  const isAdmin = isAdminRole(me.role);
+  const allowedRoomIds = isAdmin ? null : (await scopedRoomIds(instituteId, me.accountId)) ?? [];
+
+  const instituteRooms = new Set((await listRooms(instituteId)).map((r) => String(r.id)));
+  const requestedRoomIds = Array.from(new Set(formData.getAll("recipientRoomIds").map(String).filter(Boolean)));
+  const roomIds = requestedRoomIds.filter(
+    (id) => instituteRooms.has(id) && (allowedRoomIds === null || allowedRoomIds.includes(id))
+  );
+  if (requestedRoomIds.length > 0) {
+    // A pick that is forged or outside the caller's scope resolves to nothing
+    // and stays a refused pick; it never turns into an All / general send.
+    return {
+      childIds: Array.from(new Set((await childrenByRooms(roomIds)).map((c) => String(c.id)))),
+      hadPicks: true,
+    };
+  }
+
+  // All / general: same scope as the room picker, resolved at send time so a
+  // late enrollment is included and a teacher cannot reach another classroom.
+  const scoped = await listChildren(instituteId, { accountId: me.accountId });
+  return { childIds: scoped.map((c) => String(c.id)), hadPicks: false };
+}
+
 // KID-57: the app language lives on `account.language` + the kiddy_lang
 // cookie. KID-2460 moved the write to the native POST route
 // /switch-app-lang: a server-action redirect kept the mounted layouts (and
@@ -2040,27 +2088,41 @@ export async function commentAction(formData: FormData) {
 export async function createConsentAction(formData: FormData) {
   await ensureSchema();
   const me = await authAccount();
+  // KID-2494: only daycare staff roles compose consents. A parent account that
+  // reaches this action must not fan a request out to every child.
+  if (!canEditChildren(me.role)) redirect("/child");
   const instituteId = await firstInstituteId();
-  const childId = String(formData.get("childId") ?? "") || undefined;
-  if (childId) await assertChildInScope(childId, me);
-  const consent = await createConsent({
+  const title = String(formData.get("title") ?? "");
+  // KID-2494: classroom picks resolve to their current children; no picks
+  // means All / general, which also resolves to the caller's visible children
+  // so every recipient keeps its own response row.
+  const audience = instituteId
+    ? await resolveConsentRecipients(formData, me, instituteId)
+    : { childIds: [], hadPicks: false };
+  if (audience.hadPicks && audience.childIds.length === 0) {
+    redirect("/portal/consents?error=audience");
+  }
+  const consents = await createConsents({
     instituteId,
-    title: String(formData.get("title") ?? ""),
+    title,
     body: String(formData.get("body") ?? ""),
-    childId,
+    childIds: audience.childIds,
   });
   // KID-477: consent requests are admin-authored changes to a record parents
-  // must act on — attributed on the trail (title only, never the body).
-  if (instituteId && consent) {
-    await recordAuditEvent({
-      instituteId,
-      actorAccountId: me.accountId,
-      action: "create",
-      entityType: "consent_request",
-      entityId: String(consent.id),
-      summary: `Created the consent request “${String(formData.get("title") ?? "")}”`,
-      metadata: { childId: childId ?? null },
-    });
+  // must act on — attributed on the trail (title only, never the body). One
+  // event per per-child row so every parent-facing request carries its author.
+  if (instituteId) {
+    for (const consent of consents) {
+      await recordAuditEvent({
+        instituteId,
+        actorAccountId: me.accountId,
+        action: "create",
+        entityType: "consent_request",
+        entityId: String(consent.id),
+        summary: `Created the consent request “${title}”`,
+        metadata: { childId: consent.child_id ? String(consent.child_id) : null },
+      });
+    }
   }
   redirect("/portal/consents");
 }
@@ -2071,7 +2133,7 @@ export async function respondConsentAction(formData: FormData) {
   await assertFamilyAction(me, "respondConsent");
   const consentId = String(formData.get("id") ?? "");
   const status = String(formData.get("status") ?? "approved") as "approved" | "denied";
-  await respondConsent(consentId, status);
+  await respondConsent(consentId, status, me.accountId);
   // KID-477: a parent decision is a record mutation — attributed per parent.
   const row = await queryGet("SELECT institute_id FROM consent_request WHERE id = ?", consentId);
   if (row) {
@@ -2692,6 +2754,85 @@ export async function updateRoomAction(formData: FormData) {
       entityType: "room",
       entityId: roomId,
       summary: `Updated the classroom “${String(formData.get("name") ?? room.name ?? "")}”`,
+    });
+  }
+  redirect(`/portal/rooms/${roomId}`);
+}
+
+// KID-2481: room photo upload. Admin-only (the same gate that edits a room),
+// and the room must belong to the request tenant before any write.
+export async function uploadRoomPhotoAction(formData: FormData) {
+  await ensureSchema();
+  const me = await requireAdmin();
+  if (!(await throttle("upload", RATE_LIMIT_RULES.uploadAccount, me.accountId)).ok) {
+    throttledRedirect();
+  }
+  const roomId = String(formData.get("roomId") ?? "");
+  if (!roomId) redirect("/portal/rooms");
+  await assertInstituteOwned(me, "room", roomId, "institute_id");
+  const room = await getRoom(roomId);
+  if (!room) redirect("/portal/rooms");
+  const instituteId = String(room.institute_id ?? "");
+  const photoBack = `/portal/rooms/${roomId}`;
+
+  // KID-2453: presigned direct upload first (the REF is re-verified by
+  // takeUploadedRef); the multipart file stays the fallback.
+  const presignedPhoto = await takeUploadedRef(formData, {
+    purpose: "photo",
+    instituteId,
+    field: "fileRef",
+  });
+  let file: File | null = null;
+  let photoPath = "";
+  if (!presignedPhoto.ok) {
+    file = formData.get("file") as File | null;
+    if (!file || file.size === 0) redirect(`${photoBack}?error=photoType`);
+    // The same cap as child/staff avatars (KID-2450/2481).
+    const photo = validatePhotoFile(file);
+    if (!photo.ok) {
+      redirect(`${photoBack}?error=${photo.code === "size" ? "photoSize" : "photoType"}`);
+    }
+    photoPath = `photos/${instituteId}/room/${roomId}/photo-${Date.now()}.${photo.ext}`;
+  }
+
+  if (storageAdminConfigured()) {
+    let storedRef: string | null = presignedPhoto.ok ? presignedPhoto.ref : null;
+    if (!storedRef && file) {
+      const uploaded = await uploadPrivateObject(photoPath, file, file.type);
+      if (!uploaded.error) storedRef = uploaded.ref;
+    }
+    if (storedRef) {
+      await updateRoomPhoto(roomId, storedRef);
+      await recordAuditEvent({
+        instituteId,
+        actorAccountId: me.accountId,
+        action: "update",
+        entityType: "room",
+        entityId: roomId,
+        summary: `Changed the photo for the classroom “${String(room.name ?? "")}”`,
+      });
+    }
+  }
+  redirect(photoBack);
+}
+
+// KID-2481: remove a room photo so the room falls back to its colour dot.
+export async function removeRoomPhotoAction(formData: FormData) {
+  await ensureSchema();
+  const me = await requireAdmin();
+  const roomId = String(formData.get("roomId") ?? "");
+  if (!roomId) redirect("/portal/rooms");
+  await assertInstituteOwned(me, "room", roomId, "institute_id");
+  const room = await getRoom(roomId);
+  if (room) {
+    await updateRoomPhoto(roomId, null);
+    await recordAuditEvent({
+      instituteId: String(room.institute_id ?? ""),
+      actorAccountId: me.accountId,
+      action: "update",
+      entityType: "room",
+      entityId: roomId,
+      summary: `Removed the photo for the classroom “${String(room.name ?? "")}”`,
     });
   }
   redirect(`/portal/rooms/${roomId}`);
@@ -4392,7 +4533,11 @@ export async function uploadPhotoAction(formData: FormData) {
   if (!entityType || !entityId) {
     redirect(entityType === "child" ? "/portal/children" : "/portal/staff");
   }
-  if (entityType === "child") await assertChildInScope(entityId, me);
+  if (entityType === "child") {
+    // KID-2481: changing a child's photo is a child edit, not a parent action.
+    if (!canEditChildren(me.role)) redirect("/portal/children?error=scope");
+    await assertChildInScope(entityId, me);
+  }
   const photoBack = entityType === "child" ? `/portal/children/${entityId}` : `/portal/staff/${entityId}`;
   const photoInstituteId = String(
     (
@@ -4472,6 +4617,34 @@ export async function uploadPhotoAction(formData: FormData) {
     }
   }
   redirect(entityType === "child" ? `/portal/children/${entityId}` : "/portal/staff");
+}
+
+// KID-2481: remove a child's photo. The stored object is left in place (the
+// same replace-by-upload pattern the avatar upload already uses); the row
+// falls back to initials/colour the moment photo_url is NULL.
+export async function removeChildPhotoAction(formData: FormData) {
+  await ensureSchema();
+  const me = await authAccount();
+  if (!canEditChildren(me.role)) redirect("/portal/children?error=scope");
+  const childId = String(formData.get("childId") ?? "");
+  if (!childId) redirect("/portal/children");
+  await assertChildInScope(childId, me);
+  const child = await queryGet(
+    "SELECT institute_id, first_name, last_name FROM child WHERE id = ?",
+    childId
+  );
+  if (child) {
+    await updateChildPhoto(childId, null);
+    await recordAuditEvent({
+      instituteId: String(child.institute_id ?? ""),
+      actorAccountId: me.accountId,
+      action: "update",
+      entityType: "child",
+      entityId: childId,
+      summary: `Removed the photo for ${String(child.first_name)} ${String(child.last_name)}`.trim(),
+    });
+  }
+  redirect(`/portal/children/${childId}`);
 }
 
 // KID-107: staff upload their own photo from Account Settings.

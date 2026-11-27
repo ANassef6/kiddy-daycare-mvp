@@ -7,6 +7,7 @@ import { isPlatformOperatorEmail, isPlatformOperatorRole } from "@/lib/platform"
 import { getInstitute } from "@/lib/store";
 import { i18nForAccount } from "@/lib/i18n-session";
 import { tr } from "@/lib/i18n";
+import { normalizeTimeZone } from "@/lib/timezone";
 import BulkUploadCard from "@/components/BulkUploadCard";
 import { getBulkUploadReport, listBulkUploadReports } from "@/lib/bulk-upload";
 
@@ -26,6 +27,7 @@ export default async function DaycareBulkUploadPage(props: {
   const instituteId = String(params.id ?? "");
   const institute = await getInstitute(instituteId);
   if (!institute) redirect("/platform?error=missing-id");
+  const centerTimeZone = normalizeTimeZone(institute?.timezone);
 
   const reports = await listBulkUploadReports(instituteId);
   const selected = searchParams.report ? await getBulkUploadReport(searchParams.report) : null;
@@ -46,6 +48,7 @@ export default async function DaycareBulkUploadPage(props: {
         instituteId={instituteId}
         dict={dict}
         locale={locale}
+        timeZone={centerTimeZone}
         reports={reports}
         report={report}
         errorCode={searchParams.error}

@@ -20,8 +20,9 @@ import { requireSession } from "@/lib/require";
 import { isOwnerRole } from "@/lib/role";
 import { resolveTenantInstituteId } from "@/lib/tenant";
 import { i18nForAccount } from "@/lib/i18n-session";
-import { tr } from "@/lib/i18n";
-import { getInstitute } from "@/lib/store";
+import { fmtDateFor, tr } from "@/lib/i18n";
+import { getInstitute, centerToday } from "@/lib/store";
+import { shiftIsoDate } from "@/lib/report-dates";
 import { getDaycareBilling, isInstituteReadOnly, listInvoices, type DaycareInvoice, type DaycareBilling } from "@/lib/billing";
 import { getPlatformInstapayUrl } from "@/lib/platform-settings";
 import { recordToolUsage } from "@/lib/tool-usage";
@@ -57,7 +58,7 @@ export default async function PortalAccountBillingPage(props: {
     // shell. Nothing here is theirs to see — a redirect is a quiet refusal.
     redirect("/portal/dashboard");
   }
-  const { dict, dir } = await i18nForAccount(session.accountId);
+  const { dict, dir, locale, timeZone } = await i18nForAccount(session.accountId);
   const instituteId = await resolveTenantInstituteId();
   if (!instituteId) {
     return (
@@ -96,8 +97,10 @@ export default async function PortalAccountBillingPage(props: {
   // pre-disable warning window, and an overdue invoice means the enforcement
   // sweep (lib/billing.ts applyOverdueEnforcement) has flipped or is about to
   // flip institute.active — the owner must act (notify the platform to pay).
-  const todayIso = new Date().toISOString().slice(0, 10);
-  const dueSoonCutoff = new Date(Date.now() + 3 * 24 * 3600 * 1000).toISOString().slice(0, 10);
+  // KID-2496: the warning window is evaluated on the CENTER's calendar day,
+  // not the server's UTC day.
+  const todayIso = await centerToday(instituteId);
+  const dueSoonCutoff = shiftIsoDate(todayIso, 3);
   const overdue = invoices.filter((i) => i.status === "overdue");
   const dueSoon = invoices.filter(
     (i) => i.status === "pending" && i.dueDate <= dueSoonCutoff && i.dueDate >= todayIso
@@ -204,7 +207,7 @@ export default async function PortalAccountBillingPage(props: {
         ))}
         {dueSoon.map((inv) => (
           <div key={`due-${inv.id}`} className="small" style={{ color: "#92400e", fontWeight: 700 }}>
-            {tr(dict, "accountBilling.dueSoon", { cycle: inv.cycleMonth, date: inv.dueDate })}
+            {tr(dict, "accountBilling.dueSoon", { cycle: inv.cycleMonth, date: fmtDateFor(locale, inv.dueDate, timeZone) })}
           </div>
         ))}
         {awaitingPayment && (
@@ -279,14 +282,14 @@ export default async function PortalAccountBillingPage(props: {
                   <td className="small" style={{ padding: 8 }}>
                     <strong>{inv.totalAmount}</strong> {inv.currency}
                   </td>
-                  <td className="small" style={{ padding: 8 }}>{inv.dueDate}</td>
+                  <td className="small" style={{ padding: 8 }}>{fmtDateFor(locale, inv.dueDate, timeZone)}</td>
                   <td className="small" style={{ padding: 8 }}>
                     <span className={`badge ${STATUS_TONE[inv.status]}`}>
                       {tr(dict, `accountBilling.${STATUS_LABEL[inv.status]}`)}
                     </span>
                   </td>
                   <td className="small" style={{ padding: 8 }}>
-                    {inv.status === "paid" ? inv.paidAt.slice(0, 10) : "—"}
+                    {inv.status === "paid" ? fmtDateFor(locale, inv.paidAt, timeZone) : "—"}
                   </td>
                   {/* KID-737: "Pay with Instapay" — the platform-wide link,
                       only for an unpaid cycle, opened in a new tab. Nothing
@@ -324,7 +327,7 @@ export default async function PortalAccountBillingPage(props: {
                             {inv.paymentProofUploadedAt && (
                               <div className="small muted">
                                 {tr(dict, "accountBilling.proofUploadedOn", {
-                                  date: inv.paymentProofUploadedAt.slice(0, 10),
+                                  date: fmtDateFor(locale, inv.paymentProofUploadedAt, timeZone),
                                 })}
                               </div>
                             )}

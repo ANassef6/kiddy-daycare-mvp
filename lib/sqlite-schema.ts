@@ -53,6 +53,7 @@ export function sqliteSchema(db: any): void {
     name TEXT NOT NULL,
     capacity INTEGER,
     colour TEXT NOT NULL DEFAULT '#3B82F6',
+    photo_url TEXT,
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
   );
 
@@ -321,9 +322,18 @@ export function sqliteSchema(db: any): void {
     title TEXT NOT NULL,
     body TEXT,
     child_id TEXT REFERENCES child(id) ON DELETE CASCADE,
+    -- KID-2494: one value per send, so a classroom request can show every
+    -- recipient together. Backfilled to the row id for older single rows.
+    batch_id TEXT,
     status TEXT NOT NULL DEFAULT 'pending',
+    -- KID-2494: who answered and when, for the per-recipient tracking list.
+    responded_at TEXT,
+    responded_by_account_id TEXT REFERENCES account(id) ON DELETE SET NULL,
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
   );
+  CREATE INDEX IF NOT EXISTS idx_consent_request_institute ON consent_request (institute_id);
+  CREATE INDEX IF NOT EXISTS idx_consent_request_child ON consent_request (child_id);
+  CREATE INDEX IF NOT EXISTS idx_consent_request_batch ON consent_request (batch_id);
 
   CREATE TABLE IF NOT EXISTS incident_report (
     id TEXT PRIMARY KEY,
@@ -591,6 +601,7 @@ export function sqliteSchema(db: any): void {
   );
 
   CREATE INDEX IF NOT EXISTS idx_staff_status ON staff_status (staff_id, created_at DESC);
+  CREATE INDEX IF NOT EXISTS idx_staff_schedule_staff_day ON staff_schedule (staff_id, day_of_week);
   CREATE INDEX IF NOT EXISTS idx_notification_account_recent ON notification (account_id, created_at DESC);
   CREATE INDEX IF NOT EXISTS idx_notification_unread ON notification (account_id, read_at);
 
@@ -974,6 +985,23 @@ export function sqliteSchema(db: any): void {
     db.exec("CREATE INDEX IF NOT EXISTS idx_media_post ON media (post_id)");
     db.exec("CREATE INDEX IF NOT EXISTS idx_media_child ON media (institute_id, child_id)");
   }
+  // KID-2494: mirror of supabase/migrations/0059. Existing consent rows get
+  // their own batch id, so the detail view can still open them. The response
+  // columns stay NULL until a parent answers.
+  const consentCols = db.prepare("PRAGMA table_info(consent_request)").all() as { name: string }[];
+  if (!consentCols.some((c) => c.name === "batch_id")) {
+    db.exec("ALTER TABLE consent_request ADD COLUMN batch_id TEXT");
+    db.exec("UPDATE consent_request SET batch_id = id WHERE batch_id IS NULL");
+  }
+  if (!consentCols.some((c) => c.name === "responded_at")) {
+    db.exec("ALTER TABLE consent_request ADD COLUMN responded_at TEXT");
+  }
+  if (!consentCols.some((c) => c.name === "responded_by_account_id")) {
+    db.exec("ALTER TABLE consent_request ADD COLUMN responded_by_account_id TEXT REFERENCES account(id) ON DELETE SET NULL");
+  }
+  db.exec("CREATE INDEX IF NOT EXISTS idx_consent_request_institute ON consent_request (institute_id)");
+  db.exec("CREATE INDEX IF NOT EXISTS idx_consent_request_child ON consent_request (child_id)");
+  db.exec("CREATE INDEX IF NOT EXISTS idx_consent_request_batch ON consent_request (batch_id)");
   // KID-2483: mirror of supabase/migrations/0056 for databases created before
   // a shift could target a specific date.
   const scheduleCols = db.prepare("PRAGMA table_info(staff_schedule)").all() as { name: string }[];
@@ -981,6 +1009,10 @@ export function sqliteSchema(db: any): void {
     db.exec("ALTER TABLE staff_schedule ADD COLUMN schedule_date TEXT");
     db.exec("CREATE INDEX IF NOT EXISTS idx_schedule_date ON staff_schedule (schedule_date)");
     db.exec("CREATE INDEX IF NOT EXISTS idx_schedule_staff_day ON staff_schedule (staff_id, day_of_week)");
+  }
+  // KID-2481: mirror of supabase/migrations/0061_kid2481_room_photo.sql.
+  if (!roomCols.some((c) => c.name === "photo_url")) {
+    db.exec("ALTER TABLE room ADD COLUMN photo_url TEXT");
   }
   // KID-2447 + KID-2448: mirror of the two migrations that add the
   // shared nullable check_in.source marker for databases created before it

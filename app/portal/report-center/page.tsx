@@ -4,6 +4,7 @@ import { firstInstituteId } from "@/lib/helpers";
 import { i18nForAccount } from "@/lib/i18n-session";
 import { fmtDateFor, tr } from "@/lib/i18n";
 import { recordToolUsage } from "@/lib/tool-usage";
+import { addDays } from "@/lib/staff-hours";
 
 export const dynamic = "force-dynamic";
 
@@ -19,7 +20,7 @@ export default async function PortalReportCenterPage(
 ) {
   const searchParams = await props.searchParams;
   const session = await requireSession();
-  const { locale, dict } = await i18nForAccount(session.accountId);
+  const { locale, dict, timeZone } = await i18nForAccount(session.accountId);
   const t = (key: string, vars?: Record<string, string | number>) => tr(dict, key, vars);
   const roleLabel = (role: string) => {
     const key = `roles.${role}`;
@@ -79,6 +80,25 @@ export default async function PortalReportCenterPage(
           <a className="btn btn-ghost small" href="/api/export?type=children">{t("reportCenter.dlChildren")}</a>
           <a className="btn btn-ghost small" href="#filtered">{t("reportCenter.filteredAnchor")}</a>
         </div>
+      </div>
+
+      <div className="card mt-4" id="staff-hours">
+        <h3 className="subtitle">{t("reportCenter.staffHoursTitle")}</h3>
+        <p className="muted small">{t("reportCenter.staffHoursHint")}</p>
+        <form method="get" action="/api/export" className="row" style={{ gap: 10, alignItems: "flex-end", flexWrap: "wrap" }}>
+          <input type="hidden" name="type" value="staff-hours" />
+          <div className="col field">
+            <label className="label">{t("reportCenter.from")}</label>
+            <input className="input" type="date" name="from" defaultValue={addDays(today, -6)} />
+          </div>
+          <div className="col field">
+            <label className="label">{t("reportCenter.to")}</label>
+            <input className="input" type="date" name="to" defaultValue={today} />
+          </div>
+          <div className="field" style={{ alignSelf: "flex-end" }}>
+            <button className="btn btn-primary" type="submit">{t("reportCenter.dlStaffHours")}</button>
+          </div>
+        </form>
       </div>
 
       <h3 className="subtitle">{t("reportCenter.overview")}</h3>
@@ -168,7 +188,7 @@ export default async function PortalReportCenterPage(
           <tbody>
             {filtered.map((r: any) => (
               <tr key={r.id}>
-                <td className="small">{fmtDateFor(locale, r.report_date)}</td>
+                <td className="small">{fmtDateFor(locale, r.report_date, timeZone)}</td>
                 <td><strong>{r.first_name} {r.last_name}</strong></td>
                 <td>{moodLabel(String(r.mood ?? ""))}</td>                <td className="small" style={{ maxWidth: 340 }}>{r.summary || "—"}</td>
                 <td>{r.sick ? <span className="badge badge-red">{t("reportCenter.sickBadge")}</span> : "—"}</td>

@@ -32,7 +32,7 @@ export default async function PortalNewsfeedPage(props: {
   const searchParams = props.searchParams;
   const session = await requireSession();
   const params = (await searchParams) ?? {};
-  const { locale, dict } = await i18nForAccount(session.accountId);
+  const { locale, dict, timeZone } = await i18nForAccount(session.accountId);
   const t = (key: string, vars?: Record<string, string | number>) => tr(dict, key, vars);
   const iid = await resolveTenantInstituteId();
   await recordToolUsage({ instituteId: String(iid ?? "") || null, accountId: session.accountId, toolKey: "newsfeed", source: "portal", metadata: null });
@@ -152,7 +152,7 @@ export default async function PortalNewsfeedPage(props: {
             <div className="row" style={{ justifyContent: "space-between", alignItems: "center" }}>
               <div className="small muted row" style={{ gap: 8, alignItems: "center" }}>
                 <Avatar src={null} name={post.author_name} size={24} />
-                <span>{post.author_name} · {fmtDateTimeFor(locale, post.created_at)}</span>
+                <span>{post.author_name} · {fmtDateTimeFor(locale, post.created_at, timeZone)}</span>
               </div>
               <form action={toggleLikeAction}>
                 <input type="hidden" name="postId" value={post.id} />

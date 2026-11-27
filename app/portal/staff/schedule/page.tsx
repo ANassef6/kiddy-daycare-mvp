@@ -34,8 +34,8 @@ function roleLabel(dict: Dict, role: unknown): string {
   return key ? tr(dict, key) : String(role ?? "");
 }
 
-function scheduleDayLabel(locale: Locale, dict: Dict, entry: any): string {
-  if (entry.schedule_date) return fmtDateFor(locale, entry.schedule_date);
+function scheduleDayLabel(locale: Locale, dict: Dict, entry: any, timeZone: string): string {
+  if (entry.schedule_date) return fmtDateFor(locale, entry.schedule_date, timeZone);
   const day = DAYS[Number(entry.day_of_week)];
   return day ? tr(dict, day.k) : String(entry.day_of_week);
 }
@@ -51,7 +51,7 @@ export default async function PortalStaffSchedulePage(
     const myStaffId = await staffIdForAccount(session.accountId);
     redirect(myStaffId ? `/portal/staff/${myStaffId}` : "/portal/staff");
   }
-  const { dict, locale } = await i18nForAccount(session.accountId);
+  const { dict, locale, timeZone } = await i18nForAccount(session.accountId);
   const instituteId = await firstInstituteId();
   if (!instituteId) return <p className="muted">{tr(dict, "learning.noInstitute")}</p>;
 
@@ -149,7 +149,7 @@ export default async function PortalStaffSchedulePage(
                 <span className={`badge ${sh.schedule_date ? "badge-green" : "badge-gray"}`} style={{ marginInlineEnd: 6 }}>
                   {tr(dict, sh.schedule_date ? "staff.specificDateBadge" : "staff.weeklyBadge")}
                 </span>
-                <strong>{scheduleDayLabel(locale, dict, sh)}</strong> · {sh.start_time}–{sh.end_time}
+                <strong>{scheduleDayLabel(locale, dict, sh, timeZone)}</strong> · {sh.start_time}–{sh.end_time}
                 {Array.isArray(sh.room_names) && sh.room_names.length > 0
                   ? ` · ${tr(dict, "staff.roomsPrefix", { rooms: sh.room_names.join(", ") })}`
                   : ""}

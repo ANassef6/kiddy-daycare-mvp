@@ -67,7 +67,7 @@ export default async function AuditTrailPage({
   const sp = (await searchParams) as SearchParams;
   const session = await requireSession();
   if (!isAdminRole(session.role)) redirect("/portal/dashboard");
-  const { locale, dict } = await i18nForAccount(session.accountId);
+  const { locale, dict, timeZone } = await i18nForAccount(session.accountId);
   const t = (key: string, vars?: Record<string, string | number>) => tr(dict, key, vars);
   const iid = await resolveTenantInstituteId();
 
@@ -186,7 +186,7 @@ export default async function AuditTrailPage({
             <tbody>
               {rows.map((row) => (
                 <tr key={String(row.id)} style={{ borderTop: "1px solid rgba(148,163,184,0.25)" }}>
-                  <td style={{ padding: 8, whiteSpace: "nowrap" }}>{fmtDateTimeFor(locale, row.created_at)}</td>
+                  <td style={{ padding: 8, whiteSpace: "nowrap" }}>{fmtDateTimeFor(locale, row.created_at, timeZone)}</td>
                   <td style={{ padding: 8 }}>{String(row.actor_name ?? row.actor_account_id ?? "—")}</td>
                   <td style={{ padding: 8 }}>
                     <span className="badge badge-gray">{String(row.action)}</span>{" "}

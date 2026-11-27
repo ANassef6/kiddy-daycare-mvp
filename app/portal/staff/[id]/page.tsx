@@ -46,7 +46,7 @@ export default async function StaffProfilePage({ params, searchParams }: { param
   const { id: staffIdParam } = await params;
   const search = (await searchParams) ?? {};
   const session = await requireSession();
-  const { dict, locale } = await i18nForAccount(session.accountId);
+  const { dict, locale, timeZone } = await i18nForAccount(session.accountId);
   const iid = await resolveTenantInstituteId();
   // KID-2450: server-side photo cap refusal (old clients / direct posts).
   const photoError = search.error === "photoType" || search.error === "photoSize";
@@ -96,9 +96,9 @@ export default async function StaffProfilePage({ params, searchParams }: { param
         linked: search.linked,
         existing: search.existing,
         error: search.error,
-      }, dict, locale, requireStaffLocation),
+      }, dict, locale, timeZone, requireStaffLocation),
     },
-    { id: "calendar", label: tr(dict, "nav.calendar"), node: calendarTab(schedules, dict, locale, isAdminRole(session.role)) },
+    { id: "calendar", label: tr(dict, "nav.calendar"), node: calendarTab(schedules, dict, locale, isAdminRole(session.role), timeZone) },
   ];
 
   return (
@@ -138,7 +138,7 @@ export default async function StaffProfilePage({ params, searchParams }: { param
   );
 }
 
-function statusCard(staff: any, dict: Dict, locale: Locale, requireLocation: boolean) {
+function statusCard(staff: any, dict: Dict, locale: Locale, timeZone: string, requireLocation: boolean) {
   const current = (staff.status && STATUS_KIND_KEY[staff.status]) ? tr(dict, STATUS_KIND_KEY[staff.status]) : (staff.active ? tr(dict, "profile.active") : tr(dict, "staff.inactive"));
   const tone =
     staff.status === "checkin" ? "green"
@@ -154,7 +154,7 @@ function statusCard(staff: any, dict: Dict, locale: Locale, requireLocation: boo
           <span className={`badge badge-${tone}`}>{current}</span>
         </div>
         {staff.status_note && <div className="muted small mt-1">{staff.status_note}</div>}
-        {staff.status_at && <div className="muted small">{tr(dict, "staff.since", { datetime: fmtDateTimeFor(locale, staff.status_at) })}</div>}
+        {staff.status_at && <div className="muted small">{tr(dict, "staff.since", { datetime: fmtDateTimeFor(locale, staff.status_at, timeZone) })}</div>}
       </div>
       <StaffStatusForm
         staffId={String(staff.id)}
@@ -165,6 +165,7 @@ function statusCard(staff: any, dict: Dict, locale: Locale, requireLocation: boo
           placeholder: tr(dict, "staff.statusPlaceholder"),
           options: {
             checkin: tr(dict, "attendees.checkedIn"),
+            out: tr(dict, "attendees.checkedOut"),
             sick: tr(dict, "profile.sick"),
             vacation: tr(dict, "staff.statusVacation"),
             absent: tr(dict, "staff.statusAbsent"),
@@ -201,6 +202,7 @@ function profileTab(
   loginFeedback: { linked?: string; existing?: string; error?: string },
   dict: Dict,
   locale: Locale,
+  timeZone: string,
   requireLocation: boolean
 ) {
   const infoRows: [string, any][] = [
@@ -210,14 +212,14 @@ function profileTab(
     [tr(dict, "common.phone"), staff.phone ?? "—"],
     [tr(dict, "staff.colClassrooms"), rooms.map((r) => r.name).join(", ") || "—"],
     [tr(dict, "staff.bio"), staff.bio || "—"],
-    [tr(dict, "staff.memberSince"), staff.created_at ? fmtDateFor(locale, staff.created_at) : "—"],
-    [tr(dict, "profile.lastDate"), staff.last_date ? fmtDateFor(locale, staff.last_date) : "—"],
+    [tr(dict, "staff.memberSince"), staff.created_at ? fmtDateFor(locale, staff.created_at, timeZone) : "—"],
+    [tr(dict, "profile.lastDate"), staff.last_date ? fmtDateFor(locale, staff.last_date, timeZone) : "—"],
   ];
   const openEdit = editing === "status" || editing === "info";
   const linkError = loginFeedback.error ? (LINK_ERROR_KEY[loginFeedback.error] ? tr(dict, LINK_ERROR_KEY[loginFeedback.error]) : tr(dict, "staff.linkErrorLink")) : null;
   return (
     <div>
-      {statusCard(staff, dict, locale, requireLocation)}
+      {statusCard(staff, dict, locale, timeZone, requireLocation)}
 
       {/* KID-171 (D2): a staff record with no login cannot be messaged by any
           parent in its classrooms, and there was no way to fix that from the UI
@@ -320,7 +322,7 @@ function profileTab(
                       : tr(dict, "geofence.overrideBadge")}
                   </span>
                 )}
-                <span className="muted">{s.note ? `${s.note} · ` : ""}{s.recorded_by_name ? `${s.recorded_by_name} · ` : ""}{fmtDateTimeFor(locale, s.created_at)}</span>
+                <span className="muted">{s.note ? `${s.note} · ` : ""}{s.recorded_by_name ? `${s.recorded_by_name} · ` : ""}{fmtDateTimeFor(locale, s.created_at, timeZone)}</span>
               </div>
             );
           })}
@@ -373,7 +375,7 @@ const CALENDAR_DAY_KEY = [
   "staff.daySat",
 ];
 
-function calendarTab(schedules: any[], dict: Dict, locale: Locale, admin: boolean) {
+function calendarTab(schedules: any[], dict: Dict, locale: Locale, admin: boolean, timeZone: string) {
   return (
     <div className="card">
       <h3 className="subtitle">{tr(dict, "staff.weeklyScheduleTitle")}</h3>
@@ -383,7 +385,7 @@ function calendarTab(schedules: any[], dict: Dict, locale: Locale, admin: boolea
           <span className="small">
             <strong>
               {s.schedule_date
-                ? fmtDateFor(locale, s.schedule_date)
+                ? fmtDateFor(locale, s.schedule_date, timeZone)
                 : CALENDAR_DAY_KEY[Number(s.day_of_week)]
                   ? tr(dict, CALENDAR_DAY_KEY[Number(s.day_of_week)])
                   : s.day_of_week}
