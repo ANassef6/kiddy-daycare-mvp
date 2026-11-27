@@ -112,7 +112,7 @@ describe("KID-2502 server role gate", () => {
     mockHeaders = { host: "daycare.test", cookie: cookieFor(staffAccountId, "staff") };
     const page = await import("@/app/portal/staff/hours/page");
     await expectRedirect(
-      () => page.default(),
+      () => page.default({ searchParams: Promise.resolve({}) }),
       `/portal/staff/${staffId}`
     );
   });
@@ -128,7 +128,7 @@ describe("KID-2502 server role gate", () => {
 
     const hours = await import("@/app/portal/staff/hours/page");
     const hoursHtml = renderToStaticMarkup(
-      await hours.default()
+      await hours.default({ searchParams: Promise.resolve({}) })
     );
     expect(hoursHtml).toContain("Working hours");
   });

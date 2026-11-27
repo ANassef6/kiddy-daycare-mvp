@@ -107,6 +107,17 @@ beforeEach(async () => {
   await resetDb();
   await seedDemo();
   await queryRun("UPDATE institute SET timezone = ?", CAIRO);
+  // Keep the auto check-out sweep out of these display assertions: the seeded
+  // center closes at 18:00 Cairo, and the dashboard renders the current clock,
+  // so a run after closing would sweep the just-inserted check-in to "out".
+  await queryRun(
+    "UPDATE institute SET opening_hours = ?",
+    JSON.stringify(
+      Object.fromEntries(
+        Array.from({ length: 7 }, (_, day) => [String(day), { open: "00:00", close: "23:59" }])
+      )
+    )
+  );
   const owner = await queryGet("SELECT id FROM account WHERE role = 'owner' LIMIT 1");
   ownerAccountId = String(owner!.id);
   const child = await queryGet("SELECT id, first_name FROM child ORDER BY first_name LIMIT 1");
