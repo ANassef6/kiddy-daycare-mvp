@@ -38,7 +38,9 @@ describe("KID-1178/F-03 baseline security headers", () => {
     expect(got["X-Frame-Options"]).toBe("SAMEORIGIN");
     expect(got["Permissions-Policy"]).toContain("camera=()");
     expect(got["Permissions-Policy"]).toContain("microphone=()");
-    expect(got["Permissions-Policy"]).toContain("geolocation=()");
+    // KID-2503: the geofenced check-in/out controls need the page to use the
+    // device location, so geolocation is allowed for self only.
+    expect(got["Permissions-Policy"]).toContain("geolocation=(self)");
     expect(got["Permissions-Policy"]).toContain("interest-cohort=()");
     // CSP rides either the enforcing or the report-only header name.
     const cspName = Object.keys(got).find((k) => k.startsWith("Content-Security-Policy"));
