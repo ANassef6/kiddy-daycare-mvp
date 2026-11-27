@@ -23,9 +23,10 @@ check record.
 
 | Item | Value |
 | --- | --- |
-| PR / merge commit | #173 / `0967ab7` |
-| Cloudflare Worker | `kiddy-web` version `56c89ee6-5663-4734-a42e-9f4bab1486de` |
-| Worker deploy message | `KID-2519-nov-batch-master-0967ab7` |
-| Vercel production | `dpl_5ghgShPMxcXwCFiQvN4Z2cnQbuNa` (`kiddy-one.vercel.app` alias) |
+| Batch PR / merge commit | #173 / `0967ab7` |
+| Hotfix PR / merge commit | #175 / `ba32208` (geolocation policy) |
+| Cloudflare Worker | `kiddy-web` version `a305add2-1e42-45e3-9137-3f121c34e43a` |
+| Worker deploy message | `KID-2519-geolocation-policy-master-ba32208` |
+| Vercel production | `dpl_13q1rr33nWShxim61xcBbpXW4E3B` (`kiddy-one.vercel.app` alias) |
 | Migrations | `0060_kid2503_premises_geofence.sql`, `0062_kid2483_staff_schedule_date_rooms.sql` |
 | Rollback Worker version | `b6edf96a-bdfe-4b58-9f38-1dd69c86d958` |
