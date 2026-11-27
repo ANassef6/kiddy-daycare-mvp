@@ -228,7 +228,7 @@ export async function takeUploadedRef(
   if (!head) return { ok: false, code: "invalid" };
   const contentType = String(head.contentType ?? "").split(";")[0]!.trim().toLowerCase();
   // KID-2509: the ceiling follows the stored object's real content type, so a
-  // video may use 15 MB while a photo on the same purpose keeps its old cap.
+  // video may use 30 MB while a photo on the same purpose keeps its old cap.
   // Size is checked before MIME so an oversize object is always reported and
   // removed, even when its HEAD lacks a usable type.
   const maxBytes = maxUploadBytesFor(opts.purpose, contentType);

@@ -10,8 +10,9 @@
 //   * KID-2509: video can now travel straight from the browser to private R2
 //     storage, so the Worker request body no longer carries it and the old
 //     request-body ceiling no longer applies. Newsfeed and event videos get a
-//     15 MB / 5-minute product cap (founder-approved 2026-11-26). The limit is
-//     one constant: raising it later needs no re-architecture.
+//     30 MB / 5-minute product cap (founder-approved 2026-11-26, raised from
+//     15 MB by the founder on 2026-11-27 in KID-2511). The limit is one
+//     constant: raising it later needs no re-architecture.
 //   * Photos still use the compressed server-action path, so the 4 MB image
 //     ceiling for old clients (no compression) stays.
 //   * Messages, drive documents, payment proofs and profile media keep their
@@ -25,7 +26,7 @@ export const IMAGE_TARGET_BYTES = 400 * 1024;
 export const MAX_PHOTO_UPLOAD_BYTES = 4 * 1024 * 1024;
 
 export const MAX_VIDEO_DURATION_SECONDS = 300;
-export const MAX_VIDEO_UPLOAD_BYTES = 15 * 1024 * 1024;
+export const MAX_VIDEO_UPLOAD_BYTES = 30 * 1024 * 1024;
 
 // KID-2509: messages are intentionally out of scope and stay exactly as they
 // were before the direct-to-R2 video change.

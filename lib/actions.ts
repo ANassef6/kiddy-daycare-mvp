@@ -3578,7 +3578,7 @@ export async function addEventMediaAction(formData: FormData) {
     }
     // Server-side boundary for the multipart fallback: photos/videos only,
     // with the same byte and duration limits the client applies.
-    // KID-2509: videos may use the 15 MB direct-upload cap; photos keep the
+    // KID-2509: videos may use the 30 MB direct-upload cap; photos keep the
     // event ceiling.
     const media = validateMediaAttachment(
       attachment,
@@ -5216,7 +5216,7 @@ export async function createNewsfeedWithAttachmentAction(formData: FormData) {
   } else if (attachment instanceof File && attachment.size > 0) {
     // KID-2450: the client prepares the photo/video first; this is the
     // server mirror (type + byte cap + MP4/MOV duration) for old clients.
-    // KID-2509: videos may use the 15 MB direct-upload cap; photos keep the
+    // KID-2509: videos may use the 30 MB direct-upload cap; photos keep the
     // newsfeed ceiling.
     const media = validateMediaAttachment(
       attachment,
