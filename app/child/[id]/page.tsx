@@ -13,11 +13,14 @@ import {
   listChildBilling,
   latestBusEvent,
   busPhaseForCount,
+  busBadgeIsStale,
   centerToday,
   familyAccessForAccount,
   parentCheckInOutAllowed,
   listMedia,
+  getInstitute,
 } from "@/lib/store";
+import { geofenceFromInstitute } from "@/lib/geofence";
 import { CheckInButton } from "@/components/CheckInButton";
 import Avatar from "@/components/Avatar";
 import NewsfeedLikers from "@/components/NewsfeedLikers";
@@ -29,6 +32,7 @@ import { firstInstituteId } from "@/lib/helpers";
 import { DEFAULT_CURRENCY } from "@/lib/currency";
 import { configuredReportDate, todayIso } from "@/lib/report-dates";
 import { isPlatformOperatorRole } from "@/lib/platform";
+import { isAdminRole } from "@/lib/role";
 import { toggleLikeAction, uploadPaymentProofAction } from "@/lib/actions";
 import { i18nForAccount } from "@/lib/i18n-session";
 import { fmtDateFor, fmtDateTimeFor, fmtTimeFor, tr } from "@/lib/i18n";
@@ -66,6 +70,14 @@ export default async function ChildDetailPage(
     ? await isChildVisibleToAccount(requestIid, session.accountId, String(child.id))
     : false;
   if (!visible && !(isPlatformOperatorRole(session.role) && requestIid)) notFound();
+  // KID-2503: the parent/child check-in control captures the device position
+  // when the center configured a premises fence. The server still decides.
+  // Admins can override the fence from management surfaces, so their own
+  // child check-in/out control does not need to capture a position.
+  const geofenceOn = requestIid
+    ? geofenceFromInstitute(await getInstitute(String(requestIid))) !== null
+    : false;
+  const requireChildLocation = geofenceOn && !isAdminRole(session.role);
   await recordToolUsage({ instituteId: String(child.institute_id ?? "") || null, accountId: session.accountId, toolKey: "children", source: "child", metadata: null });
 
   // KID-112: the family link decides what a parent-role account may read here.
@@ -80,7 +92,7 @@ export default async function ChildDetailPage(
 
   if (access === "pickup") {
     const status = await todayStatus(child.id);
-    const checkedIn = !!status.checkedIn && !status.checkedOut;
+    const checkedIn = status.isCheckedIn;
     const branding = await getBranding();
     return (
       <div>
@@ -106,7 +118,7 @@ export default async function ChildDetailPage(
           {/* Today's pickup time: set / update / cancel runs through the same
               check-in/out control the pickup loop uses. */}
           <div className="mt-4">
-            <CheckInButton childId={child.id as string} checkedIn={checkedIn} dict={dict} />
+            <CheckInButton childId={child.id as string} checkedIn={checkedIn} dict={dict} requireLocation={requireChildLocation} />
           </div>
 
           {status.lastEvent && (
@@ -135,14 +147,21 @@ export default async function ChildDetailPage(
   const today = todayIso();
   const reportDate = configuredReportDate(searchParams?.date, today);
   const status = await todayStatus(child.id);
-  const checkedIn = !!status.checkedIn && !status.checkedOut;
+  const checkedIn = status.isCheckedIn;
   // KID-494/KID-2448: the parent sees the current bus cycle state derived from
   // the bus ledger — the same write path the staff roster and the sweep use.
   // The day is the center-local one, matching setBusStatus.
   const busDay = requestIid ? await centerToday(String(requestIid)) : today;
   const bus = await latestBusEvent(String(child.id), busDay);
-  const busPhase = bus ? busPhaseForCount(Number(bus.day_count ?? 0)) : null;
-  const onBus = bus ? String(bus.type) === "on" : false;
+  // KID-2504: attendance is authoritative for the CURRENT state. A manual
+  // check-out (or re-check-in) written after the latest bus event supersedes
+  // the ledger, so the stale phase is not shown. The ledger is not mutated.
+  const busStale = bus
+    ? busBadgeIsStale(bus.recorded_at, status.lastEvent?.recorded_at)
+    : false;
+  const showBus = !!bus && !busStale;
+  const busPhase = showBus ? busPhaseForCount(Number(bus!.day_count ?? 0)) : null;
+  const onBus = showBus ? String(bus!.type) === "on" : false;
   const [report, contacts, feed, incidents, statuses, invoices, media] = await Promise.all([
     reportFor(child.id, reportDate),
     listContacts(child.id),
@@ -198,7 +217,7 @@ export default async function ChildDetailPage(
           {/* KID-494/KID-2448: the parent-facing bus badge with the two
               morning and two afternoon wordings, so "on bus" is never
               ambiguous about which way the child is travelling. */}
-          {bus && (
+          {showBus && (
             <span className={`badge ${onBus ? "badge-green" : "badge-gray"}`}>
               {busPhase === "morning_on"
                 ? t("attendees.busOnMorning")
@@ -220,7 +239,7 @@ export default async function ChildDetailPage(
             stays visible either way. */}
         {canCheckInOut && (
           <div className="mt-4">
-            <CheckInButton childId={child.id as string} checkedIn={checkedIn} dict={dict} />
+            <CheckInButton childId={child.id as string} checkedIn={checkedIn} dict={dict} requireLocation={requireChildLocation} />
           </div>
         )}
 

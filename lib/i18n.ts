@@ -659,6 +659,20 @@ export const en = {
     allowParentCheckInOut: "Allow parents to check in/out",
     allowParentCheckInOutHint:
       "When off, parents cannot check their children in or out and the button disappears. Their attendance status stays visible. Pickup contacts can still register a pickup time.",
+    // KID-2503: premises geofence. Both coordinates empty = feature off.
+    geofenceTitle: "Check-in location (geofence)",
+    geofenceHint:
+      "Set the center's premises and how close a phone must be to check staff or children in and out. Leave both coordinates empty to turn the geofence off.",
+    premisesLat: "Premises latitude",
+    premisesLng: "Premises longitude",
+    premisesLatPlaceholder: "e.g. 30.0444",
+    premisesLngPlaceholder: "e.g. 31.2357",
+    premisesRadius: "Allowed radius",
+    geofenceRadiusOption: "{meters} m",
+    geofenceRadiusHint:
+      "A phone outside this radius cannot check in or out. The default is 150 m.",
+    geofenceInvalid:
+      "Enter a valid latitude (-90 to 90) and longitude (-180 to 180), or leave both empty to turn the geofence off. Nothing was saved.",
     // KID-489 item 2 (KID-491): the center's Instapay payment link — new
     // child invoice forms prefill it; parents pay through the stored link.
     instapayLink: "Instapay link (optional)",
@@ -1653,6 +1667,11 @@ export const en = {
     // KID-2447: staff notification after the end-of-working-hours auto check-out.
     autoCheckoutTitle: "Auto check-out at closing time",
     autoCheckoutBody: "{names} — still checked in at the end of working hours and checked out automatically. Follow up with their parents.",
+    // KID-2502: staff check-in / check-out notification copy for owners + admins.
+    staffCheckInTitle: "Staff check-in: {name}",
+    staffCheckOutTitle: "Staff check-out: {name}",
+    staffStatusBody: "At {time}.",
+    staffStatusBodyWithNote: "At {time} · Note: {note}",
     busOnTitle: "{name} got on the bus",
     busOffTitle: "{name} got off the bus",
     busAutoCheckedOutBody: "Checked out automatically — on the way home by bus.",
@@ -2438,8 +2457,12 @@ export const en = {
     inviteNotSent: "Invite not sent ({status}{codePart}{detailPart}). Fix the details and try again.",
     enrolledCount: "{count} enrolled",
     statusColon: "Status:",
-    filterAllActive: "All active",
+    // KID-2498: the default chip is everyone NOT withdrawn.
+    filterNotWithdrawn: "Not withdrawn",
+    filterEveryone: "Everyone",
     noChildrenMatch: "No children match this filter.",
+    // KID-2505: the green attendance dot on a child's avatar.
+    checkedIn: "Checked in",
     // KID-2482: a child can never be saved without a classroom.
     classroomRequiredError: "A classroom is required. Nothing was saved — pick a classroom and try again.",
     classroomRequiredHint: "A classroom is required. Create a classroom first.",
@@ -2532,6 +2555,28 @@ export const en = {
     alreadyActivated: "That account is already activated.",
     emailDeliveryNotConfigured: "Email delivery isn't configured yet. Ask the daycare admin to share an invite code instead.",
     activationSendFailed: "We couldn't send the activation email right now. Try again in a few minutes.",
+  },
+  // KID-2503: geofence UI + refusals. The server words the refusal in the
+  // account's language; the client shows the same permission guidance next to
+  // the check-in/out controls.
+  geofence: {
+    enableLocation: "Enable location access",
+    locating: "Getting your location…",
+    required:
+      "Location is required to check in or out. Tap “Enable location access” and allow your browser to share your location.",
+    denied:
+      "Location permission is blocked. Allow location access for this site in your browser settings, then try again.",
+    unsupported:
+      "This device or browser cannot share location. Use a device with location services to check in or out.",
+    unavailable:
+      "We could not get your location. Check that location services are on and try again.",
+    outside:
+      "You are about {distance} m from the center. Move within {radius} m to check in or out.",
+    malformed: "The location sent by your device is not valid. Try again.",
+    overridden: "Overridden by {name}",
+    overrideBadge: "Admin override",
+    useMyLocation: "Use my current location",
+    captured: "Location captured. Save to use it.",
   },
   // KID-2400: the public form-fill surface parents open through a share link
   // (anonymous — the kiddy_lang cookie decides the locale).
@@ -3160,6 +3205,20 @@ export const ar = {
     allowParentCheckInOut: "السماح لأولياء الأمور بتسجيل الحضور والانصراف",
     allowParentCheckInOutHint:
       "عند الإيقاف، لا يستطيع أولياء الأمور تسجيل حضور أو انصراف أطفالهم ويختفي الزر، مع بقاء حالة الحضور ظاهرة. ويظل الشخص المصرّح له بالاستلام قادرًا على تسجيل وقت الاستلام.",
+    // KID-2503: السياج الجغرافي لمقر المركز. تركه فارغًا يعني إيقاف الميزة.
+    geofenceTitle: "موقع تسجيل الحضور (السياج الجغرافي)",
+    geofenceHint:
+      "حدّد مقر المركز والمسافة المسموح بها ليسجّل الموظفون أو الأطفال حضورهم وانصرافهم. اترك الإحداثيين فارغين لإيقاف السياج الجغرافي.",
+    premisesLat: "خط عرض المقر",
+    premisesLng: "خط طول المقر",
+    premisesLatPlaceholder: "مثلًا 30.0444",
+    premisesLngPlaceholder: "مثلًا 31.2357",
+    premisesRadius: "نصف القطر المسموح",
+    geofenceRadiusOption: "{meters} مترًا",
+    geofenceRadiusHint:
+      "لا يستطيع أي هاتف خارج هذا النطاق تسجيل الحضور أو الانصراف. القيمة الافتراضية 150 مترًا.",
+    geofenceInvalid:
+      "أدخل خط عرض صالحًا (من -90 إلى 90) وخط طول صالحًا (من -180 إلى 180)، أو اتركهما فارغين لإيقاف السياج. لم يُحفظ أي تغيير.",
     // KID-489 item 2 (KID-491): رابط الدفع عبر Instapay الافتراضي للمركز.
     instapayLink: "رابط Instapay (اختياري)",
     instapayLinkPlaceholder: "https://…",
@@ -4061,6 +4120,11 @@ export const ar = {
     // KID-2447: إشعار الموظفين بعد الانصراف التلقائي عند نهاية ساعات العمل (AR).
     autoCheckoutTitle: "انصراف تلقائي عند موعد الإغلاق",
     autoCheckoutBody: "{names} — كانوا ما زالوا مسجّلين حضورهم عند نهاية ساعات العمل وتم تسجيل انصرافهم تلقائيًا. يرجى المتابعة مع أولياء أمورهم.",
+    // KID-2502: نصوص إشعار حضور/انصراف الموظف لمالك الحضانة وحسابات الإدارة.
+    staffCheckInTitle: "تسجيل حضور موظف: {name}",
+    staffCheckOutTitle: "تسجيل انصراف موظف: {name}",
+    staffStatusBody: "الساعة {time}.",
+    staffStatusBodyWithNote: "الساعة {time} · ملاحظة: {note}",
     busOnTitle: "ركوب الباص: {name}",
     busOffTitle: "نزول من الباص: {name}",
     busAutoCheckedOutBody: "سُجّل الانصراف تلقائيًا — في طريق العودة إلى المنزل بالباص.",
@@ -4893,8 +4957,12 @@ export const ar = {
     inviteNotSent: "لم تُرسل الدعوة ({status}{codePart}{detailPart}). صحّح البيانات وحاول مرة أخرى.",
     enrolledCount: "{count} مسجلين",
     statusColon: "الحالة:",
-    filterAllActive: "كل النشطين",
+    // KID-2498: the default chip is everyone NOT withdrawn.
+    filterNotWithdrawn: "غير المنسحبين",
+    filterEveryone: "الجميع",
     noChildrenMatch: "لا يوجد أطفال يطابقون عامل التصفية هذا.",
+    // KID-2505: النقطة الخضراء للحضور على صورة الطفل.
+    checkedIn: "حاضر",
     classroomRequiredError: "الفصل مطلوب. لم يُحفظ أي شيء — اختر فصلًا وحاول مرة أخرى.",
     classroomRequiredHint: "الفصل مطلوب. أنشئ فصلًا أولًا.",
     needsClassroom: "يحتاج فصلًا",
@@ -4981,6 +5049,25 @@ export const ar = {
     alreadyActivated: "هذا الحساب مفعّل بالفعل.",
     emailDeliveryNotConfigured: "إرسال البريد غير مهيأ بعد. اطلب من مدير الحضانة مشاركة كود دعوة بدلًا من ذلك.",
     activationSendFailed: "تعذر إرسال بريد التفعيل الآن. حاول بعد دقائق.",
+  },
+  geofence: {
+    enableLocation: "تفعيل الوصول إلى الموقع",
+    locating: "جارٍ تحديد موقعك…",
+    required:
+      "الموقع مطلوب لتسجيل الحضور أو الانصراف. اضغط «تفعيل الوصول إلى الموقع» واسمح للمتصفح بمشاركة موقعك.",
+    denied:
+      "تم حظر إذن الموقع. اسمح بالوصول إلى الموقع لهذا الموقع الإلكتروني من إعدادات المتصفح، ثم حاول مرة أخرى.",
+    unsupported:
+      "هذا الجهاز أو المتصفح لا يستطيع مشاركة الموقع. استخدم جهازًا به خدمات موقع لتسجيل الحضور أو الانصراف.",
+    unavailable:
+      "تعذّر الحصول على موقعك. تأكد من تشغيل خدمات الموقع ثم حاول مرة أخرى.",
+    outside:
+      "أنت على بُعد نحو {distance} مترًا من المركز. اقترب إلى نطاق {radius} مترًا لتسجيل الحضور أو الانصراف.",
+    malformed: "الموقع المرسل من جهازك غير صالح. حاول مرة أخرى.",
+    overridden: "تم التجاوز بواسطة {name}",
+    overrideBadge: "تجاوز إداري",
+    useMyLocation: "استخدم موقعي الحالي",
+    captured: "تم تحديد الموقع. احفظ لاستخدامه.",
   },
   formsPublic: {
     invalidLink: "رابط النموذج هذا غير صالح أو انتهت صلاحيته.",
@@ -5126,7 +5213,7 @@ export function fmtTimeFor(locale: Locale, v: unknown): string {
 }
 
 // "30 Oct 2026, 8:05 PM" / "٣٠ أكتوبر ٢٠٢٦، ٨:٠٥ م"
-export function fmtDateTimeFor(locale: Locale, v: unknown): string {
+export function fmtDateTimeFor(locale: Locale, v: unknown, timeZone?: string): string {
   const d = toDateOr(v);
   if (!d) return "—";
   try {
@@ -5136,6 +5223,7 @@ export function fmtDateTimeFor(locale: Locale, v: unknown): string {
       year: "numeric",
       hour: "2-digit",
       minute: "2-digit",
+      ...(timeZone ? { timeZone } : {}),
     }).format(d);
   } catch {
     return d.toLocaleString();
@@ -5149,6 +5237,10 @@ export type FeedCopy = {
   // KID-2413 (bug 5): locale-aware timestamp for feed metadata (the
   // attendance entry used to call toLocaleString() inside an Arabic shell).
   dateTime: (v: unknown) => string;
+  // KID-2502: the center-local clock for staff attendance notifications. The
+  // rest of the feed keeps dateTime; this is only used where the payload
+  // carries the center IANA zone.
+  dateTimeIn: (v: unknown, timeZone: string) => string;
   newsMeta: (comments: number, likes: number) => string;
   newsfeedFallback: () => string;
   due: (date: string) => string;
@@ -5168,6 +5260,11 @@ export type FeedCopy = {
   // KID-2447: end-of-working-hours auto check-out notification copy.
   autoCheckoutTitle: () => string;
   autoCheckoutBody: (names: string) => string;
+  // KID-2502: staff check-in / check-out notifications for owners + admins.
+  staffCheckInTitle: (name: string) => string;
+  staffCheckOutTitle: (name: string) => string;
+  staffStatusBody: (time: string) => string;
+  staffStatusBodyWithNote: (time: string, note: string) => string;
   // KID-494: bus on/off notification entries.
   busOnTitle: (name: string) => string;
   busOffTitle: (name: string) => string;
@@ -5216,6 +5313,7 @@ export function feedCopyFor(locale: Locale): FeedCopy {
   const t = (key: string, vars?: Record<string, string | number>) => tr(dict, key, vars);
   return {
     dateTime: (v) => fmtDateTimeFor(locale, v),
+    dateTimeIn: (v, timeZone) => fmtDateTimeFor(locale, v, timeZone),
     newsMeta: (comments, likes) => t("feed.newsMeta", { comments, likes }),
     newsfeedFallback: () => t("feed.newsfeedFallback"),
     due: (date) => t("feed.due", { date }),
@@ -5232,6 +5330,10 @@ export function feedCopyFor(locale: Locale): FeedCopy {
     pickupTimeTitle: (name, time) => t("feed.pickupTimeTitle", { name, time }),
     autoCheckoutTitle: () => t("feed.autoCheckoutTitle"),
     autoCheckoutBody: (names) => t("feed.autoCheckoutBody", { names }),
+    staffCheckInTitle: (name) => t("feed.staffCheckInTitle", { name }),
+    staffCheckOutTitle: (name) => t("feed.staffCheckOutTitle", { name }),
+    staffStatusBody: (time) => t("feed.staffStatusBody", { time }),
+    staffStatusBodyWithNote: (time, note) => t("feed.staffStatusBodyWithNote", { time, note }),
     busOnTitle: (name) => t("feed.busOnTitle", { name }),
     busOffTitle: (name) => t("feed.busOffTitle", { name }),
     busAutoCheckedOutBody: () => t("feed.busAutoCheckedOutBody"),

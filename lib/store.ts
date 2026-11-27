@@ -1146,35 +1146,80 @@ export async function registerCheckInOut(data: {
   accountId: string;
   type: "in" | "out";
   at?: Date;
+  /** KID-2503: geofence audit data. Coordinates are optional (center fence
+   *  off, or an admin override); the server action already validated them. */
+  lat?: number;
+  lng?: number;
+  accuracyM?: number | null;
+  override?: boolean;
 }): Promise<{ row: Row; wasUpdate: boolean }> {
   const at = data.at ?? new Date();
   const iso = at.toISOString();
-  const day = iso.slice(0, 10);
+  const lat = data.lat ?? null;
+  const lng = data.lng ?? null;
+  const accuracy = data.accuracyM ?? null;
+  const override = data.override ? 1 : 0;
+  // KID-2504 (extends KID-2437): "today" for the one-entry-per-day dedupe is
+  // the CENTER-LOCAL day, exactly the day todayStatus/attendanceOn read. A
+  // UTC `date(recorded_at)` lookup drifts near midnight and could miss the
+  // child's earlier pair, stacking a duplicate or updating the wrong entry.
+  const child = await queryGet("SELECT institute_id FROM child WHERE id = ?", data.childId);
+  const instituteId = String(child?.institute_id ?? "");
+  const timeZone = instituteId
+    ? (await getCenterSchedule(instituteId)).timeZone
+    : normalizeTimeZone(undefined);
+  const day = zonedDateKey(at, timeZone);
+  const range = centerDayRange("recorded_at", day, timeZone);
   const lastToday = await queryGet(
-    isPostgresMode()
-      ? "SELECT id, type FROM check_in WHERE child_id = ? AND recorded_at::date = ? ORDER BY recorded_at DESC, id DESC LIMIT 1"
-      : "SELECT id, type FROM check_in WHERE child_id = ? AND date(recorded_at) = ? ORDER BY recorded_at DESC, id DESC LIMIT 1",
+    `SELECT id, type FROM check_in WHERE child_id = ? AND ${range.sql} ORDER BY recorded_at DESC, id DESC LIMIT 1`,
     data.childId,
-    day
+    ...range.args
   );
   const priorSameType =
     lastToday && String(lastToday.type) === data.type
       ? lastToday
       : undefined;
   if (priorSameType) {
-    await queryRun("UPDATE check_in SET recorded_at = ?, is_edit = 1 WHERE id = ?", iso, String(priorSameType.id));
+    await queryRun(
+      "UPDATE check_in SET recorded_at = ?, is_edit = 1, lat = ?, lng = ?, accuracy_m = ?, geofence_override = ? WHERE id = ?",
+      iso,
+      lat,
+      lng,
+      accuracy,
+      override,
+      String(priorSameType.id)
+    );
     if (data.type === "out") {
       // The in-place update IS the pickup-time change — the same minute
       // dedupes on the shared ref, a moved time emits fresh.
       await notifyTeachersPickupTime(data.childId, at);
     }
     return {
-      row: { ...(priorSameType as Row), recorded_at: iso, is_edit: 1 },
+      row: {
+        ...(priorSameType as Row),
+        recorded_at: iso,
+        is_edit: 1,
+        lat,
+        lng,
+        accuracy_m: accuracy,
+        geofence_override: override,
+      },
       wasUpdate: true,
     };
   }
   const id = uid();
-  await queryRun("INSERT INTO check_in (id, child_id, account_id, type, is_edit, recorded_at) VALUES (?, ?, ?, ?, 0, ?)", id, data.childId, data.accountId, data.type, iso);
+  await queryRun(
+    "INSERT INTO check_in (id, child_id, account_id, type, is_edit, recorded_at, lat, lng, accuracy_m, geofence_override) VALUES (?, ?, ?, ?, 0, ?, ?, ?, ?, ?)",
+    id,
+    data.childId,
+    data.accountId,
+    data.type,
+    iso,
+    lat,
+    lng,
+    accuracy,
+    override
+  );
   const row = (await queryGet("SELECT * FROM check_in WHERE id = ?", id))!;
   if (data.type === "out") await notifyTeachersPickupTime(data.childId, at);
   return { row, wasUpdate: false };
@@ -1268,7 +1313,16 @@ export async function centerToday(instituteId: string, now = new Date()): Promis
 export async function todayStatus(
   childId: string,
   now = new Date()
-): Promise<{ checkedIn?: Row; checkedOut?: Row; lastEvent?: Row }> {
+): Promise<{
+  checkedIn?: Row;
+  checkedOut?: Row;
+  lastEvent?: Row;
+  /** KID-2504: the CURRENT attendance state, derived from the last event of
+   *  the center-local day. `checkedIn`/`checkedOut` stay the latest row of
+   *  each type for timestamp history, so "in -> out -> in" must not read as
+   *  checked out just because an earlier 'out' row exists. */
+  isCheckedIn: boolean;
+}> {
   const child = await getChild(childId);
   const instituteId = String(child?.institute_id ?? "");
   const timeZone = instituteId ? (await getCenterSchedule(instituteId)).timeZone : undefined;
@@ -1276,9 +1330,11 @@ export async function todayStatus(
   const range = timeZone
     ? centerDayRange("recorded_at", today, timeZone)
     : { sql: "date(recorded_at) = ?", args: [today] };
+  // KID-2504: the day can hold several check-in/out pairs; read enough rows to
+  // find the latest event of each type, not just the first pair.
   const latest = await queryAll(
     `SELECT * FROM check_in WHERE child_id = ? AND ${range.sql}
-     ORDER BY recorded_at DESC LIMIT 6`,
+     ORDER BY recorded_at DESC, id DESC LIMIT 50`,
     childId,
     ...range.args
   );
@@ -1287,6 +1343,7 @@ export async function todayStatus(
     checkedIn: latest.find((c) => c.type === "in"),
     checkedOut: latest.find((c) => c.type === "out"),
     lastEvent: last,
+    isCheckedIn: last ? String(last.type) === "in" : false,
   };
 }
 
@@ -1326,18 +1383,30 @@ export async function attendanceOn(
   const range = centerDayRange("check_in.recorded_at", day, timeZone);
   return queryAll(
     `SELECT c.id, c.first_name, c.last_name, r.name AS room_name,
-            (SELECT type FROM check_in WHERE child_id = c.id AND ${range.sql} ORDER BY recorded_at DESC LIMIT 1) AS last_event,
-            (SELECT recorded_at FROM check_in WHERE child_id = c.id AND ${range.sql} AND type='in' ORDER BY recorded_at DESC LIMIT 1) AS checked_in_at,
-            (SELECT source FROM check_in WHERE child_id = c.id AND ${range.sql} AND type='in' ORDER BY recorded_at DESC LIMIT 1) AS checked_in_source,
-            (SELECT recorded_at FROM check_in WHERE child_id = c.id AND ${range.sql} AND type='out' ORDER BY recorded_at DESC LIMIT 1) AS checked_out_at,
+            (SELECT type FROM check_in WHERE child_id = c.id AND ${range.sql} ORDER BY recorded_at DESC, id DESC LIMIT 1) AS last_event,
+            -- KID-2504: the latest event's instant lets the roster compare it
+            -- with the bus ledger and suppress a stale "On bus" badge.
+            (SELECT recorded_at FROM check_in WHERE child_id = c.id AND ${range.sql} ORDER BY recorded_at DESC, id DESC LIMIT 1) AS last_event_at,
+            (SELECT recorded_at FROM check_in WHERE child_id = c.id AND ${range.sql} AND type='in' ORDER BY recorded_at DESC, id DESC LIMIT 1) AS checked_in_at,
+            (SELECT source FROM check_in WHERE child_id = c.id AND ${range.sql} AND type='in' ORDER BY recorded_at DESC, id DESC LIMIT 1) AS checked_in_source,
+            (SELECT recorded_at FROM check_in WHERE child_id = c.id AND ${range.sql} AND type='out' ORDER BY recorded_at DESC, id DESC LIMIT 1) AS checked_out_at,
             -- KID-2447 + KID-2448: the source column marks a system-written
             -- row ('auto_end_of_day' or 'bus'); attendance history/exports use
             -- it only as a display marker.
-            (SELECT source FROM check_in WHERE child_id = c.id AND ${range.sql} AND type='out' ORDER BY recorded_at DESC LIMIT 1) AS checked_out_source
+            (SELECT source FROM check_in WHERE child_id = c.id AND ${range.sql} AND type='out' ORDER BY recorded_at DESC, id DESC LIMIT 1) AS checked_out_source,
+            -- KID-2503: the latest event's override marker and the admin name
+            -- that wrote it, so an override is visible on the roster.
+            (SELECT geofence_override FROM check_in WHERE child_id = c.id AND ${range.sql} ORDER BY recorded_at DESC, id DESC LIMIT 1) AS last_event_override,
+            (SELECT a.full_name FROM account a WHERE a.id = (
+              SELECT account_id FROM check_in WHERE child_id = c.id AND ${range.sql} ORDER BY recorded_at DESC, id DESC LIMIT 1
+            )) AS last_event_by
      FROM child c
      LEFT JOIN room r ON r.id = c.room_id
      WHERE ${where}
      ORDER BY r.name, c.first_name`,
+    ...range.args,
+    ...range.args,
+    ...range.args,
     ...range.args,
     ...range.args,
     ...range.args,
@@ -1695,6 +1764,38 @@ export function busPhaseForCount(count: number): BusPhase | null {
 export function busNextAction(count: number): "on" | "off" | null {
   if (count >= 4) return null;
   return count % 2 === 0 ? "on" : "off";
+}
+
+/** Parse a stored ledger instant for comparison. App writes are ISO ("…Z");
+ *  seeded/SQLite-default rows can be space-separated UTC ("YYYY-MM-DD HH:MM:SS"). */
+function ledgerInstantMs(value: unknown): number | null {
+  if (value === null || value === undefined || value === "") return null;
+  if (value instanceof Date) return value.getTime();
+  let raw = String(value).trim();
+  if (/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}/.test(raw)) raw = raw.replace(" ", "T");
+  if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d+)?)?$/.test(raw)) raw += "Z";
+  const ms = Date.parse(raw);
+  return Number.isNaN(ms) ? null : ms;
+}
+
+/** KID-2504: is the bus ledger's phase stale as a CURRENT-state badge?
+ *
+ *  The bus badge describes where the child is travelling right now. A real
+ *  attendance write that lands AFTER the latest bus event (a manual check-out,
+ *  a re-check-in, the end-of-day sweep) supersedes the ledger, so the phase
+ *  must not render as the current state — the fix is display-only and never
+ *  mutates the append-only bus ledger (KID-2448 alternation stays intact).
+ *
+ *  Bus side-effect rows share the transition's `recorded_at`, so they are not
+ *  "later" and a genuine on/off-bus phase still shows. */
+export function busBadgeIsStale(
+  busRecordedAt: unknown,
+  lastAttendanceAt: unknown
+): boolean {
+  const busMs = ledgerInstantMs(busRecordedAt);
+  const attendanceMs = ledgerInstantMs(lastAttendanceAt);
+  if (busMs === null || attendanceMs === null) return false;
+  return attendanceMs > busMs;
 }
 
 async function centerTimeZoneForChild(childId: string): Promise<string> {
@@ -4728,6 +4829,21 @@ export function notificationViewCopy(
       : String(payload.childNames ?? "");
     return { title: copy.autoCheckoutTitle(), body: copy.autoCheckoutBody(names) };
   }
+  // KID-2502: staff check-in / check-out notifications for owners + admins.
+  if (kind === "staff_checkin" || kind === "staff_checkout") {
+    const staffName = String(payload.staffName ?? "");
+    const at = String(payload.at ?? "");
+    const note = String(payload.note ?? "");
+    const timeZone = String(payload.timeZone ?? "");
+    const time = at ? (timeZone ? copy.dateTimeIn(at, timeZone) : copy.dateTime(at)) : "";
+    return {
+      title:
+        kind === "staff_checkin"
+          ? copy.staffCheckInTitle(staffName)
+          : copy.staffCheckOutTitle(staffName),
+      body: note ? copy.staffStatusBodyWithNote(time, note) : copy.staffStatusBody(time),
+    };
+  }
   // KID-684: invoice-created parent notifications. The payload stays
   // locale-independent; the title names the child and the invoice, the body
   // carries the preformatted amount and the due date when there is one.
@@ -5136,20 +5252,83 @@ export async function childrenByRooms(roomIds: string[]): Promise<Row[]> {
 // Staff availability / presence status card.
 export const STAFF_STATUS_KINDS = ["checkin", "sick", "vacation", "absent", "child_sick"] as const;
 
+// KID-2502: only check-in / check-out notify the center's owner + admin
+// accounts; every other staff status stays silent. The acting account is
+// never a recipient (no self-notify). Best-effort: the status write above
+// always stands and a notification failure is logged, never thrown.
+async function notifyStaffStatusChange(data: {
+  staffId: string;
+  kind: "checkin" | "out";
+  note?: string;
+  actorAccountId?: string;
+  at: string;
+  statusLogId: string;
+}): Promise<void> {
+  try {
+    const staff = await queryGet(
+      "SELECT institute_id, full_name FROM staff WHERE id = ?",
+      data.staffId
+    );
+    const instituteId = staff?.institute_id ? String(staff.institute_id) : "";
+    if (!instituteId) return;
+    const adminRows = await queryAll(
+      `SELECT a.id FROM account a
+       JOIN staff s ON s.id = a.staff_id
+       WHERE s.institute_id = ? AND a.role IN ('owner','admin')`,
+      instituteId
+    );
+    const actor = String(data.actorAccountId ?? "");
+    const recipients = [...new Set(adminRows.map((r) => String(r.id)))].filter(
+      (accountId) => accountId !== actor
+    );
+    const { timeZone } = await getCenterSchedule(instituteId);
+    await emitNotifications({
+      instituteId,
+      accountIds: recipients,
+      activity: "attendance",
+      kind: data.kind === "checkin" ? "staff_checkin" : "staff_checkout",
+      payload: {
+        staffId: data.staffId,
+        staffName: String(staff?.full_name ?? ""),
+        status: data.kind,
+        at: data.at,
+        note: data.note ?? "",
+        timeZone,
+      },
+      ref: `staff-status-${data.statusLogId}`,
+      createdAt: data.at,
+    });
+  } catch (err) {
+    console.error(
+      `KID-2502 staff status notification failed (staff=${data.staffId}, kind=${data.kind}):`,
+      err
+    );
+  }
+}
+
 export async function logStaffStatus(data: {
   staffId: string;
   kind: string;
   note?: string;
   accountId?: string;
+  /** KID-2503: geofence audit data. */
+  lat?: number;
+  lng?: number;
+  accuracyM?: number | null;
+  override?: boolean;
 }): Promise<Row> {
   const id = uid();
   await queryRun(
-    `INSERT INTO staff_status (id, staff_id, kind, note, created_by_account_id)
-     VALUES (?, ?, ?, ?, ?)`,
+    `INSERT INTO staff_status (id, staff_id, kind, note, lat, lng, accuracy_m, geofence_override, created_by_account_id)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     id,
     data.staffId,
     data.kind,
     data.note ?? null,
+    data.lat ?? null,
+    data.lng ?? null,
+    data.accuracyM ?? null,
+    data.override ? 1 : 0,
     data.accountId ?? null
   );
   const now = new Date().toISOString();
@@ -5160,6 +5339,16 @@ export async function logStaffStatus(data: {
     now,
     data.staffId
   );
+  if (data.kind === "checkin" || data.kind === "out") {
+    await notifyStaffStatusChange({
+      staffId: data.staffId,
+      kind: data.kind,
+      note: data.note,
+      actorAccountId: data.accountId,
+      at: now,
+      statusLogId: id,
+    });
+  }
   return (await queryGet(
     `SELECT ss.*, a.full_name AS recorded_by_name FROM staff_status ss
      LEFT JOIN account a ON a.id = ss.created_by_account_id

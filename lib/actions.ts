@@ -114,7 +114,14 @@ import {
 } from "@/lib/store";
 import type { WorkingWeek } from "@/lib/working-hours";
 import { evaluatePickupTime } from "@/lib/pickup-policy";
-import { checkInRefusalMessage, pickupRefusalMessage } from "@/lib/policy-messages";
+import { checkInRefusalMessage, geofenceRefusalMessage, pickupRefusalMessage } from "@/lib/policy-messages";
+import {
+  geofenceFromInstitute,
+  evaluateGeofence,
+  isGeofenceRadius,
+  parseLatitude,
+  parseLongitude,
+} from "@/lib/geofence";
 import { supabaseConfigured, getSupabase, isGoTrueAlreadyRegisteredError, isGoTrueServerError } from "@/lib/supabase";
 import {
   storageAdminConfigured,
@@ -1803,6 +1810,29 @@ export async function checkInOutAction(formData: FormData) {
         }
       }
     }
+    // KID-2503: premises geofence. Admins checking a child in/out from a
+    // management surface override the fence; every other caller (parent,
+    // family link, teacher) must send a device position inside the radius.
+    // The coordinates are stored on the attendance row for audit.
+    const geofenceSettings = instituteId
+      ? geofenceFromInstitute(await getInstitute(String(instituteId)))
+      : null;
+    const geofenceDecision = evaluateGeofence(
+      geofenceSettings,
+      {
+        lat: formData.get("lat"),
+        lng: formData.get("lng"),
+        accuracy: formData.get("accuracy"),
+      },
+      { override: isAdminRole(me.role) }
+    );
+    if (!geofenceDecision.ok) {
+      console.error(`KID-2503 refused child check-in/out (${geofenceDecision.code})`, me.email);
+      const language = (await getAccount(me.accountId))?.language;
+      return {
+        error: await gatePolicyMessage(language, (dict) => geofenceRefusalMessage(dict, geofenceDecision)),
+      };
+    }
     // KID-1371: the full boundary matrix for the pickup loop — same-day only,
     // no past times, inside the center's working hours on an open day, and
     // (with the write itself) one entry per child per day. The request may
@@ -1831,6 +1861,10 @@ export async function checkInOutAction(formData: FormData) {
       accountId: me.accountId,
       type,
       at: decision.at,
+      lat: geofenceDecision.lat,
+      lng: geofenceDecision.lng,
+      accuracyM: geofenceDecision.accuracyM ?? null,
+      override: geofenceSettings !== null && geofenceDecision.override,
     });
     // KID-477: attendance is a user-visible mutation on the audit trail.
     await recordAuditEvent({
@@ -1840,7 +1874,12 @@ export async function checkInOutAction(formData: FormData) {
       entityType: "attendance",
       entityId: childId,
       summary: type === "in" ? "Checked in" : "Checked out",
-      metadata: { edit: true },
+      metadata: {
+        edit: true,
+        ...(geofenceSettings !== null && geofenceDecision.override
+          ? { geofenceOverride: true }
+          : {}),
+      },
     });
   }
   // #7: stay in portal when invoked from portal pages instead of forcing /child/…
@@ -3067,6 +3106,24 @@ export async function saveCenterDetailsAction(formData: FormData) {
     // the checkbox is an explicit OFF, never a silent keep-as-was.
     if (formData.get("allowParentCheckInout") !== null) {
       patch.allow_parent_check_inout = formData.getAll("allowParentCheckInout").includes("1") ? 1 : 0;
+    }
+    // KID-2503: premises geofence. Both coordinates are required together;
+    // leaving both blank clears the fence (feature off). The radius accepts
+    // exactly the three presets and defaults to 150 m. Any invalid value
+    // rejects the whole save with a localized banner so a half-configured
+    // fence never reaches the check-in path.
+    if (formData.get("premisesLat") !== null || formData.get("premisesLng") !== null) {
+      const lat = parseLatitude(formData.get("premisesLat"));
+      const lng = parseLongitude(formData.get("premisesLng"));
+      if (lat === undefined || lng === undefined) redirect("/portal/settings?error=geofence");
+      if ((lat === null) !== (lng === null)) redirect("/portal/settings?error=geofence");
+      patch.premises_lat = lat;
+      patch.premises_lng = lng;
+    }
+    if (formData.get("geofenceRadius") !== null) {
+      const rawRadius = formData.get("geofenceRadius");
+      if (!isGeofenceRadius(rawRadius)) redirect("/portal/settings?error=geofence");
+      patch.geofence_radius_m = Number(rawRadius);
     }
     // KID-489 item 2 (KID-491): the center's Instapay payment link. An
     // invalid value is rejected up front with a redirect back to a localized
@@ -5252,10 +5309,11 @@ export async function createStaffScheduleAction(formData: FormData) {
   const fail = (code: string) => redirect(`/portal/staff/schedule?error=${code}`);
 
   const staffId = String(formData.get("staffId") ?? "");
-  // KID-105 #13: non-admins can only schedule themselves.
+  // KID-2502: schedule management is admin-only now; non-admin staff keep
+  // their own schedule on their profile's Calendar tab and never write here.
   if (!isAdminRole(me.role)) {
     const myStaffId = await staffIdForAccount(me.accountId);
-    if (!myStaffId || myStaffId !== staffId) redirect("/portal/staff/schedule");
+    redirect(myStaffId ? `/portal/staff/${myStaffId}` : "/portal/staff");
   }
   if (!staffId) redirect("/portal/staff/schedule");
 
@@ -5314,11 +5372,10 @@ export async function deleteStaffScheduleAction(formData: FormData) {
   const me = await authAccount();
   const { deleteStaffSchedule } = await import("@/lib/store");
   const id = String(formData.get("id") ?? "");
-  // KID-105 #13: non-admins can only delete their own shifts.
-  if (id && !isAdminRole(me.role)) {
+  // KID-2502: schedule management is admin-only now.
+  if (!isAdminRole(me.role)) {
     const myStaffId = await staffIdForAccount(me.accountId);
-    const row = await queryGet("SELECT staff_id FROM staff_schedule WHERE id = ?", id);
-    if (!myStaffId || !row || String(row.staff_id) !== myStaffId) redirect("/portal/staff/schedule");
+    redirect(myStaffId ? `/portal/staff/${myStaffId}` : "/portal/staff");
   }
   if (id) await deleteStaffSchedule(id);
   redirect("/portal/staff/schedule");
@@ -5415,8 +5472,8 @@ export async function logStaffStatusAction(formData: FormData) {
   if (staffId && kind) {
     // KID-58: staff cannot check in before the center opens (same gate as
     // children). Check-outs and other statuses are always allowed.
+    const instituteId = await firstInstituteId();
     if (kind === "checkin") {
-      const instituteId = await firstInstituteId();
       if (instituteId) {
         const policy = await checkInAllowed(String(instituteId));
         if (!policy.allowed) {
@@ -5425,7 +5482,55 @@ export async function logStaffStatusAction(formData: FormData) {
         }
       }
     }
-    await logStaffStatus({ staffId, kind, note, accountId: me.accountId });
+    // KID-2503: staff self check-in/out must happen on the premises. An admin
+    // acting on ANOTHER staff member's card overrides the fence; an admin's
+    // own check-in/out stays fenced. Other statuses (sick/vacation/…) need no
+    // location. The captured coordinates and the override flag are stored on
+    // the status row for audit.
+    let geofenceDecision: { lat?: number; lng?: number; accuracyM?: number | null } = {};
+    let overridden = false;
+    if (kind === "checkin" || kind === "out") {
+      const myStaffId = await staffIdForAccount(me.accountId);
+      const actingOnOther = !myStaffId || myStaffId !== staffId;
+      const override = isAdminRole(me.role) && actingOnOther;
+      const staffRow = await queryGet("SELECT institute_id FROM staff WHERE id = ?", staffId);
+      const fenceInstituteId = staffRow?.institute_id
+        ? String(staffRow.institute_id)
+        : instituteId;
+      const settings = fenceInstituteId
+        ? geofenceFromInstitute(await getInstitute(String(fenceInstituteId)))
+        : null;
+      const decision = evaluateGeofence(
+        settings,
+        {
+          lat: formData.get("lat"),
+          lng: formData.get("lng"),
+          accuracy: formData.get("accuracy"),
+        },
+        { override }
+      );
+      if (!decision.ok) {
+        console.error(`KID-2503 refused staff ${kind} (${decision.code})`, me.email);
+        const language = (await getAccount(me.accountId))?.language;
+        return {
+          error: await gatePolicyMessage(language, (dict) => geofenceRefusalMessage(dict, decision)),
+        };
+      }
+      geofenceDecision = {
+        lat: decision.lat,
+        lng: decision.lng,
+        accuracyM: decision.accuracyM ?? null,
+      };
+      overridden = settings !== null && decision.override;
+    }
+    await logStaffStatus({
+      staffId,
+      kind,
+      note,
+      accountId: me.accountId,
+      ...geofenceDecision,
+      override: overridden,
+    });
   }
   redirect(`/portal/staff/${staffId}`);
 }

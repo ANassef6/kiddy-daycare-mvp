@@ -5,7 +5,8 @@ import { notFound, redirect } from "next/navigation";
 import { requireSession } from "@/lib/require";
 import { staffIdForAccount } from "@/lib/auth";
 import { isAdminRole } from "@/lib/role";
-import { listStaff, staffRooms, listStaffSchedules, staffStatusLog, staffActivity, listRooms } from "@/lib/store";
+import { listStaff, staffRooms, listStaffSchedules, staffStatusLog, staffActivity, listRooms, getInstitute } from "@/lib/store";
+import { geofenceFromInstitute } from "@/lib/geofence";
 import { queryAll } from "@/lib/db";
 import { uploadPhotoAction, updateStaffInfoAction, linkStaffLoginAction } from "@/lib/actions";
 import Avatar from "@/components/Avatar";
@@ -79,6 +80,14 @@ export default async function StaffProfilePage({ params, searchParams }: { param
   // login account is still unconfirmed.
   const staffUnactivated = email != null && Number((logins[0] as any)?.email_confirmed) === 0;
 
+  // KID-2503: the staff card is fenced only when the center configured a
+  // premises and the caller is not an admin acting on someone else's card.
+  // An admin's own check-in/out stays fenced.
+  const myStaffId = await staffIdForAccount(session.accountId);
+  const geofenceOn = iid ? geofenceFromInstitute(await getInstitute(iid)) !== null : false;
+  const adminOverride = isAdminRole(session.role) && (!myStaffId || myStaffId !== staffIdParam);
+  const requireStaffLocation = geofenceOn && !adminOverride;
+
   const tabs = [
     {
       id: "profile",
@@ -87,9 +96,9 @@ export default async function StaffProfilePage({ params, searchParams }: { param
         linked: search.linked,
         existing: search.existing,
         error: search.error,
-      }, dict, locale),
+      }, dict, locale, requireStaffLocation),
     },
-    { id: "calendar", label: tr(dict, "nav.calendar"), node: calendarTab(schedules, dict, locale) },
+    { id: "calendar", label: tr(dict, "nav.calendar"), node: calendarTab(schedules, dict, locale, isAdminRole(session.role)) },
   ];
 
   return (
@@ -129,7 +138,7 @@ export default async function StaffProfilePage({ params, searchParams }: { param
   );
 }
 
-function statusCard(staff: any, dict: Dict, locale: Locale) {
+function statusCard(staff: any, dict: Dict, locale: Locale, requireLocation: boolean) {
   const current = (staff.status && STATUS_KIND_KEY[staff.status]) ? tr(dict, STATUS_KIND_KEY[staff.status]) : (staff.active ? tr(dict, "profile.active") : tr(dict, "staff.inactive"));
   const tone =
     staff.status === "checkin" ? "green"
@@ -150,6 +159,8 @@ function statusCard(staff: any, dict: Dict, locale: Locale) {
       <StaffStatusForm
         staffId={String(staff.id)}
         current={staff.status ?? ""}
+        requireLocation={requireLocation}
+        dict={dict}
         labels={{
           placeholder: tr(dict, "staff.statusPlaceholder"),
           options: {
@@ -189,7 +200,8 @@ function profileTab(
   hasLogin: boolean,
   loginFeedback: { linked?: string; existing?: string; error?: string },
   dict: Dict,
-  locale: Locale
+  locale: Locale,
+  requireLocation: boolean
 ) {
   const infoRows: [string, any][] = [
     [tr(dict, "profile.fullName"), staff.full_name],
@@ -205,7 +217,7 @@ function profileTab(
   const linkError = loginFeedback.error ? (LINK_ERROR_KEY[loginFeedback.error] ? tr(dict, LINK_ERROR_KEY[loginFeedback.error]) : tr(dict, "staff.linkErrorLink")) : null;
   return (
     <div>
-      {statusCard(staff, dict, locale)}
+      {statusCard(staff, dict, locale, requireLocation)}
 
       {/* KID-171 (D2): a staff record with no login cannot be messaged by any
           parent in its classrooms, and there was no way to fix that from the UI
@@ -293,14 +305,25 @@ function profileTab(
         <div className="card">
           <h3 className="subtitle">{tr(dict, "staff.statusHistoryTitle")}</h3>
           {statusLog.length === 0 ? <p className="muted small">{tr(dict, "staff.emptyStatusHistory")}</p> : null}
-          {statusLog.map((s: any) => (
-            <div className="list-item small" key={s.id}>
-              <span className={`badge ${s.status === "checkin" ? "badge-green" : s.status === "sick" || s.status === "child_sick" ? "badge-red" : "badge-gray"}`}>
-                {(s.status && STATUS_KIND_KEY[s.status]) ? tr(dict, STATUS_KIND_KEY[s.status]) : String(s.status ?? "")}
-              </span>
-              <span className="muted">{s.note ? `${s.note} · ` : ""}{s.changed_by_name ? `${s.changed_by_name} · ` : ""}{fmtDateTimeFor(locale, s.created_at)}</span>
-            </div>
-          ))}
+          {statusLog.map((s: any) => {
+            const kind = String(s.kind ?? s.status ?? "");
+            const override = Number(s.geofence_override) === 1;
+            return (
+              <div className="list-item small" key={s.id}>
+                <span className={`badge ${kind === "checkin" ? "badge-green" : kind === "sick" || kind === "child_sick" ? "badge-red" : "badge-gray"}`}>
+                  {(kind && STATUS_KIND_KEY[kind]) ? tr(dict, STATUS_KIND_KEY[kind]) : kind}
+                </span>
+                {override && (
+                  <span className="badge badge-gray">
+                    {s.recorded_by_name
+                      ? tr(dict, "geofence.overridden", { name: String(s.recorded_by_name) })
+                      : tr(dict, "geofence.overrideBadge")}
+                  </span>
+                )}
+                <span className="muted">{s.note ? `${s.note} · ` : ""}{s.recorded_by_name ? `${s.recorded_by_name} · ` : ""}{fmtDateTimeFor(locale, s.created_at)}</span>
+              </div>
+            );
+          })}
         </div>
         <div className="card">
           <h3 className="subtitle">{tr(dict, "staff.activityTitle")}</h3>
@@ -350,7 +373,7 @@ const CALENDAR_DAY_KEY = [
   "staff.daySat",
 ];
 
-function calendarTab(schedules: any[], dict: Dict, locale: Locale) {
+function calendarTab(schedules: any[], dict: Dict, locale: Locale, admin: boolean) {
   return (
     <div className="card">
       <h3 className="subtitle">{tr(dict, "staff.weeklyScheduleTitle")}</h3>
@@ -373,7 +396,9 @@ function calendarTab(schedules: any[], dict: Dict, locale: Locale) {
           </span>
         </div>
       ))}
-      <Link className="btn btn-ghost small mt-2" href="/portal/staff/schedule">{tr(dict, "staff.manageScheduleBtn")}</Link>
+      {admin && (
+        <Link className="btn btn-ghost small mt-2" href="/portal/staff/schedule">{tr(dict, "staff.manageScheduleBtn")}</Link>
+      )}
     </div>
   );
 }

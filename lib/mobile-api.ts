@@ -86,6 +86,7 @@ export async function childSummary(child: Row, reportDate?: string): Promise<Row
   return {
     child: serializeChildWithRoom(child),
     status: {
+      isCheckedIn: status.isCheckedIn,
       checkedIn: status.checkedIn ? status.checkedIn.recorded_at : null,
       checkedOut: status.checkedOut ? status.checkedOut.recorded_at : null,
       lastEvent: status.lastEvent

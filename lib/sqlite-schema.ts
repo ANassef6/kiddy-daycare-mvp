@@ -30,6 +30,11 @@ export function sqliteSchema(db: any): void {
     allow_parent_check_inout INTEGER NOT NULL DEFAULT 1,
     default_currency TEXT NOT NULL DEFAULT 'EGP',
     instapay_url TEXT,
+    -- KID-2503: premises latitude/longitude + radius. Both coordinates unset
+    -- means the check-in/out geofence is off (the historical behavior).
+    premises_lat REAL,
+    premises_lng REAL,
+    geofence_radius_m INTEGER NOT NULL DEFAULT 150,
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
   );
 
@@ -164,6 +169,12 @@ export function sqliteSchema(db: any): void {
     type TEXT NOT NULL,
     recorded_at TEXT NOT NULL DEFAULT (datetime('now')),
     is_edit INTEGER NOT NULL DEFAULT 0,
+    -- KID-2503: coordinates captured for the geofence audit trail. NULL when
+    -- the center has no fence configured or the writer was an admin override.
+    lat REAL,
+    lng REAL,
+    accuracy_m REAL,
+    geofence_override INTEGER NOT NULL DEFAULT 0,
     -- Shared by KID-2447 and KID-2448: NULL = manual/staff/parent write;
     -- 'auto_end_of_day' = written by the end-of-working-hours sweep with no
     -- pickup person (migration 0051_kid2447_auto_checkout_source.sql); 'bus' =
@@ -570,6 +581,11 @@ export function sqliteSchema(db: any): void {
     staff_id TEXT NOT NULL REFERENCES staff(id) ON DELETE CASCADE,
     kind TEXT NOT NULL,
     note TEXT,
+    -- KID-2503: geofence audit data for staff check-in/out.
+    lat REAL,
+    lng REAL,
+    accuracy_m REAL,
+    geofence_override INTEGER NOT NULL DEFAULT 0,
     created_by_account_id TEXT REFERENCES account(id),
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
   );
@@ -973,6 +989,33 @@ export function sqliteSchema(db: any): void {
   if (!checkInCols.some((c) => c.name === "source")) {
     db.exec("ALTER TABLE check_in ADD COLUMN source TEXT");
   }
+  // KID-2503: mirror of supabase/migrations/0057 for databases created before
+  // the geofence audit columns existed.
+  if (!checkInCols.some((c) => c.name === "lat")) {
+    db.exec("ALTER TABLE check_in ADD COLUMN lat REAL");
+  }
+  if (!checkInCols.some((c) => c.name === "lng")) {
+    db.exec("ALTER TABLE check_in ADD COLUMN lng REAL");
+  }
+  if (!checkInCols.some((c) => c.name === "accuracy_m")) {
+    db.exec("ALTER TABLE check_in ADD COLUMN accuracy_m REAL");
+  }
+  if (!checkInCols.some((c) => c.name === "geofence_override")) {
+    db.exec("ALTER TABLE check_in ADD COLUMN geofence_override INTEGER NOT NULL DEFAULT 0");
+  }
+  const staffStatusCols = db.prepare("PRAGMA table_info(staff_status)").all() as { name: string }[];
+  if (!staffStatusCols.some((c) => c.name === "lat")) {
+    db.exec("ALTER TABLE staff_status ADD COLUMN lat REAL");
+  }
+  if (!staffStatusCols.some((c) => c.name === "lng")) {
+    db.exec("ALTER TABLE staff_status ADD COLUMN lng REAL");
+  }
+  if (!staffStatusCols.some((c) => c.name === "accuracy_m")) {
+    db.exec("ALTER TABLE staff_status ADD COLUMN accuracy_m REAL");
+  }
+  if (!staffStatusCols.some((c) => c.name === "geofence_override")) {
+    db.exec("ALTER TABLE staff_status ADD COLUMN geofence_override INTEGER NOT NULL DEFAULT 0");
+  }
   const instCols = db.prepare("PRAGMA table_info(institute)").all() as { name: string }[];
   if (!instCols.some((c) => c.name === "contact")) {
     db.exec("ALTER TABLE institute ADD COLUMN contact TEXT");
@@ -1013,6 +1056,16 @@ export function sqliteSchema(db: any): void {
   // Egyptian) and keep their stored opening hours as center-local wall clock.
   if (!instCols.some((c) => c.name === "timezone")) {
     db.exec("ALTER TABLE institute ADD COLUMN timezone TEXT NOT NULL DEFAULT 'Africa/Cairo'");
+  }
+  // KID-2503: mirror of supabase/migrations/0057_premises_geofence.sql.
+  if (!instCols.some((c) => c.name === "premises_lat")) {
+    db.exec("ALTER TABLE institute ADD COLUMN premises_lat REAL");
+  }
+  if (!instCols.some((c) => c.name === "premises_lng")) {
+    db.exec("ALTER TABLE institute ADD COLUMN premises_lng REAL");
+  }
+  if (!instCols.some((c) => c.name === "geofence_radius_m")) {
+    db.exec("ALTER TABLE institute ADD COLUMN geofence_radius_m INTEGER NOT NULL DEFAULT 150");
   }
   try {
     db.exec("UPDATE institute SET timezone = 'Africa/Cairo' WHERE timezone IS NULL OR TRIM(timezone) = ''");

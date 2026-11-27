@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { resolveTenantInstituteId } from "@/lib/tenant";
 import { requireSession } from "@/lib/require";
-import {attendanceOn, runAutoCheckoutSweep, scopedRoomIds, listRooms, busStatusByChild, busPhaseForCount, parentCheckInOutAllowed, centerToday, AUTO_CHECKOUT_SOURCE } from "@/lib/store";
+import {attendanceOn, runAutoCheckoutSweep, scopedRoomIds, listRooms, busStatusByChild, busPhaseForCount, busBadgeIsStale, parentCheckInOutAllowed, centerToday, AUTO_CHECKOUT_SOURCE, getInstitute } from "@/lib/store";
+import { geofenceFromInstitute } from "@/lib/geofence";
+import { isAdminRole } from "@/lib/role";
 import { AttendanceCheckIn } from "@/components/AttendanceCheckIn";
 import { BusStatusButtons } from "@/components/BusStatusButtons";
 import { recordToolUsage } from "@/lib/tool-usage";
@@ -57,6 +59,10 @@ export default async function PortalAttendancePage(
   // KID-1329: the center's parent check-in/out toggle hides the
   // per-row parent self-service control here too (staff keep theirs).
   const showParentAction = session.role !== "parent" || !iid || (await parentCheckInOutAllowed(String(iid)));
+  // KID-2503: non-admins checking a child in/out here must be on the
+  // premises; admins override the fence (the row is marked as overridden).
+  const geofenceOn = iid ? geofenceFromInstitute(await getInstitute(String(iid))) !== null : false;
+  const requireCheckInLocation = geofenceOn && !isAdminRole(session.role);
 
   return (
     <div>
@@ -134,9 +140,14 @@ export default async function PortalAttendancePage(
         <tbody>
           {rows.map((r: any) => {
             const bus = busByChild[String(r.id)];
+            // KID-2504: a real attendance write after the latest bus event
+            // (manual check-out, re-check-in, end-of-day sweep) supersedes the
+            // bus ledger, so its phase must not render as the CURRENT state.
+            // The ledger itself is untouched (KID-2448 semantics).
+            const busStale = bus ? busBadgeIsStale(bus.recorded_at, r.last_event_at) : false;
             // KID-2448: the phase comes from the day's event count, so the
             // roster can tell the morning and afternoon on-bus states apart.
-            const phase = bus ? busPhaseForCount(Number(bus.day_count ?? 0)) : null;
+            const phase = bus && !busStale ? busPhaseForCount(Number(bus.day_count ?? 0)) : null;
             const busLabel =
               phase === "morning_on" ? tr(dict, "attendance.busOnMorning")
               : phase === "morning_off" ? tr(dict, "attendance.busOffMorning")
@@ -151,6 +162,13 @@ export default async function PortalAttendancePage(
                   {r.last_event === "in" ? <span className="badge badge-green">{tr(dict, "attendees.checkedIn")}</span>
                   : r.last_event === "out" ? <span className="badge badge-gray">{tr(dict, "attendees.checkedOut")}</span>
                   : <span className="badge">{tr(dict, "attendance.absent")}</span>}
+                  {Number(r.last_event_override) === 1 && (
+                    <span className="badge badge-gray" style={{ marginLeft: 6 }}>
+                      {r.last_event_by
+                        ? tr(dict, "geofence.overridden", { name: String(r.last_event_by) })
+                        : tr(dict, "geofence.overrideBadge")}
+                    </span>
+                  )}
                 </td>
                 <td>
                   {busLabel ? (
@@ -184,6 +202,8 @@ export default async function PortalAttendancePage(
                       <AttendanceCheckIn
                         childId={r.id as string}
                         lastEvent={r.last_event}
+                        requireLocation={requireCheckInLocation}
+                        dict={dict}
                         labels={{
                           checkIn: tr(dict, "attendees.checkIn"),
                           checkOut: tr(dict, "attendees.checkOut"),

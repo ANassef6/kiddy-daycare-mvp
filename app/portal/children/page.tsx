@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { resolveTenantInstituteId } from "@/lib/tenant";
 import { requireSession } from "@/lib/require";
-import { listChildren, listRoomsScoped } from "@/lib/store";
+import { checkedInNow, listChildren, listRoomsScoped } from "@/lib/store";
 import { addChildAction, inviteParentAction } from "@/lib/actions";
 import Avatar from "@/components/Avatar";
 import RelationshipSelect from "@/components/RelationshipSelect";
@@ -15,12 +15,19 @@ import type { Dict } from "@/lib/i18n";
 
 export const dynamic = "force-dynamic";
 
+// KID-2498: each chip maps to one exact status set from listChildren:
+//   ""           -> every status except withdrawn (active + on_hold + pending)
+//   "active"     -> active only
+//   "on_hold"    -> on_hold only
+//   "pending"    -> pending only
+//   "withdrawn"  -> withdrawn only
+//   "all"        -> every status, including withdrawn
 const STATUS_OPTIONS = ["", "active", "on_hold", "pending", "withdrawn", "all"] as const;
 
 function statusOptionLabel(value: string, dict: Dict): string {
   switch (value) {
     case "":
-      return tr(dict, "childrenAdd.filterAllActive");
+      return tr(dict, "childrenAdd.filterNotWithdrawn");
     case "active":
       return tr(dict, "profile.active");
     case "on_hold":
@@ -30,7 +37,7 @@ function statusOptionLabel(value: string, dict: Dict): string {
     case "withdrawn":
       return tr(dict, "profile.withdrawn");
     default:
-      return tr(dict, "common.all");
+      return tr(dict, "childrenAdd.filterEveryone");
   }
 }
 
@@ -90,10 +97,15 @@ export default async function PortalChildrenPage(
   const searchQuery = String(searchParams.q ?? "").trim();
   const searchLower = searchQuery.toLowerCase();
   // KID-103: children list and room choices are scoped to assigned classrooms.
-  const [children, rooms] = await Promise.all([
+  // KID-2505: the live "who is checked in now" set comes from the same
+  // center-local-day derivation as the attendance board (one query for the
+  // whole page, not one per card). KID-2504 keeps that derivation authoritative.
+  const [children, rooms, checkedIn] = await Promise.all([
     instituteId ? listChildren(instituteId, { status: statusFilter, accountId: session.accountId }) : Promise.resolve([]),
     instituteId ? listRoomsScoped(instituteId, session.accountId) : Promise.resolve([]),
+    instituteId ? checkedInNow(instituteId, session.accountId) : Promise.resolve([]),
   ]);
+  const checkedInIds = new Set(checkedIn.map((c) => String(c.id)));
   // KID-2482: filter the visible cards by name without narrowing the invite
   // dropdown below (which must still offer every child).
   const visibleChildren = searchLower
@@ -267,7 +279,17 @@ export default async function PortalChildrenPage(
               style={{ color: "inherit", textDecoration: "none" }}
             >
               <div className="row" style={{ alignItems: "center", gap: 12, marginBottom: 12 }}>
-                <Avatar src={avatarSrcs.get(String(c.photo_url ?? "")) ?? c.photo_url} name={`${c.first_name} ${c.last_name}`} size={48} />
+                <span className="avatar-wrap">
+                  <Avatar src={avatarSrcs.get(String(c.photo_url ?? "")) ?? c.photo_url} name={`${c.first_name} ${c.last_name}`} size={48} />
+                  {checkedInIds.has(String(c.id)) && (
+                    <span
+                      className="avatar-checked-dot"
+                      role="img"
+                      aria-label={tr(dict, "childrenAdd.checkedIn")}
+                      title={tr(dict, "childrenAdd.checkedIn")}
+                    />
+                  )}
+                </span>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <strong style={{ display: "block" }}>{c.first_name} {c.last_name}</strong>
                   {c.room_id ? (

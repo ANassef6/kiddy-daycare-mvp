@@ -1,5 +1,9 @@
 -- KID-2483: staff schedules can target a specific date and one or more rooms.
 --
+-- Renumbered from 0056_kid2483_staff_schedule_date_rooms.sql by KID-2506
+-- (duplicate prefix cleanup); the body is unchanged and every statement is
+-- already guarded, so re-applying it is a no-op.
+--
 -- `schedule_date` is NULL for the existing weekly pattern (`day_of_week`) and
 -- an ISO date (YYYY-MM-DD) for a one-off shift. A dated row overrides the
 -- weekly pattern for that staff member on that day; legacy weekday-only rows
