@@ -1,7 +1,9 @@
 # KID-2519 — production cut: November 2026 batch
 
-Status: **shipped to production on 2026-11-27T13:03Z.** Production is the
-Cloudflare Worker `kiddy-web` behind `kiddyapp.net`; the Vercel `kiddy`
+Status: **shipped to production on 2026-11-27.** The batch cut at 13:03Z was
+followed by a geolocation-policy hotfix (PR #175) at 13:17Z, because the
+production `Permissions-Policy` still denied device geolocation. Production is
+the Cloudflare Worker `kiddy-web` behind `kiddyapp.net`; the Vercel `kiddy`
 production deployment (which owns `kiddy-one.vercel.app`) was refreshed from the
 same tree. The founder approved the release on KID-2517 at 2026-11-27T12:27Z
 (confirmation `a329ae2f`).
@@ -34,15 +36,34 @@ timestamp sweep into this release (`lib/i18n.ts`, `lib/store.ts`).
 
 | Item | Value |
 | --- | --- |
-| PR | #173 `KID-2519: deploy the November 2026 batch to production` |
-| Merge commit | `0967ab7` (tree `791c1786fc0a32985bdf7dae8abc86c20243491c`) |
-| Merge method | merge commit into `master` |
-| CI | `Test + build + wrangler dry-run` pass (2m26s); `audit` pass (51s) |
+| Batch PR | #173 `KID-2519: deploy the November 2026 batch to production` |
+| Batch merge commit | `0967ab7` (tree `791c1786fc0a32985bdf7dae8abc86c20243491c`) |
+| Hotfix PR / merge commit | #175 / `ba32208` (tree `58b936575190971947f3215f00e3e32fa334d66f`) |
+| Merge method | merge commits into `master` |
+| CI | batch: verify pass 2m26s, audit pass 51s; hotfix: verify pass 2m22s, audit pass 1m19s |
 | Build | `npx opennextjs-cloudflare build` exit 0 |
-| Deploy | `npx wrangler deploy --env="" --message KID-2519-nov-batch-master-0967ab7` |
-| Deployed version | `56c89ee6-5663-4734-a42e-9f4bab1486de` (2026-11-27T12:56:33Z) |
+| Deploy | `npx wrangler deploy --env="" --message KID-2519-geolocation-policy-master-ba32208` |
+| Deployed version | `a305add2-1e42-45e3-9137-3f121c34e43a` (2026-11-27T13:16:55Z) |
 | Rollback target | `b6edf96a-bdfe-4b58-9f38-1dd69c86d958` (KID-2511 build) |
-| Deployed script | 38,416,821 bytes, sha256 `cd1a9ccb7ce88393d816270217cc709055770245e5090fe82f52886ac911392b` |
+| Deployed script | 38,416,769 bytes, sha256 `f52be3f0f1528e9a8c59f874c6a071f42928e8aec4bbd12598da1e8b160ecf40` |
+
+### Geolocation policy hotfix
+
+The batch cut kept `Permissions-Policy: geolocation=()`, which makes
+`navigator.geolocation.getCurrentPosition()` fail with `PERMISSION_DENIED`.
+KID-2503 had verified the server gate with mobile-API coordinates, but its
+browser leg only ever showed the blocked-location guidance, so the staff and
+parent geofence controls could not capture a position as shipped.
+
+PR #175 changed the header to `geolocation=(self)` (camera, microphone and the
+other capabilities stay denied) and updated the KID-1178 header test. The live
+header on `https://kiddyapp.net/login` now reads:
+
+```
+permissions-policy: camera=(), microphone=(), geolocation=(self), payment=(), usb=(), interest-cohort=()
+```
+
+Staging was not touched and keeps its frozen worker.
 
 ### Build inputs
 
@@ -90,7 +111,7 @@ Verified after apply:
 | `/portal/children`, `/portal/attendance`, `/portal/staff/schedule`, `/portal/staff/hours`, `/portal/newsfeed`, `/child`, `/platform` | `307 → /login` (route exists, auth gate intact) |
 | Host headers | `server: cloudflare`, `x-opennext: 1` |
 | CSP | `content-security-policy-report-only`, Chatwoot allowed |
-| Served layout chunk | `layout-af4503acb2fdd802.js` (new build) |
+| Served layout chunk | `layout-af4503acb2fdd802.js` (batch build; unchanged by the hotfix) |
 
 ### Deployed script contains the batch
 
@@ -101,6 +122,8 @@ Fetched `GET /accounts/…/workers/scripts/kiddy-web` and checked strings:
 | `premises_lat` / `geofence_radius_m` / `geofence_override` | present (30 / 26 / 46) |
 | `staff_checkin` / `staff_checkout` | present (24 / 20) |
 | `31457280` (30 MB) | present (8) |
+| `geolocation=(self)` | present (4) |
+| old `geolocation=()` | absent (0) |
 | EN `Not withdrawn` / `Everyone` | present (6 / 110) |
 | `avatar-checked-dot` | present (2) |
 | EN `Staff check-in:` / `Staff check-out:` | present (6 / 6) |
@@ -115,14 +138,15 @@ Deployed the same merged tree to the `kiddy` Vercel project so
 
 | Item | Value |
 | --- | --- |
-| Deployment | `dpl_5ghgShPMxcXwCFiQvN4Z2cnQbuNa` |
-| URL | `https://kiddy-bkjd5p0p8-kiddy2.vercel.app` |
+| Deployment | `dpl_13q1rr33nWShxim61xcBbpXW4E3B` |
+| URL | `https://kiddy-msii9o9he-kiddy2.vercel.app` |
 | State | `READY`, production target, `aliasAssigned: true` |
-| Ready at | `2026-11-27T13:01:26Z` |
+| Ready at | `2026-11-27T13:19:51Z` |
 | Aliases | `kiddyapp.net`, `*.kiddyapp.net`, `kiddy-one.vercel.app`, the tenant hosts |
 | `https://kiddy-one.vercel.app/login` | `200` |
 | Vercel CSS contains `avatar-checked-dot` | yes |
 | Vercel root layout contains the Chatwoot token | yes |
+| `https://kiddy-one.vercel.app/login` `permissions-policy` | `geolocation=(self)` |
 
 Cloudflare still serves every `kiddyapp.net` host (the Vercel deployment is
 behind the Worker routes). Because the Vercel alias now points at the same
