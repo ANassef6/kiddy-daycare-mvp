@@ -1,6 +1,8 @@
 # KID-2525 — parent notification links open their topic
 
-Status: **fixed on staging; founder sign-off requested. No production cut.**
+Status: **shipped to production on 2026-11-28** after founder sign-off. See
+[`PRODUCTION.md`](PRODUCTION.md) for the cut, Worker version and rollback
+target. The staging records below stay as the verification evidence.
 
 Founder report: KID-215 comment `c91f2a20-aeac-41d7-8b5c-889ea4d28f2a`
 (2026-11-28T07:35Z). On the parent `/child` surface, opening a notification took
@@ -117,12 +119,7 @@ its topic instead of the children list.
 
 ## Sign-off
 
-Please test on staging:
-
-1. Open a parent account and tap the bell. The notifications list must open.
-2. Tap a "new post" notification. It must open the newsfeed at that post, not
-   **My children**.
-3. Repeat on mobile web, in both English and Arabic.
-
-Reply with approval to cut this to production. Production is intentionally
-untouched.
+The founder tested this staging build and approved the production cut
+(confirmation `f2e337d3-3c28-4360-a681-8e18ba3fa846`, accepted
+2026-11-28T08:41:59Z). Production was cut in PR #182; see
+[`PRODUCTION.md`](PRODUCTION.md).
