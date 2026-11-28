@@ -4912,6 +4912,17 @@ export async function listNotificationsFor(accountId: string, limit = 50): Promi
   );
 }
 
+export async function notificationForAccount(
+  accountId: string,
+  id: string
+): Promise<Row | undefined> {
+  return queryGet(
+    `SELECT * FROM notification WHERE account_id = ? AND id = ?`,
+    accountId,
+    id
+  );
+}
+
 export async function unreadNotificationCount(accountId: string): Promise<number> {
   const row = await queryGet(
     `SELECT COUNT(*) c FROM notification WHERE account_id = ? AND read_at IS NULL`,

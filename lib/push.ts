@@ -19,6 +19,7 @@
 //     and every caller survives the sender being unavailable.
 
 import { queryAll, queryGet, queryRun, uid, type Row } from "./db";
+import { parentNotificationHref } from "./notification-routes";
 
 export type VapidConfig = {
   subject: string;
@@ -85,15 +86,6 @@ export async function pushCopyFor(
 
 /** Deep link the service worker opens / focuses on notification click. */
 export function pushDeepUrl(kind: string, payload: Record<string, unknown>): string {
-  if (kind === "message") {
-    const threadId = String(payload.threadId ?? "");
-    return threadId ? `/child/messages?thread=${threadId}` : "/child/messages";
-  }
-  if (kind === "daily_report") {
-    const childId = String(payload.childId ?? "");
-    return childId ? `/child/${childId}` : "/child";
-  }
-  if (kind === "chatwoot_message") return "/child/support";
   // KID-1385: pickup-time teacher notifications open the consuming
   // teacher's portal surface: the child's portal profile (staffHrefFor's
   // twin) or the attendance board when the id is missing.
@@ -101,25 +93,20 @@ export function pushDeepUrl(kind: string, payload: Record<string, unknown>): str
     const childId = String(payload.childId ?? "");
     return childId ? `/portal/children/${childId}` : "/portal/attendance";
   }
-  // KID-684: a new invoice opens the parent child surface's invoice section.
-  if (kind === "invoice_created") {
-    const childId = String(payload.childId ?? "");
-    return childId ? `/child/${childId}#invoices` : "/child";
-  }
   // KID-746: new contract drafts open the platform operator's contract card
   // for that daycare (the operator is the only push recipient of this kind).
   if (kind === "contract_draft") {
     const deepLink = String(payload.deepLink ?? "");
     return deepLink || "/platform";
   }
+  if (kind === "auto_checkout") return "/portal/attendance";
   // KID-2502: staff check-in / check-out pushes open the staff profile in the
   // portal (the recipients are owner/admin accounts, never the parent surface).
   if (kind === "staff_checkin" || kind === "staff_checkout") {
     const staffId = String(payload.staffId ?? "");
     return staffId ? `/portal/staff/${staffId}` : "/portal/staff";
   }
-  if (kind === "test") return "/child/notifications";
-  return "/child/newsfeed";
+  return parentNotificationHref(kind, payload);
 }
 
 /** Public VAPID key (browser-facing) — falls back to the server-side name. */

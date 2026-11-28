@@ -44,7 +44,7 @@ export default async function ParentConsentsPage() {
         consents.map((c: any) => {
           const badge = consentStatusBadge(String(c.status ?? "pending"), t);
           return (
-            <div className="card mb-4" key={c.id}>
+            <div className="card mb-4" key={c.id} id={`consent-${c.id}`}>
               <div className="row" style={{ justifyContent: "space-between" }}>
                 <div>
                   <div style={{ fontWeight: 700 }}>{c.title}</div>

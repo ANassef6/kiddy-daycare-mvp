@@ -55,7 +55,7 @@ export default async function ParentFormsPage({ searchParams }: { searchParams: 
       {forms.map((f: any) => {
         const fields = safeJson<Field[]>(f.fields_json, []);
         return (
-          <div className="card mb-4" key={f.id}>
+          <div className="card mb-4" key={f.id} id={`form-${f.id}`}>
             <div className="status-card">
               <div>
                 <div style={{ fontWeight: 700, fontSize: 17 }}>{f.title}</div>
