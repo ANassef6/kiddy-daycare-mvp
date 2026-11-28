@@ -295,8 +295,12 @@ describe("KID-480 push fan-out", () => {
     expect(await unreadNotificationCount(parentId)).toBe(1);
     const rows = await listNotificationsFor(parentId);
     expect(String(rows[0]!.kind)).toBe("announcement");
+    const postPayload = JSON.parse(String(rows[0]!.payload));
+    expect(postPayload.postId).toBeTruthy();
     expect(sendNotificationMock).toHaveBeenCalledTimes(1);
-    expect(JSON.parse(String(sendNotificationMock.mock.calls[0]![1])).url).toBe("/child/newsfeed");
+    expect(JSON.parse(String(sendNotificationMock.mock.calls[0]![1])).url).toBe(
+      `/child/newsfeed#post-${postPayload.postId}`
+    );
 
     await createNewsfeedPost({ instituteId: iid, accountId: ownerId, body: "Center-wide note" });
     expect(sendNotificationMock).toHaveBeenCalledTimes(2);
@@ -309,6 +313,7 @@ describe("KID-480 push copy + deep links", () => {
     expect(pushDeepUrl("message", {})).toBe("/child/messages");
     expect(pushDeepUrl("daily_report", { childId: "c1" })).toBe("/child/c1");
     expect(pushDeepUrl("announcement", {})).toBe("/child/newsfeed");
+    expect(pushDeepUrl("announcement", { postId: "p1" })).toBe("/child/newsfeed#post-p1");
     expect(pushDeepUrl("chatwoot_message", {})).toBe("/child/support");
     expect(pushDeepUrl("test", {})).toBe("/child/notifications");
   });

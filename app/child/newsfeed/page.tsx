@@ -38,7 +38,7 @@ export default async function ParentNewsfeedPage() {
         posts.map((post: any) => {
           const forChild = (post.tags || []).find((t: any) => childIds.includes(String(t.id)));
           return (
-            <div className="card mb-4" key={post.id}>
+            <div className="card mb-4" key={post.id} id={`post-${post.id}`}>
               <div className="row" style={{ justifyContent: "space-between", alignItems: "center" }}>
                 <div className="small muted" dir="auto">
                   {post.author_name} · {fmtDateTimeFor(locale, post.created_at, timeZone)}
