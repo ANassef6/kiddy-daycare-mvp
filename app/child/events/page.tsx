@@ -51,7 +51,7 @@ export default async function ParentEventsPage() {
       {withMedia.length === 0 && <p className="muted small mb-4">{t("events.noUpcoming")}</p>}
       <div className="grid mb-4">
         {withMedia.map((e: any) => (
-          <div className="card" key={e.id}>
+          <div className="card" key={e.id} id={`event-${e.id}`}>
             <div style={{ marginBottom: 8 }}>
               <span className="badge">{cap(e.event_date)}</span>
               {e.classroom_name && <span className="badge" style={{ marginInlineStart: 6 }}>{e.classroom_name}</span>}

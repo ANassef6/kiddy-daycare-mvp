@@ -39,7 +39,7 @@ export default async function ParentIncidentsPage() {
         <p className="muted">{t("parent.incidentsNothing")}</p>
       ) : (
         incidents.map((i: any) => (
-          <div className="card mb-4" key={i.id}>
+          <div className="card mb-4" key={i.id} id={`incident-${i.id}`}>
             <div className="row" style={{ justifyContent: "space-between" }}>
               <div className="small muted">
                 {typeLabel(String(i.type ?? ""))} · {i.child} · {fmtDateTimeFor(locale, i.created_at, timeZone)}

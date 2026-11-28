@@ -199,7 +199,7 @@ export default async function ChildDetailPage(
     <div>
       <Link className="small muted" href="/child">← {t("child.backToChildren")}</Link>
 
-      <div className="card mt-3">
+      <div className="card mt-3" id="attendance">
         <div className="status-card">
           <div className="row" style={{ alignItems: "center", gap: 12 }}>
             {/* #5a child avatar placeholder (photo upload later) — KID-1177:
