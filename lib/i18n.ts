@@ -1526,6 +1526,9 @@ export const en = {
     subtitle:
       "Staff register supplies required from parents (tools, cloth, food, etc.) with quantities. Parents are notified of updates via the newsfeed.",
     requestTitle: "Request supplies",
+    child: "Child",
+    noChild: "General request (all children)",
+    forChild: "for {name}",
     item: "Item",
     itemPlaceholder: "e.g. Diapers, spare cloth",
     qty: "Qty",
@@ -4035,6 +4038,9 @@ export const ar = {
     subtitle:
       "يسجّل الموظفون المستلزمات المطلوبة من أولياء الأمور (أدوات، قماش، طعام، إلخ) بالكميات. يُبلَّغ أولياء الأمور بالتحديثات عبر الأخبار.",
     requestTitle: "طلب مستلزمات",
+    child: "الطفل",
+    noChild: "طلب عام (كل الأطفال)",
+    forChild: "لـ {name}",
     item: "الصنف",
     itemPlaceholder: "مثلًا: حفاضات، قماش احتياطي",
     qty: "الكمية",
