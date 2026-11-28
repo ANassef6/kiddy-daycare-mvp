@@ -87,9 +87,9 @@ export default async function ChildNotificationsPage() {
                 >
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div className="row" style={{ justifyContent: "space-between", gap: 8 }}>
-                      <Link href={href} prefetch={false} title={target} className="small" style={{ fontWeight: unread ? 700 : 500, color: "var(--brand-primary)" }}>
+                      <a href={href} title={target} className="small" style={{ fontWeight: unread ? 700 : 500, color: "var(--brand-primary)" }}>
                         {view.title}
-                      </Link>
+                      </a>
                       <span className="small muted" title={fmtDateTimeFor(locale, String(row.created_at), timeZone)}>
                         {timeAgo(locale, dict, when, timeZone)}
                       </span>
