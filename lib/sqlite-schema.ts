@@ -528,6 +528,7 @@ export function sqliteSchema(db: any): void {
   CREATE TABLE IF NOT EXISTS supply_request (
     id TEXT PRIMARY KEY,
     institute_id TEXT NOT NULL REFERENCES institute(id) ON DELETE CASCADE,
+    child_id TEXT REFERENCES child(id) ON DELETE SET NULL,
     title TEXT NOT NULL,
     quantity INTEGER NOT NULL DEFAULT 1,
     unit TEXT NOT NULL DEFAULT 'pcs',
@@ -1048,6 +1049,14 @@ export function sqliteSchema(db: any): void {
   if (!staffStatusCols.some((c) => c.name === "geofence_override")) {
     db.exec("ALTER TABLE staff_status ADD COLUMN geofence_override INTEGER NOT NULL DEFAULT 0");
   }
+  // KID-2479: mirror of supabase/migrations/0064_kid2479_supply_child.sql.
+  // SQLite cannot add a foreign key to an existing table; the column is the
+  // only difference and the app validates the child against the centre.
+  const supplyCols = db.prepare("PRAGMA table_info(supply_request)").all() as { name: string }[];
+  if (!supplyCols.some((c) => c.name === "child_id")) {
+    db.exec("ALTER TABLE supply_request ADD COLUMN child_id TEXT");
+  }
+  db.exec("CREATE INDEX IF NOT EXISTS idx_supply_child ON supply_request (child_id)");
   const instCols = db.prepare("PRAGMA table_info(institute)").all() as { name: string }[];
   if (!instCols.some((c) => c.name === "contact")) {
     db.exec("ALTER TABLE institute ADD COLUMN contact TEXT");

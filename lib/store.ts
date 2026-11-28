@@ -4497,15 +4497,35 @@ export async function createHomework(data: {
 }
 
 // ---- KID-47 Round 6: supplies ----
-export async function listSupplies(instituteId: string): Promise<Row[]> {
+// KID-2479: a request can target one child; the list carries the child's name
+// so the card can show it. Parent accounts only see general requests plus the
+// ones for their own children — the same family_member scope the parent app
+// uses everywhere else. Staff/owner lists stay centre-wide as before.
+export async function listSupplies(
+  instituteId: string,
+  opts: { accountId?: string } = {}
+): Promise<Row[]> {
   try {
+    const args: unknown[] = [instituteId];
+    let parentFilter = "";
+    if (opts.accountId) {
+      const acct = await queryGet("SELECT role FROM account WHERE id = ?", opts.accountId);
+      if (String(acct?.role ?? "") === "parent") {
+        parentFilter = `AND (s.child_id IS NULL OR s.child_id IN (
+          SELECT fm.child_id FROM family_member fm WHERE fm.account_id = ?
+        ))`;
+        args.push(opts.accountId);
+      }
+    }
     // KID-477: carry the creator's name for the inline attribution line.
     return await queryAll(
-      `SELECT s.*, a.full_name AS created_by_name
+      `SELECT s.*, a.full_name AS created_by_name, c.first_name, c.last_name
        FROM supply_request s
        LEFT JOIN account a ON a.id = s.created_by
-       WHERE s.institute_id = ? ORDER BY s.created_at DESC`,
-      instituteId
+       LEFT JOIN child c ON c.id = s.child_id
+       WHERE s.institute_id = ? ${parentFilter}
+       ORDER BY s.created_at DESC`,
+      ...args
     );
   } catch {
     return [];
@@ -4514,6 +4534,7 @@ export async function listSupplies(instituteId: string): Promise<Row[]> {
 
 export async function createSupply(data: {
   instituteId: string;
+  childId?: string | null;
   title: string;
   quantity?: number;
   unit?: string;
@@ -4522,10 +4543,11 @@ export async function createSupply(data: {
 }): Promise<Row> {
   const id = uid();
   await queryRun(
-    `INSERT INTO supply_request (id, institute_id, title, quantity, unit, notes, status, created_by)
-     VALUES (?, ?, ?, ?, ?, ?, 'needed', ?)`,
+    `INSERT INTO supply_request (id, institute_id, child_id, title, quantity, unit, notes, status, created_by)
+     VALUES (?, ?, ?, ?, ?, ?, ?, 'needed', ?)`,
     id,
     data.instituteId,
+    data.childId || null,
     data.title,
     data.quantity ?? 1,
     data.unit ?? "pcs",
@@ -5188,7 +5210,7 @@ export async function recentActivityFeed(
     [
       listNewsfeed(instituteId, accountId),
       listHomework(instituteId, accountId),
-      listSupplies(instituteId),
+      listSupplies(instituteId, { accountId }),
       queryAll(
       `SELECT cb.id, cb.description, cb.amount_cents, cb.currency, cb.status, cb.created_at,
               c.first_name, c.last_name

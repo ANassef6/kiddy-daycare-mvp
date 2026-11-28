@@ -5365,11 +5365,17 @@ export async function createSupplyAction(formData: FormData) {
   const instituteId = await requireInstitute();
   const title = String(formData.get("title") ?? "").trim();
   if (instituteId && title) {
+    // KID-2479: an optional child turns a centre-wide request into a request
+    // for one child. The id is authorized against the signed-in account's
+    // scope before it reaches the write (never trust a raw form id).
+    const childId = String(formData.get("childId") ?? "").trim() || undefined;
+    if (childId) await assertChildInScope(childId, me);
     const quantity = Number(formData.get("quantity") ?? 1) || 1;
     const unit = String(formData.get("unit") ?? "pcs");
     const notes = String(formData.get("notes") ?? "");
     const supply = await createSupply({
       instituteId,
+      childId,
       title,
       quantity,
       unit,
@@ -5385,26 +5391,32 @@ export async function createSupplyAction(formData: FormData) {
         entityType: "supply_request",
         entityId: String(supply.id),
         summary: `Requested supplies (${title})`,
-        metadata: { quantity, unit },
+        metadata: childId ? { quantity, unit, childId } : { quantity, unit },
       });
     }
     // Notify parents of updates via newsfeed. KID-47 fix: the parent app
     // filters the newsfeed strictly by child tags. KID-2482: the composer now
     // has a classroom-aware recipients picker, so the tags follow the picked
     // audience; no pick keeps the old centre-wide broadcast.
+    // KID-2479: a child-specific request tags only that child, so other
+    // parents do not see a request that is not for them.
     try {
       let tagChildIds: string[] = [];
-      const hasAudienceFields =
-        formData.get("recipientChannel") !== null || formData.getAll("childIds").length > 0;
-      if (hasAudienceFields) {
-        const audience = await resolveRecipientAudience(formData, me, instituteId);
-        if (audience.channel === "center" || audience.channel === "") {
-          tagChildIds = (await listChildren(instituteId)).map((c) => String(c.id));
-        } else {
-          tagChildIds = Array.from(new Set(audience.childIds));
-        }
+      if (childId) {
+        tagChildIds = [childId];
       } else {
-        tagChildIds = (await listChildren(instituteId)).map((c) => String(c.id));
+        const hasAudienceFields =
+          formData.get("recipientChannel") !== null || formData.getAll("childIds").length > 0;
+        if (hasAudienceFields) {
+          const audience = await resolveRecipientAudience(formData, me, instituteId);
+          if (audience.channel === "center" || audience.channel === "") {
+            tagChildIds = (await listChildren(instituteId)).map((c) => String(c.id));
+          } else {
+            tagChildIds = Array.from(new Set(audience.childIds));
+          }
+        } else {
+          tagChildIds = (await listChildren(instituteId)).map((c) => String(c.id));
+        }
       }
       if (tagChildIds.length > 0) {
         await createNewsfeedPost({
