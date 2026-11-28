@@ -9,6 +9,7 @@ import {
   type NotificationPayload,
 } from "@/lib/store";
 import { markNotificationReadAction } from "@/lib/actions";
+import { parentNotificationHref } from "@/lib/notification-routes";
 
 export const dynamic = "force-dynamic";
 
@@ -70,22 +71,8 @@ export default async function ChildNotificationsPage() {
                 console.error("KID-474 malformed notification payload:", err, String(row.id ?? ""));
               }
               const view = notificationViewCopy(String(row.kind ?? ""), parsed, copy);
-              // KID-474 deep links: threads open the parent messaging thread,
-              // daily reports open the child's page with the report.
-              let href = "/child";
-              if (String(row.kind ?? "") === "message") {
-                const threadId = parsed.threadId ? String(parsed.threadId) : null;
-                href = threadId ? `/child/messages?thread=${threadId}` : "/child/messages";
-              } else if (String(row.kind ?? "") === "daily_report") {
-                const childId = parsed.childId ? String(parsed.childId) : "";
-                href = childId ? `/child/${childId}` : "/child";
-              } else if (String(row.kind ?? "") === "invoice_created") {
-                // KID-684: a new invoice opens the parent's invoice section
-                // on the child surface — the same role-correct deep link the
-                // push payload carries.
-                const childId = parsed.childId ? String(parsed.childId) : "";
-                href = childId ? `/child/${childId}#invoices` : "/child";
-              }
+              const target = parentNotificationHref(String(row.kind ?? ""), parsed);
+              const href = `/api/notifications/open?id=${encodeURIComponent(String(row.id))}`;
               const when = new Date(String(row.created_at));
               return (
                 <div
@@ -100,9 +87,9 @@ export default async function ChildNotificationsPage() {
                 >
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div className="row" style={{ justifyContent: "space-between", gap: 8 }}>
-                      <Link href={href} className="small" style={{ fontWeight: unread ? 700 : 500, color: "var(--brand-primary)" }}>
+                      <a href={href} title={target} className="small" style={{ fontWeight: unread ? 700 : 500, color: "var(--brand-primary)" }}>
                         {view.title}
-                      </Link>
+                      </a>
                       <span className="small muted" title={fmtDateTimeFor(locale, String(row.created_at), timeZone)}>
                         {timeAgo(locale, dict, when, timeZone)}
                       </span>

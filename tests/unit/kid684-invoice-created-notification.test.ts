@@ -70,6 +70,7 @@ import {
   notificationViewCopy,
 } from "@/lib/store";
 import { pushDeepUrl, savePushSubscription } from "@/lib/push";
+import { parentNotificationHref } from "@/lib/notification-routes";
 import { dictionaries, feedCopyFor } from "@/lib/i18n";
 
 let iid = "";
@@ -296,7 +297,7 @@ describe("KID-684 push delivery: role-correct deep link and copy", () => {
 
   it("pushDeepUrl falls back safely without a childId", () => {
     expect(pushDeepUrl("invoice_created", { childId })).toBe(`/child/${childId}#invoices`);
-    expect(pushDeepUrl("invoice_created", {})).toBe("/child");
+    expect(pushDeepUrl("invoice_created", {})).toBe("/child/notifications");
   });
 
   it("the notification-center row links to the same parent surface, never the admin portal", async () => {
@@ -307,8 +308,8 @@ describe("KID-684 push delivery: role-correct deep link and copy", () => {
     expect(payload.childId).toBe(childId);
     const source = await import("node:fs");
     const page = source.readFileSync("app/child/notifications/page.tsx", "utf8");
-    expect(page).toContain('invoice_created');
-    expect(page).toContain('#invoices');
+    expect(page).toContain("parentNotificationHref");
+    expect(parentNotificationHref("invoice_created", payload)).toBe(`/child/${childId}#invoices`);
     const childPage = source.readFileSync("app/child/[id]/page.tsx", "utf8");
     expect(childPage).toContain('id="invoices"');
   });
